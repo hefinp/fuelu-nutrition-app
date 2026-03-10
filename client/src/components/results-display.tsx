@@ -26,18 +26,15 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
   
   const generateMealPlan = useMutation({
     mutationFn: async (planType: 'daily' | 'weekly') => {
-      return await apiRequest({
-        method: 'POST',
-        path: '/api/meal-plans',
-        body: {
-          dailyCalories: data.dailyCalories,
-          weeklyCalories: data.weeklyCalories,
-          proteinGoal: data.proteinGoal,
-          carbsGoal: data.carbsGoal,
-          fatGoal: data.fatGoal,
-          planType,
-        },
+      const res = await apiRequest('POST', '/api/meal-plans', {
+        dailyCalories: data.dailyCalories,
+        weeklyCalories: data.weeklyCalories,
+        proteinGoal: data.proteinGoal,
+        carbsGoal: data.carbsGoal,
+        fatGoal: data.fatGoal,
+        planType,
       });
+      return await res.json();
     },
     onSuccess: (data) => {
       setMealPlan(data);
