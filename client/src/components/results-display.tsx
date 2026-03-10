@@ -1,9 +1,48 @@
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { Flame, Calendar, Info } from "lucide-react";
+import { Flame, Calendar, UtensilsCrossed, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import type { Calculation } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+
+interface MealPlan {
+  planType: 'daily' | 'weekly';
+  totalCalories: number;
+  totalProtein: number;
+  totalCarbs: number;
+  totalFat: number;
+  meals: Array<{
+    meal: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }>;
+}
 
 export function ResultsDisplay({ data }: { data: Calculation }) {
+  const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
+  
+  const generateMealPlan = useMutation({
+    mutationFn: async (planType: 'daily' | 'weekly') => {
+      return await apiRequest({
+        method: 'POST',
+        path: '/api/meal-plans',
+        body: {
+          dailyCalories: data.dailyCalories,
+          weeklyCalories: data.weeklyCalories,
+          proteinGoal: data.proteinGoal,
+          carbsGoal: data.carbsGoal,
+          fatGoal: data.fatGoal,
+          planType,
+        },
+      });
+    },
+    onSuccess: (data) => {
+      setMealPlan(data);
+    },
+  });
   const chartData = [
     { name: "Protein", value: data.proteinGoal, color: "hsl(var(--chart-1))" },
     { name: "Carbs", value: data.carbsGoal, color: "hsl(var(--chart-2))" },
@@ -86,6 +125,25 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
                 </div>
               ))}
             </div>
+
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={() => generateMealPlan.mutate('daily')}
+                disabled={generateMealPlan.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium text-sm transition-colors"
+              >
+                {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
+                Daily Meal Plan
+              </button>
+              <button
+                onClick={() => generateMealPlan.mutate('weekly')}
+                disabled={generateMealPlan.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium text-sm transition-colors"
+              >
+                {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
+                Weekly Plan
+              </button>
+            </div>
           </div>
 
           <div className="h-64 relative">
@@ -117,6 +175,52 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
           </div>
         </div>
       </motion.div>
+
+      {/* Meal Plan Display */}
+      {mealPlan && (
+        <motion.div variants={itemVariants} className="bg-white p-8 rounded-3xl border border-zinc-100 shadow-lg">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+              <UtensilsCrossed className="w-5 h-5" />
+            </div>
+            <h3 className="text-2xl font-bold text-zinc-900 capitalize">{mealPlan.planType} Meal Plan</h3>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="bg-orange-50 p-4 rounded-xl">
+              <p className="text-xs text-orange-600 font-medium mb-1">Total Calories</p>
+              <p className="text-2xl font-bold text-orange-700">{mealPlan.totalCalories}</p>
+            </div>
+            <div className="bg-red-50 p-4 rounded-xl">
+              <p className="text-xs text-red-600 font-medium mb-1">Protein</p>
+              <p className="text-2xl font-bold text-red-700">{mealPlan.totalProtein}g</p>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-xl">
+              <p className="text-xs text-blue-600 font-medium mb-1">Carbs</p>
+              <p className="text-2xl font-bold text-blue-700">{mealPlan.totalCarbs}g</p>
+            </div>
+            <div className="bg-yellow-50 p-4 rounded-xl">
+              <p className="text-xs text-yellow-600 font-medium mb-1">Fat</p>
+              <p className="text-2xl font-bold text-yellow-700">{mealPlan.totalFat}g</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {mealPlan.meals.map((meal, idx) => (
+              <div key={idx} className="flex items-between justify-between p-4 bg-zinc-50 rounded-xl hover:bg-zinc-100 transition-colors">
+                <div className="flex-1">
+                  <p className="font-medium text-zinc-900">{meal.meal}</p>
+                  <p className="text-xs text-zinc-500 mt-1">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-zinc-900">{meal.calories}</p>
+                  <p className="text-xs text-zinc-500">kcal</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 }

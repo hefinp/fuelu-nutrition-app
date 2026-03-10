@@ -6,6 +6,32 @@ export const errorSchemas = {
   internal: z.object({ message: z.string() }),
 };
 
+export const mealPlanSchema = z.object({
+  dailyCalories: z.number(),
+  weeklyCalories: z.number(),
+  proteinGoal: z.number(),
+  carbsGoal: z.number(),
+  fatGoal: z.number(),
+  planType: z.enum(['daily', 'weekly']),
+});
+
+export const mealSchema = z.object({
+  meal: z.string(),
+  calories: z.number(),
+  protein: z.number(),
+  carbs: z.number(),
+  fat: z.number(),
+});
+
+export const mealPlanResponseSchema = z.object({
+  planType: z.enum(['daily', 'weekly']),
+  totalCalories: z.number(),
+  totalProtein: z.number(),
+  totalCarbs: z.number(),
+  totalFat: z.number(),
+  meals: z.array(mealSchema),
+});
+
 export const api = {
   calculations: {
     create: {
@@ -22,6 +48,17 @@ export const api = {
       path: '/api/calculations' as const,
       responses: {
         200: z.array(z.custom<typeof calculations.$inferSelect>()),
+      },
+    },
+  },
+  mealPlans: {
+    generate: {
+      method: 'POST' as const,
+      path: '/api/meal-plans' as const,
+      input: mealPlanSchema,
+      responses: {
+        201: mealPlanResponseSchema,
+        400: errorSchemas.validation,
       },
     },
   },

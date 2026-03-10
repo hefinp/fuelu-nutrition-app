@@ -1,8 +1,111 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import { api } from "@shared/routes";
+import { api, mealPlanSchema } from "@shared/routes";
 import { z } from "zod";
+
+const MEAL_DATABASE = {
+  breakfast: [
+    { meal: "Scrambled eggs (3) with whole grain toast", calories: 380, protein: 20, carbs: 32, fat: 12 },
+    { meal: "Oatmeal with berries and almonds", calories: 340, protein: 12, carbs: 48, fat: 8 },
+    { meal: "Greek yogurt with granola and honey", calories: 380, protein: 18, carbs: 52, fat: 8 },
+    { meal: "Pancakes (2) with maple syrup and bacon", calories: 450, protein: 15, carbs: 60, fat: 14 },
+    { meal: "Smoothie bowl with fruit and nuts", calories: 420, protein: 15, carbs: 58, fat: 10 },
+    { meal: "Chia seed pudding with coconut milk", calories: 320, protein: 10, carbs: 38, fat: 14 },
+  ],
+  lunch: [
+    { meal: "Grilled chicken breast with brown rice and broccoli", calories: 520, protein: 45, carbs: 52, fat: 8 },
+    { meal: "Turkey sandwich with avocado and vegetables", calories: 480, protein: 28, carbs: 48, fat: 16 },
+    { meal: "Tuna salad with olive oil dressing", calories: 420, protein: 35, carbs: 28, fat: 14 },
+    { meal: "Quinoa bowl with chickpeas and vegetables", calories: 450, protein: 16, carbs: 58, fat: 12 },
+    { meal: "Salmon with sweet potato and asparagus", calories: 540, protein: 40, carbs: 48, fat: 16 },
+    { meal: "Beef stir-fry with brown rice and mixed vegetables", calories: 580, protein: 38, carbs: 62, fat: 12 },
+  ],
+  dinner: [
+    { meal: "Baked chicken with roasted vegetables and pasta", calories: 620, protein: 40, carbs: 70, fat: 12 },
+    { meal: "Lean beef with mashed potatoes and green beans", calories: 680, protein: 45, carbs: 68, fat: 14 },
+    { meal: "Grilled fish with wild rice and vegetables", calories: 580, protein: 42, carbs: 58, fat: 12 },
+    { meal: "Pork tenderloin with sweet potato and spinach", calories: 620, protein: 42, carbs: 62, fat: 14 },
+    { meal: "Turkey meatballs with spaghetti and marinara", calories: 560, protein: 38, carbs: 68, fat: 10 },
+    { meal: "Chicken fajitas with brown rice and beans", calories: 640, protein: 38, carbs: 78, fat: 12 },
+  ],
+  snack: [
+    { meal: "Protein bar and apple", calories: 280, protein: 20, carbs: 32, fat: 8 },
+    { meal: "Greek yogurt with granola", calories: 200, protein: 15, carbs: 24, fat: 4 },
+    { meal: "Trail mix and banana", calories: 320, protein: 10, carbs: 42, fat: 12 },
+    { meal: "Cottage cheese with berries", calories: 220, protein: 18, carbs: 20, fat: 6 },
+    { meal: "Peanut butter and whole grain crackers", calories: 280, protein: 12, carbs: 28, fat: 14 },
+    { meal: "Hard-boiled eggs and almonds", calories: 240, protein: 16, carbs: 12, fat: 14 },
+  ],
+};
+
+function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, isWeekly: boolean) {
+  const meals = [];
+  const calorieTarget = dailyCalories;
+  const prng = Math.random;
+  
+  // Breakfast
+  const breakfast = MEAL_DATABASE.breakfast[Math.floor(Math.random() * MEAL_DATABASE.breakfast.length)];
+  meals.push(breakfast);
+  let accCals = breakfast.calories;
+  let accProtein = breakfast.protein;
+  let accCarbs = breakfast.carbs;
+  let accFat = breakfast.fat;
+
+  // Lunch
+  const lunch = MEAL_DATABASE.lunch[Math.floor(Math.random() * MEAL_DATABASE.lunch.length)];
+  meals.push(lunch);
+  accCals += lunch.calories;
+  accProtein += lunch.protein;
+  accCarbs += lunch.carbs;
+  accFat += lunch.fat;
+
+  // Dinner
+  const dinner = MEAL_DATABASE.dinner[Math.floor(Math.random() * MEAL_DATABASE.dinner.length)];
+  meals.push(dinner);
+  accCals += dinner.calories;
+  accProtein += dinner.protein;
+  accCarbs += dinner.carbs;
+  accFat += dinner.fat;
+
+  // Snacks to fill remaining calories
+  let remaining = calorieTarget - accCals;
+  while (remaining > 200 && meals.length < 6) {
+    const snack = MEAL_DATABASE.snack[Math.floor(Math.random() * MEAL_DATABASE.snack.length)];
+    if (snack.calories <= remaining) {
+      meals.push(snack);
+      remaining -= snack.calories;
+      accCals += snack.calories;
+      accProtein += snack.protein;
+      accCarbs += snack.carbs;
+      accFat += snack.fat;
+    } else {
+      break;
+    }
+  }
+
+  const result = {
+    planType: isWeekly ? 'weekly' as const : 'daily' as const,
+    totalCalories: accCals,
+    totalProtein: accProtein,
+    totalCarbs: accCarbs,
+    totalFat: accFat,
+    meals: meals,
+  };
+
+  // If weekly, multiply all values by 7
+  if (isWeekly) {
+    return {
+      ...result,
+      totalCalories: result.totalCalories * 7,
+      totalProtein: result.totalProtein * 7,
+      totalCarbs: result.totalCarbs * 7,
+      totalFat: result.totalFat * 7,
+    };
+  }
+
+  return result;
+}
 
 function calculateMacros(weight: number, height: number, age: number, gender: string, activityLevel: string) {
   // Mifflin-St Jeor Equation
@@ -83,6 +186,22 @@ export async function registerRoutes(
   app.get(api.calculations.list.path, async (req, res) => {
     const calcs = await storage.getCalculations();
     res.status(200).json(calcs);
+  });
+
+  app.post(api.mealPlans.generate.path, async (req, res) => {
+    try {
+      const input = mealPlanSchema.parse(req.body);
+      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly');
+      res.status(201).json(mealPlan);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
   });
 
   return httpServer;
