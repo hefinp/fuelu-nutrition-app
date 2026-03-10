@@ -1,18 +1,29 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, numeric, timestamp, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+export const calculations = pgTable("calculations", {
+  id: serial("id").primaryKey(),
+  weight: numeric("weight").notNull(), // in kg
+  height: numeric("height").notNull(), // in cm
+  age: integer("age").default(30),
+  gender: text("gender").default('male'),
+  activityLevel: text("activity_level").default('moderate'),
+  dailyCalories: integer("daily_calories").notNull(),
+  weeklyCalories: integer("weekly_calories").notNull(),
+  proteinGoal: integer("protein_goal").notNull(),
+  carbsGoal: integer("carbs_goal").notNull(),
+  fatGoal: integer("fat_goal").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const insertCalculationSchema = createInsertSchema(calculations).pick({
+  weight: true,
+  height: true,
+  age: true,
+  gender: true,
+  activityLevel: true,
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type InsertCalculation = z.infer<typeof insertCalculationSchema>;
+export type Calculation = typeof calculations.$inferSelect;
