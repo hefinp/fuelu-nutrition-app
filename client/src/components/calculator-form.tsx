@@ -17,7 +17,7 @@ const formSchema = z.object({
   age: z.coerce.number().min(10).max(120),
   gender: z.enum(["male", "female"]),
   activityLevel: z.enum(["sedentary", "light", "moderate", "active", "very_active"]),
-  goal: z.enum(["lose", "maintain", "gain"]),
+  goal: z.enum(["fat_loss", "tone", "maintain", "muscle", "bulk"]),
   targetType: z.enum(["weekly", "monthly"]),
   targetAmount: z.string().optional(),
 });
