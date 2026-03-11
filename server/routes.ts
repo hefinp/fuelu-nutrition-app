@@ -39,19 +39,21 @@ const MEAL_DATABASE = {
   ],
 };
 
-function generateDayPlan(dailyCalories: number) {
+type MealEntry = { meal: string; calories: number; protein: number; carbs: number; fat: number };
+
+function buildDayPlan(dailyCalories: number, lunchOverride?: MealEntry) {
   const breakfast = MEAL_DATABASE.breakfast[Math.floor(Math.random() * MEAL_DATABASE.breakfast.length)];
-  const lunch = MEAL_DATABASE.lunch[Math.floor(Math.random() * MEAL_DATABASE.lunch.length)];
+  const lunch = lunchOverride ?? MEAL_DATABASE.lunch[Math.floor(Math.random() * MEAL_DATABASE.lunch.length)];
   const dinner = MEAL_DATABASE.dinner[Math.floor(Math.random() * MEAL_DATABASE.dinner.length)];
-  
+
   let dayTotalCalories = breakfast.calories + lunch.calories + dinner.calories;
   let dayTotalProtein = breakfast.protein + lunch.protein + dinner.protein;
   let dayTotalCarbs = breakfast.carbs + lunch.carbs + dinner.carbs;
   let dayTotalFat = breakfast.fat + lunch.fat + dinner.fat;
 
-  const snacksList = [];
+  const snacksList: MealEntry[] = [];
   let remaining = dailyCalories - dayTotalCalories;
-  
+
   while (remaining > 150 && snacksList.length < 2) {
     const snack = MEAL_DATABASE.snack[Math.floor(Math.random() * MEAL_DATABASE.snack.length)];
     if (snack.calories <= remaining) {
@@ -78,6 +80,10 @@ function generateDayPlan(dailyCalories: number) {
   };
 }
 
+function generateDayPlan(dailyCalories: number) {
+  return buildDayPlan(dailyCalories);
+}
+
 function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, isWeekly: boolean) {
   if (isWeekly) {
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
@@ -87,8 +93,40 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
     let weekTotalCarbs = 0;
     let weekTotalFat = 0;
 
-    days.forEach(day => {
-      const dayPlan = generateDayPlan(dailyCalories);
+    let previousDinner: MealEntry | undefined = undefined;
+
+    days.forEach((day, index) => {
+      // Monday (index 0): lunch = Monday's own dinner, so we build without override first,
+      // then re-use that dinner as its own lunch.
+      // All other days: lunch = previous day's dinner.
+      let dayPlan: ReturnType<typeof buildDayPlan>;
+
+      if (index === 0) {
+        // Build Monday fully random, then set lunch = its own dinner
+        const mondayBase = buildDayPlan(dailyCalories);
+        const mondayDinner = mondayBase.dinner[0];
+        // Recalculate totals replacing the random lunch with the dinner
+        const lunchDiff = {
+          calories: mondayDinner.calories - mondayBase.lunch[0].calories,
+          protein: mondayDinner.protein - mondayBase.lunch[0].protein,
+          carbs: mondayDinner.carbs - mondayBase.lunch[0].carbs,
+          fat: mondayDinner.fat - mondayBase.lunch[0].fat,
+        };
+        dayPlan = {
+          ...mondayBase,
+          lunch: [mondayDinner],
+          dayTotalCalories: mondayBase.dayTotalCalories + lunchDiff.calories,
+          dayTotalProtein: mondayBase.dayTotalProtein + lunchDiff.protein,
+          dayTotalCarbs: mondayBase.dayTotalCarbs + lunchDiff.carbs,
+          dayTotalFat: mondayBase.dayTotalFat + lunchDiff.fat,
+        };
+        previousDinner = mondayBase.dinner[0];
+      } else {
+        // Use previous day's dinner as today's lunch
+        dayPlan = buildDayPlan(dailyCalories, previousDinner);
+        previousDinner = dayPlan.dinner[0];
+      }
+
       weekPlan[day] = dayPlan;
       weekTotalCalories += dayPlan.dayTotalCalories;
       weekTotalProtein += dayPlan.dayTotalProtein;
