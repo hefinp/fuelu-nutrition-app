@@ -6,20 +6,26 @@ import { useMutation } from "@tanstack/react-query";
 import type { Calculation } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
-interface MealPlan {
-  planType: 'daily' | 'weekly';
-  totalCalories: number;
-  totalProtein: number;
-  totalCarbs: number;
-  totalFat: number;
-  meals: Array<{
-    meal: string;
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-  }>;
+interface Meal {
+  meal: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
 }
+
+interface DayMealPlan {
+  breakfast: Meal[];
+  lunch: Meal[];
+  dinner: Meal[];
+  snacks: Meal[];
+  dayTotalCalories: number;
+  dayTotalProtein: number;
+  dayTotalCarbs: number;
+  dayTotalFat: number;
+}
+
+type MealPlan = any;
 
 export function ResultsDisplay({ data }: { data: Calculation }) {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
@@ -128,6 +134,7 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
                 onClick={() => generateMealPlan.mutate('daily')}
                 disabled={generateMealPlan.isPending}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium text-sm transition-colors"
+                data-testid="button-generate-daily"
               >
                 {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
                 Daily Meal Plan
@@ -136,6 +143,7 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
                 onClick={() => generateMealPlan.mutate('weekly')}
                 disabled={generateMealPlan.isPending}
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium text-sm transition-colors"
+                data-testid="button-generate-weekly"
               >
                 {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
                 Weekly Plan
@@ -183,41 +191,134 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
             <h3 className="text-2xl font-bold text-zinc-900 capitalize">{mealPlan.planType} Meal Plan</h3>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-orange-50 p-4 rounded-xl">
-              <p className="text-xs text-orange-600 font-medium mb-1">Total Calories</p>
-              <p className="text-2xl font-bold text-orange-700">{mealPlan.totalCalories}</p>
-            </div>
-            <div className="bg-red-50 p-4 rounded-xl">
-              <p className="text-xs text-red-600 font-medium mb-1">Protein</p>
-              <p className="text-2xl font-bold text-red-700">{mealPlan.totalProtein}g</p>
-            </div>
-            <div className="bg-blue-50 p-4 rounded-xl">
-              <p className="text-xs text-blue-600 font-medium mb-1">Carbs</p>
-              <p className="text-2xl font-bold text-blue-700">{mealPlan.totalCarbs}g</p>
-            </div>
-            <div className="bg-yellow-50 p-4 rounded-xl">
-              <p className="text-xs text-yellow-600 font-medium mb-1">Fat</p>
-              <p className="text-2xl font-bold text-yellow-700">{mealPlan.totalFat}g</p>
-            </div>
-          </div>
+          {mealPlan.planType === 'daily' ? (
+            <DailyMealView plan={mealPlan} />
+          ) : (
+            <WeeklyMealView plan={mealPlan} />
+          )}
+        </motion.div>
+      )}
+    </motion.div>
+  );
+}
 
-          <div className="space-y-3">
-            {mealPlan.meals.map((meal, idx) => (
-              <div key={idx} className="flex items-between justify-between p-4 bg-zinc-50 rounded-xl hover:bg-zinc-100 transition-colors">
+function DailyMealView({ plan }: { plan: any }) {
+  return (
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-orange-50 p-4 rounded-xl">
+          <p className="text-xs text-orange-600 font-medium mb-1">Calories</p>
+          <p className="text-2xl font-bold text-orange-700">{plan.dayTotalCalories}</p>
+        </div>
+        <div className="bg-red-50 p-4 rounded-xl">
+          <p className="text-xs text-red-600 font-medium mb-1">Protein</p>
+          <p className="text-2xl font-bold text-red-700">{plan.dayTotalProtein}g</p>
+        </div>
+        <div className="bg-blue-50 p-4 rounded-xl">
+          <p className="text-xs text-blue-600 font-medium mb-1">Carbs</p>
+          <p className="text-2xl font-bold text-blue-700">{plan.dayTotalCarbs}g</p>
+        </div>
+        <div className="bg-yellow-50 p-4 rounded-xl">
+          <p className="text-xs text-yellow-600 font-medium mb-1">Fat</p>
+          <p className="text-2xl font-bold text-yellow-700">{plan.dayTotalFat}g</p>
+        </div>
+      </div>
+
+      {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(mealType => (
+        <div key={mealType} className="mb-6">
+          <h4 className="text-lg font-semibold text-zinc-900 capitalize mb-3">{mealType}</h4>
+          <div className="space-y-2">
+            {plan[mealType]?.map((meal: Meal, idx: number) => (
+              <div key={idx} className="flex justify-between p-3 bg-zinc-50 rounded-lg hover:bg-zinc-100 transition-colors">
                 <div className="flex-1">
-                  <p className="font-medium text-zinc-900">{meal.meal}</p>
-                  <p className="text-xs text-zinc-500 mt-1">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+                  <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-zinc-900">{meal.calories}</p>
+                <div className="text-right ml-4">
+                  <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
                   <p className="text-xs text-zinc-500">kcal</p>
                 </div>
               </div>
             ))}
           </div>
-        </motion.div>
-      )}
-    </motion.div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function WeeklyMealView({ plan }: { plan: any }) {
+  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+  
+  return (
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-orange-50 p-4 rounded-xl">
+          <p className="text-xs text-orange-600 font-medium mb-1">Week Total</p>
+          <p className="text-2xl font-bold text-orange-700">{plan.weekTotalCalories}</p>
+        </div>
+        <div className="bg-red-50 p-4 rounded-xl">
+          <p className="text-xs text-red-600 font-medium mb-1">Protein</p>
+          <p className="text-2xl font-bold text-red-700">{plan.weekTotalProtein}g</p>
+        </div>
+        <div className="bg-blue-50 p-4 rounded-xl">
+          <p className="text-xs text-blue-600 font-medium mb-1">Carbs</p>
+          <p className="text-2xl font-bold text-blue-700">{plan.weekTotalCarbs}g</p>
+        </div>
+        <div className="bg-yellow-50 p-4 rounded-xl">
+          <p className="text-xs text-yellow-600 font-medium mb-1">Fat</p>
+          <p className="text-2xl font-bold text-yellow-700">{plan.weekTotalFat}g</p>
+        </div>
+      </div>
+
+      {days.map(day => {
+        const dayPlan = plan[day];
+        if (!dayPlan) return null;
+        
+        return (
+          <div key={day} className="mb-8 p-5 bg-zinc-50 rounded-2xl">
+            <h4 className="text-lg font-bold text-zinc-900 capitalize mb-4">{day}</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="bg-white p-3 rounded-lg">
+                <p className="text-xs text-zinc-500 font-medium mb-1">Calories</p>
+                <p className="font-bold text-zinc-900">{dayPlan.dayTotalCalories}</p>
+              </div>
+              <div className="bg-white p-3 rounded-lg">
+                <p className="text-xs text-zinc-500 font-medium mb-1">Protein</p>
+                <p className="font-bold text-zinc-900">{dayPlan.dayTotalProtein}g</p>
+              </div>
+              <div className="bg-white p-3 rounded-lg">
+                <p className="text-xs text-zinc-500 font-medium mb-1">Carbs</p>
+                <p className="font-bold text-zinc-900">{dayPlan.dayTotalCarbs}g</p>
+              </div>
+              <div className="bg-white p-3 rounded-lg">
+                <p className="text-xs text-zinc-500 font-medium mb-1">Fat</p>
+                <p className="font-bold text-zinc-900">{dayPlan.dayTotalFat}g</p>
+              </div>
+            </div>
+
+            {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(mealType => (
+              <div key={mealType} className="mb-3">
+                <h5 className="text-sm font-semibold text-zinc-700 capitalize mb-2">{mealType}</h5>
+                <div className="space-y-1">
+                  {dayPlan[mealType]?.map((meal: Meal, idx: number) => (
+                    <div key={idx} className="flex justify-between p-2 bg-white rounded hover:bg-zinc-100 transition-colors">
+                      <div className="flex-1">
+                        <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
+                        <p className="text-xs text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+                      </div>
+                      <div className="text-right ml-4">
+                        <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
+                        <p className="text-xs text-zinc-500">kcal</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </>
   );
 }

@@ -39,72 +39,78 @@ const MEAL_DATABASE = {
   ],
 };
 
-function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, isWeekly: boolean) {
-  const meals = [];
-  const calorieTarget = dailyCalories;
-  const prng = Math.random;
-  
-  // Breakfast
+function generateDayPlan(dailyCalories: number) {
   const breakfast = MEAL_DATABASE.breakfast[Math.floor(Math.random() * MEAL_DATABASE.breakfast.length)];
-  meals.push(breakfast);
-  let accCals = breakfast.calories;
-  let accProtein = breakfast.protein;
-  let accCarbs = breakfast.carbs;
-  let accFat = breakfast.fat;
-
-  // Lunch
   const lunch = MEAL_DATABASE.lunch[Math.floor(Math.random() * MEAL_DATABASE.lunch.length)];
-  meals.push(lunch);
-  accCals += lunch.calories;
-  accProtein += lunch.protein;
-  accCarbs += lunch.carbs;
-  accFat += lunch.fat;
-
-  // Dinner
   const dinner = MEAL_DATABASE.dinner[Math.floor(Math.random() * MEAL_DATABASE.dinner.length)];
-  meals.push(dinner);
-  accCals += dinner.calories;
-  accProtein += dinner.protein;
-  accCarbs += dinner.carbs;
-  accFat += dinner.fat;
+  
+  let dayTotalCalories = breakfast.calories + lunch.calories + dinner.calories;
+  let dayTotalProtein = breakfast.protein + lunch.protein + dinner.protein;
+  let dayTotalCarbs = breakfast.carbs + lunch.carbs + dinner.carbs;
+  let dayTotalFat = breakfast.fat + lunch.fat + dinner.fat;
 
-  // Snacks to fill remaining calories
-  let remaining = calorieTarget - accCals;
-  while (remaining > 200 && meals.length < 6) {
+  const snacksList = [];
+  let remaining = dailyCalories - dayTotalCalories;
+  
+  while (remaining > 150 && snacksList.length < 2) {
     const snack = MEAL_DATABASE.snack[Math.floor(Math.random() * MEAL_DATABASE.snack.length)];
     if (snack.calories <= remaining) {
-      meals.push(snack);
+      snacksList.push(snack);
       remaining -= snack.calories;
-      accCals += snack.calories;
-      accProtein += snack.protein;
-      accCarbs += snack.carbs;
-      accFat += snack.fat;
+      dayTotalCalories += snack.calories;
+      dayTotalProtein += snack.protein;
+      dayTotalCarbs += snack.carbs;
+      dayTotalFat += snack.fat;
     } else {
       break;
     }
   }
 
-  const result = {
-    planType: isWeekly ? 'weekly' as const : 'daily' as const,
-    totalCalories: accCals,
-    totalProtein: accProtein,
-    totalCarbs: accCarbs,
-    totalFat: accFat,
-    meals: meals,
+  return {
+    breakfast: [breakfast],
+    lunch: [lunch],
+    dinner: [dinner],
+    snacks: snacksList,
+    dayTotalCalories,
+    dayTotalProtein,
+    dayTotalCarbs,
+    dayTotalFat,
   };
+}
 
-  // If weekly, multiply all values by 7
+function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, isWeekly: boolean) {
   if (isWeekly) {
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+    const weekPlan: any = {};
+    let weekTotalCalories = 0;
+    let weekTotalProtein = 0;
+    let weekTotalCarbs = 0;
+    let weekTotalFat = 0;
+
+    days.forEach(day => {
+      const dayPlan = generateDayPlan(dailyCalories);
+      weekPlan[day] = dayPlan;
+      weekTotalCalories += dayPlan.dayTotalCalories;
+      weekTotalProtein += dayPlan.dayTotalProtein;
+      weekTotalCarbs += dayPlan.dayTotalCarbs;
+      weekTotalFat += dayPlan.dayTotalFat;
+    });
+
     return {
-      ...result,
-      totalCalories: result.totalCalories * 7,
-      totalProtein: result.totalProtein * 7,
-      totalCarbs: result.totalCarbs * 7,
-      totalFat: result.totalFat * 7,
+      planType: 'weekly' as const,
+      ...weekPlan,
+      weekTotalCalories,
+      weekTotalProtein,
+      weekTotalCarbs,
+      weekTotalFat,
+    };
+  } else {
+    const dayPlan = generateDayPlan(dailyCalories);
+    return {
+      planType: 'daily' as const,
+      ...dayPlan,
     };
   }
-
-  return result;
 }
 
 function calculateMacros(weight: number, height: number, age: number, gender: string, activityLevel: string) {

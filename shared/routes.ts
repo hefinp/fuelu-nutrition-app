@@ -6,6 +6,39 @@ export const errorSchemas = {
   internal: z.object({ message: z.string() }),
 };
 
+export const mealSchema = z.object({
+  meal: z.string(),
+  calories: z.number(),
+  protein: z.number(),
+  carbs: z.number(),
+  fat: z.number(),
+});
+
+export const dayMealPlanSchema = z.object({
+  breakfast: z.array(mealSchema),
+  lunch: z.array(mealSchema),
+  dinner: z.array(mealSchema),
+  snacks: z.array(mealSchema),
+  dayTotalCalories: z.number(),
+  dayTotalProtein: z.number(),
+  dayTotalCarbs: z.number(),
+  dayTotalFat: z.number(),
+});
+
+export const weeklyMealPlanSchema = z.object({
+  monday: dayMealPlanSchema,
+  tuesday: dayMealPlanSchema,
+  wednesday: dayMealPlanSchema,
+  thursday: dayMealPlanSchema,
+  friday: dayMealPlanSchema,
+  saturday: dayMealPlanSchema,
+  sunday: dayMealPlanSchema,
+  weekTotalCalories: z.number(),
+  weekTotalProtein: z.number(),
+  weekTotalCarbs: z.number(),
+  weekTotalFat: z.number(),
+});
+
 export const mealPlanSchema = z.object({
   dailyCalories: z.number(),
   weeklyCalories: z.number(),
@@ -15,22 +48,33 @@ export const mealPlanSchema = z.object({
   planType: z.enum(['daily', 'weekly']),
 });
 
-export const mealSchema = z.object({
-  meal: z.string(),
-  calories: z.number(),
-  protein: z.number(),
-  carbs: z.number(),
-  fat: z.number(),
-});
-
-export const mealPlanResponseSchema = z.object({
-  planType: z.enum(['daily', 'weekly']),
-  totalCalories: z.number(),
-  totalProtein: z.number(),
-  totalCarbs: z.number(),
-  totalFat: z.number(),
-  meals: z.array(mealSchema),
-});
+export const mealPlanResponseSchema = z.union([
+  z.object({
+    planType: z.literal('daily'),
+    breakfast: z.array(mealSchema),
+    lunch: z.array(mealSchema),
+    dinner: z.array(mealSchema),
+    snacks: z.array(mealSchema),
+    dayTotalCalories: z.number(),
+    dayTotalProtein: z.number(),
+    dayTotalCarbs: z.number(),
+    dayTotalFat: z.number(),
+  }),
+  z.object({
+    planType: z.literal('weekly'),
+    monday: dayMealPlanSchema,
+    tuesday: dayMealPlanSchema,
+    wednesday: dayMealPlanSchema,
+    thursday: dayMealPlanSchema,
+    friday: dayMealPlanSchema,
+    saturday: dayMealPlanSchema,
+    sunday: dayMealPlanSchema,
+    weekTotalCalories: z.number(),
+    weekTotalProtein: z.number(),
+    weekTotalCarbs: z.number(),
+    weekTotalFat: z.number(),
+  }),
+]);
 
 export const api = {
   calculations: {

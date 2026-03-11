@@ -9,6 +9,9 @@ export const calculations = pgTable("calculations", {
   age: integer("age").default(30),
   gender: text("gender").default('male'),
   activityLevel: text("activity_level").default('moderate'),
+  goal: text("goal").default('maintain'), // lose, maintain, gain
+  targetType: text("target_type").default('weekly'), // weekly or monthly
+  targetAmount: numeric("target_amount"), // target weight loss/gain
   dailyCalories: integer("daily_calories").notNull(),
   weeklyCalories: integer("weekly_calories").notNull(),
   proteinGoal: integer("protein_goal").notNull(),
@@ -23,6 +26,9 @@ export const insertCalculationSchema = createInsertSchema(calculations).pick({
   age: true,
   gender: true,
   activityLevel: true,
+  goal: true,
+  targetType: true,
+  targetAmount: true,
 });
 
 export type InsertCalculation = z.infer<typeof insertCalculationSchema>;

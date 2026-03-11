@@ -17,6 +17,9 @@ const formSchema = z.object({
   age: z.coerce.number().min(10).max(120),
   gender: z.enum(["male", "female"]),
   activityLevel: z.enum(["sedentary", "light", "moderate", "active", "very_active"]),
+  goal: z.enum(["lose", "maintain", "gain"]),
+  targetType: z.enum(["weekly", "monthly"]),
+  targetAmount: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -33,6 +36,9 @@ export function CalculatorForm({ onResult }: { onResult: (id: number) => void })
       age: 30,
       gender: "male",
       activityLevel: "moderate",
+      goal: "maintain",
+      targetType: "weekly",
+      targetAmount: "",
     },
   });
 
@@ -189,6 +195,80 @@ export function CalculatorForm({ onResult }: { onResult: (id: number) => void })
                 <span className="capitalize block">{level.label}</span>
               </label>
             ))}
+          </div>
+        </div>
+
+        {/* Goal */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-zinc-700">Fitness Goal</label>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { id: "lose", label: "Lose Weight" },
+              { id: "maintain", label: "Maintain" },
+              { id: "gain", label: "Gain Weight" },
+            ].map((g) => (
+              <label
+                key={g.id}
+                className={`cursor-pointer text-center px-4 py-3 rounded-xl border transition-all duration-200 text-sm ${
+                  form.watch("goal") === g.id
+                    ? "bg-zinc-900 text-white border-zinc-900 shadow-md"
+                    : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
+                }`}
+              >
+                <input
+                  type="radio"
+                  value={g.id}
+                  {...form.register("goal")}
+                  className="hidden"
+                />
+                <span>{g.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Target */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-700">Target Type</label>
+            <div className="flex gap-3">
+              {["weekly", "monthly"].map((type) => (
+                <label
+                  key={type}
+                  className={`flex-1 cursor-pointer text-center px-4 py-3 rounded-xl border transition-all duration-200 ${
+                    form.watch("targetType") === type
+                      ? "bg-zinc-900 text-white border-zinc-900 shadow-md"
+                      : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    value={type}
+                    {...form.register("targetType")}
+                    className="hidden"
+                  />
+                  <span className="capitalize">{type}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-zinc-700">
+              Target {form.watch("goal") === "lose" ? "Loss" : "Gain"} (kg)
+            </label>
+            <input
+              type="number"
+              step="0.1"
+              {...form.register("targetAmount")}
+              className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 
+                       focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
+                       transition-all duration-200"
+              placeholder="e.g. 2"
+            />
+            {form.formState.errors.targetAmount && (
+              <p className="text-destructive text-xs">{form.formState.errors.targetAmount.message}</p>
+            )}
           </div>
         </div>
 
