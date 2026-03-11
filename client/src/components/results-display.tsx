@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { Flame, Calendar, UtensilsCrossed, Loader2, X, Download } from "lucide-react";
+import { Flame, Calendar, UtensilsCrossed, Loader2, X, Download, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { Calculation } from "@shared/schema";
@@ -138,6 +138,154 @@ function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
   }
 
   doc.save(`meal-plan-${mealPlan.planType}-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+// ── Shopping list helpers ────────────────────────────────────────────────────
+
+function categoriseIngredient(item: string): string {
+  const l = item.toLowerCase();
+  if (/chicken|beef|salmon|tuna|turkey|pork|lamb|fish|prawn|duck|sea bass|cod|egg|mince/.test(l)) return "Protein";
+  if (/milk|yogurt|cheese|cream|butter|ricotta|feta|mozzarella|cottage/.test(l)) return "Dairy";
+  if (/rice|pasta|oats|bread|noodle|flour|lentil|bean|chickpea|couscous|quinoa|bulgur|cracker|pita|tortilla|crispbread|muffin|bagel|sourdough|flatbread/.test(l)) return "Grains & Carbs";
+  if (/pepper|onion|garlic|spinach|broccoli|tomato|cucumber|avocado|mushroom|courgette|asparagus|potato|bok choy|lettuce|leaf|coriander|parsley|mint|basil|dill|herb|lemon|lime|apple|banana|mango|berr|cherry|pomegranate|melon|fruit|ginger|kale|rocket/.test(l)) return "Produce";
+  if (/oil|sauce|vinegar|soy|miso|honey|sugar|salt|pepper|spice|cumin|paprika|cinnamon|turmeric|oregano|thyme|rosemary|chilli|sriracha|harissa|tahini|hummus|pesto|stock|wine|mayo|mustard|curry|ras el hanout|flax|seed|coconut|almond/.test(l)) return "Pantry & Spices";
+  return "Other";
+}
+
+function tryParseQty(q: string): { num: number; unit: string } | null {
+  const m = q.match(/^(\d+)(?:\/(\d+))?\s*(.*)$/);
+  if (!m) return null;
+  const num = m[2] ? parseInt(m[1]) / parseInt(m[2]) : parseFloat(m[1]);
+  return { num, unit: m[3].trim().toLowerCase() };
+}
+
+function combineQuantities(existing: string, incoming: string): string {
+  const a = tryParseQty(existing);
+  const b = tryParseQty(incoming);
+  if (a && b && a.unit === b.unit) {
+    const total = Math.round((a.num + b.num) * 10) / 10;
+    return `${total}${a.unit ? ' ' + a.unit : ''}`.trim();
+  }
+  return existing; // keep first if units differ or non-numeric
+}
+
+function buildShoppingList(mealPlan: any): Record<string, Array<{ item: string; quantity: string }>> {
+  const mealNames: string[] = [];
+  const slots = ['breakfast', 'lunch', 'dinner', 'snacks'] as const;
+
+  if (mealPlan.planType === 'weekly') {
+    const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+    days.forEach(day => {
+      if (!mealPlan[day]) return;
+      slots.forEach(slot => (mealPlan[day][slot] || []).forEach((m: any) => mealNames.push(m.meal)));
+    });
+  } else {
+    slots.forEach(slot => (mealPlan[slot] || []).forEach((m: any) => mealNames.push(m.meal)));
+  }
+
+  // ingredient key → { category, item display, combined quantity }
+  const map = new Map<string, { category: string; item: string; quantity: string }>();
+
+  mealNames.forEach(mealName => {
+    const recipe = (RECIPES as Record<string, { ingredients: Array<{ item: string; quantity: string }> }>)[mealName];
+    if (!recipe) return;
+    recipe.ingredients.forEach(({ item, quantity }) => {
+      const key = item.toLowerCase().replace(/[^a-z]/g, '');
+      if (map.has(key)) {
+        const entry = map.get(key)!;
+        entry.quantity = combineQuantities(entry.quantity, quantity);
+      } else {
+        map.set(key, { category: categoriseIngredient(item), item, quantity });
+      }
+    });
+  });
+
+  // Group by category
+  const grouped: Record<string, Array<{ item: string; quantity: string }>> = {};
+  map.forEach(({ category, item, quantity }) => {
+    if (!grouped[category]) grouped[category] = [];
+    grouped[category].push({ item, quantity });
+  });
+  // Sort each group alphabetically
+  Object.values(grouped).forEach(arr => arr.sort((a, b) => a.item.localeCompare(b.item)));
+  return grouped;
+}
+
+const CATEGORY_ORDER = ["Protein", "Produce", "Grains & Carbs", "Dairy", "Pantry & Spices", "Other"];
+
+function exportShoppingListToPDF(mealPlan: any, data: Calculation) {
+  const doc = new jsPDF();
+  const pageW = doc.internal.pageSize.getWidth();
+  let y = 20;
+
+  const newLine = (gap = 6) => { y += gap; };
+  const checkPage = (needed = 14) => { if (y + needed > 280) { doc.addPage(); y = 20; } };
+
+  // Header
+  doc.setFillColor(24, 24, 27);
+  doc.rect(0, 0, pageW, 28, "F");
+  doc.setFontSize(18); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
+  doc.text("Shopping List", 14, 12);
+  doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 180, 180);
+  doc.text(`${mealPlan.planType === "weekly" ? "Weekly" : "Daily"} Meal Plan  ·  Generated ${new Date().toLocaleDateString()}`, 14, 22);
+  y = 38;
+
+  // Sub-header note
+  doc.setFontSize(9); doc.setFont("helvetica", "italic"); doc.setTextColor(120, 120, 120);
+  doc.text("Quantities are combined across all meals. Add staples you already have at home.", 14, y);
+  y += 12;
+
+  const grouped = buildShoppingList(mealPlan);
+  const categoryOrder = CATEGORY_ORDER.filter(c => grouped[c]);
+  // Append any categories not in our order list
+  Object.keys(grouped).forEach(c => { if (!categoryOrder.includes(c)) categoryOrder.push(c); });
+
+  const colW = (pageW - 28) / 2;
+  const categories = categoryOrder;
+
+  categories.forEach(category => {
+    const items = grouped[category];
+    if (!items?.length) return;
+    checkPage(20);
+
+    // Category header
+    doc.setFillColor(24, 24, 27);
+    doc.roundedRect(14, y, pageW - 28, 9, 2, 2, "F");
+    doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
+    doc.text(category.toUpperCase(), 18, y + 6.2);
+    y += 13;
+
+    // Two-column layout for items
+    let leftY = y;
+    let rightY = y;
+    items.forEach((entry, i) => {
+      const col = i % 2;
+      const xBase = col === 0 ? 14 : 14 + colW + 4;
+      const curY  = col === 0 ? leftY : rightY;
+      checkPage(10);
+
+      // Checkbox
+      doc.setDrawColor(180, 180, 180);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(xBase, curY - 3.5, 4, 4, 0.8, 0.8);
+
+      // Item name
+      doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(30, 30, 30);
+      const label = doc.splitTextToSize(entry.item, colW - 32);
+      doc.text(label, xBase + 6, curY);
+
+      // Quantity — right-aligned within column
+      doc.setFont("helvetica", "bold"); doc.setTextColor(80, 80, 80);
+      doc.text(entry.quantity, xBase + colW - 4, curY, { align: "right" });
+
+      if (col === 0) leftY  += (label.length > 1 ? label.length * 5 : 7);
+      else           rightY += (label.length > 1 ? label.length * 5 : 7);
+    });
+
+    y = Math.max(leftY, rightY) + 4;
+  });
+
+  doc.save(`shopping-list-${mealPlan.planType}-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 interface Recipe {
@@ -1068,14 +1216,24 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
               </div>
               <h3 className="text-2xl font-bold text-zinc-900 capitalize">{mealPlan.planType} Meal Plan</h3>
             </div>
-            <button
-              onClick={() => exportMealPlanToPDF(mealPlan, data)}
-              className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-medium text-sm transition-colors border border-zinc-200"
-              data-testid="button-export-pdf"
-            >
-              <Download className="w-4 h-4" />
-              Export PDF
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => exportShoppingListToPDF(mealPlan, data)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl font-medium text-sm transition-colors border border-emerald-200"
+                data-testid="button-export-shopping-list"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                Shopping List
+              </button>
+              <button
+                onClick={() => exportMealPlanToPDF(mealPlan, data)}
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-medium text-sm transition-colors border border-zinc-200"
+                data-testid="button-export-pdf"
+              >
+                <Download className="w-4 h-4" />
+                Export PDF
+              </button>
+            </div>
           </div>
 
           {mealPlan.planType === 'daily' ? (
