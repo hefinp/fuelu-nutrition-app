@@ -18,21 +18,22 @@ const GOAL_LABELS: Record<string, string> = {
 };
 
 function drawPDFLogo(doc: jsPDF, pageW: number) {
-  // Emerald accent badge — circle with "N"
-  const cx = pageW - 46;
-  const cy = 14;
-  doc.setFillColor(16, 185, 129); // emerald-500
-  doc.circle(cx, cy, 5.5, "F");
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 255, 255);
-  doc.text("N", cx, cy + 3.2, { align: "center" });
+  // White rounded square — inverted for dark header background
+  const sqX = pageW - 56;
+  const sqY = 10;
+  const sqSize = 8;
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(sqX, sqY, sqSize, sqSize, 1.5, 1.5, "F");
+
+  // Dark circle inside (matches dashboard logo in inverted form)
+  doc.setFillColor(24, 24, 27); // zinc-900
+  doc.circle(sqX + sqSize / 2, sqY + sqSize / 2, 1.8, "F");
 
   // "NutriSync" wordmark
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("NutriSync", cx + 8, cy + 3.5);
+  doc.text("NutriSync", sqX + sqSize + 2.5, sqY + 6);
 }
 
 function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
