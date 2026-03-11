@@ -5,6 +5,7 @@ import { CalculatorForm } from "@/components/calculator-form";
 import { ResultsDisplay } from "@/components/results-display";
 import { SavedMealPlans } from "@/components/saved-meal-plans";
 import { WeightTracker } from "@/components/weight-tracker";
+import { PreferencesForm } from "@/components/preferences-form";
 import { useCalculations } from "@/hooks/use-calculations";
 import { useAuth } from "@/hooks/use-auth";
 import { LogOut, BookOpen, Settings, X, SlidersHorizontal } from "lucide-react";
@@ -172,6 +173,7 @@ export default function Dashboard() {
                   defaultValues={lastCalculation}
                   compact
                 />
+                {user && <PreferencesForm />}
               </div>
             </motion.div>
           </>

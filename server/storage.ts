@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and } from "drizzle-orm";
 
@@ -17,6 +17,9 @@ export interface IStorage {
   createWeightEntry(entry: { userId: number; weight: string; recordedAt?: Date }): Promise<WeightEntry>;
   getWeightEntries(userId: number): Promise<WeightEntry[]>;
   deleteWeightEntry(id: number, userId: number): Promise<void>;
+
+  // Preferences
+  updateUserPreferences(userId: number, preferences: UserPreferences): Promise<void>;
 
   // Saved meal plans
   saveMealPlan(plan: InsertSavedMealPlan): Promise<SavedMealPlan>;
@@ -90,6 +93,10 @@ export class DatabaseStorage implements IStorage {
   async deleteWeightEntry(id: number, userId: number): Promise<void> {
     await db.delete(weightEntries)
       .where(and(eq(weightEntries.id, id), eq(weightEntries.userId, userId)));
+  }
+
+  async updateUserPreferences(userId: number, preferences: UserPreferences): Promise<void> {
+    await db.update(users).set({ preferences }).where(eq(users.id, userId));
   }
 
   async saveMealPlan(plan: InsertSavedMealPlan): Promise<SavedMealPlan> {

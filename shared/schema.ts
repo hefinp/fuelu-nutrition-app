@@ -9,6 +9,7 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash"),
   provider: text("provider"),
   providerId: text("provider_id"),
+  preferences: jsonb("preferences"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -36,6 +37,13 @@ export const loginSchema = z.object({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type PublicUser = Omit<User, "passwordHash">;
+
+export const userPreferencesSchema = z.object({
+  diet: z.enum(["vegetarian", "vegan", "pescatarian", "halal", "kosher"]).nullable().optional(),
+  allergies: z.array(z.enum(["gluten", "dairy", "eggs", "nuts", "peanuts", "shellfish", "fish", "soy"])).optional(),
+});
+
+export type UserPreferences = z.infer<typeof userPreferencesSchema>;
 
 export const calculations = pgTable("calculations", {
   id: serial("id").primaryKey(),

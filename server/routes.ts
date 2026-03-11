@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { api, mealPlanSchema } from "@shared/routes";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { registerSchema, loginSchema } from "@shared/schema";
+import { registerSchema, loginSchema, userPreferencesSchema, type UserPreferences } from "@shared/schema";
 import passport from "passport";
 
 const MEAL_DATABASE = {
@@ -17,6 +17,10 @@ const MEAL_DATABASE = {
     { meal: "Cottage cheese with berries and flaxseed", calories: 300, protein: 26, carbs: 28, fat: 8 },
     { meal: "Smoked salmon with eggs and rye toast", calories: 420, protein: 34, carbs: 24, fat: 18 },
     { meal: "Chia seed pudding with coconut milk and nuts", calories: 360, protein: 14, carbs: 34, fat: 18 },
+    { meal: "Banana and peanut butter overnight oats", calories: 370, protein: 14, carbs: 56, fat: 10 },
+    { meal: "Mixed berry smoothie bowl with hemp seeds and granola", calories: 340, protein: 12, carbs: 52, fat: 10 },
+    { meal: "Tofu scramble with peppers, onion and spinach", calories: 320, protein: 24, carbs: 18, fat: 14 },
+    { meal: "Fruit and nut muesli with oat milk", calories: 350, protein: 12, carbs: 50, fat: 10 },
   ],
   lunch: [
     { meal: "Grilled chicken breast with brown rice and broccoli", calories: 500, protein: 46, carbs: 44, fat: 10 },
@@ -27,6 +31,9 @@ const MEAL_DATABASE = {
     { meal: "Beef and brown rice bowl with mixed vegetables", calories: 540, protein: 42, carbs: 52, fat: 14 },
     { meal: "Chicken Caesar salad with whole grain croutons", calories: 460, protein: 40, carbs: 28, fat: 18 },
     { meal: "Lean turkey mince bowl with quinoa and greens", calories: 480, protein: 44, carbs: 36, fat: 14 },
+    { meal: "Lentil and roasted vegetable bowl with tahini dressing", calories: 450, protein: 20, carbs: 58, fat: 12 },
+    { meal: "Black bean and roasted pepper burrito bowl with guacamole", calories: 470, protein: 18, carbs: 60, fat: 16 },
+    { meal: "Chickpea and sweet potato bowl with spinach and lime", calories: 440, protein: 18, carbs: 62, fat: 10 },
   ],
   dinner: [
     { meal: "Baked chicken with roasted vegetables and sweet potato", calories: 580, protein: 46, carbs: 52, fat: 14 },
@@ -37,6 +44,10 @@ const MEAL_DATABASE = {
     { meal: "Chicken fajitas with brown rice and black beans", calories: 580, protein: 44, carbs: 62, fat: 12 },
     { meal: "Grilled white fish with quinoa and roasted vegetables", calories: 520, protein: 46, carbs: 46, fat: 12 },
     { meal: "Lean lamb stir-fry with brown rice and bok choy", calories: 600, protein: 46, carbs: 54, fat: 18 },
+    { meal: "Chickpea and spinach curry with basmati rice", calories: 540, protein: 22, carbs: 76, fat: 12 },
+    { meal: "Lentil dahl with brown rice and wilted spinach", calories: 520, protein: 24, carbs: 78, fat: 8 },
+    { meal: "Tofu and vegetable stir-fry with brown rice", calories: 500, protein: 26, carbs: 64, fat: 14 },
+    { meal: "Roasted vegetable and quinoa bowl with tahini", calories: 510, protein: 20, carbs: 68, fat: 16 },
   ],
   snack: [
     { meal: "Protein bar and apple", calories: 260, protein: 22, carbs: 28, fat: 6 },
@@ -47,6 +58,9 @@ const MEAL_DATABASE = {
     { meal: "Hard-boiled eggs and almonds", calories: 220, protein: 18, carbs: 6, fat: 14 },
     { meal: "Tuna on rice cakes", calories: 200, protein: 22, carbs: 18, fat: 4 },
     { meal: "Edamame with sea salt", calories: 200, protein: 18, carbs: 14, fat: 8 },
+    { meal: "Apple slices with sunflower seed butter", calories: 210, protein: 6, carbs: 30, fat: 10 },
+    { meal: "Rice cakes with avocado and cherry tomatoes", calories: 200, protein: 4, carbs: 26, fat: 10 },
+    { meal: "Roasted chickpeas with spices", calories: 220, protein: 10, carbs: 30, fat: 6 },
   ],
 };
 
@@ -60,6 +74,9 @@ const GOURMET_MEAL_DATABASE = {
     { meal: "Eggs Benedict with Canadian bacon and light hollandaise", calories: 460, protein: 32, carbs: 32, fat: 22 },
     { meal: "Coconut overnight oats with mango, lime and toasted coconut", calories: 380, protein: 14, carbs: 56, fat: 12 },
     { meal: "Huevos rancheros with black beans and pico de gallo", calories: 440, protein: 28, carbs: 44, fat: 16 },
+    { meal: "Acai smoothie bowl with mixed berries, banana and coconut flakes", calories: 370, protein: 10, carbs: 60, fat: 10 },
+    { meal: "Roasted tomato and lentil shakshuka with charred flatbread", calories: 400, protein: 20, carbs: 52, fat: 12 },
+    { meal: "Sweet potato and black bean breakfast hash with avocado", calories: 390, protein: 14, carbs: 56, fat: 14 },
   ],
   lunch: [
     { meal: "Chicken shawarma bowl with hummus, tabbouleh and flatbread", calories: 540, protein: 44, carbs: 52, fat: 14 },
@@ -70,6 +87,8 @@ const GOURMET_MEAL_DATABASE = {
     { meal: "Chicken souvlaki wrap with tzatziki and roasted vegetables", calories: 500, protein: 42, carbs: 44, fat: 14 },
     { meal: "Spiced chickpea and spinach curry with basmati rice", calories: 480, protein: 22, carbs: 64, fat: 12 },
     { meal: "Roasted red pepper and lentil soup with sourdough", calories: 420, protein: 20, carbs: 58, fat: 10 },
+    { meal: "Moroccan roasted vegetable and chickpea bowl with chermoula", calories: 460, protein: 18, carbs: 64, fat: 14 },
+    { meal: "Vietnamese-style tofu and glass noodle salad with lime dressing", calories: 420, protein: 20, carbs: 54, fat: 12 },
   ],
   dinner: [
     { meal: "Herb-crusted salmon with lemon risotto and asparagus", calories: 600, protein: 46, carbs: 56, fat: 18 },
@@ -80,6 +99,9 @@ const GOURMET_MEAL_DATABASE = {
     { meal: "Miso-glazed cod with edamame fried rice and pickled ginger", calories: 560, protein: 46, carbs: 52, fat: 14 },
     { meal: "Chicken piccata with capers, lemon butter sauce and linguine", calories: 580, protein: 46, carbs: 54, fat: 16 },
     { meal: "Beef tenderloin with dauphinoise potato and green peppercorn sauce", calories: 640, protein: 48, carbs: 48, fat: 24 },
+    { meal: "Moroccan vegetable tagine with couscous, preserved lemon and harissa", calories: 540, protein: 16, carbs: 80, fat: 14 },
+    { meal: "Butternut squash and chickpea coconut curry with jasmine rice", calories: 560, protein: 18, carbs: 82, fat: 16 },
+    { meal: "Roasted aubergine with pomegranate, walnut sauce and lentil rice", calories: 520, protein: 18, carbs: 72, fat: 16 },
   ],
   snack: [
     { meal: "Baba ganoush with toasted pita and cucumber", calories: 240, protein: 8, carbs: 30, fat: 10 },
@@ -90,6 +112,8 @@ const GOURMET_MEAL_DATABASE = {
     { meal: "Prosciutto-wrapped melon with rocket", calories: 200, protein: 14, carbs: 20, fat: 6 },
     { meal: "Nut butter energy balls with oats, dates and dark chocolate", calories: 280, protein: 10, carbs: 34, fat: 12 },
     { meal: "Tuna tartare on cucumber rounds with sesame and soy", calories: 200, protein: 22, carbs: 10, fat: 8 },
+    { meal: "Sliced avocado with lime, chilli flakes and sesame rice cakes", calories: 220, protein: 4, carbs: 24, fat: 14 },
+    { meal: "Spiced roasted chickpeas with pomegranate molasses", calories: 230, protein: 10, carbs: 32, fat: 6 },
   ],
 };
 
@@ -103,6 +127,9 @@ const MICHELIN_MEAL_DATABASE = {
     { meal: "Poached eggs with wilted spinach, lemon hollandaise and smoked salmon", calories: 440, protein: 32, carbs: 20, fat: 26 },
     { meal: "Smoked salmon and cream cheese omelette with chives and sourdough", calories: 480, protein: 36, carbs: 24, fat: 26 },
     { meal: "Warm spiced oats with poached pear, cardamom cream and toasted pistachios", calories: 420, protein: 14, carbs: 52, fat: 16 },
+    { meal: "Coconut and passion fruit chia pudding with mango compote and lime", calories: 400, protein: 12, carbs: 54, fat: 14 },
+    { meal: "Warm spiced oat porridge with caramelised apple, date syrup and toasted seeds", calories: 390, protein: 10, carbs: 62, fat: 10 },
+    { meal: "Roasted cherry tomato and avocado bruschetta with microgreens and hemp oil", calories: 380, protein: 10, carbs: 50, fat: 16 },
   ],
   lunch: [
     { meal: "Pan-seared salmon with asparagus, lemon caper butter and new potatoes", calories: 540, protein: 44, carbs: 36, fat: 24 },
@@ -113,6 +140,9 @@ const MICHELIN_MEAL_DATABASE = {
     { meal: "Roasted red pepper and goat cheese tart with dressed rocket salad", calories: 480, protein: 20, carbs: 44, fat: 24 },
     { meal: "Warm chicken liver salad with crispy bacon, baby spinach and balsamic", calories: 460, protein: 38, carbs: 24, fat: 22 },
     { meal: "Seared tuna steak with mango salsa, wild rice and lime crème fraîche", calories: 520, protein: 46, carbs: 44, fat: 12 },
+    { meal: "Heritage tomato salad with white bean puree, basil oil and crispy capers", calories: 440, protein: 18, carbs: 56, fat: 16 },
+    { meal: "Roasted beetroot and Puy lentil salad with orange dressing and walnuts", calories: 460, protein: 18, carbs: 60, fat: 16 },
+    { meal: "Miso-glazed aubergine with black sesame rice and pickled cucumber", calories: 480, protein: 14, carbs: 70, fat: 14 },
   ],
   dinner: [
     { meal: "Ribeye steak with truffle butter, dauphinoise potatoes and tenderstem broccoli", calories: 680, protein: 52, carbs: 40, fat: 34 },
@@ -123,6 +153,9 @@ const MICHELIN_MEAL_DATABASE = {
     { meal: "Chicken supreme with wild mushroom and tarragon cream sauce, pommes purée", calories: 620, protein: 48, carbs: 44, fat: 24 },
     { meal: "Salmon en croûte with spinach and cream cheese filling, lemon dill sauce", calories: 640, protein: 48, carbs: 44, fat: 28 },
     { meal: "Slow-roasted pork belly with apple and cider jus, roasted roots and mustard greens", calories: 680, protein: 50, carbs: 44, fat: 32 },
+    { meal: "Roasted celeriac with truffle oil, hazelnut crumb and lentil ragu", calories: 560, protein: 20, carbs: 68, fat: 20 },
+    { meal: "Charred cauliflower steak with romesco, beluga lentils and herb oil", calories: 520, protein: 22, carbs: 62, fat: 18 },
+    { meal: "Wild mushroom and chestnut bourguignon with pommes purée and roasted roots", calories: 580, protein: 16, carbs: 78, fat: 18 },
   ],
   snack: [
     { meal: "Parma ham with marinated artichoke hearts and olives", calories: 220, protein: 16, carbs: 10, fat: 14 },
@@ -133,10 +166,75 @@ const MICHELIN_MEAL_DATABASE = {
     { meal: "Smoked salmon blinis with crème fraîche and capers", calories: 260, protein: 18, carbs: 18, fat: 12 },
     { meal: "Brie with honey, walnuts and sliced pear on crispbreads", calories: 300, protein: 12, carbs: 24, fat: 18 },
     { meal: "Warm rosemary and chilli marinated olives with sourdough", calories: 240, protein: 4, carbs: 28, fat: 12 },
+    { meal: "Chilled watermelon with fresh mint, lime zest and hemp seeds", calories: 180, protein: 4, carbs: 36, fat: 4 },
+    { meal: "Roasted white asparagus with lemon oil and capers on pumpernickel", calories: 220, protein: 6, carbs: 28, fat: 10 },
   ],
 };
 
 type MealEntry = { meal: string; calories: number; protein: number; carbs: number; fat: number };
+type MealDb = typeof MEAL_DATABASE;
+
+// ── Dietary filtering ────────────────────────────────────────────────────────
+
+const ALLERGEN_KEYWORDS: Record<string, string[]> = {
+  gluten: ['toast', 'bread', 'pasta', 'spaghetti', 'noodle', 'tortilla', 'bagel', 'muffin', 'cracker', 'sourdough', 'rye', 'bulgur', 'couscous', 'crouton', 'flatbread', 'crepe', 'pancake', 'brioche', 'crostini', 'crispbread', 'wrap', 'pita', 'blini', 'linguine', 'polenta'],
+  dairy: ['cheese', 'butter', 'cream', 'milk', 'yogurt', 'yoghurt', 'ricotta', 'feta', 'mozzarella', 'parmesan', 'brie', 'gruyere', 'gruyère', 'mascarpone', 'hollandaise', 'creme fraiche', 'crème fraîche', 'burrata', 'manchego'],
+  eggs: ['egg', 'omelette', 'frittata', 'shakshuka', 'huevos', 'benedict', 'french toast'],
+  nuts: ['almond', 'walnut', 'hazelnut', 'pistachio', 'pecan', 'cashew', 'pine nut', 'nut butter', 'marcona'],
+  peanuts: ['peanut'],
+  shellfish: ['prawn', 'shrimp', 'lobster', 'crab', 'scallop', 'mussel', 'clam', 'oyster'],
+  fish: ['salmon', 'tuna', 'cod', 'haddock', 'sea bass', 'trout', 'mackerel', 'anchovy', 'sardine', 'tilapia', 'halibut', 'sole', 'smoked fish', 'white fish'],
+  soy: ['soy', 'edamame', 'tofu', 'miso', 'tempeh'],
+};
+
+const MEAT_KEYWORDS = ['chicken', 'beef', 'lamb', 'pork', 'turkey', 'duck', 'veal', 'venison', 'steak', 'mince', 'chorizo', 'bacon', 'ham', 'prosciutto', 'pancetta', 'salami', 'liver', 'rib', 'bresaola', 'serrano', 'parma'];
+const PORK_KEYWORDS = ['pork', 'bacon', 'ham', 'pancetta', 'prosciutto', 'chorizo', 'salami', 'serrano', 'parma'];
+
+function filterMealPool(pool: MealEntry[], excludeKeywords: string[]): MealEntry[] {
+  if (!excludeKeywords.length) return pool;
+  const filtered = pool.filter(m =>
+    !excludeKeywords.some(kw => m.meal.toLowerCase().includes(kw.toLowerCase()))
+  );
+  return filtered.length > 0 ? filtered : pool; // safety: never return an empty pool
+}
+
+function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPreferences | null): MealDb {
+  if (!preferences) return mealDb;
+
+  const excludeKeywords: string[] = [];
+
+  switch (preferences.diet) {
+    case 'vegetarian':
+      excludeKeywords.push(...MEAT_KEYWORDS, ...ALLERGEN_KEYWORDS.shellfish, ...ALLERGEN_KEYWORDS.fish);
+      break;
+    case 'vegan':
+      excludeKeywords.push(...MEAT_KEYWORDS, ...ALLERGEN_KEYWORDS.shellfish, ...ALLERGEN_KEYWORDS.fish, ...ALLERGEN_KEYWORDS.dairy, ...ALLERGEN_KEYWORDS.eggs);
+      break;
+    case 'pescatarian':
+      excludeKeywords.push(...MEAT_KEYWORDS);
+      break;
+    case 'halal':
+      excludeKeywords.push(...PORK_KEYWORDS);
+      break;
+    case 'kosher':
+      excludeKeywords.push(...PORK_KEYWORDS, ...ALLERGEN_KEYWORDS.shellfish);
+      break;
+  }
+
+  for (const allergy of (preferences.allergies ?? [])) {
+    const kws = ALLERGEN_KEYWORDS[allergy];
+    if (kws) excludeKeywords.push(...kws);
+  }
+
+  if (!excludeKeywords.length) return mealDb;
+
+  return {
+    breakfast: filterMealPool(mealDb.breakfast, excludeKeywords),
+    lunch:     filterMealPool(mealDb.lunch,     excludeKeywords),
+    dinner:    filterMealPool(mealDb.dinner,    excludeKeywords),
+    snack:     filterMealPool(mealDb.snack,     excludeKeywords),
+  };
+}
 
 // Scale a meal's portions to exactly hit a calorie target, preserving macro ratios
 function scaleMeal(meal: MealEntry, targetCalories: number): MealEntry {
@@ -171,8 +269,6 @@ function pickBestMeal(
   const topCandidates = ranked.slice(0, topCount);
   return topCandidates[Math.floor(Math.random() * topCandidates.length)];
 }
-
-type MealDb = typeof MEAL_DATABASE;
 
 function buildDayPlan(
   dailyCalories: number,
@@ -630,11 +726,34 @@ export async function registerRoutes(
 
   // ── Meal plan routes ──────────────────────────────────────────────────────
 
+  // ── User preferences routes ───────────────────────────────────────────────
+
+  app.get("/api/user/preferences", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    res.json((user?.preferences as UserPreferences | null) ?? { diet: null, allergies: [] });
+  });
+
+  app.put("/api/user/preferences", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const prefs = userPreferencesSchema.parse(req.body);
+    await storage.updateUserPreferences(req.session.userId, prefs);
+    res.json(prefs);
+  });
+
   app.post(api.mealPlans.generate.path, async (req, res) => {
     try {
       const input = mealPlanSchema.parse(req.body);
-      const db = input.mealStyle === 'michelin' ? MICHELIN_MEAL_DATABASE : input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
-      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly', db);
+      let baseDb = input.mealStyle === 'michelin' ? MICHELIN_MEAL_DATABASE : input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
+
+      // Apply user preferences filtering if logged in
+      if (req.session.userId) {
+        const user = await storage.getUserById(req.session.userId);
+        const prefs = (user?.preferences as UserPreferences | null) ?? null;
+        baseDb = filterMealDbByPreferences(baseDb, prefs) as typeof baseDb;
+      }
+
+      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly', baseDb);
 
       // If user is logged in, auto-save the plan
       let savedId: number | undefined;

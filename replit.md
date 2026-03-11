@@ -2,7 +2,7 @@
 
 ## Overview
 
-NutriSync is a nutrition calculator web app. Users enter their biometrics (weight, height, age, gender, activity level, fitness goal) and receive a personalized daily/weekly calorie target plus macronutrient breakdowns (protein, carbs, fat). The app generates daily and weekly meal plans (Simple or Gourmet style) from a built-in meal database, displays results with charts, supports PDF export of meal plans and shopping lists, and allows user accounts to save and manage meal plans.
+NutriSync is a nutrition calculator web app. Users enter their biometrics (weight, height, age, gender, activity level, fitness goal) and receive a personalized daily/weekly calorie target plus macronutrient breakdowns (protein, carbs, fat). The app generates daily and weekly meal plans (Simple, Gourmet, or Michelin style) from a built-in meal database filtered by user food preferences and allergies, displays results with charts, supports PDF export of meal plans (with recipes) and shopping lists, and allows user accounts to save and manage meal plans. Weight tracking with a graph is also included.
 
 ---
 
@@ -33,6 +33,7 @@ Preferred communication style: Simple, everyday language.
 - `pages/auth.tsx` — Login/register page with tabbed UI; shows Google/Apple OAuth buttons when provider secrets are configured (fetched from `/api/auth/providers`); handles `?error=google_failed` and `?error=apple_failed` query params
 - `pages/dashboard.tsx` — Main app page; auto-loads last calculation on login; CalculatorForm is in a slide-over panel (user icon → "My Metrics"); two-column layout with ResultsDisplay + WeightTracker when metrics exist; "Set up your metrics" CTA only shown if no prior calculations.
 - `components/weight-tracker.tsx` — Weight logging + recharts LineChart; logs weight entries with date, shows current/change/count stats, recent entry list with delete.
+- `components/preferences-form.tsx` — Food preferences & allergies form rendered inside the My Metrics panel. Diet types: Vegetarian, Vegan, Pescatarian, Halal, Kosher. Allergies: Gluten, Dairy, Eggs, Nuts, Peanuts, Shellfish, Fish, Soy. Saves to `PUT /api/user/preferences`; reads from `GET /api/user/preferences`.
 - `pages/landing.tsx` — Marketing landing page for logged-out visitors
 - `hooks/use-auth.ts` — Auth state hook (user, login, register, logout, loading states)
 - `hooks/use-calculations.ts` — Calculation history hook and create mutation
@@ -48,7 +49,7 @@ Preferred communication style: Simple, everyday language.
 - **Auth routes:** `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
 - **Production build:** esbuild bundles the server to `dist/index.cjs`; Vite builds the client to `dist/public`
 - **API pattern:** REST; all routes under `/api`. Route definitions and Zod schemas are shared between client and server via the `shared/` directory
-- **Meal plan generation:** Server-side, using a static hardcoded `MEAL_DATABASE` and `GOURMET_MEAL_DATABASE` in `server/routes.ts`
+- **Meal plan generation:** Server-side using three static meal databases in `server/routes.ts`: `MEAL_DATABASE` (simple), `GOURMET_MEAL_DATABASE`, `MICHELIN_MEAL_DATABASE`. Each has breakfast/lunch/dinner/snack pools. Meals are filtered by user preferences/allergies using keyword matching before plan generation. Three-tier selector (Simple/Fancy/Michelin) on the frontend.
 - **Calorie/macro calculation:** Performed server-side using TDEE/Harris-Benedict style formulas, stored as computed integer columns
 - **Auto-save:** When a logged-in user generates a meal plan, it is automatically saved to `saved_meal_plans`
 
@@ -62,7 +63,7 @@ Preferred communication style: Simple, everyday language.
 - **Database:** PostgreSQL (Drizzle ORM, `drizzle-orm/node-postgres`)
 - **Connection:** `pg.Pool` via `DATABASE_URL` env var
 - **Tables:**
-  - `users` — id, email (unique), name, password_hash (nullable), provider (nullable: 'google'|'apple'), provider_id (nullable), created_at
+  - `users` — id, email (unique), name, password_hash (nullable), provider (nullable: 'google'|'apple'), provider_id (nullable), preferences (jsonb nullable: `{diet, allergies}`), created_at
   - `calculations` — id, user_id (FK nullable), weight, height, age, gender, activity_level, goal, target_type, target_amount, daily_calories, weekly_calories, protein_goal, carbs_goal, fat_goal, created_at
   - `saved_meal_plans` — id, user_id (FK), calculation_id (FK nullable), name, plan_type, meal_style, plan_data (jsonb), created_at
   - `session` — connect-pg-simple session store (created manually via SQL)
