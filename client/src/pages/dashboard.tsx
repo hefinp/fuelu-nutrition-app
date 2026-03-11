@@ -157,7 +157,7 @@ export default function Dashboard() {
               <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-zinc-100">
                 <div className="flex items-center gap-2">
                   <Settings className="w-4 h-4 text-zinc-400" />
-                  <h2 className="font-semibold text-zinc-900">My Metrics</h2>
+                  <h2 className="font-semibold text-zinc-900">Settings</h2>
                 </div>
                 <button
                   onClick={() => setShowMetricsPanel(false)}

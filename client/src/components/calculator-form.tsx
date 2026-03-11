@@ -158,7 +158,7 @@ export function CalculatorForm({
           title="Metrics"
           icon={<Scale className="w-4 h-4" />}
           summary={metricsSummary}
-          defaultOpen
+          defaultOpen={false}
         >
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
@@ -228,7 +228,7 @@ export function CalculatorForm({
           title="Goals"
           icon={<Target className="w-4 h-4" />}
           summary={goalsSummary}
-          defaultOpen
+          defaultOpen={false}
         >
           <div className="space-y-4">
             <div className="space-y-1.5">
