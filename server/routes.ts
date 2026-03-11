@@ -47,6 +47,49 @@ const MEAL_DATABASE = {
   ],
 };
 
+const GOURMET_MEAL_DATABASE = {
+  breakfast: [
+    { meal: "Shakshuka with poached eggs and crusty sourdough", calories: 420, protein: 28, carbs: 38, fat: 18 },
+    { meal: "Avocado toast with poached eggs and everything bagel seasoning", calories: 400, protein: 24, carbs: 34, fat: 20 },
+    { meal: "Smoked salmon bagel with cream cheese, capers and dill", calories: 440, protein: 32, carbs: 36, fat: 18 },
+    { meal: "Bircher muesli with apple, toasted hazelnuts and pomegranate", calories: 380, protein: 16, carbs: 54, fat: 12 },
+    { meal: "Savory crepes with goat cheese, spinach and sun-dried tomatoes", calories: 420, protein: 26, carbs: 36, fat: 18 },
+    { meal: "Eggs Benedict with Canadian bacon and light hollandaise", calories: 460, protein: 32, carbs: 32, fat: 22 },
+    { meal: "Coconut overnight oats with mango, lime and toasted coconut", calories: 380, protein: 14, carbs: 56, fat: 12 },
+    { meal: "Huevos rancheros with black beans and pico de gallo", calories: 440, protein: 28, carbs: 44, fat: 16 },
+  ],
+  lunch: [
+    { meal: "Chicken shawarma bowl with hummus, tabbouleh and flatbread", calories: 540, protein: 44, carbs: 52, fat: 14 },
+    { meal: "Pan-seared tuna nicoise with green beans and soft-boiled egg", calories: 480, protein: 42, carbs: 28, fat: 22 },
+    { meal: "Thai beef salad with glass noodles, mint and chilli-lime dressing", calories: 460, protein: 36, carbs: 38, fat: 16 },
+    { meal: "Mediterranean stuffed peppers with couscous and feta", calories: 440, protein: 22, carbs: 54, fat: 14 },
+    { meal: "Prawn and avocado salad with lime, chilli and mixed grains", calories: 460, protein: 36, carbs: 38, fat: 16 },
+    { meal: "Chicken souvlaki wrap with tzatziki and roasted vegetables", calories: 500, protein: 42, carbs: 44, fat: 14 },
+    { meal: "Spiced chickpea and spinach curry with basmati rice", calories: 480, protein: 22, carbs: 64, fat: 12 },
+    { meal: "Roasted red pepper and lentil soup with sourdough", calories: 420, protein: 20, carbs: 58, fat: 10 },
+  ],
+  dinner: [
+    { meal: "Herb-crusted salmon with lemon risotto and asparagus", calories: 600, protein: 46, carbs: 56, fat: 18 },
+    { meal: "Moroccan lamb tagine with apricots, couscous and harissa", calories: 620, protein: 46, carbs: 60, fat: 18 },
+    { meal: "Thai green chicken curry with jasmine rice and bok choy", calories: 580, protein: 44, carbs: 58, fat: 16 },
+    { meal: "Seared duck breast with sweet potato puree and cherry jus", calories: 600, protein: 44, carbs: 52, fat: 20 },
+    { meal: "Pan-seared sea bass with chorizo, white beans and gremolata", calories: 560, protein: 46, carbs: 42, fat: 20 },
+    { meal: "Miso-glazed cod with edamame fried rice and pickled ginger", calories: 560, protein: 46, carbs: 52, fat: 14 },
+    { meal: "Chicken piccata with capers, lemon butter sauce and linguine", calories: 580, protein: 46, carbs: 54, fat: 16 },
+    { meal: "Beef tenderloin with dauphinoise potato and green peppercorn sauce", calories: 640, protein: 48, carbs: 48, fat: 24 },
+  ],
+  snack: [
+    { meal: "Baba ganoush with toasted pita and cucumber", calories: 240, protein: 8, carbs: 30, fat: 10 },
+    { meal: "Whipped ricotta with honey, walnuts and pomegranate", calories: 260, protein: 14, carbs: 24, fat: 14 },
+    { meal: "Smoked salmon and cream cheese on rye crispbreads", calories: 220, protein: 18, carbs: 16, fat: 10 },
+    { meal: "Roasted spiced chickpeas with tahini dip", calories: 240, protein: 12, carbs: 28, fat: 10 },
+    { meal: "Caprese skewers with fresh mozzarella and basil pesto", calories: 240, protein: 14, carbs: 8, fat: 18 },
+    { meal: "Prosciutto-wrapped melon with rocket", calories: 200, protein: 14, carbs: 20, fat: 6 },
+    { meal: "Nut butter energy balls with oats, dates and dark chocolate", calories: 280, protein: 10, carbs: 34, fat: 12 },
+    { meal: "Tuna tartare on cucumber rounds with sesame and soy", calories: 200, protein: 22, carbs: 10, fat: 8 },
+  ],
+};
+
 type MealEntry = { meal: string; calories: number; protein: number; carbs: number; fat: number };
 
 // Scale a meal's portions to exactly hit a calorie target, preserving macro ratios
@@ -83,11 +126,14 @@ function pickBestMeal(
   return topCandidates[Math.floor(Math.random() * topCandidates.length)];
 }
 
+type MealDb = typeof MEAL_DATABASE;
+
 function buildDayPlan(
   dailyCalories: number,
   proteinGoal: number,
   carbsGoal: number,
   fatGoal: number,
+  db: MealDb,
   lunchOverride?: MealEntry,
 ) {
   // Calorie targets per slot
@@ -102,9 +148,9 @@ function buildDayPlan(
   const tCarbs   = (carbsGoal   * 4) / totalMacroCals;
   const tFat     = (fatGoal     * 9) / totalMacroCals;
 
-  const breakfastBase = pickBestMeal(MEAL_DATABASE.breakfast, tProtein, tCarbs, tFat);
-  const lunchBase     = lunchOverride ?? pickBestMeal(MEAL_DATABASE.lunch, tProtein, tCarbs, tFat);
-  const dinnerBase    = pickBestMeal(MEAL_DATABASE.dinner, tProtein, tCarbs, tFat);
+  const breakfastBase = pickBestMeal(db.breakfast, tProtein, tCarbs, tFat);
+  const lunchBase     = lunchOverride ?? pickBestMeal(db.lunch, tProtein, tCarbs, tFat);
+  const dinnerBase    = pickBestMeal(db.dinner, tProtein, tCarbs, tFat);
 
   const breakfast = scaleMeal(breakfastBase, bfTarget);
   const lunch     = scaleMeal(lunchBase, lunchTarget);
@@ -119,7 +165,7 @@ function buildDayPlan(
     const snackTargetEach = Math.round(snackBudget / numSnacks);
 
     for (let i = 0; i < numSnacks; i++) {
-      const snackBase = pickBestMeal(MEAL_DATABASE.snack, tProtein, tCarbs, tFat);
+      const snackBase = pickBestMeal(db.snack, tProtein, tCarbs, tFat);
       snacksList.push(scaleMeal(snackBase, snackTargetEach));
       snackRemaining -= snackTargetEach;
     }
@@ -144,11 +190,11 @@ function buildDayPlan(
   };
 }
 
-function generateDayPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number) {
-  return buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal);
+function generateDayPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, db: MealDb) {
+  return buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db);
 }
 
-function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, isWeekly: boolean) {
+function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, isWeekly: boolean, db: MealDb) {
   const lunchTarget = Math.round(dailyCalories * 0.30);
 
   // Target macro ratios — used when scaling the lunch override
@@ -175,12 +221,12 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
 
       if (index === 0) {
         // Monday: pick one dinner base, use it for BOTH lunch (at lunchTarget) and dinner (at dinnerTarget)
-        const mondayDinnerBase = pickBestMeal(MEAL_DATABASE.dinner, tProtein, tCarbs, tFat);
+        const mondayDinnerBase = pickBestMeal(db.dinner, tProtein, tCarbs, tFat);
         const mondayLunch  = scaleMeal(mondayDinnerBase, lunchTarget);
         const mondayDinner = scaleMeal(mondayDinnerBase, dinnerTarget);
 
         // Build day with the lunch override; then replace dinner with the same base
-        const dayPlanBase = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, mondayLunch);
+        const dayPlanBase = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, mondayLunch);
         const allMeals = [dayPlanBase.breakfast[0], mondayLunch, mondayDinner, ...dayPlanBase.snacks];
         dayPlan = {
           breakfast:       dayPlanBase.breakfast,
@@ -196,9 +242,9 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
       } else {
         // Tue–Sun: scale the raw dinner base from the previous day to lunchTarget
         const lunchOverride = scaleMeal(previousDinnerBase!, lunchTarget);
-        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, lunchOverride);
+        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, lunchOverride);
         // Store raw (unscaled) dinner base for the next day
-        const dinnerBase = MEAL_DATABASE.dinner.find(m => m.meal === dayPlan.dinner[0].meal) ?? dayPlan.dinner[0];
+        const dinnerBase = db.dinner.find(m => m.meal === dayPlan.dinner[0].meal) ?? dayPlan.dinner[0];
         previousDinnerBase = dinnerBase;
       }
 
@@ -218,7 +264,7 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
       weekTotalFat,
     };
   } else {
-    const dayPlan = generateDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal);
+    const dayPlan = generateDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db);
     return {
       planType: 'daily' as const,
       ...dayPlan,
@@ -338,7 +384,8 @@ export async function registerRoutes(
   app.post(api.mealPlans.generate.path, async (req, res) => {
     try {
       const input = mealPlanSchema.parse(req.body);
-      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly');
+      const db = input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
+      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly', db);
       res.status(201).json(mealPlan);
     } catch (err) {
       if (err instanceof z.ZodError) {

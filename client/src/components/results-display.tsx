@@ -458,6 +458,390 @@ const RECIPES: Record<string, Recipe> = {
       { item: "Sea salt", quantity: "1/4 tsp" },
     ],
   },
+
+  // ── Gourmet Breakfasts ───────────────────────────────────────────────────────
+  "Shakshuka with poached eggs and crusty sourdough": {
+    instructions: "Sauté onion, garlic and peppers until soft. Add cumin, paprika and tinned tomatoes; simmer 10 min. Make wells in the sauce and crack in eggs. Cover and cook 5-7 min until whites are set. Finish with fresh herbs. Serve with sourdough.",
+    ingredients: [
+      { item: "Eggs", quantity: "2" },
+      { item: "Tinned chopped tomatoes", quantity: "400g tin" },
+      { item: "Red pepper", quantity: "1" },
+      { item: "Onion", quantity: "1/2" },
+      { item: "Garlic cloves", quantity: "2" },
+      { item: "Ground cumin & paprika", quantity: "1 tsp each" },
+      { item: "Sourdough bread", quantity: "2 slices" },
+      { item: "Fresh coriander or parsley", quantity: "handful" },
+    ],
+  },
+  "Avocado toast with poached eggs and everything bagel seasoning": {
+    instructions: "Toast bread. Mash avocado with lemon juice, salt and pepper. Spread on toast. Poach eggs in simmering water with a splash of vinegar for 3-4 min. Place on top and sprinkle with everything bagel seasoning.",
+    ingredients: [
+      { item: "Eggs", quantity: "2" },
+      { item: "Sourdough or seeded bread", quantity: "2 slices" },
+      { item: "Ripe avocado", quantity: "1" },
+      { item: "Lemon juice", quantity: "1 tsp" },
+      { item: "Everything bagel seasoning", quantity: "1 tsp" },
+      { item: "Chilli flakes (optional)", quantity: "pinch" },
+    ],
+  },
+  "Smoked salmon bagel with cream cheese, capers and dill": {
+    instructions: "Split and toast the bagel. Spread generously with cream cheese. Layer on smoked salmon, capers, thinly sliced red onion and fresh dill. Finish with a squeeze of lemon.",
+    ingredients: [
+      { item: "Smoked salmon", quantity: "80g" },
+      { item: "Whole grain bagel", quantity: "1" },
+      { item: "Cream cheese", quantity: "2 tbsp" },
+      { item: "Capers", quantity: "1 tbsp" },
+      { item: "Red onion, thinly sliced", quantity: "a few rings" },
+      { item: "Fresh dill", quantity: "small handful" },
+      { item: "Lemon", quantity: "1/4" },
+    ],
+  },
+  "Bircher muesli with apple, toasted hazelnuts and pomegranate": {
+    instructions: "Combine oats, grated apple and yogurt with a little honey. Refrigerate overnight. Top with toasted hazelnuts, pomegranate seeds and a drizzle of honey before serving.",
+    ingredients: [
+      { item: "Rolled oats", quantity: "60g" },
+      { item: "Greek yogurt", quantity: "100g" },
+      { item: "Apple, grated", quantity: "1/2" },
+      { item: "Hazelnuts, toasted and chopped", quantity: "25g" },
+      { item: "Pomegranate seeds", quantity: "2 tbsp" },
+      { item: "Honey", quantity: "1 tsp" },
+      { item: "Milk or apple juice", quantity: "60ml" },
+    ],
+  },
+  "Savory crepes with goat cheese, spinach and sun-dried tomatoes": {
+    instructions: "Make thin crepes from flour, egg and milk. Wilt spinach in a pan with garlic. Fill each crepe with crumbled goat cheese, wilted spinach and sun-dried tomatoes. Fold and heat through in the pan.",
+    ingredients: [
+      { item: "Plain flour", quantity: "60g" },
+      { item: "Egg", quantity: "1" },
+      { item: "Milk", quantity: "150ml" },
+      { item: "Baby spinach", quantity: "80g" },
+      { item: "Goat cheese", quantity: "50g" },
+      { item: "Sun-dried tomatoes", quantity: "4" },
+      { item: "Garlic clove", quantity: "1" },
+    ],
+  },
+  "Eggs Benedict with Canadian bacon and light hollandaise": {
+    instructions: "Toast English muffins. Pan-fry Canadian bacon 2 min each side. Poach eggs 3-4 min. Make a quick hollandaise by whisking egg yolk with lemon juice over low heat, then slowly drizzle in melted butter. Assemble and top with hollandaise.",
+    ingredients: [
+      { item: "Eggs", quantity: "2" },
+      { item: "English muffins", quantity: "1 (split)" },
+      { item: "Canadian bacon", quantity: "2 slices" },
+      { item: "Butter", quantity: "30g (for hollandaise)" },
+      { item: "Egg yolk", quantity: "1 (for hollandaise)" },
+      { item: "Lemon juice", quantity: "1 tsp" },
+    ],
+  },
+  "Coconut overnight oats with mango, lime and toasted coconut": {
+    instructions: "Mix oats with coconut milk, chia seeds and maple syrup. Refrigerate overnight. In the morning, top with diced fresh mango, lime zest and toasted coconut flakes.",
+    ingredients: [
+      { item: "Rolled oats", quantity: "60g" },
+      { item: "Coconut milk", quantity: "150ml" },
+      { item: "Chia seeds", quantity: "1 tbsp" },
+      { item: "Ripe mango, diced", quantity: "1/2" },
+      { item: "Toasted coconut flakes", quantity: "2 tbsp" },
+      { item: "Lime zest", quantity: "1/2 lime" },
+      { item: "Maple syrup", quantity: "1 tsp" },
+    ],
+  },
+  "Huevos rancheros with black beans and pico de gallo": {
+    instructions: "Warm tortillas in a dry pan. Fry eggs sunny-side-up. Heat black beans with cumin and garlic. Make pico de gallo by combining diced tomato, onion, jalapeño and coriander. Assemble tortillas with beans, egg and pico de gallo.",
+    ingredients: [
+      { item: "Eggs", quantity: "2" },
+      { item: "Corn tortillas", quantity: "2" },
+      { item: "Black beans", quantity: "100g (cooked)" },
+      { item: "Tomatoes, diced", quantity: "2" },
+      { item: "Red onion, diced", quantity: "1/4" },
+      { item: "Jalapeño", quantity: "1/2 (optional)" },
+      { item: "Fresh coriander", quantity: "small handful" },
+      { item: "Ground cumin", quantity: "1/2 tsp" },
+    ],
+  },
+
+  // ── Gourmet Lunches ──────────────────────────────────────────────────────────
+  "Chicken shawarma bowl with hummus, tabbouleh and flatbread": {
+    instructions: "Marinate chicken in olive oil, cumin, coriander, turmeric and garlic. Grill or pan-fry until cooked through. Make tabbouleh with bulgur wheat, parsley, tomato and lemon. Serve over hummus with warm flatbread.",
+    ingredients: [
+      { item: "Chicken thigh (boneless)", quantity: "180g" },
+      { item: "Hummus", quantity: "3 tbsp" },
+      { item: "Bulgur wheat", quantity: "50g (dry)" },
+      { item: "Fresh parsley", quantity: "large handful" },
+      { item: "Cherry tomatoes", quantity: "80g" },
+      { item: "Flatbread", quantity: "1 small" },
+      { item: "Cumin, coriander, turmeric", quantity: "1 tsp each" },
+      { item: "Olive oil", quantity: "1.5 tbsp" },
+    ],
+  },
+  "Pan-seared tuna nicoise with green beans and soft-boiled egg": {
+    instructions: "Sear tuna steak in a hot pan with olive oil, 90 sec each side (keep it pink). Blanch green beans. Boil egg 6 min (jammy). Arrange over mixed leaves with olives, cherry tomatoes and a Dijon-lemon dressing.",
+    ingredients: [
+      { item: "Fresh tuna steak", quantity: "160g" },
+      { item: "Egg", quantity: "1" },
+      { item: "Green beans", quantity: "100g" },
+      { item: "Mixed leaves", quantity: "60g" },
+      { item: "Cherry tomatoes", quantity: "80g" },
+      { item: "Kalamata olives", quantity: "8" },
+      { item: "Dijon mustard", quantity: "1 tsp" },
+      { item: "Olive oil & lemon", quantity: "1.5 tbsp / 1 tbsp" },
+    ],
+  },
+  "Thai beef salad with glass noodles, mint and chilli-lime dressing": {
+    instructions: "Sear beef steak, slice thinly. Soak glass noodles per packet. Make dressing with fish sauce, lime juice, palm sugar and chilli. Toss with noodles, beef, cucumber, fresh mint and coriander.",
+    ingredients: [
+      { item: "Lean beef steak", quantity: "160g" },
+      { item: "Glass noodles", quantity: "50g (dry)" },
+      { item: "Cucumber", quantity: "1/2" },
+      { item: "Fresh mint and coriander", quantity: "large handful" },
+      { item: "Fish sauce", quantity: "1.5 tbsp" },
+      { item: "Lime juice", quantity: "2 tbsp" },
+      { item: "Palm sugar or honey", quantity: "1 tsp" },
+      { item: "Red chilli", quantity: "1 (deseeded)" },
+    ],
+  },
+  "Mediterranean stuffed peppers with couscous and feta": {
+    instructions: "Halve peppers and roast at 200°C for 20 min. Cook couscous and mix with sun-dried tomatoes, olives, crumbled feta and herbs. Fill peppers and bake a further 10 min.",
+    ingredients: [
+      { item: "Bell peppers", quantity: "2 large" },
+      { item: "Couscous", quantity: "60g (dry)" },
+      { item: "Feta cheese", quantity: "40g" },
+      { item: "Sun-dried tomatoes", quantity: "4" },
+      { item: "Kalamata olives", quantity: "8" },
+      { item: "Fresh basil or oregano", quantity: "small handful" },
+      { item: "Olive oil", quantity: "1 tbsp" },
+    ],
+  },
+  "Prawn and avocado salad with lime, chilli and mixed grains": {
+    instructions: "Cook prawns in a hot pan with garlic and chilli, 2 min each side. Mix cooked grains with lime dressing, sliced avocado, cucumber and coriander. Top with prawns.",
+    ingredients: [
+      { item: "Raw prawns", quantity: "180g (peeled)" },
+      { item: "Mixed grains (quinoa, brown rice)", quantity: "60g (dry)" },
+      { item: "Avocado", quantity: "1/2" },
+      { item: "Cucumber", quantity: "1/3" },
+      { item: "Fresh coriander", quantity: "small handful" },
+      { item: "Lime juice", quantity: "1.5 tbsp" },
+      { item: "Red chilli", quantity: "1/2" },
+    ],
+  },
+  "Chicken souvlaki wrap with tzatziki and roasted vegetables": {
+    instructions: "Marinate chicken in olive oil, oregano, garlic and lemon. Grill until cooked through and slightly charred. Roast peppers and courgette. Make tzatziki with yogurt, cucumber, garlic and dill. Assemble in warm flatbread.",
+    ingredients: [
+      { item: "Chicken breast", quantity: "180g" },
+      { item: "Flatbread or pitta", quantity: "1 large" },
+      { item: "Greek yogurt", quantity: "3 tbsp" },
+      { item: "Cucumber, grated", quantity: "1/4" },
+      { item: "Bell peppers and courgette", quantity: "150g combined" },
+      { item: "Dried oregano", quantity: "1 tsp" },
+      { item: "Garlic clove", quantity: "1" },
+    ],
+  },
+  "Spiced chickpea and spinach curry with basmati rice": {
+    instructions: "Sauté onion, garlic and ginger until soft. Add garam masala, cumin and coriander. Stir in chopped tomatoes and chickpeas; simmer 15 min. Wilt in spinach. Serve with fluffy basmati rice.",
+    ingredients: [
+      { item: "Chickpeas", quantity: "200g (cooked)" },
+      { item: "Baby spinach", quantity: "100g" },
+      { item: "Basmati rice", quantity: "60g (dry)" },
+      { item: "Tinned chopped tomatoes", quantity: "200g" },
+      { item: "Onion", quantity: "1/2" },
+      { item: "Garlic cloves", quantity: "2" },
+      { item: "Garam masala, cumin, coriander", quantity: "1 tsp each" },
+    ],
+  },
+  "Roasted red pepper and lentil soup with sourdough": {
+    instructions: "Roast red peppers at 220°C for 25 min, peel. Sauté onion and garlic, add red lentils, roasted peppers, stock and smoked paprika. Simmer 20 min then blend until smooth. Serve with a drizzle of olive oil and crusty sourdough.",
+    ingredients: [
+      { item: "Red peppers", quantity: "2 large" },
+      { item: "Red lentils", quantity: "80g" },
+      { item: "Vegetable stock", quantity: "600ml" },
+      { item: "Onion", quantity: "1/2" },
+      { item: "Garlic cloves", quantity: "2" },
+      { item: "Smoked paprika", quantity: "1 tsp" },
+      { item: "Sourdough bread", quantity: "1 slice" },
+    ],
+  },
+
+  // ── Gourmet Dinners ──────────────────────────────────────────────────────────
+  "Herb-crusted salmon with lemon risotto and asparagus": {
+    instructions: "Press a mix of breadcrumbs, parsley, lemon zest and olive oil onto the salmon. Bake at 200°C for 14-16 min. Make risotto with arborio rice, white wine, lemon juice and parmesan. Roast asparagus alongside the salmon.",
+    ingredients: [
+      { item: "Salmon fillet", quantity: "180g" },
+      { item: "Arborio rice", quantity: "70g (dry)" },
+      { item: "Asparagus", quantity: "120g" },
+      { item: "White wine", quantity: "60ml" },
+      { item: "Parmesan, grated", quantity: "25g" },
+      { item: "Lemon", quantity: "1" },
+      { item: "Fresh parsley", quantity: "small handful" },
+      { item: "Breadcrumbs", quantity: "2 tbsp" },
+    ],
+  },
+  "Moroccan lamb tagine with apricots, couscous and harissa": {
+    instructions: "Brown lamb pieces in a tagine or casserole. Add onion, garlic, ras el hanout, cinnamon and chopped tomatoes. Braise 45 min. Add dried apricots last 15 min. Serve over couscous with a spoonful of harissa.",
+    ingredients: [
+      { item: "Lean lamb shoulder, cubed", quantity: "180g" },
+      { item: "Couscous", quantity: "70g (dry)" },
+      { item: "Dried apricots", quantity: "6" },
+      { item: "Tinned tomatoes", quantity: "200g" },
+      { item: "Ras el hanout", quantity: "1.5 tsp" },
+      { item: "Cinnamon", quantity: "1/4 tsp" },
+      { item: "Harissa paste", quantity: "1 tsp" },
+    ],
+  },
+  "Thai green chicken curry with jasmine rice and bok choy": {
+    instructions: "Fry green curry paste in coconut oil for 1 min. Add sliced chicken and cook 5 min. Pour in coconut milk and simmer 15 min. Add bok choy last 3 min. Serve over jasmine rice with fresh basil and lime.",
+    ingredients: [
+      { item: "Chicken breast, sliced", quantity: "180g" },
+      { item: "Jasmine rice", quantity: "70g (dry)" },
+      { item: "Bok choy", quantity: "2 heads" },
+      { item: "Light coconut milk", quantity: "200ml" },
+      { item: "Green curry paste", quantity: "1.5 tbsp" },
+      { item: "Fresh basil", quantity: "small handful" },
+      { item: "Lime", quantity: "1/2" },
+    ],
+  },
+  "Seared duck breast with sweet potato puree and cherry jus": {
+    instructions: "Score duck skin and season well. Sear skin-down in a cold pan, then increase heat — 8 min skin side, 4 min flesh side. Rest 5 min. Boil sweet potato, mash with butter. Reduce chicken stock with cherries and a splash of red wine for jus.",
+    ingredients: [
+      { item: "Duck breast", quantity: "180g" },
+      { item: "Sweet potato", quantity: "250g" },
+      { item: "Fresh or frozen cherries", quantity: "80g" },
+      { item: "Chicken stock", quantity: "100ml" },
+      { item: "Red wine", quantity: "2 tbsp" },
+      { item: "Butter", quantity: "1 tsp" },
+    ],
+  },
+  "Pan-seared sea bass with chorizo, white beans and gremolata": {
+    instructions: "Sauté diced chorizo until crispy. Add cannellini beans and a little stock; simmer 5 min. Make gremolata with lemon zest, garlic and parsley. Sear sea bass fillets skin-down for 4 min, flip 1 min. Serve over the bean stew and top with gremolata.",
+    ingredients: [
+      { item: "Sea bass fillets", quantity: "180g" },
+      { item: "Chorizo, diced", quantity: "40g" },
+      { item: "Cannellini beans", quantity: "150g (cooked)" },
+      { item: "Chicken stock", quantity: "80ml" },
+      { item: "Lemon zest", quantity: "1 lemon" },
+      { item: "Garlic clove", quantity: "1" },
+      { item: "Fresh flat-leaf parsley", quantity: "small handful" },
+    ],
+  },
+  "Miso-glazed cod with edamame fried rice and pickled ginger": {
+    instructions: "Mix white miso, mirin, honey and soy. Marinate cod 30 min. Grill under the broiler for 8-10 min. Stir-fry cooked rice with edamame, egg, soy and sesame oil. Serve cod over fried rice with pickled ginger on the side.",
+    ingredients: [
+      { item: "Cod fillet", quantity: "180g" },
+      { item: "White miso paste", quantity: "1.5 tbsp" },
+      { item: "Mirin", quantity: "1 tbsp" },
+      { item: "Cooked brown rice", quantity: "150g" },
+      { item: "Edamame", quantity: "80g" },
+      { item: "Egg", quantity: "1" },
+      { item: "Pickled ginger", quantity: "1 tbsp" },
+      { item: "Sesame oil & soy sauce", quantity: "1 tsp each" },
+    ],
+  },
+  "Chicken piccata with capers, lemon butter sauce and linguine": {
+    instructions: "Pound chicken breasts thin, dredge in flour. Pan-fry in olive oil 3-4 min each side. Remove and make sauce in same pan with white wine, lemon juice, capers and a knob of butter. Cook linguine al dente. Serve chicken over pasta with the sauce.",
+    ingredients: [
+      { item: "Chicken breast, pounded thin", quantity: "180g" },
+      { item: "Linguine", quantity: "70g (dry)" },
+      { item: "Capers", quantity: "1.5 tbsp" },
+      { item: "White wine", quantity: "60ml" },
+      { item: "Lemon juice", quantity: "2 tbsp" },
+      { item: "Butter", quantity: "1.5 tbsp" },
+      { item: "Plain flour (for dredging)", quantity: "2 tbsp" },
+    ],
+  },
+  "Beef tenderloin with dauphinoise potato and green peppercorn sauce": {
+    instructions: "Thinly slice potatoes and layer with cream, garlic and gruyère. Bake at 170°C for 60 min. Sear beef medallions in a very hot pan, 3 min each side for medium-rare. Rest 5 min. Make sauce by searing the pan with beef stock, cream and green peppercorns.",
+    ingredients: [
+      { item: "Beef tenderloin medallion", quantity: "180g" },
+      { item: "Potatoes, thinly sliced", quantity: "250g" },
+      { item: "Double cream", quantity: "100ml" },
+      { item: "Gruyère, grated", quantity: "25g" },
+      { item: "Beef stock", quantity: "80ml" },
+      { item: "Green peppercorns in brine", quantity: "1 tbsp" },
+      { item: "Garlic clove", quantity: "1" },
+    ],
+  },
+
+  // ── Gourmet Snacks ───────────────────────────────────────────────────────────
+  "Baba ganoush with toasted pita and cucumber": {
+    instructions: "Char aubergine directly over a gas flame or under the grill until completely blackened. Scoop out flesh and blend with tahini, garlic, lemon juice and olive oil. Serve with toasted pitta triangles and sliced cucumber.",
+    ingredients: [
+      { item: "Aubergine (eggplant)", quantity: "1 large" },
+      { item: "Tahini", quantity: "1.5 tbsp" },
+      { item: "Lemon juice", quantity: "1.5 tbsp" },
+      { item: "Garlic clove", quantity: "1" },
+      { item: "Pitta bread", quantity: "1 (toasted)" },
+      { item: "Cucumber", quantity: "1/3" },
+    ],
+  },
+  "Whipped ricotta with honey, walnuts and pomegranate": {
+    instructions: "Blend ricotta with a little salt and lemon zest until very smooth. Spread into a bowl. Top with a generous drizzle of honey, chopped toasted walnuts and pomegranate seeds.",
+    ingredients: [
+      { item: "Ricotta cheese", quantity: "120g" },
+      { item: "Honey", quantity: "1.5 tbsp" },
+      { item: "Walnuts, toasted and chopped", quantity: "20g" },
+      { item: "Pomegranate seeds", quantity: "2 tbsp" },
+      { item: "Lemon zest", quantity: "pinch" },
+    ],
+  },
+  "Smoked salmon and cream cheese on rye crispbreads": {
+    instructions: "Spread cream cheese generously onto rye crispbreads. Top with smoked salmon, a squeeze of lemon and fresh dill. Finish with black pepper.",
+    ingredients: [
+      { item: "Smoked salmon", quantity: "60g" },
+      { item: "Cream cheese", quantity: "2 tbsp" },
+      { item: "Rye crispbreads", quantity: "3" },
+      { item: "Fresh dill", quantity: "small handful" },
+      { item: "Lemon juice", quantity: "squeeze" },
+    ],
+  },
+  "Roasted spiced chickpeas with tahini dip": {
+    instructions: "Drain and dry chickpeas well. Toss with olive oil, smoked paprika, cumin and salt. Roast at 200°C for 25-30 min until crispy. Make dip by stirring tahini with lemon juice, garlic and a little water.",
+    ingredients: [
+      { item: "Chickpeas", quantity: "200g (cooked, drained)" },
+      { item: "Olive oil", quantity: "1 tbsp" },
+      { item: "Smoked paprika & cumin", quantity: "1/2 tsp each" },
+      { item: "Tahini", quantity: "1.5 tbsp" },
+      { item: "Lemon juice", quantity: "1 tbsp" },
+      { item: "Garlic clove", quantity: "1/2" },
+    ],
+  },
+  "Caprese skewers with fresh mozzarella and basil pesto": {
+    instructions: "Thread fresh mozzarella balls, cherry tomatoes and basil leaves onto small skewers. Drizzle with store-bought or homemade pesto and a little balsamic glaze.",
+    ingredients: [
+      { item: "Fresh mozzarella (bocconcini)", quantity: "100g" },
+      { item: "Cherry tomatoes", quantity: "100g" },
+      { item: "Fresh basil leaves", quantity: "12 leaves" },
+      { item: "Basil pesto", quantity: "1 tbsp" },
+      { item: "Balsamic glaze", quantity: "1 tsp" },
+    ],
+  },
+  "Prosciutto-wrapped melon with rocket": {
+    instructions: "Cut melon into wedges and remove the skin. Wrap each wedge with a slice of prosciutto. Arrange over rocket leaves and finish with a drizzle of olive oil and cracked black pepper.",
+    ingredients: [
+      { item: "Melon (cantaloupe or honeydew)", quantity: "1/4 melon" },
+      { item: "Prosciutto", quantity: "3 slices" },
+      { item: "Rocket (arugula)", quantity: "30g" },
+      { item: "Olive oil", quantity: "1 tsp" },
+      { item: "Black pepper", quantity: "to taste" },
+    ],
+  },
+  "Nut butter energy balls with oats, dates and dark chocolate": {
+    instructions: "Blend pitted dates until sticky. Mix with oats, almond butter and a pinch of salt. Fold in dark chocolate chips. Roll into balls and refrigerate for at least 30 min before eating.",
+    ingredients: [
+      { item: "Medjool dates, pitted", quantity: "6" },
+      { item: "Rolled oats", quantity: "50g" },
+      { item: "Almond butter", quantity: "1.5 tbsp" },
+      { item: "Dark chocolate chips", quantity: "15g" },
+      { item: "Sea salt", quantity: "pinch" },
+    ],
+  },
+  "Tuna tartare on cucumber rounds with sesame and soy": {
+    instructions: "Finely dice sushi-grade tuna. Mix with soy sauce, sesame oil, lime juice and a little sriracha. Slice cucumber into rounds. Top each with a small spoonful of tartare and garnish with sesame seeds and microgreens.",
+    ingredients: [
+      { item: "Sushi-grade tuna", quantity: "120g" },
+      { item: "Cucumber", quantity: "1/2" },
+      { item: "Soy sauce", quantity: "1 tbsp" },
+      { item: "Sesame oil", quantity: "1 tsp" },
+      { item: "Lime juice", quantity: "1 tsp" },
+      { item: "Sriracha", quantity: "1/4 tsp" },
+      { item: "Sesame seeds & microgreens", quantity: "1 tsp / small handful" },
+    ],
+  },
 };
 
 interface Meal {
@@ -483,6 +867,7 @@ type MealPlan = any;
 
 export function ResultsDisplay({ data }: { data: Calculation }) {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
+  const [mealStyle, setMealStyle] = useState<'simple' | 'gourmet'>('simple');
   const [selectedMeal, setSelectedMeal] = useState<{ meal: string; calories: number; protein: number; carbs: number; fat: number } | null>(null);
   
   const generateMealPlan = useMutation({
@@ -494,6 +879,7 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
         carbsGoal: data.carbsGoal,
         fatGoal: data.fatGoal,
         planType,
+        mealStyle,
       });
       return await res.json();
     },
@@ -592,7 +978,35 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
               ))}
             </div>
 
-            <div className="flex gap-3 mt-8">
+            {/* Meal style toggle */}
+            <div className="mt-8 mb-4">
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Meal Style</p>
+              <div className="inline-flex bg-white/10 rounded-xl p-1 gap-1">
+                {(["simple", "gourmet"] as const).map((style) => (
+                  <button
+                    key={style}
+                    type="button"
+                    data-testid={`toggle-meal-style-${style}`}
+                    onClick={() => { setMealStyle(style); setMealPlan(null); }}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                      mealStyle === style
+                        ? "bg-white text-zinc-900 shadow"
+                        : "text-zinc-300 hover:text-white"
+                    }`}
+                  >
+                    {style === "simple" ? "🥗" : "🍽️"}
+                    {style === "simple" ? "Simple" : "Gourmet"}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-zinc-400 mt-1.5">
+                {mealStyle === "simple"
+                  ? "Quick, clean meals — ideal for busy weeks."
+                  : "Bold flavours and restaurant-style dishes."}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
               <button
                 onClick={() => generateMealPlan.mutate('daily')}
                 disabled={generateMealPlan.isPending}

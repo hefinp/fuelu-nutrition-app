@@ -46,6 +46,7 @@ export const mealPlanSchema = z.object({
   carbsGoal: z.number(),
   fatGoal: z.number(),
   planType: z.enum(['daily', 'weekly']),
+  mealStyle: z.enum(['simple', 'gourmet']).optional().default('simple'),
 });
 
 export const mealPlanResponseSchema = z.union([
