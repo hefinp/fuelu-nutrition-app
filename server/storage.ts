@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and } from "drizzle-orm";
 
@@ -12,6 +12,11 @@ export interface IStorage {
   // Calculations
   createCalculation(calc: InsertCalculation & { userId?: number; dailyCalories: number; weeklyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number }): Promise<Calculation>;
   getCalculations(userId?: number): Promise<Calculation[]>;
+
+  // Weight entries
+  createWeightEntry(entry: { userId: number; weight: string; recordedAt?: Date }): Promise<WeightEntry>;
+  getWeightEntries(userId: number): Promise<WeightEntry[]>;
+  deleteWeightEntry(id: number, userId: number): Promise<void>;
 
   // Saved meal plans
   saveMealPlan(plan: InsertSavedMealPlan): Promise<SavedMealPlan>;
@@ -37,16 +42,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async findOrCreateOAuthUser({ email, name, provider, providerId }: { email: string; name: string; provider: string; providerId: string }): Promise<User> {
-    // First try to find by provider + providerId (most reliable)
     const [byProvider] = await db.select().from(users).where(
       and(eq(users.provider, provider), eq(users.providerId, providerId))
     );
     if (byProvider) return byProvider;
 
-    // Then try by email (link existing account)
     const [byEmail] = await db.select().from(users).where(eq(users.email, email));
     if (byEmail) {
-      // Link provider to existing account
       const [updated] = await db.update(users)
         .set({ provider, providerId })
         .where(eq(users.id, byEmail.id))
@@ -54,7 +56,6 @@ export class DatabaseStorage implements IStorage {
       return updated;
     }
 
-    // Create new OAuth user (no password)
     const [created] = await db.insert(users).values({ email, name, provider, providerId }).returning();
     return created;
   }
@@ -69,6 +70,26 @@ export class DatabaseStorage implements IStorage {
       return await db.select().from(calculations).where(eq(calculations.userId, userId)).orderBy(desc(calculations.createdAt));
     }
     return await db.select().from(calculations).orderBy(desc(calculations.createdAt));
+  }
+
+  async createWeightEntry(entry: { userId: number; weight: string; recordedAt?: Date }): Promise<WeightEntry> {
+    const [created] = await db.insert(weightEntries).values({
+      userId: entry.userId,
+      weight: entry.weight,
+      recordedAt: entry.recordedAt ?? new Date(),
+    }).returning();
+    return created;
+  }
+
+  async getWeightEntries(userId: number): Promise<WeightEntry[]> {
+    return await db.select().from(weightEntries)
+      .where(eq(weightEntries.userId, userId))
+      .orderBy(weightEntries.recordedAt);
+  }
+
+  async deleteWeightEntry(id: number, userId: number): Promise<void> {
+    await db.delete(weightEntries)
+      .where(and(eq(weightEntries.id, id), eq(weightEntries.userId, userId)));
   }
 
   async saveMealPlan(plan: InsertSavedMealPlan): Promise<SavedMealPlan> {

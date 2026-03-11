@@ -31,7 +31,8 @@ Preferred communication style: Simple, everyday language.
 - `results-display.tsx` — Shows calorie targets, macro breakdown chart, meal plan, PDF export, shopping list PDF
 - `saved-meal-plans.tsx` — Displays saved meal plan cards with rename/delete actions
 - `pages/auth.tsx` — Login/register page with tabbed UI; shows Google/Apple OAuth buttons when provider secrets are configured (fetched from `/api/auth/providers`); handles `?error=google_failed` and `?error=apple_failed` query params
-- `pages/dashboard.tsx` — Main app page; CalculatorForm is NOT inline — it lives in a slide-over panel opened via user icon → "My Metrics". Results displayed full-width when a calculation exists.
+- `pages/dashboard.tsx` — Main app page; auto-loads last calculation on login; CalculatorForm is in a slide-over panel (user icon → "My Metrics"); two-column layout with ResultsDisplay + WeightTracker when metrics exist; "Set up your metrics" CTA only shown if no prior calculations.
+- `components/weight-tracker.tsx` — Weight logging + recharts LineChart; logs weight entries with date, shows current/change/count stats, recent entry list with delete.
 - `pages/landing.tsx` — Marketing landing page for logged-out visitors
 - `hooks/use-auth.ts` — Auth state hook (user, login, register, logout, loading states)
 - `hooks/use-calculations.ts` — Calculation history hook and create mutation

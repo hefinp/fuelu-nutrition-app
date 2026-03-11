@@ -88,3 +88,21 @@ export const insertSavedMealPlanSchema = createInsertSchema(savedMealPlans).omit
 
 export type InsertSavedMealPlan = z.infer<typeof insertSavedMealPlanSchema>;
 export type SavedMealPlan = typeof savedMealPlans.$inferSelect;
+
+export const weightEntries = pgTable("weight_entries", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  weight: numeric("weight").notNull(),
+  recordedAt: timestamp("recorded_at").defaultNow(),
+});
+
+export const insertWeightEntrySchema = createInsertSchema(weightEntries).pick({
+  weight: true,
+  recordedAt: true,
+}).extend({
+  weight: z.string().min(1, "Weight is required"),
+  recordedAt: z.string().optional(),
+});
+
+export type InsertWeightEntry = z.infer<typeof insertWeightEntrySchema>;
+export type WeightEntry = typeof weightEntries.$inferSelect;

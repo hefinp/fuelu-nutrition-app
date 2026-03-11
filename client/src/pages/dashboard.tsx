@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { CalculatorForm } from "@/components/calculator-form";
 import { ResultsDisplay } from "@/components/results-display";
 import { SavedMealPlans } from "@/components/saved-meal-plans";
+import { WeightTracker } from "@/components/weight-tracker";
 import { useCalculations } from "@/hooks/use-calculations";
 import { useAuth } from "@/hooks/use-auth";
 import { LogOut, BookOpen, Settings, X, SlidersHorizontal } from "lucide-react";
@@ -14,11 +15,18 @@ export default function Dashboard() {
   const [showSavedPlans, setShowSavedPlans] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMetricsPanel, setShowMetricsPanel] = useState(false);
-  const { data: history } = useCalculations();
+  const { data: history, isLoading: historyLoading } = useCalculations();
   const { user, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
 
   const lastCalculation: Partial<Calculation> | undefined = history?.[0];
+
+  // Auto-load the most recent calculation when history arrives
+  useEffect(() => {
+    if (history && history.length > 0 && !activeResult) {
+      setActiveResult(history[0]);
+    }
+  }, [history]);
 
   async function handleLogout() {
     setShowUserMenu(false);
@@ -36,11 +44,13 @@ export default function Dashboard() {
     setShowMetricsPanel(false);
   }
 
+  const hasMetrics = !!activeResult;
+
   return (
     <div className="min-h-screen bg-zinc-50/50 pb-20">
       {/* Header */}
       <header className="bg-white border-b border-zinc-100 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
               <div className="w-3 h-3 bg-white rounded-full" />
@@ -51,7 +61,6 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             {user ? (
               <>
-                {/* Saved plans toggle */}
                 <button
                   onClick={() => setShowSavedPlans(v => !v)}
                   className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${showSavedPlans ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}
@@ -61,7 +70,6 @@ export default function Dashboard() {
                   <span className="hidden sm:inline">My Plans</span>
                 </button>
 
-                {/* User menu */}
                 <div className="relative">
                   <button
                     onClick={() => setShowUserMenu(v => !v)}
@@ -128,7 +136,6 @@ export default function Dashboard() {
       <AnimatePresence>
         {showMetricsPanel && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -136,7 +143,6 @@ export default function Dashboard() {
               className="fixed inset-0 bg-black/30 z-40"
               onClick={() => setShowMetricsPanel(false)}
             />
-            {/* Panel */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
@@ -144,7 +150,6 @@ export default function Dashboard() {
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="fixed right-0 top-0 h-full w-full max-w-lg bg-white z-50 shadow-2xl flex flex-col"
             >
-              {/* Panel header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
                 <div className="flex items-center gap-2">
                   <Settings className="w-4 h-4 text-zinc-400" />
@@ -158,8 +163,6 @@ export default function Dashboard() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-
-              {/* Scrollable form area */}
               <div className="flex-1 overflow-y-auto px-6 py-6">
                 <p className="text-sm text-zinc-500 mb-6">
                   Update your body metrics below to recalculate your personalized calorie targets and macros.
@@ -175,7 +178,7 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
         {/* Saved Plans Section */}
         <AnimatePresence>
           {showSavedPlans && user && (
@@ -183,9 +186,9 @@ export default function Dashboard() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden mb-10"
+              className="overflow-hidden mb-8"
             >
-              <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-6 mb-2">
+              <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-6">
                 <div className="flex items-center gap-2 mb-5">
                   <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
                     <BookOpen className="w-5 h-5" />
@@ -201,35 +204,16 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* Results area */}
-        <AnimatePresence mode="wait">
-          {activeResult ? (
-            <motion.div
-              key="result"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-3xl font-display font-bold text-zinc-900 tracking-tight">Your Nutrition Plan</h2>
-                  <p className="text-zinc-500 text-sm mt-1">Based on your latest metrics. Update them anytime via your profile.</p>
-                </div>
-                {user && (
-                  <button
-                    onClick={handleOpenMetrics}
-                    className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
-                    data-testid="button-edit-metrics"
-                  >
-                    <SlidersHorizontal className="w-4 h-4" />
-                    <span className="hidden sm:inline">Edit Metrics</span>
-                  </button>
-                )}
-              </div>
-              <ResultsDisplay data={activeResult} />
-            </motion.div>
-          ) : (
+        {/* Loading state */}
+        {user && historyLoading && (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="w-6 h-6 border-2 border-zinc-200 border-t-zinc-600 rounded-full animate-spin" />
+          </div>
+        )}
+
+        {/* No metrics yet — setup CTA */}
+        {!historyLoading && !hasMetrics && (
+          <AnimatePresence>
             <motion.div
               key="empty"
               initial={{ opacity: 0 }}
@@ -274,8 +258,78 @@ export default function Dashboard() {
                 )}
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
+          </AnimatePresence>
+        )}
+
+        {/* Dashboard with metrics */}
+        {!historyLoading && hasMetrics && (
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            {/* Dashboard header */}
+            <div className="flex items-start justify-between mb-6 gap-4">
+              <div>
+                <h2 className="text-2xl font-display font-bold text-zinc-900 tracking-tight">
+                  {user ? `Welcome back, ${user.name.split(" ")[0]}` : "Your Dashboard"}
+                </h2>
+                <p className="text-zinc-500 text-sm mt-0.5">
+                  Your current nutrition targets and weight progress.
+                </p>
+              </div>
+              {user && (
+                <button
+                  onClick={handleOpenMetrics}
+                  className="flex-shrink-0 flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+                  data-testid="button-edit-metrics"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  <span className="hidden sm:inline">Edit Metrics</span>
+                </button>
+              )}
+            </div>
+
+            {/* Two-column layout: results + weight tracker */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+              {/* Nutrition results (left, wider) */}
+              <div className="xl:col-span-7">
+                <ResultsDisplay data={activeResult!} />
+              </div>
+
+              {/* Weight tracker (right) */}
+              <div className="xl:col-span-5">
+                {user ? (
+                  <WeightTracker
+                    targetWeight={
+                      activeResult
+                        ? parseFloat(activeResult.weight) +
+                          (activeResult.targetAmount ? parseFloat(activeResult.targetAmount) * (
+                            activeResult.goal === "fat_loss" || activeResult.goal === "tone" ? -1 : 1
+                          ) : 0)
+                        : undefined
+                    }
+                  />
+                ) : (
+                  <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 flex flex-col items-center text-center h-full justify-center">
+                    <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mb-4">
+                      <SlidersHorizontal className="w-5 h-5 text-zinc-400" />
+                    </div>
+                    <p className="text-sm font-medium text-zinc-600 mb-1">Track your weight over time</p>
+                    <p className="text-xs text-zinc-400 mb-4">Sign in to log and chart your weight progress.</p>
+                    <Link
+                      href="/auth"
+                      className="text-sm font-medium text-zinc-900 hover:underline"
+                    >
+                      Sign in to start tracking
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
       </main>
     </div>
   );
