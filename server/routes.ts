@@ -6,67 +6,131 @@ import { z } from "zod";
 
 const MEAL_DATABASE = {
   breakfast: [
-    { meal: "Scrambled eggs (3) with whole grain toast", calories: 380, protein: 20, carbs: 32, fat: 12 },
-    { meal: "Oatmeal with berries and almonds", calories: 340, protein: 12, carbs: 48, fat: 8 },
-    { meal: "Greek yogurt with granola and honey", calories: 380, protein: 18, carbs: 52, fat: 8 },
-    { meal: "Pancakes (2) with maple syrup and bacon", calories: 450, protein: 15, carbs: 60, fat: 14 },
-    { meal: "Smoothie bowl with fruit and nuts", calories: 420, protein: 15, carbs: 58, fat: 10 },
-    { meal: "Chia seed pudding with coconut milk", calories: 320, protein: 10, carbs: 38, fat: 14 },
+    { meal: "Scrambled eggs (3) with whole grain toast", calories: 380, protein: 28, carbs: 26, fat: 16 },
+    { meal: "Oatmeal with berries and almonds", calories: 340, protein: 14, carbs: 46, fat: 10 },
+    { meal: "Greek yogurt with granola and honey", calories: 360, protein: 22, carbs: 44, fat: 8 },
+    { meal: "Egg white omelette with spinach and feta", calories: 340, protein: 32, carbs: 12, fat: 16 },
+    { meal: "Protein smoothie with oats and almond butter", calories: 400, protein: 30, carbs: 42, fat: 12 },
+    { meal: "Cottage cheese with berries and flaxseed", calories: 300, protein: 26, carbs: 28, fat: 8 },
+    { meal: "Smoked salmon with eggs and rye toast", calories: 420, protein: 34, carbs: 24, fat: 18 },
+    { meal: "Chia seed pudding with coconut milk and nuts", calories: 360, protein: 14, carbs: 34, fat: 18 },
   ],
   lunch: [
-    { meal: "Grilled chicken breast with brown rice and broccoli", calories: 520, protein: 45, carbs: 52, fat: 8 },
-    { meal: "Turkey sandwich with avocado and vegetables", calories: 480, protein: 28, carbs: 48, fat: 16 },
-    { meal: "Tuna salad with olive oil dressing", calories: 420, protein: 35, carbs: 28, fat: 14 },
-    { meal: "Quinoa bowl with chickpeas and vegetables", calories: 450, protein: 16, carbs: 58, fat: 12 },
-    { meal: "Salmon with sweet potato and asparagus", calories: 540, protein: 40, carbs: 48, fat: 16 },
-    { meal: "Beef stir-fry with brown rice and mixed vegetables", calories: 580, protein: 38, carbs: 62, fat: 12 },
+    { meal: "Grilled chicken breast with brown rice and broccoli", calories: 500, protein: 46, carbs: 44, fat: 10 },
+    { meal: "Turkey and avocado salad with olive oil dressing", calories: 460, protein: 36, carbs: 24, fat: 22 },
+    { meal: "Tuna salad with olive oil dressing", calories: 400, protein: 38, carbs: 20, fat: 16 },
+    { meal: "Quinoa bowl with chickpeas and vegetables", calories: 440, protein: 22, carbs: 56, fat: 12 },
+    { meal: "Salmon with sweet potato and asparagus", calories: 520, protein: 42, carbs: 44, fat: 18 },
+    { meal: "Beef and brown rice bowl with mixed vegetables", calories: 540, protein: 42, carbs: 52, fat: 14 },
+    { meal: "Chicken Caesar salad with whole grain croutons", calories: 460, protein: 40, carbs: 28, fat: 18 },
+    { meal: "Lean turkey mince bowl with quinoa and greens", calories: 480, protein: 44, carbs: 36, fat: 14 },
   ],
   dinner: [
-    { meal: "Baked chicken with roasted vegetables and pasta", calories: 620, protein: 40, carbs: 70, fat: 12 },
-    { meal: "Lean beef with mashed potatoes and green beans", calories: 680, protein: 45, carbs: 68, fat: 14 },
-    { meal: "Grilled fish with wild rice and vegetables", calories: 580, protein: 42, carbs: 58, fat: 12 },
-    { meal: "Pork tenderloin with sweet potato and spinach", calories: 620, protein: 42, carbs: 62, fat: 14 },
-    { meal: "Turkey meatballs with spaghetti and marinara", calories: 560, protein: 38, carbs: 68, fat: 10 },
-    { meal: "Chicken fajitas with brown rice and beans", calories: 640, protein: 38, carbs: 78, fat: 12 },
+    { meal: "Baked chicken with roasted vegetables and sweet potato", calories: 580, protein: 46, carbs: 52, fat: 14 },
+    { meal: "Lean beef with mashed potatoes and green beans", calories: 620, protein: 48, carbs: 54, fat: 18 },
+    { meal: "Grilled salmon with wild rice and vegetables", calories: 560, protein: 46, carbs: 48, fat: 16 },
+    { meal: "Pork tenderloin with sweet potato and spinach", calories: 560, protein: 44, carbs: 52, fat: 14 },
+    { meal: "Turkey meatballs with wholemeal spaghetti and marinara", calories: 560, protein: 44, carbs: 58, fat: 12 },
+    { meal: "Chicken fajitas with brown rice and black beans", calories: 580, protein: 44, carbs: 62, fat: 12 },
+    { meal: "Grilled white fish with quinoa and roasted vegetables", calories: 520, protein: 46, carbs: 46, fat: 12 },
+    { meal: "Lean lamb stir-fry with brown rice and bok choy", calories: 600, protein: 46, carbs: 54, fat: 18 },
   ],
   snack: [
-    { meal: "Protein bar and apple", calories: 280, protein: 20, carbs: 32, fat: 8 },
-    { meal: "Greek yogurt with granola", calories: 200, protein: 15, carbs: 24, fat: 4 },
-    { meal: "Trail mix and banana", calories: 320, protein: 10, carbs: 42, fat: 12 },
-    { meal: "Cottage cheese with berries", calories: 220, protein: 18, carbs: 20, fat: 6 },
-    { meal: "Peanut butter and whole grain crackers", calories: 280, protein: 12, carbs: 28, fat: 14 },
-    { meal: "Hard-boiled eggs and almonds", calories: 240, protein: 16, carbs: 12, fat: 14 },
+    { meal: "Protein bar and apple", calories: 260, protein: 22, carbs: 28, fat: 6 },
+    { meal: "Greek yogurt with granola", calories: 220, protein: 18, carbs: 24, fat: 6 },
+    { meal: "Trail mix and banana", calories: 280, protein: 10, carbs: 38, fat: 10 },
+    { meal: "Cottage cheese with berries", calories: 200, protein: 20, carbs: 18, fat: 4 },
+    { meal: "Peanut butter and whole grain crackers", calories: 260, protein: 12, carbs: 24, fat: 14 },
+    { meal: "Hard-boiled eggs and almonds", calories: 220, protein: 18, carbs: 6, fat: 14 },
+    { meal: "Tuna on rice cakes", calories: 200, protein: 22, carbs: 18, fat: 4 },
+    { meal: "Edamame with sea salt", calories: 200, protein: 18, carbs: 14, fat: 8 },
   ],
 };
 
 type MealEntry = { meal: string; calories: number; protein: number; carbs: number; fat: number };
 
-function buildDayPlan(dailyCalories: number, lunchOverride?: MealEntry) {
-  const breakfast = MEAL_DATABASE.breakfast[Math.floor(Math.random() * MEAL_DATABASE.breakfast.length)];
-  const lunch = lunchOverride ?? MEAL_DATABASE.lunch[Math.floor(Math.random() * MEAL_DATABASE.lunch.length)];
-  const dinner = MEAL_DATABASE.dinner[Math.floor(Math.random() * MEAL_DATABASE.dinner.length)];
+// Scale a meal's portions to exactly hit a calorie target, preserving macro ratios
+function scaleMeal(meal: MealEntry, targetCalories: number): MealEntry {
+  const scale = targetCalories / meal.calories;
+  return {
+    meal: meal.meal,
+    calories: Math.round(targetCalories),
+    protein: Math.round(meal.protein * scale),
+    carbs: Math.round(meal.carbs * scale),
+    fat: Math.round(meal.fat * scale),
+  };
+}
 
-  let dayTotalCalories = breakfast.calories + lunch.calories + dinner.calories;
-  let dayTotalProtein = breakfast.protein + lunch.protein + dinner.protein;
-  let dayTotalCarbs = breakfast.carbs + lunch.carbs + dinner.carbs;
-  let dayTotalFat = breakfast.fat + lunch.fat + dinner.fat;
+// Score a meal's macro ratio distance from targets (lower is better)
+function macroScore(m: MealEntry, tProtein: number, tCarbs: number, tFat: number): number {
+  const pPct = (m.protein * 4) / m.calories;
+  const cPct = (m.carbs   * 4) / m.calories;
+  const fPct = (m.fat     * 9) / m.calories;
+  return Math.abs(pPct - tProtein) + Math.abs(cPct - tCarbs) + Math.abs(fPct - tFat);
+}
 
+// Rank all meals by macro fit, then randomly pick from the best third (for variety)
+function pickBestMeal(
+  pool: MealEntry[],
+  tProtein: number,
+  tCarbs: number,
+  tFat: number,
+): MealEntry {
+  const ranked = [...pool].sort((a, b) => macroScore(a, tProtein, tCarbs, tFat) - macroScore(b, tProtein, tCarbs, tFat));
+  // Pick randomly from the top third (min 2 options) to keep variety while staying macro-accurate
+  const topCount = Math.max(2, Math.ceil(ranked.length / 3));
+  const topCandidates = ranked.slice(0, topCount);
+  return topCandidates[Math.floor(Math.random() * topCandidates.length)];
+}
+
+function buildDayPlan(
+  dailyCalories: number,
+  proteinGoal: number,
+  carbsGoal: number,
+  fatGoal: number,
+  lunchOverride?: MealEntry,
+) {
+  // Calorie targets per slot
+  const bfTarget     = Math.round(dailyCalories * 0.25);
+  const lunchTarget  = Math.round(dailyCalories * 0.30);
+  const dinnerTarget = Math.round(dailyCalories * 0.35);
+  const snackBudget  = dailyCalories - bfTarget - lunchTarget - dinnerTarget; // ~10%
+
+  // Target macro ratios (as fractions of calories)
+  const totalMacroCals = proteinGoal * 4 + carbsGoal * 4 + fatGoal * 9;
+  const tProtein = (proteinGoal * 4) / totalMacroCals;
+  const tCarbs   = (carbsGoal   * 4) / totalMacroCals;
+  const tFat     = (fatGoal     * 9) / totalMacroCals;
+
+  const breakfastBase = pickBestMeal(MEAL_DATABASE.breakfast, tProtein, tCarbs, tFat);
+  const lunchBase     = lunchOverride ?? pickBestMeal(MEAL_DATABASE.lunch, tProtein, tCarbs, tFat);
+  const dinnerBase    = pickBestMeal(MEAL_DATABASE.dinner, tProtein, tCarbs, tFat);
+
+  const breakfast = scaleMeal(breakfastBase, bfTarget);
+  const lunch     = scaleMeal(lunchBase, lunchTarget);
+  const dinner    = scaleMeal(dinnerBase, dinnerTarget);
+
+  // Fill snack budget with 1–2 scaled snacks
   const snacksList: MealEntry[] = [];
-  let remaining = dailyCalories - dayTotalCalories;
+  let snackRemaining = snackBudget;
 
-  while (remaining > 150 && snacksList.length < 2) {
-    const snack = MEAL_DATABASE.snack[Math.floor(Math.random() * MEAL_DATABASE.snack.length)];
-    if (snack.calories <= remaining) {
-      snacksList.push(snack);
-      remaining -= snack.calories;
-      dayTotalCalories += snack.calories;
-      dayTotalProtein += snack.protein;
-      dayTotalCarbs += snack.carbs;
-      dayTotalFat += snack.fat;
-    } else {
-      break;
+  if (snackBudget >= 150) {
+    const numSnacks = snackBudget >= 350 ? 2 : 1;
+    const snackTargetEach = Math.round(snackBudget / numSnacks);
+
+    for (let i = 0; i < numSnacks; i++) {
+      const snackBase = pickBestMeal(MEAL_DATABASE.snack, tProtein, tCarbs, tFat);
+      snacksList.push(scaleMeal(snackBase, snackTargetEach));
+      snackRemaining -= snackTargetEach;
     }
   }
+
+  // Exact totals from scaled meals
+  const allMeals = [breakfast, lunch, dinner, ...snacksList];
+  const dayTotalCalories = allMeals.reduce((s, m) => s + m.calories, 0);
+  const dayTotalProtein  = allMeals.reduce((s, m) => s + m.protein,  0);
+  const dayTotalCarbs    = allMeals.reduce((s, m) => s + m.carbs,    0);
+  const dayTotalFat      = allMeals.reduce((s, m) => s + m.fat,      0);
 
   return {
     breakfast: [breakfast],
@@ -80,11 +144,19 @@ function buildDayPlan(dailyCalories: number, lunchOverride?: MealEntry) {
   };
 }
 
-function generateDayPlan(dailyCalories: number) {
-  return buildDayPlan(dailyCalories);
+function generateDayPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number) {
+  return buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal);
 }
 
 function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, isWeekly: boolean) {
+  const lunchTarget = Math.round(dailyCalories * 0.30);
+
+  // Target macro ratios — used when scaling the lunch override
+  const totalMacroCals = proteinGoal * 4 + carbsGoal * 4 + fatGoal * 9;
+  const tProtein = (proteinGoal * 4) / totalMacroCals;
+  const tCarbs   = (carbsGoal   * 4) / totalMacroCals;
+  const tFat     = (fatGoal     * 9) / totalMacroCals;
+
   if (isWeekly) {
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
     const weekPlan: any = {};
@@ -93,45 +165,48 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
     let weekTotalCarbs = 0;
     let weekTotalFat = 0;
 
-    let previousDinner: MealEntry | undefined = undefined;
+    // Stores the raw (unscaled) dinner base so the next day can scale it to lunchTarget
+    let previousDinnerBase: MealEntry | undefined = undefined;
+
+    const dinnerTarget = Math.round(dailyCalories * 0.35);
 
     days.forEach((day, index) => {
-      // Monday (index 0): lunch = Monday's own dinner, so we build without override first,
-      // then re-use that dinner as its own lunch.
-      // All other days: lunch = previous day's dinner.
       let dayPlan: ReturnType<typeof buildDayPlan>;
 
       if (index === 0) {
-        // Build Monday fully random, then set lunch = its own dinner
-        const mondayBase = buildDayPlan(dailyCalories);
-        const mondayDinner = mondayBase.dinner[0];
-        // Recalculate totals replacing the random lunch with the dinner
-        const lunchDiff = {
-          calories: mondayDinner.calories - mondayBase.lunch[0].calories,
-          protein: mondayDinner.protein - mondayBase.lunch[0].protein,
-          carbs: mondayDinner.carbs - mondayBase.lunch[0].carbs,
-          fat: mondayDinner.fat - mondayBase.lunch[0].fat,
-        };
+        // Monday: pick one dinner base, use it for BOTH lunch (at lunchTarget) and dinner (at dinnerTarget)
+        const mondayDinnerBase = pickBestMeal(MEAL_DATABASE.dinner, tProtein, tCarbs, tFat);
+        const mondayLunch  = scaleMeal(mondayDinnerBase, lunchTarget);
+        const mondayDinner = scaleMeal(mondayDinnerBase, dinnerTarget);
+
+        // Build day with the lunch override; then replace dinner with the same base
+        const dayPlanBase = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, mondayLunch);
+        const allMeals = [dayPlanBase.breakfast[0], mondayLunch, mondayDinner, ...dayPlanBase.snacks];
         dayPlan = {
-          ...mondayBase,
-          lunch: [mondayDinner],
-          dayTotalCalories: mondayBase.dayTotalCalories + lunchDiff.calories,
-          dayTotalProtein: mondayBase.dayTotalProtein + lunchDiff.protein,
-          dayTotalCarbs: mondayBase.dayTotalCarbs + lunchDiff.carbs,
-          dayTotalFat: mondayBase.dayTotalFat + lunchDiff.fat,
+          breakfast:       dayPlanBase.breakfast,
+          lunch:           [mondayLunch],
+          dinner:          [mondayDinner],
+          snacks:          dayPlanBase.snacks,
+          dayTotalCalories: allMeals.reduce((s, m) => s + m.calories, 0),
+          dayTotalProtein:  allMeals.reduce((s, m) => s + m.protein,  0),
+          dayTotalCarbs:    allMeals.reduce((s, m) => s + m.carbs,    0),
+          dayTotalFat:      allMeals.reduce((s, m) => s + m.fat,      0),
         };
-        previousDinner = mondayBase.dinner[0];
+        previousDinnerBase = mondayDinnerBase; // raw base so Tuesday scales it to lunchTarget
       } else {
-        // Use previous day's dinner as today's lunch
-        dayPlan = buildDayPlan(dailyCalories, previousDinner);
-        previousDinner = dayPlan.dinner[0];
+        // Tue–Sun: scale the raw dinner base from the previous day to lunchTarget
+        const lunchOverride = scaleMeal(previousDinnerBase!, lunchTarget);
+        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, lunchOverride);
+        // Store raw (unscaled) dinner base for the next day
+        const dinnerBase = MEAL_DATABASE.dinner.find(m => m.meal === dayPlan.dinner[0].meal) ?? dayPlan.dinner[0];
+        previousDinnerBase = dinnerBase;
       }
 
       weekPlan[day] = dayPlan;
       weekTotalCalories += dayPlan.dayTotalCalories;
-      weekTotalProtein += dayPlan.dayTotalProtein;
-      weekTotalCarbs += dayPlan.dayTotalCarbs;
-      weekTotalFat += dayPlan.dayTotalFat;
+      weekTotalProtein  += dayPlan.dayTotalProtein;
+      weekTotalCarbs    += dayPlan.dayTotalCarbs;
+      weekTotalFat      += dayPlan.dayTotalFat;
     });
 
     return {
@@ -143,7 +218,7 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
       weekTotalFat,
     };
   } else {
-    const dayPlan = generateDayPlan(dailyCalories);
+    const dayPlan = generateDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal);
     return {
       planType: 'daily' as const,
       ...dayPlan,
