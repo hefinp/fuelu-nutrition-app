@@ -155,6 +155,157 @@ function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
       `Week Total: ${mealPlan.weekTotalCalories} kcal  |  P: ${mealPlan.weekTotalProtein}g  |  C: ${mealPlan.weekTotalCarbs}g  |  F: ${mealPlan.weekTotalFat}g`,
       18, y + 8
     );
+    y += 12;
+  }
+
+  // ── Recipes section ──────────────────────────────────────────────────────────
+  // Collect all unique meal names from the plan (preserving order of first appearance)
+  const uniqueMealNames: string[] = [];
+  const slots = ["breakfast", "lunch", "dinner", "snacks"] as const;
+  const collectMeals = (dayPlan: any) => {
+    slots.forEach(slot => {
+      (dayPlan[slot] || []).forEach((m: any) => {
+        if (!uniqueMealNames.includes(m.meal)) uniqueMealNames.push(m.meal);
+      });
+    });
+  };
+  if (mealPlan.planType === "daily") {
+    collectMeals(mealPlan);
+  } else {
+    ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"].forEach(day => {
+      if (mealPlan[day]) collectMeals(mealPlan[day]);
+    });
+  }
+
+  // Only include meals that have a recipe entry
+  const recipeMeals = uniqueMealNames.filter(name => (RECIPES as any)[name]);
+
+  if (recipeMeals.length > 0) {
+    // Section divider — start on a new page for clarity
+    doc.addPage();
+    y = 20;
+
+    // Section header bar
+    doc.setFillColor(24, 24, 27);
+    doc.rect(0, 0, pageW, 18, "F");
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text("Recipes", 14, 12.5);
+    y = 26;
+
+    recipeMeals.forEach((mealName, idx) => {
+      const recipe = (RECIPES as any)[mealName] as { ingredients: Array<{ item: string; quantity: string }>; instructions: string };
+
+      // Estimate height needed: meal title (10) + ingredients (~5 per line / 2 cols) + instructions (~5 per line) + padding
+      const ingRowCount = Math.ceil(recipe.ingredients.length / 2);
+      const instrLines = doc.splitTextToSize(recipe.instructions, pageW - 28).length;
+      const estimatedH = 12 + ingRowCount * 6 + instrLines * 5 + 16;
+      checkPage(Math.min(estimatedH, 60));
+
+      // Subtle separator between recipes (skip before first)
+      if (idx > 0) {
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.3);
+        doc.line(14, y, pageW - 14, y);
+        y += 6;
+      }
+
+      // Meal name
+      checkPage(14);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(24, 24, 27);
+      const nameLines = doc.splitTextToSize(mealName, pageW - 28);
+      doc.text(nameLines, 14, y);
+      y += nameLines.length * 6 + 3;
+
+      // Macro line
+      checkPage(8);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(130, 130, 130);
+      const planMeal = uniqueMealNames.includes(mealName)
+        ? (() => {
+            for (const slot of slots) {
+              const found = (mealPlan[slot] || []).find((m: any) => m.meal === mealName);
+              if (found) return found;
+              if (mealPlan.planType === "weekly") {
+                for (const day of ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]) {
+                  const df = (mealPlan[day]?.[slot] || []).find((m: any) => m.meal === mealName);
+                  if (df) return df;
+                }
+              }
+            }
+            return null;
+          })()
+        : null;
+      if (planMeal) {
+        doc.text(`${planMeal.calories} kcal  ·  Protein ${planMeal.protein}g  ·  Carbs ${planMeal.carbs}g  ·  Fat ${planMeal.fat}g`, 14, y);
+        y += 6;
+      }
+
+      // Ingredients header
+      checkPage(10);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(60, 60, 60);
+      doc.text("Ingredients", 14, y);
+      y += 5;
+
+      // Ingredients two-column
+      const ingColW = (pageW - 28) / 2;
+      let leftY = y;
+      let rightY = y;
+      recipe.ingredients.forEach((ing, i) => {
+        const col = i % 2;
+        const xBase = col === 0 ? 14 : 14 + ingColW + 4;
+        const curY = col === 0 ? leftY : rightY;
+        checkPage(7);
+
+        // Bullet dot
+        doc.setFillColor(160, 160, 160);
+        doc.circle(xBase + 1.2, curY - 1.2, 0.8, "F");
+
+        // Item name
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(40, 40, 40);
+        const itemLines = doc.splitTextToSize(ing.item, ingColW - 36);
+        doc.text(itemLines, xBase + 4, curY);
+
+        // Quantity right-aligned
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(80, 80, 80);
+        doc.text(ing.quantity, xBase + ingColW - 2, curY, { align: "right" });
+
+        const rowH = itemLines.length > 1 ? itemLines.length * 4.5 : 5.5;
+        if (col === 0) leftY += rowH;
+        else rightY += rowH;
+      });
+      y = Math.max(leftY, rightY) + 4;
+
+      // Instructions header
+      checkPage(10);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(60, 60, 60);
+      doc.text("Method", 14, y);
+      y += 5;
+
+      // Instructions text
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(50, 50, 50);
+      const instrTextLines = doc.splitTextToSize(recipe.instructions, pageW - 28);
+      instrTextLines.forEach((line: string) => {
+        checkPage(6);
+        doc.text(line, 14, y);
+        y += 4.8;
+      });
+
+      y += 6;
+    });
   }
 
   doc.save(`meal-plan-${mealPlan.planType}-${new Date().toISOString().slice(0, 10)}.pdf`);
