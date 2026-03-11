@@ -33,7 +33,7 @@ Preferred communication style: Simple, everyday language.
 - `pages/auth.tsx` — Login/register page with tabbed UI; shows Google/Apple OAuth buttons when provider secrets are configured (fetched from `/api/auth/providers`); handles `?error=google_failed` and `?error=apple_failed` query params
 - `pages/dashboard.tsx` — Main app page; auto-loads last calculation on login; CalculatorForm is in a slide-over panel (user icon → "My Metrics"); two-column layout with ResultsDisplay + WeightTracker when metrics exist; "Set up your metrics" CTA only shown if no prior calculations.
 - `components/weight-tracker.tsx` — Weight logging + recharts LineChart; logs weight entries with date, shows current/change/count stats, recent entry list with delete.
-- `components/preferences-form.tsx` — Food preferences & allergies form rendered inside the My Metrics panel. Diet types: Vegetarian, Vegan, Pescatarian, Halal, Kosher. Allergies: Gluten, Dairy, Eggs, Nuts, Peanuts, Shellfish, Fish, Soy. Saves to `PUT /api/user/preferences`; reads from `GET /api/user/preferences`.
+- `components/preferences-form.tsx` — Food preferences & allergies form rendered inside the My Metrics panel. Diet types: Vegetarian, Vegan, Pescatarian, Halal, Kosher. Allergies: Gluten, Dairy, Eggs, Nuts, Peanuts, Shellfish, Fish, Soy. Custom food exclusions (tag input), preferred foods (tag input, boosts meal selection), micronutrient optimisation toggle (favours nutrient-dense meals). Saves to `PUT /api/user/preferences`; reads from `GET /api/user/preferences`.
 - `pages/landing.tsx` — Marketing landing page for logged-out visitors
 - `hooks/use-auth.ts` — Auth state hook (user, login, register, logout, loading states)
 - `hooks/use-calculations.ts` — Calculation history hook and create mutation
@@ -49,7 +49,7 @@ Preferred communication style: Simple, everyday language.
 - **Auth routes:** `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
 - **Production build:** esbuild bundles the server to `dist/index.cjs`; Vite builds the client to `dist/public`
 - **API pattern:** REST; all routes under `/api`. Route definitions and Zod schemas are shared between client and server via the `shared/` directory
-- **Meal plan generation:** Server-side using three static meal databases in `server/routes.ts`: `MEAL_DATABASE` (simple), `GOURMET_MEAL_DATABASE`, `MICHELIN_MEAL_DATABASE`. Each has breakfast/lunch/dinner/snack pools. Meals are filtered by user preferences/allergies using keyword matching before plan generation. Three-tier selector (Simple/Fancy/Michelin) on the frontend.
+- **Meal plan generation:** Server-side using three static meal databases in `server/routes.ts`: `MEAL_DATABASE` (simple), `GOURMET_MEAL_DATABASE`, `MICHELIN_MEAL_DATABASE`. Each has breakfast/lunch/dinner/snack pools with `microScore` (1–5) rating nutrient density. Meals are filtered by user preferences/allergies/custom exclusions using keyword matching before plan generation. `pickBestMeal` scores by macro fit, preferred-food boost, and optional micronutrient weighting. Three-tier selector (Simple/Fancy/Michelin) on the frontend.
 - **Calorie/macro calculation:** Performed server-side using TDEE/Harris-Benedict style formulas, stored as computed integer columns
 - **Auto-save:** When a logged-in user generates a meal plan, it is automatically saved to `saved_meal_plans`
 

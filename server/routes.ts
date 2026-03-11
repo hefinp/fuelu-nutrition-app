@@ -7,172 +7,172 @@ import bcrypt from "bcryptjs";
 import { registerSchema, loginSchema, userPreferencesSchema, type UserPreferences } from "@shared/schema";
 import passport from "passport";
 
-const MEAL_DATABASE = {
+const MEAL_DATABASE: MealDb = {
   breakfast: [
-    { meal: "Scrambled eggs (3) with whole grain toast", calories: 380, protein: 28, carbs: 26, fat: 16 },
-    { meal: "Oatmeal with berries and almonds", calories: 340, protein: 14, carbs: 46, fat: 10 },
-    { meal: "Greek yogurt with granola and honey", calories: 360, protein: 22, carbs: 44, fat: 8 },
-    { meal: "Egg white omelette with spinach and feta", calories: 340, protein: 32, carbs: 12, fat: 16 },
-    { meal: "Protein smoothie with oats and almond butter", calories: 400, protein: 30, carbs: 42, fat: 12 },
-    { meal: "Cottage cheese with berries and flaxseed", calories: 300, protein: 26, carbs: 28, fat: 8 },
-    { meal: "Smoked salmon with eggs and rye toast", calories: 420, protein: 34, carbs: 24, fat: 18 },
-    { meal: "Chia seed pudding with coconut milk and nuts", calories: 360, protein: 14, carbs: 34, fat: 18 },
-    { meal: "Banana and peanut butter overnight oats", calories: 370, protein: 14, carbs: 56, fat: 10 },
-    { meal: "Mixed berry smoothie bowl with hemp seeds and granola", calories: 340, protein: 12, carbs: 52, fat: 10 },
-    { meal: "Tofu scramble with peppers, onion and spinach", calories: 320, protein: 24, carbs: 18, fat: 14 },
-    { meal: "Fruit and nut muesli with oat milk", calories: 350, protein: 12, carbs: 50, fat: 10 },
+    { meal: "Scrambled eggs (3) with whole grain toast", calories: 380, protein: 28, carbs: 26, fat: 16, microScore: 3 },
+    { meal: "Oatmeal with berries and almonds", calories: 340, protein: 14, carbs: 46, fat: 10, microScore: 4 },
+    { meal: "Greek yogurt with granola and honey", calories: 360, protein: 22, carbs: 44, fat: 8, microScore: 3 },
+    { meal: "Egg white omelette with spinach and feta", calories: 340, protein: 32, carbs: 12, fat: 16, microScore: 5 },
+    { meal: "Protein smoothie with oats and almond butter", calories: 400, protein: 30, carbs: 42, fat: 12, microScore: 3 },
+    { meal: "Cottage cheese with berries and flaxseed", calories: 300, protein: 26, carbs: 28, fat: 8, microScore: 4 },
+    { meal: "Smoked salmon with eggs and rye toast", calories: 420, protein: 34, carbs: 24, fat: 18, microScore: 5 },
+    { meal: "Chia seed pudding with coconut milk and nuts", calories: 360, protein: 14, carbs: 34, fat: 18, microScore: 4 },
+    { meal: "Banana and peanut butter overnight oats", calories: 370, protein: 14, carbs: 56, fat: 10, microScore: 3 },
+    { meal: "Mixed berry smoothie bowl with hemp seeds and granola", calories: 340, protein: 12, carbs: 52, fat: 10, microScore: 4 },
+    { meal: "Tofu scramble with peppers, onion and spinach", calories: 320, protein: 24, carbs: 18, fat: 14, microScore: 5 },
+    { meal: "Fruit and nut muesli with oat milk", calories: 350, protein: 12, carbs: 50, fat: 10, microScore: 3 },
   ],
   lunch: [
-    { meal: "Grilled chicken breast with brown rice and broccoli", calories: 500, protein: 46, carbs: 44, fat: 10 },
-    { meal: "Turkey and avocado salad with olive oil dressing", calories: 460, protein: 36, carbs: 24, fat: 22 },
-    { meal: "Tuna salad with olive oil dressing", calories: 400, protein: 38, carbs: 20, fat: 16 },
-    { meal: "Quinoa bowl with chickpeas and vegetables", calories: 440, protein: 22, carbs: 56, fat: 12 },
-    { meal: "Salmon with sweet potato and asparagus", calories: 520, protein: 42, carbs: 44, fat: 18 },
-    { meal: "Beef and brown rice bowl with mixed vegetables", calories: 540, protein: 42, carbs: 52, fat: 14 },
-    { meal: "Chicken Caesar salad with whole grain croutons", calories: 460, protein: 40, carbs: 28, fat: 18 },
-    { meal: "Lean turkey mince bowl with quinoa and greens", calories: 480, protein: 44, carbs: 36, fat: 14 },
-    { meal: "Lentil and roasted vegetable bowl with tahini dressing", calories: 450, protein: 20, carbs: 58, fat: 12 },
-    { meal: "Black bean and roasted pepper burrito bowl with guacamole", calories: 470, protein: 18, carbs: 60, fat: 16 },
-    { meal: "Chickpea and sweet potato bowl with spinach and lime", calories: 440, protein: 18, carbs: 62, fat: 10 },
+    { meal: "Grilled chicken breast with brown rice and broccoli", calories: 500, protein: 46, carbs: 44, fat: 10, microScore: 4 },
+    { meal: "Turkey and avocado salad with olive oil dressing", calories: 460, protein: 36, carbs: 24, fat: 22, microScore: 4 },
+    { meal: "Tuna salad with olive oil dressing", calories: 400, protein: 38, carbs: 20, fat: 16, microScore: 4 },
+    { meal: "Quinoa bowl with chickpeas and vegetables", calories: 440, protein: 22, carbs: 56, fat: 12, microScore: 5 },
+    { meal: "Salmon with sweet potato and asparagus", calories: 520, protein: 42, carbs: 44, fat: 18, microScore: 5 },
+    { meal: "Beef and brown rice bowl with mixed vegetables", calories: 540, protein: 42, carbs: 52, fat: 14, microScore: 3 },
+    { meal: "Chicken Caesar salad with whole grain croutons", calories: 460, protein: 40, carbs: 28, fat: 18, microScore: 3 },
+    { meal: "Lean turkey mince bowl with quinoa and greens", calories: 480, protein: 44, carbs: 36, fat: 14, microScore: 4 },
+    { meal: "Lentil and roasted vegetable bowl with tahini dressing", calories: 450, protein: 20, carbs: 58, fat: 12, microScore: 5 },
+    { meal: "Black bean and roasted pepper burrito bowl with guacamole", calories: 470, protein: 18, carbs: 60, fat: 16, microScore: 4 },
+    { meal: "Chickpea and sweet potato bowl with spinach and lime", calories: 440, protein: 18, carbs: 62, fat: 10, microScore: 5 },
   ],
   dinner: [
-    { meal: "Baked chicken with roasted vegetables and sweet potato", calories: 580, protein: 46, carbs: 52, fat: 14 },
-    { meal: "Lean beef with mashed potatoes and green beans", calories: 620, protein: 48, carbs: 54, fat: 18 },
-    { meal: "Grilled salmon with wild rice and vegetables", calories: 560, protein: 46, carbs: 48, fat: 16 },
-    { meal: "Pork tenderloin with sweet potato and spinach", calories: 560, protein: 44, carbs: 52, fat: 14 },
-    { meal: "Turkey meatballs with wholemeal spaghetti and marinara", calories: 560, protein: 44, carbs: 58, fat: 12 },
-    { meal: "Chicken fajitas with brown rice and black beans", calories: 580, protein: 44, carbs: 62, fat: 12 },
-    { meal: "Grilled white fish with quinoa and roasted vegetables", calories: 520, protein: 46, carbs: 46, fat: 12 },
-    { meal: "Lean lamb stir-fry with brown rice and bok choy", calories: 600, protein: 46, carbs: 54, fat: 18 },
-    { meal: "Chickpea and spinach curry with basmati rice", calories: 540, protein: 22, carbs: 76, fat: 12 },
-    { meal: "Lentil dahl with brown rice and wilted spinach", calories: 520, protein: 24, carbs: 78, fat: 8 },
-    { meal: "Tofu and vegetable stir-fry with brown rice", calories: 500, protein: 26, carbs: 64, fat: 14 },
-    { meal: "Roasted vegetable and quinoa bowl with tahini", calories: 510, protein: 20, carbs: 68, fat: 16 },
+    { meal: "Baked chicken with roasted vegetables and sweet potato", calories: 580, protein: 46, carbs: 52, fat: 14, microScore: 4 },
+    { meal: "Lean beef with mashed potatoes and green beans", calories: 620, protein: 48, carbs: 54, fat: 18, microScore: 3 },
+    { meal: "Grilled salmon with wild rice and vegetables", calories: 560, protein: 46, carbs: 48, fat: 16, microScore: 5 },
+    { meal: "Pork tenderloin with sweet potato and spinach", calories: 560, protein: 44, carbs: 52, fat: 14, microScore: 4 },
+    { meal: "Turkey meatballs with wholemeal spaghetti and marinara", calories: 560, protein: 44, carbs: 58, fat: 12, microScore: 3 },
+    { meal: "Chicken fajitas with brown rice and black beans", calories: 580, protein: 44, carbs: 62, fat: 12, microScore: 4 },
+    { meal: "Grilled white fish with quinoa and roasted vegetables", calories: 520, protein: 46, carbs: 46, fat: 12, microScore: 5 },
+    { meal: "Lean lamb stir-fry with brown rice and bok choy", calories: 600, protein: 46, carbs: 54, fat: 18, microScore: 4 },
+    { meal: "Chickpea and spinach curry with basmati rice", calories: 540, protein: 22, carbs: 76, fat: 12, microScore: 5 },
+    { meal: "Lentil dahl with brown rice and wilted spinach", calories: 520, protein: 24, carbs: 78, fat: 8, microScore: 5 },
+    { meal: "Tofu and vegetable stir-fry with brown rice", calories: 500, protein: 26, carbs: 64, fat: 14, microScore: 4 },
+    { meal: "Roasted vegetable and quinoa bowl with tahini", calories: 510, protein: 20, carbs: 68, fat: 16, microScore: 5 },
   ],
   snack: [
-    { meal: "Protein bar and apple", calories: 260, protein: 22, carbs: 28, fat: 6 },
-    { meal: "Greek yogurt with granola", calories: 220, protein: 18, carbs: 24, fat: 6 },
-    { meal: "Trail mix and banana", calories: 280, protein: 10, carbs: 38, fat: 10 },
-    { meal: "Cottage cheese with berries", calories: 200, protein: 20, carbs: 18, fat: 4 },
-    { meal: "Peanut butter and whole grain crackers", calories: 260, protein: 12, carbs: 24, fat: 14 },
-    { meal: "Hard-boiled eggs and almonds", calories: 220, protein: 18, carbs: 6, fat: 14 },
-    { meal: "Tuna on rice cakes", calories: 200, protein: 22, carbs: 18, fat: 4 },
-    { meal: "Edamame with sea salt", calories: 200, protein: 18, carbs: 14, fat: 8 },
-    { meal: "Apple slices with sunflower seed butter", calories: 210, protein: 6, carbs: 30, fat: 10 },
-    { meal: "Rice cakes with avocado and cherry tomatoes", calories: 200, protein: 4, carbs: 26, fat: 10 },
-    { meal: "Roasted chickpeas with spices", calories: 220, protein: 10, carbs: 30, fat: 6 },
+    { meal: "Protein bar and apple", calories: 260, protein: 22, carbs: 28, fat: 6, microScore: 2 },
+    { meal: "Greek yogurt with granola", calories: 220, protein: 18, carbs: 24, fat: 6, microScore: 3 },
+    { meal: "Trail mix and banana", calories: 280, protein: 10, carbs: 38, fat: 10, microScore: 3 },
+    { meal: "Cottage cheese with berries", calories: 200, protein: 20, carbs: 18, fat: 4, microScore: 4 },
+    { meal: "Peanut butter and whole grain crackers", calories: 260, protein: 12, carbs: 24, fat: 14, microScore: 2 },
+    { meal: "Hard-boiled eggs and almonds", calories: 220, protein: 18, carbs: 6, fat: 14, microScore: 4 },
+    { meal: "Tuna on rice cakes", calories: 200, protein: 22, carbs: 18, fat: 4, microScore: 4 },
+    { meal: "Edamame with sea salt", calories: 200, protein: 18, carbs: 14, fat: 8, microScore: 5 },
+    { meal: "Apple slices with sunflower seed butter", calories: 210, protein: 6, carbs: 30, fat: 10, microScore: 3 },
+    { meal: "Rice cakes with avocado and cherry tomatoes", calories: 200, protein: 4, carbs: 26, fat: 10, microScore: 4 },
+    { meal: "Roasted chickpeas with spices", calories: 220, protein: 10, carbs: 30, fat: 6, microScore: 4 },
   ],
 };
 
-const GOURMET_MEAL_DATABASE = {
+const GOURMET_MEAL_DATABASE: MealDb = {
   breakfast: [
-    { meal: "Shakshuka with poached eggs and crusty sourdough", calories: 420, protein: 28, carbs: 38, fat: 18 },
-    { meal: "Avocado toast with poached eggs and everything bagel seasoning", calories: 400, protein: 24, carbs: 34, fat: 20 },
-    { meal: "Smoked salmon bagel with cream cheese, capers and dill", calories: 440, protein: 32, carbs: 36, fat: 18 },
-    { meal: "Bircher muesli with apple, toasted hazelnuts and pomegranate", calories: 380, protein: 16, carbs: 54, fat: 12 },
-    { meal: "Savory crepes with goat cheese, spinach and sun-dried tomatoes", calories: 420, protein: 26, carbs: 36, fat: 18 },
-    { meal: "Eggs Benedict with Canadian bacon and light hollandaise", calories: 460, protein: 32, carbs: 32, fat: 22 },
-    { meal: "Coconut overnight oats with mango, lime and toasted coconut", calories: 380, protein: 14, carbs: 56, fat: 12 },
-    { meal: "Huevos rancheros with black beans and pico de gallo", calories: 440, protein: 28, carbs: 44, fat: 16 },
-    { meal: "Acai smoothie bowl with mixed berries, banana and coconut flakes", calories: 370, protein: 10, carbs: 60, fat: 10 },
-    { meal: "Roasted tomato and lentil shakshuka with charred flatbread", calories: 400, protein: 20, carbs: 52, fat: 12 },
-    { meal: "Sweet potato and black bean breakfast hash with avocado", calories: 390, protein: 14, carbs: 56, fat: 14 },
+    { meal: "Shakshuka with poached eggs and crusty sourdough", calories: 420, protein: 28, carbs: 38, fat: 18, microScore: 4 },
+    { meal: "Avocado toast with poached eggs and everything bagel seasoning", calories: 400, protein: 24, carbs: 34, fat: 20, microScore: 4 },
+    { meal: "Smoked salmon bagel with cream cheese, capers and dill", calories: 440, protein: 32, carbs: 36, fat: 18, microScore: 5 },
+    { meal: "Bircher muesli with apple, toasted hazelnuts and pomegranate", calories: 380, protein: 16, carbs: 54, fat: 12, microScore: 5 },
+    { meal: "Savory crepes with goat cheese, spinach and sun-dried tomatoes", calories: 420, protein: 26, carbs: 36, fat: 18, microScore: 4 },
+    { meal: "Eggs Benedict with Canadian bacon and light hollandaise", calories: 460, protein: 32, carbs: 32, fat: 22, microScore: 3 },
+    { meal: "Coconut overnight oats with mango, lime and toasted coconut", calories: 380, protein: 14, carbs: 56, fat: 12, microScore: 3 },
+    { meal: "Huevos rancheros with black beans and pico de gallo", calories: 440, protein: 28, carbs: 44, fat: 16, microScore: 4 },
+    { meal: "Acai smoothie bowl with mixed berries, banana and coconut flakes", calories: 370, protein: 10, carbs: 60, fat: 10, microScore: 5 },
+    { meal: "Roasted tomato and lentil shakshuka with charred flatbread", calories: 400, protein: 20, carbs: 52, fat: 12, microScore: 5 },
+    { meal: "Sweet potato and black bean breakfast hash with avocado", calories: 390, protein: 14, carbs: 56, fat: 14, microScore: 5 },
   ],
   lunch: [
-    { meal: "Chicken shawarma bowl with hummus, tabbouleh and flatbread", calories: 540, protein: 44, carbs: 52, fat: 14 },
-    { meal: "Pan-seared tuna nicoise with green beans and soft-boiled egg", calories: 480, protein: 42, carbs: 28, fat: 22 },
-    { meal: "Thai beef salad with glass noodles, mint and chilli-lime dressing", calories: 460, protein: 36, carbs: 38, fat: 16 },
-    { meal: "Mediterranean stuffed peppers with couscous and feta", calories: 440, protein: 22, carbs: 54, fat: 14 },
-    { meal: "Prawn and avocado salad with lime, chilli and mixed grains", calories: 460, protein: 36, carbs: 38, fat: 16 },
-    { meal: "Chicken souvlaki wrap with tzatziki and roasted vegetables", calories: 500, protein: 42, carbs: 44, fat: 14 },
-    { meal: "Spiced chickpea and spinach curry with basmati rice", calories: 480, protein: 22, carbs: 64, fat: 12 },
-    { meal: "Roasted red pepper and lentil soup with sourdough", calories: 420, protein: 20, carbs: 58, fat: 10 },
-    { meal: "Moroccan roasted vegetable and chickpea bowl with chermoula", calories: 460, protein: 18, carbs: 64, fat: 14 },
-    { meal: "Vietnamese-style tofu and glass noodle salad with lime dressing", calories: 420, protein: 20, carbs: 54, fat: 12 },
+    { meal: "Chicken shawarma bowl with hummus, tabbouleh and flatbread", calories: 540, protein: 44, carbs: 52, fat: 14, microScore: 4 },
+    { meal: "Pan-seared tuna nicoise with green beans and soft-boiled egg", calories: 480, protein: 42, carbs: 28, fat: 22, microScore: 5 },
+    { meal: "Thai beef salad with glass noodles, mint and chilli-lime dressing", calories: 460, protein: 36, carbs: 38, fat: 16, microScore: 4 },
+    { meal: "Mediterranean stuffed peppers with couscous and feta", calories: 440, protein: 22, carbs: 54, fat: 14, microScore: 4 },
+    { meal: "Prawn and avocado salad with lime, chilli and mixed grains", calories: 460, protein: 36, carbs: 38, fat: 16, microScore: 4 },
+    { meal: "Chicken souvlaki wrap with tzatziki and roasted vegetables", calories: 500, protein: 42, carbs: 44, fat: 14, microScore: 3 },
+    { meal: "Spiced chickpea and spinach curry with basmati rice", calories: 480, protein: 22, carbs: 64, fat: 12, microScore: 5 },
+    { meal: "Roasted red pepper and lentil soup with sourdough", calories: 420, protein: 20, carbs: 58, fat: 10, microScore: 5 },
+    { meal: "Moroccan roasted vegetable and chickpea bowl with chermoula", calories: 460, protein: 18, carbs: 64, fat: 14, microScore: 5 },
+    { meal: "Vietnamese-style tofu and glass noodle salad with lime dressing", calories: 420, protein: 20, carbs: 54, fat: 12, microScore: 4 },
   ],
   dinner: [
-    { meal: "Herb-crusted salmon with lemon risotto and asparagus", calories: 600, protein: 46, carbs: 56, fat: 18 },
-    { meal: "Moroccan lamb tagine with apricots, couscous and harissa", calories: 620, protein: 46, carbs: 60, fat: 18 },
-    { meal: "Thai green chicken curry with jasmine rice and bok choy", calories: 580, protein: 44, carbs: 58, fat: 16 },
-    { meal: "Seared duck breast with sweet potato puree and cherry jus", calories: 600, protein: 44, carbs: 52, fat: 20 },
-    { meal: "Pan-seared sea bass with chorizo, white beans and gremolata", calories: 560, protein: 46, carbs: 42, fat: 20 },
-    { meal: "Miso-glazed cod with edamame fried rice and pickled ginger", calories: 560, protein: 46, carbs: 52, fat: 14 },
-    { meal: "Chicken piccata with capers, lemon butter sauce and linguine", calories: 580, protein: 46, carbs: 54, fat: 16 },
-    { meal: "Beef tenderloin with dauphinoise potato and green peppercorn sauce", calories: 640, protein: 48, carbs: 48, fat: 24 },
-    { meal: "Moroccan vegetable tagine with couscous, preserved lemon and harissa", calories: 540, protein: 16, carbs: 80, fat: 14 },
-    { meal: "Butternut squash and chickpea coconut curry with jasmine rice", calories: 560, protein: 18, carbs: 82, fat: 16 },
-    { meal: "Roasted aubergine with pomegranate, walnut sauce and lentil rice", calories: 520, protein: 18, carbs: 72, fat: 16 },
+    { meal: "Herb-crusted salmon with lemon risotto and asparagus", calories: 600, protein: 46, carbs: 56, fat: 18, microScore: 5 },
+    { meal: "Moroccan lamb tagine with apricots, couscous and harissa", calories: 620, protein: 46, carbs: 60, fat: 18, microScore: 4 },
+    { meal: "Thai green chicken curry with jasmine rice and bok choy", calories: 580, protein: 44, carbs: 58, fat: 16, microScore: 4 },
+    { meal: "Seared duck breast with sweet potato puree and cherry jus", calories: 600, protein: 44, carbs: 52, fat: 20, microScore: 3 },
+    { meal: "Pan-seared sea bass with chorizo, white beans and gremolata", calories: 560, protein: 46, carbs: 42, fat: 20, microScore: 4 },
+    { meal: "Miso-glazed cod with edamame fried rice and pickled ginger", calories: 560, protein: 46, carbs: 52, fat: 14, microScore: 5 },
+    { meal: "Chicken piccata with capers, lemon butter sauce and linguine", calories: 580, protein: 46, carbs: 54, fat: 16, microScore: 3 },
+    { meal: "Beef tenderloin with dauphinoise potato and green peppercorn sauce", calories: 640, protein: 48, carbs: 48, fat: 24, microScore: 2 },
+    { meal: "Moroccan vegetable tagine with couscous, preserved lemon and harissa", calories: 540, protein: 16, carbs: 80, fat: 14, microScore: 5 },
+    { meal: "Butternut squash and chickpea coconut curry with jasmine rice", calories: 560, protein: 18, carbs: 82, fat: 16, microScore: 5 },
+    { meal: "Roasted aubergine with pomegranate, walnut sauce and lentil rice", calories: 520, protein: 18, carbs: 72, fat: 16, microScore: 5 },
   ],
   snack: [
-    { meal: "Baba ganoush with toasted pita and cucumber", calories: 240, protein: 8, carbs: 30, fat: 10 },
-    { meal: "Whipped ricotta with honey, walnuts and pomegranate", calories: 260, protein: 14, carbs: 24, fat: 14 },
-    { meal: "Smoked salmon and cream cheese on rye crispbreads", calories: 220, protein: 18, carbs: 16, fat: 10 },
-    { meal: "Roasted spiced chickpeas with tahini dip", calories: 240, protein: 12, carbs: 28, fat: 10 },
-    { meal: "Caprese skewers with fresh mozzarella and basil pesto", calories: 240, protein: 14, carbs: 8, fat: 18 },
-    { meal: "Prosciutto-wrapped melon with rocket", calories: 200, protein: 14, carbs: 20, fat: 6 },
-    { meal: "Nut butter energy balls with oats, dates and dark chocolate", calories: 280, protein: 10, carbs: 34, fat: 12 },
-    { meal: "Tuna tartare on cucumber rounds with sesame and soy", calories: 200, protein: 22, carbs: 10, fat: 8 },
-    { meal: "Sliced avocado with lime, chilli flakes and sesame rice cakes", calories: 220, protein: 4, carbs: 24, fat: 14 },
-    { meal: "Spiced roasted chickpeas with pomegranate molasses", calories: 230, protein: 10, carbs: 32, fat: 6 },
+    { meal: "Baba ganoush with toasted pita and cucumber", calories: 240, protein: 8, carbs: 30, fat: 10, microScore: 3 },
+    { meal: "Whipped ricotta with honey, walnuts and pomegranate", calories: 260, protein: 14, carbs: 24, fat: 14, microScore: 4 },
+    { meal: "Smoked salmon and cream cheese on rye crispbreads", calories: 220, protein: 18, carbs: 16, fat: 10, microScore: 5 },
+    { meal: "Roasted spiced chickpeas with tahini dip", calories: 240, protein: 12, carbs: 28, fat: 10, microScore: 4 },
+    { meal: "Caprese skewers with fresh mozzarella and basil pesto", calories: 240, protein: 14, carbs: 8, fat: 18, microScore: 3 },
+    { meal: "Prosciutto-wrapped melon with rocket", calories: 200, protein: 14, carbs: 20, fat: 6, microScore: 3 },
+    { meal: "Nut butter energy balls with oats, dates and dark chocolate", calories: 280, protein: 10, carbs: 34, fat: 12, microScore: 3 },
+    { meal: "Tuna tartare on cucumber rounds with sesame and soy", calories: 200, protein: 22, carbs: 10, fat: 8, microScore: 5 },
+    { meal: "Sliced avocado with lime, chilli flakes and sesame rice cakes", calories: 220, protein: 4, carbs: 24, fat: 14, microScore: 4 },
+    { meal: "Spiced roasted chickpeas with pomegranate molasses", calories: 230, protein: 10, carbs: 32, fat: 6, microScore: 4 },
   ],
 };
 
-const MICHELIN_MEAL_DATABASE = {
+const MICHELIN_MEAL_DATABASE: MealDb = {
   breakfast: [
-    { meal: "Croque Madame with Gruyère, smoked ham and fried egg", calories: 480, protein: 32, carbs: 30, fat: 24 },
-    { meal: "Slow scrambled eggs with crème fraîche, chives and smoked trout on rye", calories: 420, protein: 34, carbs: 24, fat: 20 },
-    { meal: "Ricotta pancakes with blueberry compote and lemon curd", calories: 460, protein: 20, carbs: 56, fat: 16 },
-    { meal: "Brioche French toast with mascarpone, caramelised banana and maple syrup", calories: 500, protein: 18, carbs: 58, fat: 22 },
-    { meal: "Baked eggs in tomato and chorizo sauce with crusty sourdough", calories: 460, protein: 28, carbs: 38, fat: 20 },
-    { meal: "Poached eggs with wilted spinach, lemon hollandaise and smoked salmon", calories: 440, protein: 32, carbs: 20, fat: 26 },
-    { meal: "Smoked salmon and cream cheese omelette with chives and sourdough", calories: 480, protein: 36, carbs: 24, fat: 26 },
-    { meal: "Warm spiced oats with poached pear, cardamom cream and toasted pistachios", calories: 420, protein: 14, carbs: 52, fat: 16 },
-    { meal: "Coconut and passion fruit chia pudding with mango compote and lime", calories: 400, protein: 12, carbs: 54, fat: 14 },
-    { meal: "Warm spiced oat porridge with caramelised apple, date syrup and toasted seeds", calories: 390, protein: 10, carbs: 62, fat: 10 },
-    { meal: "Roasted cherry tomato and avocado bruschetta with microgreens and hemp oil", calories: 380, protein: 10, carbs: 50, fat: 16 },
+    { meal: "Croque Madame with Gruyère, smoked ham and fried egg", calories: 480, protein: 32, carbs: 30, fat: 24, microScore: 3 },
+    { meal: "Slow scrambled eggs with crème fraîche, chives and smoked trout on rye", calories: 420, protein: 34, carbs: 24, fat: 20, microScore: 5 },
+    { meal: "Ricotta pancakes with blueberry compote and lemon curd", calories: 460, protein: 20, carbs: 56, fat: 16, microScore: 3 },
+    { meal: "Brioche French toast with mascarpone, caramelised banana and maple syrup", calories: 500, protein: 18, carbs: 58, fat: 22, microScore: 2 },
+    { meal: "Baked eggs in tomato and chorizo sauce with crusty sourdough", calories: 460, protein: 28, carbs: 38, fat: 20, microScore: 4 },
+    { meal: "Poached eggs with wilted spinach, lemon hollandaise and smoked salmon", calories: 440, protein: 32, carbs: 20, fat: 26, microScore: 5 },
+    { meal: "Smoked salmon and cream cheese omelette with chives and sourdough", calories: 480, protein: 36, carbs: 24, fat: 26, microScore: 5 },
+    { meal: "Warm spiced oats with poached pear, cardamom cream and toasted pistachios", calories: 420, protein: 14, carbs: 52, fat: 16, microScore: 4 },
+    { meal: "Coconut and passion fruit chia pudding with mango compote and lime", calories: 400, protein: 12, carbs: 54, fat: 14, microScore: 4 },
+    { meal: "Warm spiced oat porridge with caramelised apple, date syrup and toasted seeds", calories: 390, protein: 10, carbs: 62, fat: 10, microScore: 4 },
+    { meal: "Roasted cherry tomato and avocado bruschetta with microgreens and hemp oil", calories: 380, protein: 10, carbs: 50, fat: 16, microScore: 5 },
   ],
   lunch: [
-    { meal: "Pan-seared salmon with asparagus, lemon caper butter and new potatoes", calories: 540, protein: 44, carbs: 36, fat: 24 },
-    { meal: "Seared sea bass fillet with chorizo, butter beans and wilted spinach", calories: 520, protein: 46, carbs: 34, fat: 20 },
-    { meal: "Seared scallops with pea purée, crispy pancetta and lemon butter", calories: 480, protein: 40, carbs: 32, fat: 20 },
-    { meal: "Grilled ribeye steak salad with blue cheese, walnuts and bitter leaves", calories: 540, protein: 44, carbs: 16, fat: 34 },
-    { meal: "Crispy duck leg with Puy lentil salad, mustard dressing and watercress", calories: 560, protein: 46, carbs: 32, fat: 24 },
-    { meal: "Roasted red pepper and goat cheese tart with dressed rocket salad", calories: 480, protein: 20, carbs: 44, fat: 24 },
-    { meal: "Warm chicken liver salad with crispy bacon, baby spinach and balsamic", calories: 460, protein: 38, carbs: 24, fat: 22 },
-    { meal: "Seared tuna steak with mango salsa, wild rice and lime crème fraîche", calories: 520, protein: 46, carbs: 44, fat: 12 },
-    { meal: "Heritage tomato salad with white bean puree, basil oil and crispy capers", calories: 440, protein: 18, carbs: 56, fat: 16 },
-    { meal: "Roasted beetroot and Puy lentil salad with orange dressing and walnuts", calories: 460, protein: 18, carbs: 60, fat: 16 },
-    { meal: "Miso-glazed aubergine with black sesame rice and pickled cucumber", calories: 480, protein: 14, carbs: 70, fat: 14 },
+    { meal: "Pan-seared salmon with asparagus, lemon caper butter and new potatoes", calories: 540, protein: 44, carbs: 36, fat: 24, microScore: 5 },
+    { meal: "Seared sea bass fillet with chorizo, butter beans and wilted spinach", calories: 520, protein: 46, carbs: 34, fat: 20, microScore: 5 },
+    { meal: "Seared scallops with pea purée, crispy pancetta and lemon butter", calories: 480, protein: 40, carbs: 32, fat: 20, microScore: 4 },
+    { meal: "Grilled ribeye steak salad with blue cheese, walnuts and bitter leaves", calories: 540, protein: 44, carbs: 16, fat: 34, microScore: 3 },
+    { meal: "Crispy duck leg with Puy lentil salad, mustard dressing and watercress", calories: 560, protein: 46, carbs: 32, fat: 24, microScore: 5 },
+    { meal: "Roasted red pepper and goat cheese tart with dressed rocket salad", calories: 480, protein: 20, carbs: 44, fat: 24, microScore: 4 },
+    { meal: "Warm chicken liver salad with crispy bacon, baby spinach and balsamic", calories: 460, protein: 38, carbs: 24, fat: 22, microScore: 5 },
+    { meal: "Seared tuna steak with mango salsa, wild rice and lime crème fraîche", calories: 520, protein: 46, carbs: 44, fat: 12, microScore: 5 },
+    { meal: "Heritage tomato salad with white bean puree, basil oil and crispy capers", calories: 440, protein: 18, carbs: 56, fat: 16, microScore: 5 },
+    { meal: "Roasted beetroot and Puy lentil salad with orange dressing and walnuts", calories: 460, protein: 18, carbs: 60, fat: 16, microScore: 5 },
+    { meal: "Miso-glazed aubergine with black sesame rice and pickled cucumber", calories: 480, protein: 14, carbs: 70, fat: 14, microScore: 4 },
   ],
   dinner: [
-    { meal: "Ribeye steak with truffle butter, dauphinoise potatoes and tenderstem broccoli", calories: 680, protein: 52, carbs: 40, fat: 34 },
-    { meal: "Duck breast with cherry and port sauce, potato gratin and wilted greens", calories: 640, protein: 46, carbs: 44, fat: 28 },
-    { meal: "Rack of lamb with herb crust, roasted garlic mash and red wine jus", calories: 660, protein: 52, carbs: 40, fat: 30 },
-    { meal: "Pan-roasted sea bass with saffron mussels, new potatoes and parsley oil", calories: 580, protein: 52, carbs: 42, fat: 18 },
-    { meal: "Slow-braised beef short ribs with creamy polenta, gremolata and roasted roots", calories: 700, protein: 54, carbs: 48, fat: 28 },
-    { meal: "Chicken supreme with wild mushroom and tarragon cream sauce, pommes purée", calories: 620, protein: 48, carbs: 44, fat: 24 },
-    { meal: "Salmon en croûte with spinach and cream cheese filling, lemon dill sauce", calories: 640, protein: 48, carbs: 44, fat: 28 },
-    { meal: "Slow-roasted pork belly with apple and cider jus, roasted roots and mustard greens", calories: 680, protein: 50, carbs: 44, fat: 32 },
-    { meal: "Roasted celeriac with truffle oil, hazelnut crumb and lentil ragu", calories: 560, protein: 20, carbs: 68, fat: 20 },
-    { meal: "Charred cauliflower steak with romesco, beluga lentils and herb oil", calories: 520, protein: 22, carbs: 62, fat: 18 },
-    { meal: "Wild mushroom and chestnut bourguignon with pommes purée and roasted roots", calories: 580, protein: 16, carbs: 78, fat: 18 },
+    { meal: "Ribeye steak with truffle butter, dauphinoise potatoes and tenderstem broccoli", calories: 680, protein: 52, carbs: 40, fat: 34, microScore: 3 },
+    { meal: "Duck breast with cherry and port sauce, potato gratin and wilted greens", calories: 640, protein: 46, carbs: 44, fat: 28, microScore: 4 },
+    { meal: "Rack of lamb with herb crust, roasted garlic mash and red wine jus", calories: 660, protein: 52, carbs: 40, fat: 30, microScore: 3 },
+    { meal: "Pan-roasted sea bass with saffron mussels, new potatoes and parsley oil", calories: 580, protein: 52, carbs: 42, fat: 18, microScore: 5 },
+    { meal: "Slow-braised beef short ribs with creamy polenta, gremolata and roasted roots", calories: 700, protein: 54, carbs: 48, fat: 28, microScore: 4 },
+    { meal: "Chicken supreme with wild mushroom and tarragon cream sauce, pommes purée", calories: 620, protein: 48, carbs: 44, fat: 24, microScore: 3 },
+    { meal: "Salmon en croûte with spinach and cream cheese filling, lemon dill sauce", calories: 640, protein: 48, carbs: 44, fat: 28, microScore: 4 },
+    { meal: "Slow-roasted pork belly with apple and cider jus, roasted roots and mustard greens", calories: 680, protein: 50, carbs: 44, fat: 32, microScore: 4 },
+    { meal: "Roasted celeriac with truffle oil, hazelnut crumb and lentil ragu", calories: 560, protein: 20, carbs: 68, fat: 20, microScore: 5 },
+    { meal: "Charred cauliflower steak with romesco, beluga lentils and herb oil", calories: 520, protein: 22, carbs: 62, fat: 18, microScore: 5 },
+    { meal: "Wild mushroom and chestnut bourguignon with pommes purée and roasted roots", calories: 580, protein: 16, carbs: 78, fat: 18, microScore: 4 },
   ],
   snack: [
-    { meal: "Parma ham with marinated artichoke hearts and olives", calories: 220, protein: 16, carbs: 10, fat: 14 },
-    { meal: "Smoked mackerel pâté with dark rye crispbreads and cucumber", calories: 260, protein: 20, carbs: 16, fat: 14 },
-    { meal: "Crostini with ricotta, honey and toasted walnuts", calories: 280, protein: 12, carbs: 26, fat: 16 },
-    { meal: "Burrata with slow-roasted cherry tomatoes, basil and aged balsamic", calories: 280, protein: 14, carbs: 12, fat: 20 },
-    { meal: "Manchego cheese with quince paste, Marcona almonds and Serrano ham", calories: 300, protein: 14, carbs: 18, fat: 20 },
-    { meal: "Smoked salmon blinis with crème fraîche and capers", calories: 260, protein: 18, carbs: 18, fat: 12 },
-    { meal: "Brie with honey, walnuts and sliced pear on crispbreads", calories: 300, protein: 12, carbs: 24, fat: 18 },
-    { meal: "Warm rosemary and chilli marinated olives with sourdough", calories: 240, protein: 4, carbs: 28, fat: 12 },
-    { meal: "Chilled watermelon with fresh mint, lime zest and hemp seeds", calories: 180, protein: 4, carbs: 36, fat: 4 },
-    { meal: "Roasted white asparagus with lemon oil and capers on pumpernickel", calories: 220, protein: 6, carbs: 28, fat: 10 },
+    { meal: "Parma ham with marinated artichoke hearts and olives", calories: 220, protein: 16, carbs: 10, fat: 14, microScore: 3 },
+    { meal: "Smoked mackerel pâté with dark rye crispbreads and cucumber", calories: 260, protein: 20, carbs: 16, fat: 14, microScore: 5 },
+    { meal: "Crostini with ricotta, honey and toasted walnuts", calories: 280, protein: 12, carbs: 26, fat: 16, microScore: 3 },
+    { meal: "Burrata with slow-roasted cherry tomatoes, basil and aged balsamic", calories: 280, protein: 14, carbs: 12, fat: 20, microScore: 4 },
+    { meal: "Manchego cheese with quince paste, Marcona almonds and Serrano ham", calories: 300, protein: 14, carbs: 18, fat: 20, microScore: 3 },
+    { meal: "Smoked salmon blinis with crème fraîche and capers", calories: 260, protein: 18, carbs: 18, fat: 12, microScore: 5 },
+    { meal: "Brie with honey, walnuts and sliced pear on crispbreads", calories: 300, protein: 12, carbs: 24, fat: 18, microScore: 3 },
+    { meal: "Warm rosemary and chilli marinated olives with sourdough", calories: 240, protein: 4, carbs: 28, fat: 12, microScore: 3 },
+    { meal: "Chilled watermelon with fresh mint, lime zest and hemp seeds", calories: 180, protein: 4, carbs: 36, fat: 4, microScore: 4 },
+    { meal: "Roasted white asparagus with lemon oil and capers on pumpernickel", calories: 220, protein: 6, carbs: 28, fat: 10, microScore: 4 },
   ],
 };
 
-type MealEntry = { meal: string; calories: number; protein: number; carbs: number; fat: number };
-type MealDb = typeof MEAL_DATABASE;
+type MealEntry = { meal: string; calories: number; protein: number; carbs: number; fat: number; microScore: number };
+type MealDb = { breakfast: MealEntry[]; lunch: MealEntry[]; dinner: MealEntry[]; snack: MealEntry[] };
 
 // ── Dietary filtering ────────────────────────────────────────────────────────
 
@@ -226,6 +226,10 @@ function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPreferences 
     if (kws) excludeKeywords.push(...kws);
   }
 
+  if (preferences.excludedFoods?.length) {
+    excludeKeywords.push(...preferences.excludedFoods);
+  }
+
   if (!excludeKeywords.length) return mealDb;
 
   return {
@@ -245,6 +249,7 @@ function scaleMeal(meal: MealEntry, targetCalories: number): MealEntry {
     protein: Math.round(meal.protein * scale),
     carbs: Math.round(meal.carbs * scale),
     fat: Math.round(meal.fat * scale),
+    microScore: meal.microScore,
   };
 }
 
@@ -256,18 +261,33 @@ function macroScore(m: MealEntry, tProtein: number, tCarbs: number, tFat: number
   return Math.abs(pPct - tProtein) + Math.abs(cPct - tCarbs) + Math.abs(fPct - tFat);
 }
 
-// Rank all meals by macro fit, then randomly pick from the best third (for variety)
 function pickBestMeal(
   pool: MealEntry[],
   tProtein: number,
   tCarbs: number,
   tFat: number,
+  preferences?: UserPreferences | null,
 ): MealEntry {
-  const ranked = [...pool].sort((a, b) => macroScore(a, tProtein, tCarbs, tFat) - macroScore(b, tProtein, tCarbs, tFat));
-  // Pick randomly from the top third (min 2 options) to keep variety while staying macro-accurate
-  const topCount = Math.max(2, Math.ceil(ranked.length / 3));
-  const topCandidates = ranked.slice(0, topCount);
-  return topCandidates[Math.floor(Math.random() * topCandidates.length)];
+  const scored = pool.map(m => {
+    let score = macroScore(m, tProtein, tCarbs, tFat);
+
+    if (preferences?.micronutrientOptimize && m.microScore) {
+      score -= (m.microScore / 5) * 0.15;
+    }
+
+    if (preferences?.preferredFoods?.length) {
+      const mealLower = m.meal.toLowerCase();
+      const hasPreferred = preferences.preferredFoods.some(kw => mealLower.includes(kw.toLowerCase()));
+      if (hasPreferred) score -= 0.2;
+    }
+
+    return { meal: m, score };
+  });
+
+  scored.sort((a, b) => a.score - b.score);
+  const topCount = Math.max(2, Math.ceil(scored.length / 3));
+  const topCandidates = scored.slice(0, topCount);
+  return topCandidates[Math.floor(Math.random() * topCandidates.length)].meal;
 }
 
 function buildDayPlan(
@@ -277,22 +297,21 @@ function buildDayPlan(
   fatGoal: number,
   db: MealDb,
   lunchOverride?: MealEntry,
+  preferences?: UserPreferences | null,
 ) {
-  // Calorie targets per slot
   const bfTarget     = Math.round(dailyCalories * 0.25);
   const lunchTarget  = Math.round(dailyCalories * 0.30);
   const dinnerTarget = Math.round(dailyCalories * 0.35);
-  const snackBudget  = dailyCalories - bfTarget - lunchTarget - dinnerTarget; // ~10%
+  const snackBudget  = dailyCalories - bfTarget - lunchTarget - dinnerTarget;
 
-  // Target macro ratios (as fractions of calories)
   const totalMacroCals = proteinGoal * 4 + carbsGoal * 4 + fatGoal * 9;
   const tProtein = (proteinGoal * 4) / totalMacroCals;
   const tCarbs   = (carbsGoal   * 4) / totalMacroCals;
   const tFat     = (fatGoal     * 9) / totalMacroCals;
 
-  const breakfastBase = pickBestMeal(db.breakfast, tProtein, tCarbs, tFat);
-  const lunchBase     = lunchOverride ?? pickBestMeal(db.lunch, tProtein, tCarbs, tFat);
-  const dinnerBase    = pickBestMeal(db.dinner, tProtein, tCarbs, tFat);
+  const breakfastBase = pickBestMeal(db.breakfast, tProtein, tCarbs, tFat, preferences);
+  const lunchBase     = lunchOverride ?? pickBestMeal(db.lunch, tProtein, tCarbs, tFat, preferences);
+  const dinnerBase    = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences);
 
   const breakfast = scaleMeal(breakfastBase, bfTarget);
   const lunch     = scaleMeal(lunchBase, lunchTarget);
@@ -307,7 +326,7 @@ function buildDayPlan(
     const snackTargetEach = Math.round(snackBudget / numSnacks);
 
     for (let i = 0; i < numSnacks; i++) {
-      const snackBase = pickBestMeal(db.snack, tProtein, tCarbs, tFat);
+      const snackBase = pickBestMeal(db.snack, tProtein, tCarbs, tFat, preferences);
       snacksList.push(scaleMeal(snackBase, snackTargetEach));
       snackRemaining -= snackTargetEach;
     }
@@ -332,11 +351,11 @@ function buildDayPlan(
   };
 }
 
-function generateDayPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, db: MealDb) {
-  return buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db);
+function generateDayPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, db: MealDb, preferences?: UserPreferences | null) {
+  return buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences);
 }
 
-function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, isWeekly: boolean, db: MealDb) {
+function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, isWeekly: boolean, db: MealDb, preferences?: UserPreferences | null) {
   const lunchTarget = Math.round(dailyCalories * 0.30);
 
   // Target macro ratios — used when scaling the lunch override
@@ -363,12 +382,11 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
 
       if (index === 0) {
         // Monday: pick one dinner base, use it for BOTH lunch (at lunchTarget) and dinner (at dinnerTarget)
-        const mondayDinnerBase = pickBestMeal(db.dinner, tProtein, tCarbs, tFat);
+        const mondayDinnerBase = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences);
         const mondayLunch  = scaleMeal(mondayDinnerBase, lunchTarget);
         const mondayDinner = scaleMeal(mondayDinnerBase, dinnerTarget);
 
-        // Build day with the lunch override; then replace dinner with the same base
-        const dayPlanBase = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, mondayLunch);
+        const dayPlanBase = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, mondayLunch, preferences);
         const allMeals = [dayPlanBase.breakfast[0], mondayLunch, mondayDinner, ...dayPlanBase.snacks];
         dayPlan = {
           breakfast:       dayPlanBase.breakfast,
@@ -384,7 +402,7 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
       } else {
         // Tue–Sun: scale the raw dinner base from the previous day to lunchTarget
         const lunchOverride = scaleMeal(previousDinnerBase!, lunchTarget);
-        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, lunchOverride);
+        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, lunchOverride, preferences);
         // Store raw (unscaled) dinner base for the next day
         const dinnerBase = db.dinner.find(m => m.meal === dayPlan.dinner[0].meal) ?? dayPlan.dinner[0];
         previousDinnerBase = dinnerBase;
@@ -406,7 +424,7 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
       weekTotalFat,
     };
   } else {
-    const dayPlan = generateDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db);
+    const dayPlan = generateDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, preferences);
     return {
       planType: 'daily' as const,
       ...dayPlan,
@@ -731,7 +749,7 @@ export async function registerRoutes(
   app.get("/api/user/preferences", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
     const user = await storage.getUserById(req.session.userId);
-    res.json((user?.preferences as UserPreferences | null) ?? { diet: null, allergies: [] });
+    res.json((user?.preferences as UserPreferences | null) ?? { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false });
   });
 
   app.put("/api/user/preferences", async (req, res) => {
@@ -744,16 +762,16 @@ export async function registerRoutes(
   app.post(api.mealPlans.generate.path, async (req, res) => {
     try {
       const input = mealPlanSchema.parse(req.body);
-      let baseDb = input.mealStyle === 'michelin' ? MICHELIN_MEAL_DATABASE : input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
+      let baseDb: MealDb = input.mealStyle === 'michelin' ? MICHELIN_MEAL_DATABASE : input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
 
-      // Apply user preferences filtering if logged in
+      let prefs: UserPreferences | null = null;
       if (req.session.userId) {
         const user = await storage.getUserById(req.session.userId);
-        const prefs = (user?.preferences as UserPreferences | null) ?? null;
-        baseDb = filterMealDbByPreferences(baseDb, prefs) as typeof baseDb;
+        prefs = (user?.preferences as UserPreferences | null) ?? null;
+        baseDb = filterMealDbByPreferences(baseDb, prefs);
       }
 
-      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly', baseDb);
+      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly', baseDb, prefs);
 
       // If user is logged in, auto-save the plan
       let savedId: number | undefined;

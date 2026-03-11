@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type UserPreferences } from "@shared/schema";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, X, Sparkles } from "lucide-react";
 
 type Diet = NonNullable<UserPreferences["diet"]>;
 type Allergy = NonNullable<UserPreferences["allergies"]>[number];
@@ -27,6 +27,76 @@ const ALLERGY_OPTIONS: { value: Allergy; label: string }[] = [
   { value: "soy",       label: "Soy" },
 ];
 
+function TagInput({
+  tags,
+  onChange,
+  placeholder,
+  testIdPrefix,
+}: {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+  placeholder: string;
+  testIdPrefix: string;
+}) {
+  const [input, setInput] = useState("");
+
+  const addTag = (value: string) => {
+    const trimmed = value.trim().toLowerCase();
+    if (trimmed && !tags.includes(trimmed)) {
+      onChange([...tags, trimmed]);
+    }
+    setInput("");
+  };
+
+  const removeTag = (index: number) => {
+    onChange(tags.filter((_, i) => i !== index));
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag(input);
+    } else if (e.key === "Backspace" && !input && tags.length) {
+      removeTag(tags.length - 1);
+    }
+  };
+
+  return (
+    <div
+      className="flex flex-wrap gap-1.5 p-2 rounded-xl border border-zinc-200 bg-white min-h-[42px] focus-within:border-zinc-400 transition-colors"
+      data-testid={`${testIdPrefix}-container`}
+    >
+      {tags.map((tag, i) => (
+        <span
+          key={tag}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-zinc-100 text-xs font-medium text-zinc-700"
+          data-testid={`${testIdPrefix}-tag-${i}`}
+        >
+          {tag}
+          <button
+            type="button"
+            onClick={() => removeTag(i)}
+            className="hover:text-zinc-900 transition-colors"
+            data-testid={`${testIdPrefix}-remove-${i}`}
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={() => { if (input.trim()) addTag(input); }}
+        placeholder={tags.length === 0 ? placeholder : ""}
+        className="flex-1 min-w-[80px] text-xs outline-none bg-transparent placeholder:text-zinc-400"
+        data-testid={`${testIdPrefix}-input`}
+      />
+    </div>
+  );
+}
+
 export function PreferencesForm() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -37,6 +107,9 @@ export function PreferencesForm() {
 
   const [diet, setDiet] = useState<Diet | null>(null);
   const [allergies, setAllergies] = useState<Allergy[]>([]);
+  const [excludedFoods, setExcludedFoods] = useState<string[]>([]);
+  const [preferredFoods, setPreferredFoods] = useState<string[]>([]);
+  const [micronutrientOptimize, setMicronutrientOptimize] = useState(false);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -44,6 +117,9 @@ export function PreferencesForm() {
     initialized.current = true;
     setDiet(data.diet ?? null);
     setAllergies(data.allergies ?? []);
+    setExcludedFoods(data.excludedFoods ?? []);
+    setPreferredFoods(data.preferredFoods ?? []);
+    setMicronutrientOptimize(data.micronutrientOptimize ?? false);
   }, [data]);
 
   const mutation = useMutation({
@@ -65,12 +141,21 @@ export function PreferencesForm() {
   };
 
   const handleSave = () => {
-    mutation.mutate({ diet: diet ?? undefined, allergies });
+    mutation.mutate({
+      diet: diet ?? undefined,
+      allergies,
+      excludedFoods,
+      preferredFoods,
+      micronutrientOptimize,
+    });
   };
 
   const hasChanges =
     (diet ?? null) !== (data?.diet ?? null) ||
-    JSON.stringify([...allergies].sort()) !== JSON.stringify([...(data?.allergies ?? [])].sort());
+    JSON.stringify([...allergies].sort()) !== JSON.stringify([...(data?.allergies ?? [])].sort()) ||
+    JSON.stringify(excludedFoods) !== JSON.stringify(data?.excludedFoods ?? []) ||
+    JSON.stringify(preferredFoods) !== JSON.stringify(data?.preferredFoods ?? []) ||
+    micronutrientOptimize !== (data?.micronutrientOptimize ?? false);
 
   if (isLoading) {
     return (
@@ -87,11 +172,9 @@ export function PreferencesForm() {
         Your meal plans will automatically avoid ingredients that don't suit you.
       </p>
 
-      {/* Diet type */}
       <div className="mb-5">
         <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2.5">Diet type</p>
         <div className="flex flex-wrap gap-2">
-          {/* None pill */}
           <button
             type="button"
             onClick={() => setDiet(null)}
@@ -123,8 +206,7 @@ export function PreferencesForm() {
         </div>
       </div>
 
-      {/* Allergies */}
-      <div className="mb-6">
+      <div className="mb-5">
         <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2.5">Allergies & intolerances</p>
         <div className="grid grid-cols-2 gap-2">
           {ALLERGY_OPTIONS.map(opt => {
@@ -151,6 +233,58 @@ export function PreferencesForm() {
             );
           })}
         </div>
+      </div>
+
+      <div className="mb-5">
+        <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2.5">Foods to avoid</p>
+        <p className="text-xs text-zinc-400 mb-2">Type a food keyword and press Enter</p>
+        <TagInput
+          tags={excludedFoods}
+          onChange={setExcludedFoods}
+          placeholder="e.g. mushroom, coconut, tofu..."
+          testIdPrefix="excluded-foods"
+        />
+      </div>
+
+      <div className="mb-5">
+        <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2.5">Preferred foods</p>
+        <p className="text-xs text-zinc-400 mb-2">Meals containing these will be prioritised</p>
+        <TagInput
+          tags={preferredFoods}
+          onChange={setPreferredFoods}
+          placeholder="e.g. salmon, quinoa, spinach..."
+          testIdPrefix="preferred-foods"
+        />
+      </div>
+
+      <div className="mb-6">
+        <button
+          type="button"
+          onClick={() => setMicronutrientOptimize(prev => !prev)}
+          data-testid="toggle-micronutrient"
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
+            micronutrientOptimize
+              ? "bg-emerald-50 border-emerald-200"
+              : "bg-white border-zinc-200 hover:border-zinc-400"
+          }`}
+        >
+          <div className={`w-10 h-5 rounded-full relative transition-colors ${
+            micronutrientOptimize ? "bg-emerald-500" : "bg-zinc-300"
+          }`}>
+            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+              micronutrientOptimize ? "left-5" : "left-0.5"
+            }`} />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5">
+              <Sparkles className={`w-3.5 h-3.5 ${micronutrientOptimize ? "text-emerald-600" : "text-zinc-400"}`} />
+              <span className={`text-xs font-medium ${micronutrientOptimize ? "text-emerald-700" : "text-zinc-600"}`}>
+                Micronutrient optimisation
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 mt-0.5">Favour nutrient-dense meals (leafy greens, oily fish, legumes)</p>
+          </div>
+        </button>
       </div>
 
       <button
