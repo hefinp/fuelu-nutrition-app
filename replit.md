@@ -27,10 +27,12 @@ Preferred communication style: Simple, everyday language.
 - **Path aliases:** `@/` → `client/src/`, `@shared/` → `shared/`
 
 **Key frontend components:**
-- `calculator-form.tsx` — Collects user biometrics; pre-fills from user's last calculation when logged in
+- `calculator-form.tsx` — Collects user biometrics; accepts `compact` prop to render form-only (no card wrapper) inside the metrics slide-over panel; pre-fills from user's last calculation when logged in; `onResult` receives full `Calculation` object
 - `results-display.tsx` — Shows calorie targets, macro breakdown chart, meal plan, PDF export, shopping list PDF
 - `saved-meal-plans.tsx` — Displays saved meal plan cards with rename/delete actions
-- `pages/auth.tsx` — Login/register page with tabbed UI
+- `pages/auth.tsx` — Login/register page with tabbed UI; shows Google/Apple OAuth buttons when provider secrets are configured (fetched from `/api/auth/providers`); handles `?error=google_failed` and `?error=apple_failed` query params
+- `pages/dashboard.tsx` — Main app page; CalculatorForm is NOT inline — it lives in a slide-over panel opened via user icon → "My Metrics". Results displayed full-width when a calculation exists.
+- `pages/landing.tsx` — Marketing landing page for logged-out visitors
 - `hooks/use-auth.ts` — Auth state hook (user, login, register, logout, loading states)
 - `hooks/use-calculations.ts` — Calculation history hook and create mutation
 
@@ -59,7 +61,7 @@ Preferred communication style: Simple, everyday language.
 - **Database:** PostgreSQL (Drizzle ORM, `drizzle-orm/node-postgres`)
 - **Connection:** `pg.Pool` via `DATABASE_URL` env var
 - **Tables:**
-  - `users` — id, email (unique), name, password_hash, created_at
+  - `users` — id, email (unique), name, password_hash (nullable), provider (nullable: 'google'|'apple'), provider_id (nullable), created_at
   - `calculations` — id, user_id (FK nullable), weight, height, age, gender, activity_level, goal, target_type, target_amount, daily_calories, weekly_calories, protein_goal, carbs_goal, fat_goal, created_at
   - `saved_meal_plans` — id, user_id (FK), calculation_id (FK nullable), name, plan_type, meal_style, plan_data (jsonb), created_at
   - `session` — connect-pg-simple session store (created manually via SQL)
@@ -69,9 +71,11 @@ Preferred communication style: Simple, everyday language.
 ### Authentication
 
 - Session-based auth via `express-session` + PostgreSQL session store
-- Passwords hashed with `bcryptjs`
+- Passwords hashed with `bcryptjs`; password_hash is nullable for OAuth-only accounts
 - `req.session.userId` used throughout routes to scope data to the logged-in user
 - Calculations and meal plans are scoped to user when logged in; fallback to all records for anonymous users
+- **OAuth (Google + Apple):** Passport.js with `passport-google-oauth20` and `passport-apple`. Strategies are only registered when env vars are present (graceful degradation). `GET /api/auth/google` → Google OAuth redirect; `GET /api/auth/google/callback` → sets session and redirects to `/dashboard`. Same pattern for Apple (`POST /api/auth/apple/callback` — Apple POSTs back). `GET /api/auth/providers` endpoint returns `{google: bool, apple: bool}` for the UI to conditionally show buttons. `findOrCreateOAuthUser` in storage links OAuth users by provider+providerId, or by email if account already exists.
+- **Required secrets for OAuth:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (Google); `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` (Apple, .p8 file contents with `\n` for newlines)
 
 ### Build & Dev
 
