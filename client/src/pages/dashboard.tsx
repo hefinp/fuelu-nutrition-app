@@ -8,7 +8,7 @@ import { WeightTracker } from "@/components/weight-tracker";
 import { PreferencesForm } from "@/components/preferences-form";
 import { useCalculations } from "@/hooks/use-calculations";
 import { useAuth } from "@/hooks/use-auth";
-import { LogOut, BookOpen, Settings, X, SlidersHorizontal } from "lucide-react";
+import { LogOut, BookOpen, Settings, X, SlidersHorizontal, ChevronDown, Salad } from "lucide-react";
 import type { Calculation } from "@shared/schema";
 
 export default function Dashboard() {
@@ -16,6 +16,8 @@ export default function Dashboard() {
   const [showSavedPlans, setShowSavedPlans] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMetricsPanel, setShowMetricsPanel] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [prefsOpen, setPrefsOpen] = useState(false);
   const { data: history, isLoading: historyLoading } = useCalculations();
   const { user, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
@@ -151,7 +153,8 @@ export default function Dashboard() {
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="fixed right-0 top-0 h-full w-full max-w-lg bg-white z-50 shadow-2xl flex flex-col"
             >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
+              {/* Fixed header */}
+              <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-zinc-100">
                 <div className="flex items-center gap-2">
                   <Settings className="w-4 h-4 text-zinc-400" />
                   <h2 className="font-semibold text-zinc-900">My Metrics</h2>
@@ -164,16 +167,75 @@ export default function Dashboard() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-6 py-6">
-                <p className="text-sm text-zinc-500 mb-6">
-                  Update your body metrics below to recalculate your personalized calorie targets and macros.
-                </p>
+
+              {/* Scrollable sections */}
+              <div className="flex-1 overflow-y-auto">
+                {/* Metrics + Goals accordion sections (inside form) */}
                 <CalculatorForm
                   onResult={handleMetricsResult}
                   defaultValues={lastCalculation}
                   compact
+                  onPendingChange={setIsCalculating}
                 />
-                {user && <PreferencesForm />}
+
+                {/* Preferences accordion section */}
+                {user && (
+                  <div className="border-t border-zinc-100">
+                    <button
+                      type="button"
+                      onClick={() => setPrefsOpen(v => !v)}
+                      className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-zinc-50/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Salad className="w-4 h-4 text-zinc-400" />
+                        <span className="text-sm font-semibold text-zinc-900">Preferences</span>
+                      </div>
+                      <ChevronDown
+                        className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${prefsOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {prefsOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.22, ease: "easeInOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-6 pb-5 pt-1">
+                            <PreferencesForm />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </div>
+
+              {/* Fixed footer: Create Plan button */}
+              <div className="flex-shrink-0 border-t border-zinc-100 px-6 py-4 bg-white">
+                <button
+                  type="submit"
+                  form="calculator-form"
+                  disabled={isCalculating}
+                  data-testid="button-create-plan"
+                  className="w-full px-6 py-4 rounded-xl font-semibold bg-zinc-900 text-white shadow-lg
+                           hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0
+                           disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+                           transition-all duration-200 ease-out flex justify-center items-center gap-2"
+                >
+                  {isCalculating ? (
+                    <span className="flex items-center gap-2">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                        className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                      />
+                      Calculating...
+                    </span>
+                  ) : "Calculate & Create Plan"}
+                </button>
               </div>
             </motion.div>
           </>
