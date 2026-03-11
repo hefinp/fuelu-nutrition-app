@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Flame, Calendar, UtensilsCrossed, Loader2, X, Download, ShoppingCart } from "lucide-react";
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Calculation } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import jsPDF from "jspdf";
@@ -1060,7 +1060,8 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
   const [selectedMeal, setSelectedMeal] = useState<{ meal: string; calories: number; protein: number; carbs: number; fat: number } | null>(null);
   const [shoppingDaysOpen, setShoppingDaysOpen] = useState(false);
   const [shoppingDaysInput, setShoppingDaysInput] = useState("7");
-  
+  const queryClient = useQueryClient();
+
   const generateMealPlan = useMutation({
     mutationFn: async (planType: 'daily' | 'weekly') => {
       const res = await apiRequest('POST', '/api/meal-plans', {
@@ -1071,11 +1072,13 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
         fatGoal: data.fatGoal,
         planType,
         mealStyle,
+        calculationId: data.id,
       });
       return await res.json();
     },
-    onSuccess: (data) => {
-      setMealPlan(data);
+    onSuccess: (planData) => {
+      setMealPlan(planData);
+      queryClient.invalidateQueries({ queryKey: ["/api/saved-meal-plans"] });
     },
   });
   const chartData = [

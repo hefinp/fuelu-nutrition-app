@@ -1,8 +1,10 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api, mealPlanSchema } from "@shared/routes";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { registerSchema, loginSchema } from "@shared/schema";
 
 const MEAL_DATABASE = {
   breakfast: [
@@ -339,6 +341,71 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  // ── Auth routes ────────────────────────────────────────────────────────────
+
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const input = registerSchema.parse(req.body);
+      const existing = await storage.getUserByEmail(input.email);
+      if (existing) {
+        return res.status(409).json({ message: "An account with this email already exists" });
+      }
+      const passwordHash = await bcrypt.hash(input.password, 12);
+      const user = await storage.createUser({ email: input.email, name: input.name, passwordHash });
+      req.session.userId = user.id;
+      const { passwordHash: _, ...publicUser } = user;
+      res.status(201).json(publicUser);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const input = loginSchema.parse(req.body);
+      const user = await storage.getUserByEmail(input.email);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      const valid = await bcrypt.compare(input.password, user.passwordHash);
+      if (!valid) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      req.session.userId = user.id;
+      const { passwordHash: _, ...publicUser } = user;
+      res.status(200).json(publicUser);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.status(200).json({ message: "Logged out" });
+    });
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    const { passwordHash: _, ...publicUser } = user;
+    res.status(200).json(publicUser);
+  });
+
+  // ── Calculation routes ────────────────────────────────────────────────────
+
   app.post(api.calculations.create.path, async (req, res) => {
     try {
       const bodySchema = api.calculations.create.input.extend({
@@ -347,19 +414,23 @@ export async function registerRoutes(
         age: z.coerce.number().optional().default(30),
       });
       const input = bodySchema.parse(req.body);
-      
+
       const weightNum = parseFloat(input.weight);
       const heightNum = parseFloat(input.height);
       const ageNum = input.age || 30;
-      
+
       const macros = calculateMacros(weightNum, heightNum, ageNum, input.gender || 'male', input.activityLevel || 'moderate', input.goal || 'maintain');
-      
+
       const calcData = {
         weight: input.weight,
         height: input.height,
         age: ageNum,
         gender: input.gender || 'male',
         activityLevel: input.activityLevel || 'moderate',
+        goal: input.goal || 'maintain',
+        targetType: input.targetType,
+        targetAmount: input.targetAmount && input.targetAmount !== '' ? input.targetAmount : null,
+        userId: req.session.userId,
         ...macros
       };
 
@@ -377,16 +448,33 @@ export async function registerRoutes(
   });
 
   app.get(api.calculations.list.path, async (req, res) => {
-    const calcs = await storage.getCalculations();
+    const calcs = await storage.getCalculations(req.session.userId);
     res.status(200).json(calcs);
   });
+
+  // ── Meal plan routes ──────────────────────────────────────────────────────
 
   app.post(api.mealPlans.generate.path, async (req, res) => {
     try {
       const input = mealPlanSchema.parse(req.body);
       const db = input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
       const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly', db);
-      res.status(201).json(mealPlan);
+
+      // If user is logged in, auto-save the plan
+      let savedId: number | undefined;
+      if (req.session.userId) {
+        const saved = await storage.saveMealPlan({
+          userId: req.session.userId,
+          calculationId: input.calculationId ?? undefined,
+          planType: input.planType,
+          mealStyle: input.mealStyle ?? 'simple',
+          planData: mealPlan as any,
+          name: `${input.planType === 'weekly' ? 'Weekly' : 'Daily'} Plan`,
+        });
+        savedId = saved.id;
+      }
+
+      res.status(201).json({ ...mealPlan, savedId });
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({
@@ -396,6 +484,36 @@ export async function registerRoutes(
       }
       throw err;
     }
+  });
+
+  // ── Saved meal plans ──────────────────────────────────────────────────────
+
+  app.get("/api/saved-meal-plans", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const plans = await storage.getSavedMealPlans(req.session.userId);
+    res.status(200).json(plans);
+  });
+
+  app.patch("/api/saved-meal-plans/:id/name", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const id = parseInt(req.params.id);
+    const { name } = z.object({ name: z.string().min(1).max(100) }).parse(req.body);
+    const updated = await storage.updateMealPlanName(id, req.session.userId, name);
+    if (!updated) return res.status(404).json({ message: "Plan not found" });
+    res.status(200).json(updated);
+  });
+
+  app.delete("/api/saved-meal-plans/:id", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const id = parseInt(req.params.id);
+    await storage.deleteMealPlan(id, req.session.userId);
+    res.status(204).send();
   });
 
   return httpServer;

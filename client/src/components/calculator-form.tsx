@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { api } from "@shared/routes";
 import { useCreateCalculation } from "@/hooks/use-calculations";
 import { useToast } from "@/hooks/use-toast";
+import type { Calculation } from "@shared/schema";
 
 // We extend the input schema because form inputs provide strings,
 // but our actual backend expects strings for numeric (Postgres numeric type)
@@ -24,10 +25,17 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export function CalculatorForm({ onResult }: { onResult: (id: number) => void }) {
+export function CalculatorForm({
+  onResult,
+  defaultValues,
+}: {
+  onResult: (id: number) => void;
+  defaultValues?: Partial<Calculation>;
+}) {
   const { toast } = useToast();
   const createCalc = useCreateCalculation();
-  
+  const [prefilled, setPrefilled] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -41,6 +49,26 @@ export function CalculatorForm({ onResult }: { onResult: (id: number) => void })
       targetAmount: "",
     },
   });
+
+  // Pre-fill form from user's last calculation (runs once when data arrives)
+  useEffect(() => {
+    if (!defaultValues || prefilled) return;
+    const validGoals = ["fat_loss", "tone", "maintain", "muscle", "bulk"];
+    const goal = validGoals.includes(defaultValues.goal ?? "") ? (defaultValues.goal as FormValues["goal"]) : "maintain";
+    const validActivity = ["sedentary", "light", "moderate", "active", "very_active"];
+    const activityLevel = validActivity.includes(defaultValues.activityLevel ?? "") ? (defaultValues.activityLevel as FormValues["activityLevel"]) : "moderate";
+    form.reset({
+      weight: defaultValues.weight ? String(defaultValues.weight) : "",
+      height: defaultValues.height ? String(defaultValues.height) : "",
+      age: defaultValues.age ?? 30,
+      gender: (defaultValues.gender as FormValues["gender"]) ?? "male",
+      activityLevel,
+      goal,
+      targetType: (defaultValues.targetType as FormValues["targetType"]) ?? "weekly",
+      targetAmount: defaultValues.targetAmount ? String(defaultValues.targetAmount) : "",
+    });
+    setPrefilled(true);
+  }, [defaultValues, prefilled, form]);
 
   const onSubmit = (data: FormValues) => {
     createCalc.mutate(data, {

@@ -1,20 +1,72 @@
-import { calculations, type InsertCalculation, type Calculation } from "@shared/schema";
+import { calculations, users, savedMealPlans, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan } from "@shared/schema";
 import { db } from "./db";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 export interface IStorage {
-  createCalculation(calc: InsertCalculation & { dailyCalories: number, weeklyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number }): Promise<Calculation>;
-  getCalculations(): Promise<Calculation[]>;
+  // Auth
+  createUser(user: InsertUser): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserById(id: number): Promise<User | undefined>;
+
+  // Calculations
+  createCalculation(calc: InsertCalculation & { userId?: number; dailyCalories: number; weeklyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number }): Promise<Calculation>;
+  getCalculations(userId?: number): Promise<Calculation[]>;
+
+  // Saved meal plans
+  saveMealPlan(plan: InsertSavedMealPlan): Promise<SavedMealPlan>;
+  getSavedMealPlans(userId: number): Promise<SavedMealPlan[]>;
+  updateMealPlanName(id: number, userId: number, name: string): Promise<SavedMealPlan | undefined>;
+  deleteMealPlan(id: number, userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
-  async createCalculation(calc: InsertCalculation & { dailyCalories: number, weeklyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number }): Promise<Calculation> {
+  async createUser(user: InsertUser): Promise<User> {
+    const [created] = await db.insert(users).values(user).returning();
+    return created;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async getUserById(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async createCalculation(calc: InsertCalculation & { userId?: number; dailyCalories: number; weeklyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number }): Promise<Calculation> {
     const [calculation] = await db.insert(calculations).values(calc).returning();
     return calculation;
   }
 
-  async getCalculations(): Promise<Calculation[]> {
+  async getCalculations(userId?: number): Promise<Calculation[]> {
+    if (userId) {
+      return await db.select().from(calculations).where(eq(calculations.userId, userId)).orderBy(desc(calculations.createdAt));
+    }
     return await db.select().from(calculations).orderBy(desc(calculations.createdAt));
+  }
+
+  async saveMealPlan(plan: InsertSavedMealPlan): Promise<SavedMealPlan> {
+    const [saved] = await db.insert(savedMealPlans).values(plan).returning();
+    return saved;
+  }
+
+  async getSavedMealPlans(userId: number): Promise<SavedMealPlan[]> {
+    return await db.select().from(savedMealPlans).where(eq(savedMealPlans.userId, userId)).orderBy(desc(savedMealPlans.createdAt));
+  }
+
+  async updateMealPlanName(id: number, userId: number, name: string): Promise<SavedMealPlan | undefined> {
+    const [updated] = await db.update(savedMealPlans)
+      .set({ name })
+      .where(eq(savedMealPlans.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteMealPlan(id: number, userId: number): Promise<void> {
+    await db.delete(savedMealPlans)
+      .where(eq(savedMealPlans.id, id));
   }
 }
 
