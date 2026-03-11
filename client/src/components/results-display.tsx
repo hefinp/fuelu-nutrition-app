@@ -17,6 +17,24 @@ const GOAL_LABELS: Record<string, string> = {
   gain: "Gain Weight",
 };
 
+function drawPDFLogo(doc: jsPDF, pageW: number) {
+  // Emerald accent badge — circle with "N"
+  const cx = pageW - 46;
+  const cy = 14;
+  doc.setFillColor(16, 185, 129); // emerald-500
+  doc.circle(cx, cy, 5.5, "F");
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text("N", cx, cy + 3.2, { align: "center" });
+
+  // "NutriSync" wordmark
+  doc.setFontSize(13);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text("NutriSync", cx + 8, cy + 3.5);
+}
+
 function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
@@ -38,6 +56,7 @@ function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
   doc.setFont("helvetica", "normal");
   doc.setTextColor(180, 180, 180);
   doc.text(`${mealPlan.planType === "weekly" ? "Weekly" : "Daily"} Meal Plan  ·  Generated ${new Date().toLocaleDateString()}`, 14, 22);
+  drawPDFLogo(doc, pageW);
   y = 38;
 
   // Metrics summary bar
@@ -228,6 +247,7 @@ function exportShoppingListToPDF(mealPlan: any, data: Calculation) {
   doc.text("Shopping List", 14, 12);
   doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 180, 180);
   doc.text(`${mealPlan.planType === "weekly" ? "Weekly" : "Daily"} Meal Plan  ·  Generated ${new Date().toLocaleDateString()}`, 14, 22);
+  drawPDFLogo(doc, pageW);
   y = 38;
 
   // Sub-header note
