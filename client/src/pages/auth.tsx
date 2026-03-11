@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import { SiGoogle, SiApple } from "react-icons/si";
 
 export default function AuthPage() {
   const search = useSearch();
@@ -11,10 +13,16 @@ export default function AuthPage() {
   const [, setLocation] = useLocation();
   const { login, register, isLoggingIn, isRegistering } = useAuth();
 
+  const oauthError = new URLSearchParams(search).get("error");
+
   useEffect(() => {
     const t = new URLSearchParams(search).get("tab");
     if (t === "register") setTab("register");
   }, [search]);
+
+  const { data: providers } = useQuery<{ google: boolean; apple: boolean }>({
+    queryKey: ["/api/auth/providers"],
+  });
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
@@ -51,6 +59,13 @@ export default function AuthPage() {
     }
   }
 
+  const hasOAuth = providers?.google || providers?.apple;
+
+  const oauthErrorMessage =
+    oauthError === "google_failed" ? "Google sign-in failed. Please try again." :
+    oauthError === "apple_failed" ? "Apple sign-in failed. Please try again." :
+    null;
+
   return (
     <div className="min-h-screen bg-zinc-50/50 flex flex-col items-center justify-center px-4">
       <div className="mb-8 flex items-center gap-2">
@@ -83,6 +98,48 @@ export default function AuthPage() {
           </button>
         </div>
 
+        {/* OAuth error */}
+        {oauthErrorMessage && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700" data-testid="error-oauth">
+            {oauthErrorMessage}
+          </div>
+        )}
+
+        {/* OAuth buttons */}
+        {hasOAuth && (
+          <div className="space-y-2.5 mb-6">
+            {providers?.google && (
+              <a
+                href="/api/auth/google"
+                data-testid="button-google-signin"
+                className="flex items-center justify-center gap-3 w-full py-2.5 px-4 bg-white border border-zinc-200 rounded-xl text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
+              >
+                <SiGoogle className="w-4 h-4 text-[#4285F4]" />
+                Continue with Google
+              </a>
+            )}
+            {providers?.apple && (
+              <a
+                href="/api/auth/apple"
+                data-testid="button-apple-signin"
+                className="flex items-center justify-center gap-3 w-full py-2.5 px-4 bg-zinc-900 border border-zinc-900 rounded-xl text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+              >
+                <SiApple className="w-4 h-4" />
+                Continue with Apple
+              </a>
+            )}
+
+            <div className="relative pt-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-zinc-200" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-white px-3 text-xs text-zinc-400">or continue with email</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
           {tab === "login" ? (
             <motion.form
@@ -93,10 +150,12 @@ export default function AuthPage() {
               onSubmit={handleLogin}
               className="space-y-4"
             >
-              <div>
-                <h2 className="text-2xl font-bold text-zinc-900 mb-1">Welcome back</h2>
-                <p className="text-sm text-zinc-500">Sign in to access your nutrition plans.</p>
-              </div>
+              {!hasOAuth && (
+                <div>
+                  <h2 className="text-2xl font-bold text-zinc-900 mb-1">Welcome back</h2>
+                  <p className="text-sm text-zinc-500">Sign in to access your nutrition plans.</p>
+                </div>
+              )}
 
               {loginError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700" data-testid="error-login">
@@ -165,10 +224,12 @@ export default function AuthPage() {
               onSubmit={handleRegister}
               className="space-y-4"
             >
-              <div>
-                <h2 className="text-2xl font-bold text-zinc-900 mb-1">Create account</h2>
-                <p className="text-sm text-zinc-500">Start tracking your nutrition journey.</p>
-              </div>
+              {!hasOAuth && (
+                <div>
+                  <h2 className="text-2xl font-bold text-zinc-900 mb-1">Create account</h2>
+                  <p className="text-sm text-zinc-500">Start tracking your nutrition journey.</p>
+                </div>
+              )}
 
               {regError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700" data-testid="error-register">

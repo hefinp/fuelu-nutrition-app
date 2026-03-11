@@ -5,6 +5,7 @@ import { api, mealPlanSchema } from "@shared/routes";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { registerSchema, loginSchema } from "@shared/schema";
+import passport from "passport";
 
 const MEAL_DATABASE = {
   breakfast: [
@@ -275,10 +276,6 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
 }
 
 function calculateMacros(weight: number, height: number, age: number, gender: string, activityLevel: string, goal: string = 'maintain') {
-  // Mifflin-St Jeor Equation
-  // Men: (10 × weight in kg) + (6.25 × height in cm) - (5 × age in years) + 5
-  // Women: (10 × weight in kg) + (6.25 × height in cm) - (5 × age in years) - 161
-  
   let bmr = (10 * weight) + (6.25 * height) - (5 * age);
   if (gender === 'male') {
     bmr += 5;
@@ -297,23 +294,21 @@ function calculateMacros(weight: number, height: number, age: number, gender: st
 
   let dailyCalories = Math.round(bmr * activityMultiplier);
 
-  // Adjust based on body goal
   switch (goal) {
     case 'fat_loss':
-      dailyCalories = Math.round(dailyCalories - 500); // aggressive deficit for fat loss
+      dailyCalories = Math.round(dailyCalories - 500);
       break;
     case 'tone':
-      dailyCalories = Math.round(dailyCalories - 250); // mild deficit to lean out while preserving muscle
+      dailyCalories = Math.round(dailyCalories - 250);
       break;
     case 'maintain':
-      break; // no adjustment
+      break;
     case 'muscle':
-      dailyCalories = Math.round(dailyCalories + 300); // lean surplus to build muscle with minimal fat
+      dailyCalories = Math.round(dailyCalories + 300);
       break;
     case 'bulk':
-      dailyCalories = Math.round(dailyCalories + 600); // larger surplus for maximum muscle growth
+      dailyCalories = Math.round(dailyCalories + 600);
       break;
-    // legacy support
     case 'lose':
       dailyCalories = Math.round(dailyCalories - 500);
       break;
@@ -325,17 +320,100 @@ function calculateMacros(weight: number, height: number, age: number, gender: st
   }
 
   const weeklyCalories = dailyCalories * 7;
-
-  // Macros: 30% protein, 40% carbs, 30% fat
-  // Protein: 4 cals/g
-  // Carbs: 4 cals/g
-  // Fat: 9 cals/g
   const proteinGoal = Math.round((dailyCalories * 0.3) / 4);
   const carbsGoal = Math.round((dailyCalories * 0.4) / 4);
   const fatGoal = Math.round((dailyCalories * 0.3) / 9);
 
   return { dailyCalories, weeklyCalories, proteinGoal, carbsGoal, fatGoal };
 }
+
+// ── Passport OAuth setup ────────────────────────────────────────────────────
+
+function setupPassportStrategies() {
+  const googleClientId = process.env.GOOGLE_CLIENT_ID;
+  const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const appleClientId = process.env.APPLE_CLIENT_ID;
+  const appleTeamId = process.env.APPLE_TEAM_ID;
+  const appleKeyId = process.env.APPLE_KEY_ID;
+  const applePrivateKey = process.env.APPLE_PRIVATE_KEY;
+
+  if (googleClientId && googleClientSecret) {
+    const { Strategy: GoogleStrategy } = require("passport-google-oauth20");
+    passport.use(new GoogleStrategy(
+      {
+        clientID: googleClientId,
+        clientSecret: googleClientSecret,
+        callbackURL: "/api/auth/google/callback",
+        scope: ["profile", "email"],
+      },
+      async (_accessToken: string, _refreshToken: string, profile: any, done: Function) => {
+        try {
+          const email = profile.emails?.[0]?.value;
+          const name = profile.displayName || profile.emails?.[0]?.value || "Google User";
+          if (!email) return done(new Error("No email returned from Google"));
+          const user = await storage.findOrCreateOAuthUser({
+            email,
+            name,
+            provider: "google",
+            providerId: profile.id,
+          });
+          return done(null, user);
+        } catch (err) {
+          return done(err);
+        }
+      }
+    ));
+  }
+
+  if (appleClientId && appleTeamId && appleKeyId && applePrivateKey) {
+    const AppleStrategy = require("passport-apple");
+    passport.use(new AppleStrategy(
+      {
+        clientID: appleClientId,
+        teamID: appleTeamId,
+        keyID: appleKeyId,
+        privateKeyString: applePrivateKey.replace(/\\n/g, "\n"),
+        callbackURL: "/api/auth/apple/callback",
+        scope: ["name", "email"],
+        passReqToCallback: false,
+      },
+      async (_accessToken: string, _refreshToken: string, idToken: any, profile: any, done: Function) => {
+        try {
+          const email = idToken?.email || profile?.email;
+          const firstName = profile?.name?.firstName || "";
+          const lastName = profile?.name?.lastName || "";
+          const name = [firstName, lastName].filter(Boolean).join(" ") || email || "Apple User";
+          const sub = idToken?.sub || profile?.id;
+          if (!email || !sub) return done(new Error("Insufficient data from Apple"));
+          const user = await storage.findOrCreateOAuthUser({
+            email,
+            name,
+            provider: "apple",
+            providerId: sub,
+          });
+          return done(null, user);
+        } catch (err) {
+          return done(err);
+        }
+      }
+    ));
+  }
+
+  // Passport serialize/deserialize (session: false on callbacks, but needed for init)
+  passport.serializeUser((user: any, done) => done(null, user.id));
+  passport.deserializeUser(async (id: number, done) => {
+    try {
+      const user = await storage.getUserById(id);
+      done(null, user || false);
+    } catch (err) {
+      done(err);
+    }
+  });
+}
+
+setupPassportStrategies();
+
+export { passport };
 
 export async function registerRoutes(
   httpServer: Server,
@@ -371,6 +449,10 @@ export async function registerRoutes(
       if (!user) {
         return res.status(401).json({ message: "Invalid email or password" });
       }
+      if (!user.passwordHash) {
+        const providerName = user.provider ? user.provider.charAt(0).toUpperCase() + user.provider.slice(1) : "social";
+        return res.status(401).json({ message: `This account uses ${providerName} sign-in. Please use the "${providerName}" button to log in.` });
+      }
       const valid = await bcrypt.compare(input.password, user.passwordHash);
       if (!valid) {
         return res.status(401).json({ message: "Invalid email or password" });
@@ -403,6 +485,57 @@ export async function registerRoutes(
     const { passwordHash: _, ...publicUser } = user;
     res.status(200).json(publicUser);
   });
+
+  // ── OAuth provider availability ───────────────────────────────────────────
+
+  app.get("/api/auth/providers", (_req, res) => {
+    res.json({
+      google: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+      apple: !!(process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY),
+    });
+  });
+
+  // ── Google OAuth ──────────────────────────────────────────────────────────
+
+  app.get("/api/auth/google", (req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      return res.status(503).json({ message: "Google sign-in is not configured" });
+    }
+    passport.authenticate("google", { scope: ["profile", "email"], session: false })(req, res, next);
+  });
+
+  app.get("/api/auth/google/callback",
+    (req, res, next) => {
+      passport.authenticate("google", { session: false, failureRedirect: "/auth?error=google_failed" })(req, res, next);
+    },
+    (req: Request, res: Response) => {
+      const user = req.user as any;
+      if (!user) return res.redirect("/auth?error=google_failed");
+      req.session.userId = user.id;
+      req.session.save(() => res.redirect("/dashboard"));
+    }
+  );
+
+  // ── Apple OAuth ───────────────────────────────────────────────────────────
+
+  app.get("/api/auth/apple", (req, res, next) => {
+    if (!process.env.APPLE_CLIENT_ID) {
+      return res.status(503).json({ message: "Apple sign-in is not configured" });
+    }
+    passport.authenticate("apple", { session: false })(req, res, next);
+  });
+
+  app.post("/api/auth/apple/callback",
+    (req, res, next) => {
+      passport.authenticate("apple", { session: false, failureRedirect: "/auth?error=apple_failed" })(req, res, next);
+    },
+    (req: Request, res: Response) => {
+      const user = req.user as any;
+      if (!user) return res.redirect("/auth?error=apple_failed");
+      req.session.userId = user.id;
+      req.session.save(() => res.redirect("/dashboard"));
+    }
+  );
 
   // ── Calculation routes ────────────────────────────────────────────────────
 

@@ -1,12 +1,13 @@
 import { calculations, users, savedMealPlans, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan } from "@shared/schema";
 import { db } from "./db";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 
 export interface IStorage {
   // Auth
-  createUser(user: InsertUser): Promise<User>;
+  createUser(user: InsertUser & { provider?: string; providerId?: string }): Promise<User>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(id: number): Promise<User | undefined>;
+  findOrCreateOAuthUser(opts: { email: string; name: string; provider: string; providerId: string }): Promise<User>;
 
   // Calculations
   createCalculation(calc: InsertCalculation & { userId?: number; dailyCalories: number; weeklyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number }): Promise<Calculation>;
@@ -20,7 +21,7 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  async createUser(user: InsertUser): Promise<User> {
+  async createUser(user: InsertUser & { provider?: string; providerId?: string }): Promise<User> {
     const [created] = await db.insert(users).values(user).returning();
     return created;
   }
@@ -33,6 +34,29 @@ export class DatabaseStorage implements IStorage {
   async getUserById(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
+  }
+
+  async findOrCreateOAuthUser({ email, name, provider, providerId }: { email: string; name: string; provider: string; providerId: string }): Promise<User> {
+    // First try to find by provider + providerId (most reliable)
+    const [byProvider] = await db.select().from(users).where(
+      and(eq(users.provider, provider), eq(users.providerId, providerId))
+    );
+    if (byProvider) return byProvider;
+
+    // Then try by email (link existing account)
+    const [byEmail] = await db.select().from(users).where(eq(users.email, email));
+    if (byEmail) {
+      // Link provider to existing account
+      const [updated] = await db.update(users)
+        .set({ provider, providerId })
+        .where(eq(users.id, byEmail.id))
+        .returning();
+      return updated;
+    }
+
+    // Create new OAuth user (no password)
+    const [created] = await db.insert(users).values({ email, name, provider, providerId }).returning();
+    return created;
   }
 
   async createCalculation(calc: InsertCalculation & { userId?: number; dailyCalories: number; weeklyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number }): Promise<Calculation> {

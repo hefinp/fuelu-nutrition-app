@@ -6,7 +6,9 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
-  passwordHash: text("password_hash").notNull(),
+  passwordHash: text("password_hash"),
+  provider: text("provider"),
+  providerId: text("provider_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -14,6 +16,10 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   name: true,
   passwordHash: true,
+}).extend({
+  passwordHash: z.string().optional(),
+  provider: z.string().optional(),
+  providerId: z.string().optional(),
 });
 
 export const registerSchema = z.object({
