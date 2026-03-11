@@ -2,7 +2,6 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CalculatorForm } from "@/components/calculator-form";
 import { ResultsDisplay } from "@/components/results-display";
-import { HistoryList } from "@/components/history-list";
 import { useCalculations } from "@/hooks/use-calculations";
 import { ArrowLeft } from "lucide-react";
 
@@ -84,8 +83,6 @@ export default function Dashboard() {
             </AnimatePresence>
           </div>
         </div>
-
-        <HistoryList onSelect={setActiveResultId} />
       </main>
     </div>
   );
