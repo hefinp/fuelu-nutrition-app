@@ -1,10 +1,144 @@
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { Flame, Calendar, UtensilsCrossed, Loader2, X } from "lucide-react";
+import { Flame, Calendar, UtensilsCrossed, Loader2, X, Download } from "lucide-react";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { Calculation } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import jsPDF from "jspdf";
+
+const GOAL_LABELS: Record<string, string> = {
+  fat_loss: "Fat Loss",
+  tone: "Tone & Define",
+  maintain: "Maintain & Balance",
+  muscle: "Build Muscle",
+  bulk: "Bulk Up",
+  lose: "Lose Weight",
+  gain: "Gain Weight",
+};
+
+function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
+  const doc = new jsPDF();
+  const pageW = doc.internal.pageSize.getWidth();
+  let y = 20;
+
+  const newLine = (gap = 6) => { y += gap; };
+  const checkPage = (needed = 20) => {
+    if (y + needed > 280) { doc.addPage(); y = 20; }
+  };
+
+  // Header
+  doc.setFillColor(24, 24, 27);
+  doc.rect(0, 0, pageW, 28, "F");
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text("Nutrition Plan", 14, 12);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(180, 180, 180);
+  doc.text(`${mealPlan.planType === "weekly" ? "Weekly" : "Daily"} Meal Plan  ·  Generated ${new Date().toLocaleDateString()}`, 14, 22);
+  y = 38;
+
+  // Metrics summary bar
+  doc.setFillColor(245, 245, 245);
+  doc.roundedRect(14, y, pageW - 28, 22, 3, 3, "F");
+  const goalLabel = GOAL_LABELS[data.goal || "maintain"] || data.goal || "Maintain";
+  const summaryItems = [
+    `Goal: ${goalLabel}`,
+    `Daily: ${data.dailyCalories} kcal`,
+    `Weekly: ${data.weeklyCalories} kcal`,
+    `Protein: ${data.proteinGoal}g`,
+    `Carbs: ${data.carbsGoal}g`,
+    `Fat: ${data.fatGoal}g`,
+  ];
+  const colW = (pageW - 28) / summaryItems.length;
+  summaryItems.forEach((item, i) => {
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(80, 80, 80);
+    const [label, val] = item.split(": ");
+    doc.text(label, 18 + i * colW, y + 8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(24, 24, 27);
+    doc.text(val, 18 + i * colW, y + 16);
+  });
+  y += 30;
+
+  const renderDay = (dayPlan: any, dayLabel?: string) => {
+    checkPage(30);
+    if (dayLabel) {
+      doc.setFillColor(24, 24, 27);
+      doc.roundedRect(14, y, pageW - 28, 10, 2, 2, "F");
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text(dayLabel.toUpperCase(), 18, y + 7);
+      y += 14;
+    }
+
+    const mealTypes = ["breakfast", "lunch", "dinner", "snacks"] as const;
+    mealTypes.forEach((mealType) => {
+      const meals: any[] = dayPlan[mealType] || [];
+      if (!meals.length) return;
+      checkPage(20);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(100, 100, 100);
+      doc.text(mealType.charAt(0).toUpperCase() + mealType.slice(1), 18, y);
+      newLine(5);
+      meals.forEach((meal) => {
+        checkPage(10);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(30, 30, 30);
+        const mealText = doc.splitTextToSize(meal.meal, pageW - 80);
+        doc.text(mealText, 22, y);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(80, 80, 80);
+        doc.text(`${meal.calories} kcal  P:${meal.protein}g  C:${meal.carbs}g  F:${meal.fat}g`, pageW - 80, y);
+        newLine(mealText.length > 1 ? mealText.length * 5 : 6);
+      });
+      newLine(2);
+    });
+
+    // Day totals
+    checkPage(14);
+    doc.setFillColor(240, 240, 240);
+    doc.roundedRect(14, y, pageW - 28, 10, 2, 2, "F");
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(60, 60, 60);
+    doc.text(
+      `Total  ${dayPlan.dayTotalCalories} kcal  |  Protein ${dayPlan.dayTotalProtein}g  |  Carbs ${dayPlan.dayTotalCarbs}g  |  Fat ${dayPlan.dayTotalFat}g`,
+      18, y + 7
+    );
+    y += 15;
+  };
+
+  if (mealPlan.planType === "daily") {
+    renderDay(mealPlan);
+  } else {
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    days.forEach((day) => {
+      if (mealPlan[day]) renderDay(mealPlan[day], day);
+    });
+
+    // Weekly totals
+    checkPage(18);
+    doc.setFillColor(24, 24, 27);
+    doc.roundedRect(14, y, pageW - 28, 12, 3, 3, "F");
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(
+      `Week Total: ${mealPlan.weekTotalCalories} kcal  |  P: ${mealPlan.weekTotalProtein}g  |  C: ${mealPlan.weekTotalCarbs}g  |  F: ${mealPlan.weekTotalFat}g`,
+      18, y + 8
+    );
+  }
+
+  doc.save(`meal-plan-${mealPlan.planType}-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
 
 interface Recipe {
   instructions: string;
@@ -429,11 +563,21 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
       {/* Meal Plan Display */}
       {mealPlan && (
         <motion.div variants={itemVariants} className="bg-white p-8 rounded-3xl border border-zinc-100 shadow-lg">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
-              <UtensilsCrossed className="w-5 h-5" />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                <UtensilsCrossed className="w-5 h-5" />
+              </div>
+              <h3 className="text-2xl font-bold text-zinc-900 capitalize">{mealPlan.planType} Meal Plan</h3>
             </div>
-            <h3 className="text-2xl font-bold text-zinc-900 capitalize">{mealPlan.planType} Meal Plan</h3>
+            <button
+              onClick={() => exportMealPlanToPDF(mealPlan, data)}
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-medium text-sm transition-colors border border-zinc-200"
+              data-testid="button-export-pdf"
+            >
+              <Download className="w-4 h-4" />
+              Export PDF
+            </button>
           </div>
 
           {mealPlan.planType === 'daily' ? (

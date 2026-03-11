@@ -136,17 +136,30 @@ function calculateMacros(weight: number, height: number, age: number, gender: st
 
   let dailyCalories = Math.round(bmr * activityMultiplier);
 
-  // Adjust based on fitness goal
+  // Adjust based on body goal
   switch (goal) {
-    case 'lose':
-      dailyCalories = Math.round(dailyCalories - 500); // 500 cal deficit = ~0.5kg per week loss
+    case 'fat_loss':
+      dailyCalories = Math.round(dailyCalories - 500); // aggressive deficit for fat loss
       break;
-    case 'gain':
-      dailyCalories = Math.round(dailyCalories + 500); // 500 cal surplus = ~0.5kg per week gain
+    case 'tone':
+      dailyCalories = Math.round(dailyCalories - 250); // mild deficit to lean out while preserving muscle
       break;
     case 'maintain':
+      break; // no adjustment
+    case 'muscle':
+      dailyCalories = Math.round(dailyCalories + 300); // lean surplus to build muscle with minimal fat
+      break;
+    case 'bulk':
+      dailyCalories = Math.round(dailyCalories + 600); // larger surplus for maximum muscle growth
+      break;
+    // legacy support
+    case 'lose':
+      dailyCalories = Math.round(dailyCalories - 500);
+      break;
+    case 'gain':
+      dailyCalories = Math.round(dailyCalories + 500);
+      break;
     default:
-      // No adjustment needed
       break;
   }
 

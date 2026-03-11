@@ -198,18 +198,20 @@ export function CalculatorForm({ onResult }: { onResult: (id: number) => void })
           </div>
         </div>
 
-        {/* Goal */}
+        {/* Body Goal */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-zinc-700">Fitness Goal</label>
-          <div className="grid grid-cols-3 gap-3">
+          <label className="text-sm font-medium text-zinc-700">Body Goal</label>
+          <div className="grid grid-cols-1 gap-2">
             {[
-              { id: "lose", label: "Lose Weight" },
-              { id: "maintain", label: "Maintain" },
-              { id: "gain", label: "Gain Weight" },
+              { id: "fat_loss", label: "Fat Loss", desc: "Lose body fat, preserve muscle · −500 kcal/day", icon: "🔥" },
+              { id: "tone", label: "Tone & Define", desc: "Lean out and improve definition · −250 kcal/day", icon: "⚡" },
+              { id: "maintain", label: "Maintain & Balance", desc: "Stay at current weight, optimise health", icon: "⚖️" },
+              { id: "muscle", label: "Build Muscle", desc: "Lean muscle gain with minimal fat · +300 kcal/day", icon: "💪" },
+              { id: "bulk", label: "Bulk Up", desc: "Maximum muscle growth, faster gains · +600 kcal/day", icon: "🏋️" },
             ].map((g) => (
               <label
                 key={g.id}
-                className={`cursor-pointer text-center px-4 py-3 rounded-xl border transition-all duration-200 text-sm ${
+                className={`cursor-pointer flex items-center gap-4 px-4 py-3 rounded-xl border transition-all duration-200 ${
                   form.watch("goal") === g.id
                     ? "bg-zinc-900 text-white border-zinc-900 shadow-md"
                     : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
@@ -221,7 +223,11 @@ export function CalculatorForm({ onResult }: { onResult: (id: number) => void })
                   {...form.register("goal")}
                   className="hidden"
                 />
-                <span>{g.label}</span>
+                <span className="text-xl">{g.icon}</span>
+                <div className="text-left">
+                  <span className={`font-semibold text-sm block ${form.watch("goal") === g.id ? "text-white" : "text-zinc-900"}`}>{g.label}</span>
+                  <span className={`text-xs ${form.watch("goal") === g.id ? "text-zinc-300" : "text-zinc-400"}`}>{g.desc}</span>
+                </div>
               </label>
             ))}
           </div>
