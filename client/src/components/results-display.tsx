@@ -6,31 +6,240 @@ import { useMutation } from "@tanstack/react-query";
 import type { Calculation } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
-const RECIPES: Record<string, string> = {
-  "Scrambled eggs (3) with whole grain toast": "Heat butter in a pan, whisk 3 eggs with salt and pepper, cook over medium heat while stirring gently until fluffy. Serve on toasted whole grain bread with a pat of butter.",
-  "Oatmeal with berries and almonds": "Cook 50g oats with 200ml water or milk for 3-5 minutes. Top with fresh berries and sliced almonds. Drizzle with honey if desired.",
-  "Greek yogurt with granola and honey": "In a bowl, add 200g Greek yogurt, top with granola and a drizzle of honey. Add fresh fruit for extra nutrients.",
-  "Pancakes (2) with maple syrup and bacon": "Make 2 pancakes using your favorite batter, cook until golden on both sides. Serve with maple syrup and 2-3 slices of crispy bacon.",
-  "Smoothie bowl with fruit and nuts": "Blend frozen berries, yogurt, and milk into a thick smoothie. Pour into a bowl and top with granola, nuts, and fresh fruit.",
-  "Chia seed pudding with coconut milk": "Mix 3 tbsp chia seeds with 200ml coconut milk and let sit overnight. Top with fresh fruit before serving.",
-  "Grilled chicken breast with brown rice and broccoli": "Season chicken breast and grill for 6-7 minutes per side. Cook 50g brown rice and steam fresh broccoli. Serve together.",
-  "Turkey sandwich with avocado and vegetables": "Layer turkey, avocado slices, lettuce, tomato, and cucumber on whole grain bread with mustard or mayo.",
-  "Tuna salad with olive oil dressing": "Mix canned tuna with olive oil, lemon juice, salt, and pepper. Serve over mixed greens.",
-  "Quinoa bowl with chickpeas and vegetables": "Cook quinoa and mix with chickpeas, cucumber, tomatoes, bell peppers, and a lemon-olive oil dressing.",
-  "Salmon with sweet potato and asparagus": "Bake salmon fillet at 200°C for 12-15 minutes. Bake sweet potato and roast asparagus with olive oil.",
-  "Beef stir-fry with brown rice and mixed vegetables": "Stir-fry lean beef with bell peppers, broccoli, and snap peas in a wok. Serve over brown rice with low-sodium soy sauce.",
-  "Baked chicken with roasted vegetables and pasta": "Bake chicken breast, toss whole wheat pasta with roasted vegetables and olive oil.",
-  "Lean beef with mashed potatoes and green beans": "Grill lean beef steak, serve with mashed potatoes made from boiled potatoes and green beans.",
-  "Grilled fish with wild rice and vegetables": "Grill white fish fillet, serve with wild rice and steamed vegetables of your choice.",
-  "Pork tenderloin with sweet potato and spinach": "Roast pork tenderloin at 190°C, serve with roasted sweet potato and sautéed spinach.",
-  "Turkey meatballs with spaghetti and marinara": "Bake turkey meatballs, serve with whole wheat spaghetti and sugar-free marinara sauce.",
-  "Chicken fajitas with brown rice and beans": "Grill chicken strips with peppers and onions, serve in tortillas with brown rice and black beans.",
-  "Protein bar and apple": "Enjoy a quality protein bar with a fresh apple as a convenient snack.",
-  "Greek yogurt with granola": "Mix Greek yogurt with granola for a quick protein-packed snack.",
-  "Trail mix and banana": "Combine almonds, cashews, dried fruit, and chocolate chips. Pair with a banana.",
-  "Cottage cheese with berries": "Serve cottage cheese topped with fresh blueberries or strawberries.",
-  "Peanut butter and whole grain crackers": "Spread peanut butter on whole grain crackers for a satisfying snack.",
-  "Hard-boiled eggs and almonds": "Boil eggs and pair with a handful of almonds for a protein-rich snack.",
+interface Recipe {
+  instructions: string;
+  ingredients: Array<{ item: string; quantity: string }>;
+}
+
+const RECIPES: Record<string, Recipe> = {
+  "Scrambled eggs (3) with whole grain toast": {
+    instructions: "Heat butter in a pan, whisk 3 eggs with salt and pepper, cook over medium heat while stirring gently until fluffy. Serve on toasted whole grain bread with a pat of butter.",
+    ingredients: [
+      { item: "Eggs", quantity: "3" },
+      { item: "Butter", quantity: "1 tbsp" },
+      { item: "Whole grain bread", quantity: "2 slices" },
+      { item: "Salt & pepper", quantity: "to taste" },
+    ],
+  },
+  "Oatmeal with berries and almonds": {
+    instructions: "Cook 50g oats with 200ml water or milk for 3-5 minutes. Top with fresh berries and sliced almonds. Drizzle with honey if desired.",
+    ingredients: [
+      { item: "Rolled oats", quantity: "50g" },
+      { item: "Water or milk", quantity: "200ml" },
+      { item: "Fresh berries", quantity: "100g" },
+      { item: "Almonds", quantity: "30g" },
+      { item: "Honey", quantity: "1 tbsp (optional)" },
+    ],
+  },
+  "Greek yogurt with granola and honey": {
+    instructions: "In a bowl, add 200g Greek yogurt, top with granola and a drizzle of honey. Add fresh fruit for extra nutrients.",
+    ingredients: [
+      { item: "Greek yogurt", quantity: "200g" },
+      { item: "Granola", quantity: "50g" },
+      { item: "Honey", quantity: "1 tbsp" },
+      { item: "Fresh fruit", quantity: "100g" },
+    ],
+  },
+  "Pancakes (2) with maple syrup and bacon": {
+    instructions: "Make 2 pancakes using your favorite batter, cook until golden on both sides. Serve with maple syrup and 2-3 slices of crispy bacon.",
+    ingredients: [
+      { item: "Pancake batter", quantity: "1/2 cup" },
+      { item: "Bacon", quantity: "3 slices" },
+      { item: "Maple syrup", quantity: "2 tbsp" },
+      { item: "Butter", quantity: "1 tbsp" },
+    ],
+  },
+  "Smoothie bowl with fruit and nuts": {
+    instructions: "Blend frozen berries, yogurt, and milk into a thick smoothie. Pour into a bowl and top with granola, nuts, and fresh fruit.",
+    ingredients: [
+      { item: "Frozen berries", quantity: "150g" },
+      { item: "Greek yogurt", quantity: "150g" },
+      { item: "Milk", quantity: "100ml" },
+      { item: "Granola", quantity: "40g" },
+      { item: "Mixed nuts", quantity: "30g" },
+    ],
+  },
+  "Chia seed pudding with coconut milk": {
+    instructions: "Mix 3 tbsp chia seeds with 200ml coconut milk and let sit overnight. Top with fresh fruit before serving.",
+    ingredients: [
+      { item: "Chia seeds", quantity: "3 tbsp" },
+      { item: "Coconut milk", quantity: "200ml" },
+      { item: "Fresh fruit", quantity: "100g" },
+      { item: "Honey", quantity: "1 tbsp (optional)" },
+    ],
+  },
+  "Grilled chicken breast with brown rice and broccoli": {
+    instructions: "Season chicken breast and grill for 6-7 minutes per side. Cook 50g brown rice and steam fresh broccoli. Serve together.",
+    ingredients: [
+      { item: "Chicken breast", quantity: "200g" },
+      { item: "Brown rice", quantity: "50g (dry)" },
+      { item: "Broccoli", quantity: "150g" },
+      { item: "Olive oil", quantity: "1 tbsp" },
+      { item: "Salt & pepper", quantity: "to taste" },
+    ],
+  },
+  "Turkey sandwich with avocado and vegetables": {
+    instructions: "Layer turkey, avocado slices, lettuce, tomato, and cucumber on whole grain bread with mustard or mayo.",
+    ingredients: [
+      { item: "Turkey slices", quantity: "100g" },
+      { item: "Whole grain bread", quantity: "2 slices" },
+      { item: "Avocado", quantity: "1/2" },
+      { item: "Lettuce", quantity: "2 leaves" },
+      { item: "Tomato", quantity: "1 slice" },
+      { item: "Cucumber", quantity: "1/4" },
+      { item: "Mustard or mayo", quantity: "1 tbsp" },
+    ],
+  },
+  "Tuna salad with olive oil dressing": {
+    instructions: "Mix canned tuna with olive oil, lemon juice, salt, and pepper. Serve over mixed greens.",
+    ingredients: [
+      { item: "Canned tuna", quantity: "150g" },
+      { item: "Mixed greens", quantity: "150g" },
+      { item: "Olive oil", quantity: "2 tbsp" },
+      { item: "Lemon juice", quantity: "1 tbsp" },
+      { item: "Salt & pepper", quantity: "to taste" },
+    ],
+  },
+  "Quinoa bowl with chickpeas and vegetables": {
+    instructions: "Cook quinoa and mix with chickpeas, cucumber, tomatoes, bell peppers, and a lemon-olive oil dressing.",
+    ingredients: [
+      { item: "Quinoa", quantity: "50g (dry)" },
+      { item: "Chickpeas", quantity: "100g" },
+      { item: "Cucumber", quantity: "1/2" },
+      { item: "Tomato", quantity: "1" },
+      { item: "Bell pepper", quantity: "1/2" },
+      { item: "Olive oil", quantity: "2 tbsp" },
+      { item: "Lemon juice", quantity: "1 tbsp" },
+    ],
+  },
+  "Salmon with sweet potato and asparagus": {
+    instructions: "Bake salmon fillet at 200°C for 12-15 minutes. Bake sweet potato and roast asparagus with olive oil.",
+    ingredients: [
+      { item: "Salmon fillet", quantity: "180g" },
+      { item: "Sweet potato", quantity: "200g" },
+      { item: "Asparagus", quantity: "150g" },
+      { item: "Olive oil", quantity: "1.5 tbsp" },
+      { item: "Salt & pepper", quantity: "to taste" },
+    ],
+  },
+  "Beef stir-fry with brown rice and mixed vegetables": {
+    instructions: "Stir-fry lean beef with bell peppers, broccoli, and snap peas in a wok. Serve over brown rice with low-sodium soy sauce.",
+    ingredients: [
+      { item: "Lean beef", quantity: "180g" },
+      { item: "Brown rice", quantity: "50g (dry)" },
+      { item: "Bell peppers", quantity: "100g" },
+      { item: "Broccoli", quantity: "100g" },
+      { item: "Snap peas", quantity: "100g" },
+      { item: "Soy sauce", quantity: "1 tbsp" },
+      { item: "Sesame oil", quantity: "1 tbsp" },
+    ],
+  },
+  "Baked chicken with roasted vegetables and pasta": {
+    instructions: "Bake chicken breast, toss whole wheat pasta with roasted vegetables and olive oil.",
+    ingredients: [
+      { item: "Chicken breast", quantity: "180g" },
+      { item: "Whole wheat pasta", quantity: "75g (dry)" },
+      { item: "Mixed vegetables", quantity: "200g" },
+      { item: "Olive oil", quantity: "2 tbsp" },
+      { item: "Garlic", quantity: "2 cloves" },
+    ],
+  },
+  "Lean beef with mashed potatoes and green beans": {
+    instructions: "Grill lean beef steak, serve with mashed potatoes made from boiled potatoes and green beans.",
+    ingredients: [
+      { item: "Lean beef steak", quantity: "200g" },
+      { item: "Potatoes", quantity: "250g" },
+      { item: "Butter", quantity: "1 tbsp" },
+      { item: "Green beans", quantity: "150g" },
+      { item: "Salt & pepper", quantity: "to taste" },
+    ],
+  },
+  "Grilled fish with wild rice and vegetables": {
+    instructions: "Grill white fish fillet, serve with wild rice and steamed vegetables of your choice.",
+    ingredients: [
+      { item: "White fish fillet", quantity: "200g" },
+      { item: "Wild rice", quantity: "50g (dry)" },
+      { item: "Mixed vegetables", quantity: "200g" },
+      { item: "Olive oil", quantity: "1 tbsp" },
+      { item: "Lemon", quantity: "1/2" },
+    ],
+  },
+  "Pork tenderloin with sweet potato and spinach": {
+    instructions: "Roast pork tenderloin at 190°C, serve with roasted sweet potato and sautéed spinach.",
+    ingredients: [
+      { item: "Pork tenderloin", quantity: "200g" },
+      { item: "Sweet potato", quantity: "200g" },
+      { item: "Fresh spinach", quantity: "150g" },
+      { item: "Olive oil", quantity: "2 tbsp" },
+      { item: "Garlic", quantity: "2 cloves" },
+    ],
+  },
+  "Turkey meatballs with spaghetti and marinara": {
+    instructions: "Bake turkey meatballs, serve with whole wheat spaghetti and sugar-free marinara sauce.",
+    ingredients: [
+      { item: "Ground turkey", quantity: "200g" },
+      { item: "Whole wheat spaghetti", quantity: "75g (dry)" },
+      { item: "Marinara sauce", quantity: "200ml" },
+      { item: "Breadcrumbs", quantity: "2 tbsp" },
+      { item: "Egg", quantity: "1" },
+    ],
+  },
+  "Chicken fajitas with brown rice and beans": {
+    instructions: "Grill chicken strips with peppers and onions, serve in tortillas with brown rice and black beans.",
+    ingredients: [
+      { item: "Chicken breast", quantity: "200g" },
+      { item: "Whole wheat tortillas", quantity: "2" },
+      { item: "Bell peppers", quantity: "150g" },
+      { item: "Onion", quantity: "1/2" },
+      { item: "Black beans", quantity: "100g" },
+      { item: "Brown rice", quantity: "50g (dry)" },
+    ],
+  },
+  "Protein bar and apple": {
+    instructions: "Enjoy a quality protein bar with a fresh apple as a convenient snack.",
+    ingredients: [
+      { item: "Protein bar", quantity: "1" },
+      { item: "Apple", quantity: "1 medium" },
+    ],
+  },
+  "Greek yogurt with granola": {
+    instructions: "Mix Greek yogurt with granola for a quick protein-packed snack.",
+    ingredients: [
+      { item: "Greek yogurt", quantity: "150g" },
+      { item: "Granola", quantity: "50g" },
+    ],
+  },
+  "Trail mix and banana": {
+    instructions: "Combine almonds, cashews, dried fruit, and chocolate chips. Pair with a banana.",
+    ingredients: [
+      { item: "Almonds", quantity: "20g" },
+      { item: "Cashews", quantity: "20g" },
+      { item: "Dried fruit", quantity: "20g" },
+      { item: "Dark chocolate chips", quantity: "10g" },
+      { item: "Banana", quantity: "1 medium" },
+    ],
+  },
+  "Cottage cheese with berries": {
+    instructions: "Serve cottage cheese topped with fresh blueberries or strawberries.",
+    ingredients: [
+      { item: "Cottage cheese", quantity: "150g" },
+      { item: "Fresh berries", quantity: "100g" },
+    ],
+  },
+  "Peanut butter and whole grain crackers": {
+    instructions: "Spread peanut butter on whole grain crackers for a satisfying snack.",
+    ingredients: [
+      { item: "Peanut butter", quantity: "2 tbsp" },
+      { item: "Whole grain crackers", quantity: "8-10" },
+    ],
+  },
+  "Hard-boiled eggs and almonds": {
+    instructions: "Boil eggs and pair with a handful of almonds for a protein-rich snack.",
+    ingredients: [
+      { item: "Hard-boiled eggs", quantity: "2" },
+      { item: "Almonds", quantity: "30g" },
+    ],
+  },
 };
 
 interface Meal {
@@ -379,20 +588,43 @@ function WeeklyMealView({ plan }: { plan: any }) {
 }
 
 function RecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
-  const recipe = RECIPES[meal.meal] || "Recipe not available for this meal.";
+  const recipe = RECIPES[meal.meal];
+
+  if (!recipe) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="text-zinc-600">Recipe not available for this meal.</p>
+          <button
+            onClick={onClose}
+            className="mt-4 w-full px-4 py-2 bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 transition-colors"
+          >
+            Close
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl"
+        className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl my-8"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="text-2xl font-bold text-zinc-900">{meal.meal}</h3>
-            <p className="text-sm text-zinc-500 mt-1">Click outside or press ESC to close</p>
+            <p className="text-sm text-zinc-500 mt-1">Click outside to close</p>
           </div>
           <button
             onClick={onClose}
@@ -422,8 +654,20 @@ function RecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
         </div>
 
         <div className="bg-zinc-50 p-4 rounded-xl mb-4">
-          <h4 className="text-sm font-semibold text-zinc-900 mb-2">Recipe Instructions</h4>
-          <p className="text-sm text-zinc-600 leading-relaxed">{recipe}</p>
+          <h4 className="text-sm font-semibold text-zinc-900 mb-3">Ingredients</h4>
+          <ul className="space-y-2">
+            {recipe.ingredients.map((ing, idx) => (
+              <li key={idx} className="flex justify-between text-sm text-zinc-700">
+                <span>{ing.item}</span>
+                <span className="font-medium text-zinc-900">{ing.quantity}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="bg-zinc-50 p-4 rounded-xl mb-4">
+          <h4 className="text-sm font-semibold text-zinc-900 mb-2">Instructions</h4>
+          <p className="text-sm text-zinc-600 leading-relaxed">{recipe.instructions}</p>
         </div>
 
         <button

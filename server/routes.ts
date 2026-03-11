@@ -113,7 +113,7 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
   }
 }
 
-function calculateMacros(weight: number, height: number, age: number, gender: string, activityLevel: string) {
+function calculateMacros(weight: number, height: number, age: number, gender: string, activityLevel: string, goal: string = 'maintain') {
   // Mifflin-St Jeor Equation
   // Men: (10 × weight in kg) + (6.25 × height in cm) - (5 × age in years) + 5
   // Women: (10 × weight in kg) + (6.25 × height in cm) - (5 × age in years) - 161
@@ -134,7 +134,22 @@ function calculateMacros(weight: number, height: number, age: number, gender: st
     case 'very_active': activityMultiplier = 1.9; break;
   }
 
-  const dailyCalories = Math.round(bmr * activityMultiplier);
+  let dailyCalories = Math.round(bmr * activityMultiplier);
+
+  // Adjust based on fitness goal
+  switch (goal) {
+    case 'lose':
+      dailyCalories = Math.round(dailyCalories - 500); // 500 cal deficit = ~0.5kg per week loss
+      break;
+    case 'gain':
+      dailyCalories = Math.round(dailyCalories + 500); // 500 cal surplus = ~0.5kg per week gain
+      break;
+    case 'maintain':
+    default:
+      // No adjustment needed
+      break;
+  }
+
   const weeklyCalories = dailyCalories * 7;
 
   // Macros: 30% protein, 40% carbs, 30% fat
@@ -165,7 +180,7 @@ export async function registerRoutes(
       const heightNum = parseFloat(input.height);
       const ageNum = input.age || 30;
       
-      const macros = calculateMacros(weightNum, heightNum, ageNum, input.gender || 'male', input.activityLevel || 'moderate');
+      const macros = calculateMacros(weightNum, heightNum, ageNum, input.gender || 'male', input.activityLevel || 'moderate', input.goal || 'maintain');
       
       const calcData = {
         weight: input.weight,
