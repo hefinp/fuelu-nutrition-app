@@ -189,7 +189,15 @@ function combineQuantities(existing: string, incoming: string): string {
   return existing; // keep first if units differ or non-numeric
 }
 
-function buildShoppingList(mealPlan: any): Record<string, Array<{ item: string; quantity: string }>> {
+function scaleQuantity(quantity: string, multiplier: number): string {
+  if (multiplier === 1) return quantity;
+  const parsed = tryParseQty(quantity);
+  if (!parsed) return quantity;
+  const scaled = Math.round(parsed.num * multiplier * 10) / 10;
+  return `${scaled}${parsed.unit ? ' ' + parsed.unit : ''}`.trim();
+}
+
+function buildShoppingList(mealPlan: any, multiplier = 1): Record<string, Array<{ item: string; quantity: string }>> {
   const mealNames: string[] = [];
   const slots = ['breakfast', 'lunch', 'dinner', 'snacks'] as const;
 
@@ -220,6 +228,13 @@ function buildShoppingList(mealPlan: any): Record<string, Array<{ item: string; 
     });
   });
 
+  // Scale all quantities by multiplier
+  if (multiplier !== 1) {
+    map.forEach(entry => {
+      entry.quantity = scaleQuantity(entry.quantity, multiplier);
+    });
+  }
+
   // Group by category
   const grouped: Record<string, Array<{ item: string; quantity: string }>> = {};
   map.forEach(({ category, item, quantity }) => {
@@ -233,7 +248,7 @@ function buildShoppingList(mealPlan: any): Record<string, Array<{ item: string; 
 
 const CATEGORY_ORDER = ["Protein", "Produce", "Grains & Carbs", "Dairy", "Pantry & Spices", "Other"];
 
-function exportShoppingListToPDF(mealPlan: any, data: Calculation) {
+function exportShoppingListToPDF(mealPlan: any, data: Calculation, days = 1) {
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
   let y = 20;
@@ -247,16 +262,20 @@ function exportShoppingListToPDF(mealPlan: any, data: Calculation) {
   doc.setFontSize(18); doc.setFont("helvetica", "bold"); doc.setTextColor(255, 255, 255);
   doc.text("Shopping List", 14, 12);
   doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.setTextColor(180, 180, 180);
-  doc.text(`${mealPlan.planType === "weekly" ? "Weekly" : "Daily"} Meal Plan  ·  Generated ${new Date().toLocaleDateString()}`, 14, 22);
+  const planLabel = mealPlan.planType === "weekly" ? "Weekly" : `Daily · ${days} day${days !== 1 ? 's' : ''}`;
+  doc.text(`${planLabel} Meal Plan  ·  Generated ${new Date().toLocaleDateString()}`, 14, 22);
   drawPDFLogo(doc, pageW);
   y = 38;
 
   // Sub-header note
   doc.setFontSize(9); doc.setFont("helvetica", "italic"); doc.setTextColor(120, 120, 120);
-  doc.text("Quantities are combined across all meals. Add staples you already have at home.", 14, y);
+  const noteText = mealPlan.planType === "daily" && days > 1
+    ? `Quantities scaled for ${days} days. Add staples you already have at home.`
+    : "Quantities are combined across all meals. Add staples you already have at home.";
+  doc.text(noteText, 14, y);
   y += 12;
 
-  const grouped = buildShoppingList(mealPlan);
+  const grouped = buildShoppingList(mealPlan, mealPlan.planType === "daily" ? days : 1);
   const categoryOrder = CATEGORY_ORDER.filter(c => grouped[c]);
   // Append any categories not in our order list
   Object.keys(grouped).forEach(c => { if (!categoryOrder.includes(c)) categoryOrder.push(c); });
@@ -306,7 +325,8 @@ function exportShoppingListToPDF(mealPlan: any, data: Calculation) {
     y = Math.max(leftY, rightY) + 4;
   });
 
-  doc.save(`shopping-list-${mealPlan.planType}-${new Date().toISOString().slice(0, 10)}.pdf`);
+  const daysSuffix = mealPlan.planType === "daily" && days > 1 ? `-${days}days` : "";
+  doc.save(`shopping-list-${mealPlan.planType}${daysSuffix}-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 interface Recipe {
@@ -1038,6 +1058,8 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [mealStyle, setMealStyle] = useState<'simple' | 'gourmet'>('simple');
   const [selectedMeal, setSelectedMeal] = useState<{ meal: string; calories: number; protein: number; carbs: number; fat: number } | null>(null);
+  const [shoppingDaysOpen, setShoppingDaysOpen] = useState(false);
+  const [shoppingDaysInput, setShoppingDaysInput] = useState("7");
   
   const generateMealPlan = useMutation({
     mutationFn: async (planType: 'daily' | 'weekly') => {
@@ -1239,7 +1261,13 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => exportShoppingListToPDF(mealPlan, data)}
+                onClick={() => {
+                  if (mealPlan.planType === 'daily') {
+                    setShoppingDaysOpen(true);
+                  } else {
+                    exportShoppingListToPDF(mealPlan, data);
+                  }
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl font-medium text-sm transition-colors border border-emerald-200"
                 data-testid="button-export-shopping-list"
               >
@@ -1263,6 +1291,67 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
             <WeeklyMealView plan={mealPlan} />
           )}
         </motion.div>
+      )}
+
+      {/* Shopping days dialog — daily plans only */}
+      {shoppingDaysOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4"
+          >
+            <div className="flex items-center gap-3 mb-1">
+              <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+                <ShoppingCart className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900">Shopping List</h3>
+            </div>
+            <p className="text-sm text-zinc-500 mb-5 mt-1">
+              How many days are you shopping for? Ingredient quantities will be scaled accordingly.
+            </p>
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-zinc-700 mb-2">Number of days</label>
+              <input
+                type="number"
+                min="1"
+                max="30"
+                value={shoppingDaysInput}
+                onChange={e => setShoppingDaysInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    const d = Math.max(1, parseInt(shoppingDaysInput) || 1);
+                    setShoppingDaysOpen(false);
+                    exportShoppingListToPDF(mealPlan!, data, d);
+                  }
+                }}
+                className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                data-testid="input-shopping-days"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShoppingDaysOpen(false)}
+                className="flex-1 px-4 py-2.5 border border-zinc-200 text-zinc-700 rounded-xl font-medium text-sm hover:bg-zinc-50 transition-colors"
+                data-testid="button-shopping-days-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const d = Math.max(1, parseInt(shoppingDaysInput) || 1);
+                  setShoppingDaysOpen(false);
+                  exportShoppingListToPDF(mealPlan!, data, d);
+                }}
+                className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-sm transition-colors"
+                data-testid="button-shopping-days-confirm"
+              >
+                Generate PDF
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
     </motion.div>
   );
