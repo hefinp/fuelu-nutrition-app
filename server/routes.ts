@@ -93,6 +93,49 @@ const GOURMET_MEAL_DATABASE = {
   ],
 };
 
+const MICHELIN_MEAL_DATABASE = {
+  breakfast: [
+    { meal: "Slow-cooked soft-poached eggs with black truffle shavings, brioche soldiers and crème fraîche", calories: 480, protein: 28, carbs: 38, fat: 26 },
+    { meal: "Lobster Benedict on toasted English muffin with tarragon hollandaise and caviar", calories: 520, protein: 36, carbs: 30, fat: 28 },
+    { meal: "Seared foie gras with caramelised fig, toasted brioche and aged balsamic reduction", calories: 540, protein: 22, carbs: 36, fat: 32 },
+    { meal: "Langoustine and scrambled egg tart with champagne butter sauce and dill oil", calories: 460, protein: 30, carbs: 32, fat: 24 },
+    { meal: "Wild mushroom and burrata bruschetta on charred sourdough with white truffle oil", calories: 440, protein: 22, carbs: 40, fat: 22 },
+    { meal: "Smoked haddock velouté with quails eggs, crispy capers and chive oil", calories: 400, protein: 30, carbs: 28, fat: 20 },
+    { meal: "Wagyu beef hash with caramelised onion, duck egg and Périgord truffle", calories: 560, protein: 36, carbs: 32, fat: 32 },
+    { meal: "Pain perdu with Normandy butter, seasonal berries, clotted cream and honey", calories: 500, protein: 18, carbs: 58, fat: 24 },
+  ],
+  lunch: [
+    { meal: "Butter-poached Nova Scotia lobster with bisque, hand-cut tagliatelle and tarragon", calories: 580, protein: 48, carbs: 52, fat: 18 },
+    { meal: "Seared hand-dived scallops with cauliflower velouté, roe butter and sea herbs", calories: 520, protein: 44, carbs: 34, fat: 22 },
+    { meal: "Roasted Bresse pigeon with pommes anna, foie gras torchon and jus Périgueux", calories: 620, protein: 50, carbs: 38, fat: 28 },
+    { meal: "Wild turbot with champagne beurre blanc, samphire, baby fennel and ossetra caviar", calories: 540, protein: 50, carbs: 28, fat: 24 },
+    { meal: "Slow-cooked Ibérico pork pluma with black garlic purée, pickled peach and port jus", calories: 600, protein: 48, carbs: 40, fat: 26 },
+    { meal: "White asparagus with mousseline, truffle vinaigrette, crispy pancetta and microgreens", calories: 460, protein: 28, carbs: 38, fat: 20 },
+    { meal: "Tasting of heritage tomatoes with smoked burrata, gazpacho gel and basil oil", calories: 420, protein: 20, carbs: 44, fat: 18 },
+    { meal: "Roasted line-caught halibut with cep cream, girolle mushrooms and watercress coulis", calories: 560, protein: 50, carbs: 36, fat: 22 },
+  ],
+  dinner: [
+    { meal: "Dry-aged Wagyu beef fillet with bone marrow butter, truffle pomme purée and green peppercorn sauce", calories: 720, protein: 54, carbs: 44, fat: 36 },
+    { meal: "Roasted whole Dover sole with brown butter, lemon, capers and hand-rolled pasta", calories: 640, protein: 54, carbs: 48, fat: 22 },
+    { meal: "Herb-crusted rack of lamb with ratatouille, rosemary jus and tapenade crostini", calories: 680, protein: 52, carbs: 42, fat: 30 },
+    { meal: "Lacquered duck confit with cherry and red wine reduction, celeriac gratin and watercress", calories: 660, protein: 48, carbs: 46, fat: 30 },
+    { meal: "Pan-roasted John Dory with saffron risotto, baby squid, shellfish bisque and sea herbs", calories: 620, protein: 50, carbs: 54, fat: 20 },
+    { meal: "Suckling pig belly with Bramley apple purée, black pudding, crackling and calvados jus", calories: 700, protein: 50, carbs: 44, fat: 34 },
+    { meal: "Butter-basted Bresse chicken supreme with morel cream, asparagus and pommes dauphine", calories: 660, protein: 52, carbs: 46, fat: 28 },
+    { meal: "Lightly smoked venison loin with beetroot, wild blackberry, celeriac rémoulade and port reduction", calories: 620, protein: 54, carbs: 40, fat: 24 },
+  ],
+  snack: [
+    { meal: "Amuse-bouche of smoked salmon rillette on blini with crème fraîche and Exmoor caviar", calories: 240, protein: 18, carbs: 18, fat: 12 },
+    { meal: "Gougères with Gruyère, black pepper and truffle butter", calories: 280, protein: 12, carbs: 24, fat: 16 },
+    { meal: "Wagyu beef tartare on toasted brioche with cornichons and Dijon", calories: 300, protein: 22, carbs: 18, fat: 16 },
+    { meal: "Burrata with prosciutto di Parma, Sicilian olive oil and toasted pine nuts", calories: 280, protein: 16, carbs: 12, fat: 20 },
+    { meal: "Aged Parmigiano Reggiano with acacia honey, candied walnuts and aged balsamic", calories: 260, protein: 14, carbs: 20, fat: 14 },
+    { meal: "Hand-rolled truffle arancini with saffron aioli", calories: 300, protein: 10, carbs: 36, fat: 14 },
+    { meal: "Seared tuna tataki with ponzu, micro shiso and black sesame on crispy rice", calories: 240, protein: 24, carbs: 16, fat: 8 },
+    { meal: "Petit choux with whipped chèvre, honey-roasted walnuts and thyme", calories: 260, protein: 12, carbs: 22, fat: 14 },
+  ],
+};
+
 type MealEntry = { meal: string; calories: number; protein: number; carbs: number; fat: number };
 
 // Scale a meal's portions to exactly hit a calorie target, preserving macro ratios
@@ -590,7 +633,7 @@ export async function registerRoutes(
   app.post(api.mealPlans.generate.path, async (req, res) => {
     try {
       const input = mealPlanSchema.parse(req.body);
-      const db = input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
+      const db = input.mealStyle === 'michelin' ? MICHELIN_MEAL_DATABASE : input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
       const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly', db);
 
       // If user is logged in, auto-save the plan

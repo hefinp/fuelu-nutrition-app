@@ -1056,7 +1056,7 @@ type MealPlan = any;
 
 export function ResultsDisplay({ data }: { data: Calculation }) {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
-  const [mealStyle, setMealStyle] = useState<'simple' | 'gourmet'>('simple');
+  const [mealStyle, setMealStyle] = useState<'simple' | 'gourmet' | 'michelin'>('simple');
   const [selectedMeal, setSelectedMeal] = useState<{ meal: string; calories: number; protein: number; carbs: number; fat: number } | null>(null);
   const [shoppingDaysOpen, setShoppingDaysOpen] = useState(false);
   const [shoppingDaysInput, setShoppingDaysInput] = useState("7");
@@ -1172,32 +1172,48 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
               ))}
             </div>
 
-            {/* Meal style toggle */}
+            {/* Meal style slide scale */}
             <div className="mt-8 mb-4">
-              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Meal Style</p>
-              <div className="inline-flex bg-white/10 rounded-xl p-1 gap-1">
-                {(["simple", "gourmet"] as const).map((style) => (
-                  <button
-                    key={style}
-                    type="button"
-                    data-testid={`toggle-meal-style-${style}`}
-                    onClick={() => { setMealStyle(style); setMealPlan(null); }}
-                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                      mealStyle === style
-                        ? "bg-white text-zinc-900 shadow"
-                        : "text-zinc-300 hover:text-white"
-                    }`}
-                  >
-                    {style === "simple" ? "🥗" : "🍽️"}
-                    {style === "simple" ? "Simple" : "Gourmet"}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-zinc-400 mt-1.5">
-                {mealStyle === "simple"
-                  ? "Quick, clean meals — ideal for busy weeks."
-                  : "Bold flavours and restaurant-style dishes."}
-              </p>
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Meal Style</p>
+              {(() => {
+                const styles = [
+                  { key: 'simple' as const,  emoji: '🥗',  label: 'Simple' },
+                  { key: 'gourmet' as const, emoji: '🍽️', label: 'Fancy' },
+                  { key: 'michelin' as const,emoji: '⭐',  label: 'Michelin' },
+                ];
+                const idx = styles.findIndex(s => s.key === mealStyle);
+                const descriptions: Record<string, string> = {
+                  simple:  'Quick, clean meals — ideal for busy weeks.',
+                  gourmet: 'Bold flavours and restaurant-style dishes.',
+                  michelin:'Fine-dining tasting menus — truffle, Wagyu and more.',
+                };
+                return (
+                  <>
+                    <div className="relative bg-white/10 rounded-2xl p-1 flex items-stretch" data-testid="meal-style-scale">
+                      {/* sliding pill */}
+                      <div
+                        className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
+                        style={{ width: `calc((100% - 8px) / 3)`, left: `calc(4px + ${idx} * (100% - 8px) / 3)` }}
+                      />
+                      {styles.map((style) => (
+                        <button
+                          key={style.key}
+                          type="button"
+                          data-testid={`toggle-meal-style-${style.key}`}
+                          onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
+                          className={`relative z-10 flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl text-xs font-semibold transition-colors duration-200 ${
+                            mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'
+                          }`}
+                        >
+                          <span className="text-base leading-none">{style.emoji}</span>
+                          <span>{style.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-zinc-400 mt-2">{descriptions[mealStyle]}</p>
+                  </>
+                );
+              })()}
             </div>
 
             <div className="flex gap-3">
