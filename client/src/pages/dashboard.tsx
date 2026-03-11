@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { CalculatorForm } from "@/components/calculator-form";
 import { ResultsDisplay } from "@/components/results-display";
 import { SavedMealPlans } from "@/components/saved-meal-plans";
@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { data: history } = useCalculations();
   const { user, logout, isLoggingOut } = useAuth();
+  const [, setLocation] = useLocation();
 
   const activeResult = history?.find(c => c.id === activeResultId);
 
@@ -24,6 +25,7 @@ export default function Dashboard() {
   async function handleLogout() {
     setShowUserMenu(false);
     await logout();
+    setLocation("/");
   }
 
   return (
@@ -31,12 +33,12 @@ export default function Dashboard() {
       {/* Header */}
       <header className="bg-white border-b border-zinc-100 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
               <div className="w-3 h-3 bg-white rounded-full" />
             </div>
             <h1 className="font-display font-bold text-xl tracking-tight text-zinc-900">NutriSync</h1>
-          </div>
+          </Link>
 
           <div className="flex items-center gap-3">
             {user ? (

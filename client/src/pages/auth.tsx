@@ -1,13 +1,20 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function AuthPage() {
-  const [tab, setTab] = useState<"login" | "register">("login");
+  const search = useSearch();
+  const initialTab = new URLSearchParams(search).get("tab") === "register" ? "register" : "login";
+  const [tab, setTab] = useState<"login" | "register">(initialTab);
   const [, setLocation] = useLocation();
   const { login, register, isLoggingIn, isRegistering } = useAuth();
+
+  useEffect(() => {
+    const t = new URLSearchParams(search).get("tab");
+    if (t === "register") setTab("register");
+  }, [search]);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState("");
@@ -27,7 +34,7 @@ export default function AuthPage() {
     setLoginError("");
     try {
       await login({ email: loginEmail, password: loginPassword });
-      setLocation("/");
+      setLocation("/dashboard");
     } catch (err: any) {
       setLoginError(err.message || "Login failed");
     }
@@ -38,7 +45,7 @@ export default function AuthPage() {
     setRegError("");
     try {
       await register({ email: regEmail, name: regName, password: regPassword });
-      setLocation("/");
+      setLocation("/dashboard");
     } catch (err: any) {
       setRegError(err.message || "Registration failed");
     }
