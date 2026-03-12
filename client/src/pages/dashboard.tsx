@@ -10,7 +10,7 @@ import { FoodLog } from "@/components/food-log";
 import { RecipeLibrary } from "@/components/recipe-library";
 import { HydrationTracker } from "@/components/hydration-tracker";
 import { SortableWidget } from "@/components/sortable-widget";
-import { useDashboardLayout, DEFAULT_LEFT, DEFAULT_RIGHT } from "@/hooks/use-dashboard-layout";
+import { useDashboardLayout, WIDE_WIDGETS } from "@/hooks/use-dashboard-layout";
 import type { WidgetId } from "@/hooks/use-dashboard-layout";
 import type { PrefillEntry } from "@/components/food-log";
 import type { Meal } from "@/components/results-display";
@@ -20,6 +20,7 @@ import {
   DndContext,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -29,8 +30,25 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import { LogOut, BookOpen, Settings, X, SlidersHorizontal, ChevronDown, Salad, LayoutDashboard, Check, Loader2 } from "lucide-react";
+import {
+  LogOut, BookOpen, Settings, X, SlidersHorizontal,
+  ChevronDown, Salad, LayoutDashboard, Check, Loader2,
+} from "lucide-react";
 import type { Calculation } from "@shared/schema";
+
+// Detect whether the viewport is desktop-width (xl = 1280px)
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.innerWidth >= 1280;
+  });
+  useEffect(() => {
+    const handler = () => setIsDesktop(window.innerWidth >= 1280);
+    window.addEventListener("resize", handler, { passive: true });
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isDesktop;
+}
 
 export default function Dashboard() {
   const [activeResult, setActiveResult] = useState<Calculation | null>(null);
@@ -43,12 +61,16 @@ export default function Dashboard() {
   const { data: history, isLoading: historyLoading } = useCalculations();
   const { user, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
+  const isDesktop = useIsDesktop();
 
   const {
+    widgetOrder,
     leftOrder,
     rightOrder,
     setLeftOrder,
     setRightOrder,
+    moveUp,
+    moveDown,
     isEditing,
     setIsEditing,
     saveLayout,
@@ -56,20 +78,20 @@ export default function Dashboard() {
     isSaving,
   } = useDashboardLayout(!!user);
 
+  // PointerSensor for desktop; TouchSensor with delay for iOS/Android
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
   );
 
   const handleLogMeal = useCallback((meal: Meal | PrefillEntry) => {
-    const entry: PrefillEntry = 'mealName' in meal
+    const entry: PrefillEntry = "mealName" in meal
       ? meal
       : { mealName: meal.meal, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat };
     setLogPrefill(entry);
   }, []);
 
-  const handlePrefillConsumed = useCallback(() => {
-    setLogPrefill(null);
-  }, []);
+  const handlePrefillConsumed = useCallback(() => setLogPrefill(null), []);
 
   const lastCalculation: Partial<Calculation> | undefined = history?.[0];
 
@@ -127,20 +149,13 @@ export default function Dashboard() {
         : 0)
     : undefined;
 
-  // Widget renderers
-  function renderLeftWidget(id: WidgetId) {
+  // Single render function for all widgets — used by both mobile and desktop paths
+  function renderWidget(id: WidgetId): JSX.Element | null {
     switch (id) {
       case "nutrition":
         return <NutritionDisplay data={activeResult!} />;
       case "recipe-library":
         return user ? <RecipeLibrary /> : null;
-      default:
-        return null;
-    }
-  }
-
-  function renderRightWidget(id: WidgetId) {
-    switch (id) {
       case "food-log":
         return user ? (
           <FoodLog
@@ -179,6 +194,9 @@ export default function Dashboard() {
     }
   }
 
+  // Visible widgets in order (nulls removed)
+  const visibleMobileOrder = widgetOrder.filter(id => renderWidget(id) !== null);
+
   return (
     <div className="min-h-screen bg-zinc-50/50 pb-20">
       {/* Header */}
@@ -196,7 +214,7 @@ export default function Dashboard() {
               <>
                 <button
                   onClick={() => setShowSavedPlans(v => !v)}
-                  className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${showSavedPlans ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100'}`}
+                  className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${showSavedPlans ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}
                   data-testid="button-saved-plans"
                 >
                   <BookOpen className="w-4 h-4" />
@@ -368,7 +386,7 @@ export default function Dashboard() {
       </AnimatePresence>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        {/* Saved Plans Section */}
+        {/* Saved Plans */}
         <AnimatePresence>
           {showSavedPlans && user && (
             <motion.div
@@ -393,14 +411,14 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* Loading state */}
+        {/* Loading */}
         {user && historyLoading && (
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="w-6 h-6 border-2 border-zinc-200 border-t-zinc-600 rounded-full animate-spin" />
           </div>
         )}
 
-        {/* No metrics yet — setup CTA */}
+        {/* No metrics CTA */}
         {!historyLoading && !hasMetrics && (
           <AnimatePresence>
             <motion.div
@@ -450,7 +468,7 @@ export default function Dashboard() {
           </AnimatePresence>
         )}
 
-        {/* Dashboard with metrics */}
+        {/* Dashboard */}
         {!historyLoading && hasMetrics && (
           <motion.div
             key="dashboard"
@@ -507,11 +525,7 @@ export default function Dashboard() {
                       className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-zinc-900 text-white rounded-xl hover:bg-zinc-700 disabled:opacity-50 transition-colors"
                       data-testid="button-save-layout"
                     >
-                      {isSaving ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Check className="w-4 h-4" />
-                      )}
+                      {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                       Done
                     </button>
                   </>
@@ -533,13 +547,36 @@ export default function Dashboard() {
             {isEditing && (
               <div className="flex items-center gap-2 mb-4 px-4 py-3 bg-blue-50 border border-blue-100 rounded-2xl text-sm text-blue-700">
                 <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
-                <span>Drag the <strong>⠿</strong> handle on any card to reorder it. Click <strong>Done</strong> to save.</span>
+                <span>
+                  {isDesktop
+                    ? <>Drag the <strong>⠿</strong> handle on any card to reorder it within its column. Click <strong>Done</strong> to save.</>
+                    : <>Tap the <strong>↑↓</strong> arrows on any card to reorder it. Tap <strong>Done</strong> to save.</>
+                  }
+                </span>
               </div>
             )}
 
-            {/* Dashboard grid */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-              {/* Left column — col-span-7 */}
+            {/* ── MOBILE layout: single column, flat order ── */}
+            <div className="flex flex-col gap-6 xl:hidden">
+              {visibleMobileOrder.map((id, idx) => (
+                <SortableWidget
+                  key={id}
+                  id={id}
+                  isEditing={isEditing}
+                  isMobile={true}
+                  canMoveUp={idx > 0}
+                  canMoveDown={idx < visibleMobileOrder.length - 1}
+                  onMoveUp={() => moveUp(id)}
+                  onMoveDown={() => moveDown(id)}
+                >
+                  {renderWidget(id)!}
+                </SortableWidget>
+              ))}
+            </div>
+
+            {/* ── DESKTOP layout: two columns with drag-and-drop ── */}
+            <div className="hidden xl:grid xl:grid-cols-12 gap-6">
+              {/* Left column — wide widgets */}
               <div className="xl:col-span-7 flex flex-col gap-6">
                 <DndContext
                   sensors={sensors}
@@ -548,10 +585,10 @@ export default function Dashboard() {
                 >
                   <SortableContext items={leftOrder} strategy={verticalListSortingStrategy}>
                     {leftOrder.map(id => {
-                      const content = renderLeftWidget(id);
+                      const content = renderWidget(id);
                       if (!content) return null;
                       return (
-                        <SortableWidget key={id} id={id} isEditing={isEditing}>
+                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false}>
                           {content}
                         </SortableWidget>
                       );
@@ -560,7 +597,7 @@ export default function Dashboard() {
                 </DndContext>
               </div>
 
-              {/* Right column — col-span-5 */}
+              {/* Right column — narrow widgets */}
               <div className="xl:col-span-5 xl:col-start-8 flex flex-col gap-6">
                 <DndContext
                   sensors={sensors}
@@ -569,10 +606,10 @@ export default function Dashboard() {
                 >
                   <SortableContext items={rightOrder} strategy={verticalListSortingStrategy}>
                     {rightOrder.map(id => {
-                      const content = renderRightWidget(id);
+                      const content = renderWidget(id);
                       if (!content) return null;
                       return (
-                        <SortableWidget key={id} id={id} isEditing={isEditing}>
+                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false}>
                           {content}
                         </SortableWidget>
                       );

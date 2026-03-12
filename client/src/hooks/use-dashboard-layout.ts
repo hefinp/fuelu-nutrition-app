@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { arrayMove } from "@dnd-kit/sortable";
 import type { UserPreferences } from "@shared/schema";
 
 export type WidgetId =
@@ -11,8 +12,19 @@ export type WidgetId =
   | "hydration"
   | "weight";
 
-export const DEFAULT_LEFT: WidgetId[] = ["nutrition", "recipe-library"];
-export const DEFAULT_RIGHT: WidgetId[] = ["food-log", "meal-plan", "hydration", "weight"];
+// Widgets that span the wide (left) desktop column
+export const WIDE_WIDGETS = new Set<WidgetId>(["nutrition", "recipe-library"]);
+
+// Default stacking order — mobile renders this top-to-bottom
+// Desktop splits by WIDE_WIDGETS automatically
+export const DEFAULT_ORDER: WidgetId[] = [
+  "food-log",
+  "hydration",
+  "meal-plan",
+  "nutrition",
+  "weight",
+  "recipe-library",
+];
 
 export function useDashboardLayout(isLoggedIn: boolean) {
   const queryClient = useQueryClient();
@@ -22,22 +34,59 @@ export function useDashboardLayout(isLoggedIn: boolean) {
     enabled: isLoggedIn,
   });
 
-  const [leftOrder, setLeftOrder] = useState<WidgetId[]>(DEFAULT_LEFT);
-  const [rightOrder, setRightOrder] = useState<WidgetId[]>(DEFAULT_RIGHT);
+  const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>(DEFAULT_ORDER);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (!prefs) return;
-    const layout = prefs.dashboardLayout;
-    if (layout?.left?.length) setLeftOrder(layout.left as WidgetId[]);
-    if (layout?.right?.length) setRightOrder(layout.right as WidgetId[]);
+    const saved = prefs.dashboardLayout?.order;
+    if (saved?.length) setWidgetOrder(saved as WidgetId[]);
   }, [prefs]);
 
+  // Desktop: derived left/right from flat order
+  const leftOrder = widgetOrder.filter(id => WIDE_WIDGETS.has(id));
+  const rightOrder = widgetOrder.filter(id => !WIDE_WIDGETS.has(id));
+
+  // Reorder within the left column (desktop drag)
+  const setLeftOrder = useCallback((updater: (prev: WidgetId[]) => WidgetId[]) => {
+    setWidgetOrder(prev => {
+      const newLeft = updater(prev.filter(id => WIDE_WIDGETS.has(id)));
+      const right = prev.filter(id => !WIDE_WIDGETS.has(id));
+      // Merge: interleave left/right back into a flat list in their respective positions
+      return mergeOrders(prev, newLeft, right);
+    });
+  }, []);
+
+  const setRightOrder = useCallback((updater: (prev: WidgetId[]) => WidgetId[]) => {
+    setWidgetOrder(prev => {
+      const left = prev.filter(id => WIDE_WIDGETS.has(id));
+      const newRight = updater(prev.filter(id => !WIDE_WIDGETS.has(id)));
+      return mergeOrders(prev, left, newRight);
+    });
+  }, []);
+
+  // Mobile: move a widget up or down in the flat list
+  const moveUp = useCallback((id: WidgetId) => {
+    setWidgetOrder(prev => {
+      const idx = prev.indexOf(id);
+      if (idx <= 0) return prev;
+      return arrayMove(prev, idx, idx - 1);
+    });
+  }, []);
+
+  const moveDown = useCallback((id: WidgetId) => {
+    setWidgetOrder(prev => {
+      const idx = prev.indexOf(id);
+      if (idx < 0 || idx >= prev.length - 1) return prev;
+      return arrayMove(prev, idx, idx + 1);
+    });
+  }, []);
+
   const saveMutation = useMutation({
-    mutationFn: (layout: { left: WidgetId[]; right: WidgetId[] }) =>
+    mutationFn: (order: WidgetId[]) =>
       apiRequest("PUT", "/api/user/preferences", {
         ...prefs,
-        dashboardLayout: layout,
+        dashboardLayout: { order },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
@@ -45,27 +94,47 @@ export function useDashboardLayout(isLoggedIn: boolean) {
   });
 
   const saveLayout = useCallback(() => {
-    saveMutation.mutate({ left: leftOrder, right: rightOrder });
+    saveMutation.mutate(widgetOrder);
     setIsEditing(false);
-  }, [leftOrder, rightOrder, saveMutation]);
+  }, [widgetOrder, saveMutation]);
 
   const cancelEdit = useCallback(() => {
-    // Reset to what's saved
-    const layout = prefs?.dashboardLayout;
-    setLeftOrder((layout?.left as WidgetId[] | undefined) ?? DEFAULT_LEFT);
-    setRightOrder((layout?.right as WidgetId[] | undefined) ?? DEFAULT_RIGHT);
+    const saved = prefs?.dashboardLayout?.order;
+    setWidgetOrder((saved as WidgetId[] | undefined) ?? DEFAULT_ORDER);
     setIsEditing(false);
   }, [prefs]);
 
   return {
+    widgetOrder,
     leftOrder,
     rightOrder,
     setLeftOrder,
     setRightOrder,
+    moveUp,
+    moveDown,
     isEditing,
     setIsEditing,
     saveLayout,
     cancelEdit,
     isSaving: saveMutation.isPending,
   };
+}
+
+// Re-merge left and right back into a flat order, preserving original positions
+function mergeOrders(
+  original: WidgetId[],
+  newLeft: WidgetId[],
+  newRight: WidgetId[]
+): WidgetId[] {
+  const result: WidgetId[] = [];
+  let li = 0;
+  let ri = 0;
+  for (const id of original) {
+    if (WIDE_WIDGETS.has(id)) {
+      if (li < newLeft.length) result.push(newLeft[li++]);
+    } else {
+      if (ri < newRight.length) result.push(newRight[ri++]);
+    }
+  }
+  return result;
 }
