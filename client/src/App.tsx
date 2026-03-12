@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/dashboard";
 import AuthPage from "@/pages/auth";
 import LandingPage from "@/pages/landing";
+import PrivacyPage from "@/pages/privacy";
+import TermsPage from "@/pages/terms";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -21,6 +23,8 @@ function Router() {
       <Route path="/" component={RootRedirect} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/terms" component={TermsPage} />
       <Route component={NotFound} />
     </Switch>
   );

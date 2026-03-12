@@ -309,6 +309,25 @@ export function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
     });
   }
 
+  checkPage(20);
+  y += 6;
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.line(14, y, pageW - 14, y);
+  y += 8;
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(140, 140, 140);
+  const disclaimerLines = doc.splitTextToSize(
+    "Disclaimer: All calorie targets, macronutrient breakdowns, and meal plans are estimates based on the Mifflin-St Jeor equation. They should not be treated as medical advice. Consult a qualified healthcare professional before making significant dietary changes.",
+    pageW - 28
+  );
+  disclaimerLines.forEach((line: string) => {
+    checkPage(5);
+    doc.text(line, 14, y);
+    y += 4;
+  });
+
   doc.save(`meal-plan-${mealPlan.planType}-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
@@ -1745,6 +1764,14 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
           </div>
         </motion.div>
       </div>
+
+      {/* Health Disclaimer */}
+      <motion.div variants={itemVariants} className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-start gap-3">
+        <span className="text-amber-500 mt-0.5 text-sm shrink-0">&#9888;</span>
+        <p className="text-xs text-amber-800 leading-relaxed" data-testid="text-health-disclaimer">
+          Results are estimates based on the Mifflin-St Jeor equation. Consult a qualified healthcare professional before making significant dietary changes.
+        </p>
+      </motion.div>
 
       {/* Macros Breakdown */}
       <motion.div variants={itemVariants} className="bg-zinc-900 text-white p-8 rounded-3xl shadow-2xl relative overflow-hidden">

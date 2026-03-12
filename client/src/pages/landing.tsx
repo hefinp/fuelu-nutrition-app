@@ -1,28 +1,34 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowRight, Zap, BarChart3, CalendarDays, ShoppingCart } from "lucide-react";
+import { ArrowRight, Zap, BarChart3, CalendarDays, ShoppingCart, ChefHat, Filter, FileDown } from "lucide-react";
 
 const features = [
   {
-    icon: Zap,
-    title: "Instant Calculations",
-    description: "Enter your metrics and get precise daily calorie targets and macro splits in seconds.",
+    icon: ChefHat,
+    title: "Three Meal-Style Tiers",
+    description: "Choose Simple, Gourmet, or Michelin-inspired meals — every plan is tailored to your cooking ambition.",
   },
   {
-    icon: BarChart3,
-    title: "Macro Breakdown",
-    description: "Visual protein, carb, and fat targets tailored to your body type and fitness goal.",
+    icon: Filter,
+    title: "Allergy & Preference Filtering",
+    description: "Exclude allergens, flag disliked foods, and highlight your favourites — every meal respects your choices.",
   },
   {
     icon: CalendarDays,
-    title: "Meal Plans",
-    description: "AI-generated daily and weekly meal plans in Simple or Gourmet style, ready to export as PDF.",
+    title: "Daily & Weekly Plans",
+    description: "Generate complete meal plans with full macro breakdowns, recipes, and micronutrient scoring.",
   },
   {
-    icon: ShoppingCart,
-    title: "Shopping Lists",
-    description: "Auto-generated shopping lists scaled to however many days you want to prep for.",
+    icon: FileDown,
+    title: "PDF Export & Shopping Lists",
+    description: "Download your plan or shopping list as a print-ready PDF, scaled to however many days you're prepping.",
   },
+];
+
+const highlights = [
+  { emoji: "🥗", label: "Simple", desc: "Quick & wholesome" },
+  { emoji: "👨‍🍳", label: "Gourmet", desc: "Restaurant-quality" },
+  { emoji: "⭐", label: "Michelin", desc: "Chef-level dining" },
 ];
 
 const goals = [
@@ -85,17 +91,17 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
         >
           <div className="inline-flex items-center gap-2 bg-zinc-100 text-zinc-600 text-xs font-medium px-3 py-1.5 rounded-full mb-6">
             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-            Nutrition planning made simple
+            Free nutrition planning — no credit card needed
           </div>
 
           <h1 className="font-display font-bold text-5xl sm:text-6xl tracking-tight text-zinc-900 leading-tight mb-6">
-            Your body.
+            Meal plans that match
             <br />
-            <span className="text-zinc-400">Your fuel.</span>
+            <span className="text-zinc-400">how you eat.</span>
           </h1>
 
           <p className="text-lg text-zinc-500 max-w-xl mx-auto mb-10 leading-relaxed">
-            Enter your metrics and goals — NutriSync calculates your exact daily calories, macro targets, and generates a personalised meal plan you can follow today.
+            Pick Simple, Gourmet, or Michelin-tier meals — NutriSync builds personalised daily and weekly plans around your exact calorie targets, allergies, and food preferences.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -129,8 +135,19 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
             )}
           </div>
 
+          {/* Meal-tier highlights */}
+          <div className="grid grid-cols-3 gap-3 max-w-md mx-auto mt-12">
+            {highlights.map(h => (
+              <div key={h.label} className="bg-zinc-50 border border-zinc-100 rounded-2xl p-4 text-center">
+                <span className="text-2xl mb-1 block">{h.emoji}</span>
+                <p className="font-semibold text-sm text-zinc-900">{h.label}</p>
+                <p className="text-xs text-zinc-400 mt-0.5">{h.desc}</p>
+              </div>
+            ))}
+          </div>
+
           {/* Goal pills */}
-          <div className="flex flex-wrap gap-2 justify-center mt-12">
+          <div className="flex flex-wrap gap-2 justify-center mt-8">
             {goals.map(g => (
               <span key={g.label} className={`text-xs font-medium px-3 py-1 rounded-full ${g.color}`}>
                 {g.label}
@@ -193,14 +210,18 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
 
       {/* Footer */}
       <footer className="border-t border-zinc-100 py-8">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-zinc-900 rounded-md flex items-center justify-center">
               <div className="w-2 h-2 bg-white rounded-full" />
             </div>
             <span className="font-display font-semibold text-sm text-zinc-900">NutriSync</span>
           </div>
-          <p className="text-xs text-zinc-400">© 2026 NutriSync. All rights reserved.</p>
+          <div className="flex items-center gap-4">
+            <Link href="/privacy" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors" data-testid="link-footer-privacy">Privacy Policy</Link>
+            <Link href="/terms" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors" data-testid="link-footer-terms">Terms of Service</Link>
+          </div>
+          <p className="text-xs text-zinc-400">&copy; 2026 NutriSync. All rights reserved.</p>
         </div>
       </footer>
     </div>
