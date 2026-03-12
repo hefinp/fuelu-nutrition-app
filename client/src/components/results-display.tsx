@@ -1,6 +1,6 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { Flame, Calendar, UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList } from "lucide-react";
+import { Flame, Calendar, UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences } from "@shared/schema";
@@ -2102,7 +2102,7 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: an
 
   const dislikeMutation = useMutation({
     mutationFn: (mealName: string) => {
-      setLocalDisliked(prev => new Set([...prev, mealName.toLowerCase()]));
+      setLocalDisliked(prev => new Set(Array.from(prev).concat(mealName.toLowerCase())));
       return apiRequest("POST", "/api/preferences/disliked-meals", { mealName });
     },
     onSuccess: () => {
@@ -2204,7 +2204,11 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: an
 function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: any; onReplace?: (day: string, slot: string, mealName: string, idx: number) => void; replacingSlot?: string; onLogMeal?: (meal: Meal) => void }) {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [localDisliked, setLocalDisliked] = useState<Set<string>>(new Set());
+
+  const toggleDay = (day: string) =>
+    setExpandedDays(prev => { const s = new Set(prev); s.has(day) ? s.delete(day) : s.add(day); return s; });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -2215,7 +2219,7 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: a
 
   const dislikeMutation = useMutation({
     mutationFn: (mealName: string) => {
-      setLocalDisliked(prev => new Set([...prev, mealName.toLowerCase()]));
+      setLocalDisliked(prev => new Set(Array.from(prev).concat(mealName.toLowerCase())));
       return apiRequest("POST", "/api/preferences/disliked-meals", { mealName });
     },
     onSuccess: () => {
@@ -2252,86 +2256,94 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: a
       {days.map(day => {
         const dayPlan = plan[day];
         if (!dayPlan) return null;
-        
-        return (
-          <div key={day} className="mb-8 p-5 bg-zinc-50 rounded-2xl">
-            <h4 className="text-lg font-bold text-zinc-900 capitalize mb-4">{day}</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <div className="bg-white p-3 rounded-lg">
-                <p className="text-xs text-zinc-500 font-medium mb-1">Calories</p>
-                <p className="font-bold text-zinc-900">{dayPlan.dayTotalCalories}</p>
-              </div>
-              <div className="bg-white p-3 rounded-lg">
-                <p className="text-xs text-zinc-500 font-medium mb-1">Protein</p>
-                <p className="font-bold text-zinc-900">{dayPlan.dayTotalProtein}g</p>
-              </div>
-              <div className="bg-white p-3 rounded-lg">
-                <p className="text-xs text-zinc-500 font-medium mb-1">Carbs</p>
-                <p className="font-bold text-zinc-900">{dayPlan.dayTotalCarbs}g</p>
-              </div>
-              <div className="bg-white p-3 rounded-lg">
-                <p className="text-xs text-zinc-500 font-medium mb-1">Fat</p>
-                <p className="font-bold text-zinc-900">{dayPlan.dayTotalFat}g</p>
-              </div>
-            </div>
+        const isOpen = expandedDays.has(day);
 
-            {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(mealType => {
-              const slotKey = mealType === 'snacks' ? 'snack' : mealType;
-              return (
-                <div key={mealType} className="mb-3">
-                  <h5 className="text-sm font-semibold text-zinc-700 capitalize mb-2">{mealType}</h5>
-                  <div className="space-y-1">
-                    {dayPlan[mealType]?.map((meal: Meal, idx: number) => (
-                      <div key={idx} className="flex items-center gap-1">
-                        <button
-                          onClick={() => setSelectedMeal(meal)}
-                          className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
-                          data-testid={`meal-card-${day}-${slotKey}-${idx}`}
-                        >
-                          <div className="flex-1">
-                            <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
-                            <p className="text-xs text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+        return (
+          <div key={day} className="mb-3 bg-zinc-50 rounded-2xl overflow-hidden">
+            <button
+              onClick={() => toggleDay(day)}
+              className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-zinc-100 transition-colors text-left"
+              data-testid={`button-day-${day}`}
+            >
+              <div className="flex items-center gap-3">
+                <h4 className="text-sm font-bold text-zinc-900 capitalize">{day}</h4>
+                <span className="text-xs text-zinc-500">{dayPlan.dayTotalCalories} kcal · P {dayPlan.dayTotalProtein}g · C {dayPlan.dayTotalCarbs}g · F {dayPlan.dayTotalFat}g</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-zinc-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            <AnimatePresence initial={false}>
+              {isOpen && (
+                <motion.div
+                  key="content"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.22, ease: 'easeInOut' }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-5 pb-4 pt-1">
+                    {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(mealType => {
+                      const slotKey = mealType === 'snacks' ? 'snack' : mealType;
+                      return (
+                        <div key={mealType} className="mb-3">
+                          <h5 className="text-sm font-semibold text-zinc-700 capitalize mb-2">{mealType}</h5>
+                          <div className="space-y-1">
+                            {dayPlan[mealType]?.map((meal: Meal, idx: number) => (
+                              <div key={idx} className="flex items-center gap-1">
+                                <button
+                                  onClick={() => setSelectedMeal(meal)}
+                                  className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
+                                  data-testid={`meal-card-${day}-${slotKey}-${idx}`}
+                                >
+                                  <div className="flex-1">
+                                    <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
+                                    <p className="text-xs text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+                                  </div>
+                                  <div className="text-right ml-4">
+                                    <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
+                                    <p className="text-xs text-zinc-500">kcal</p>
+                                  </div>
+                                </button>
+                                {onLogMeal && (
+                                  <button
+                                    onClick={() => onLogMeal(meal)}
+                                    className="p-1.5 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded transition-colors shrink-0"
+                                    title="Log this meal"
+                                    data-testid={`button-log-${day}-${slotKey}-${idx}`}
+                                  >
+                                    <ClipboardList className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
+                                  className={`p-1.5 rounded transition-colors shrink-0 ${isDisliked(meal.meal) ? 'bg-red-50 text-red-500 cursor-default' : 'bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500'}`}
+                                  title={isDisliked(meal.meal) ? "Disliked" : "Dislike this meal"}
+                                  data-testid={`button-dislike-${day}-${slotKey}-${idx}`}
+                                >
+                                  <ThumbsDown className="w-3.5 h-3.5" />
+                                </button>
+                                {onReplace && (
+                                  <button
+                                    onClick={() => onReplace(day, slotKey, meal.meal, idx)}
+                                    disabled={replacingSlot === slotKey}
+                                    className="p-1.5 bg-zinc-100 hover:bg-amber-50 text-zinc-400 hover:text-amber-600 rounded transition-colors shrink-0"
+                                    title="Replace meal"
+                                    data-testid={`button-replace-${day}-${slotKey}-${idx}`}
+                                  >
+                                    {replacingSlot === slotKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                                  </button>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                          <div className="text-right ml-4">
-                            <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
-                            <p className="text-xs text-zinc-500">kcal</p>
-                          </div>
-                        </button>
-                        {onLogMeal && (
-                          <button
-                            onClick={() => onLogMeal(meal)}
-                            className="p-1.5 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded transition-colors shrink-0"
-                            title="Log this meal"
-                            data-testid={`button-log-${day}-${slotKey}-${idx}`}
-                          >
-                            <ClipboardList className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
-                          className={`p-1.5 rounded transition-colors shrink-0 ${isDisliked(meal.meal) ? 'bg-red-50 text-red-500 cursor-default' : 'bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500'}`}
-                          title={isDisliked(meal.meal) ? "Disliked" : "Dislike this meal"}
-                          data-testid={`button-dislike-${day}-${slotKey}-${idx}`}
-                        >
-                          <ThumbsDown className="w-3.5 h-3.5" />
-                        </button>
-                        {onReplace && (
-                          <button
-                            onClick={() => onReplace(day, slotKey, meal.meal, idx)}
-                            disabled={replacingSlot === slotKey}
-                            className="p-1.5 bg-zinc-100 hover:bg-amber-50 text-zinc-400 hover:text-amber-600 rounded transition-colors shrink-0"
-                            title="Replace meal"
-                            data-testid={`button-replace-${day}-${slotKey}-${idx}`}
-                          >
-                            {replacingSlot === slotKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              );
-            })}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         );
       })}

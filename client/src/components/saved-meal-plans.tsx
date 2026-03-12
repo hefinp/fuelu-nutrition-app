@@ -404,7 +404,7 @@ function SavedDailyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pre
 
   const dislikeMutation = useMutation({
     mutationFn: (mealName: string) => {
-      setLocalDisliked(prev => new Set([...prev, mealName.toLowerCase()]));
+      setLocalDisliked(prev => new Set(Array.from(prev).concat(mealName.toLowerCase())));
       return apiRequest("POST", "/api/preferences/disliked-meals", { mealName });
     },
     onSuccess: () => {
@@ -489,7 +489,11 @@ function SavedDailyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pre
 function SavedWeeklyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: PrefillEntry) => void }) {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [localDisliked, setLocalDisliked] = useState<Set<string>>(new Set());
+
+  const toggleDay = (day: string) =>
+    setExpandedDays(prev => { const s = new Set(prev); s.has(day) ? s.delete(day) : s.add(day); return s; });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -500,7 +504,7 @@ function SavedWeeklyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pr
 
   const dislikeMutation = useMutation({
     mutationFn: (mealName: string) => {
-      setLocalDisliked(prev => new Set([...prev, mealName.toLowerCase()]));
+      setLocalDisliked(prev => new Set(Array.from(prev).concat(mealName.toLowerCase())));
       return apiRequest("POST", "/api/preferences/disliked-meals", { mealName });
     },
     onSuccess: () => {
@@ -518,69 +522,76 @@ function SavedWeeklyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pr
       {days.map(day => {
         const dayPlan = plan[day];
         if (!dayPlan) return null;
+        const isOpen = expandedDays.has(day);
 
         return (
-          <div key={day} className="mb-6 p-4 bg-zinc-50 rounded-xl">
-            <h5 className="text-sm font-bold text-zinc-900 capitalize mb-3">{day}</h5>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-              <div className="bg-white p-2 rounded-lg">
-                <p className="text-[10px] text-zinc-500 font-medium">Cal</p>
-                <p className="text-sm font-bold text-zinc-900">{dayPlan.dayTotalCalories}</p>
+          <div key={day} className="mb-2 bg-zinc-50 rounded-xl overflow-hidden">
+            <button
+              onClick={() => toggleDay(day)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-100 transition-colors text-left"
+            >
+              <div className="flex items-center gap-2.5">
+                <h5 className="text-xs font-bold text-zinc-900 capitalize">{day}</h5>
+                <span className="text-[10px] text-zinc-500">{dayPlan.dayTotalCalories} kcal · P {dayPlan.dayTotalProtein}g · C {dayPlan.dayTotalCarbs}g · F {dayPlan.dayTotalFat}g</span>
               </div>
-              <div className="bg-white p-2 rounded-lg">
-                <p className="text-[10px] text-zinc-500 font-medium">Protein</p>
-                <p className="text-sm font-bold text-zinc-900">{dayPlan.dayTotalProtein}g</p>
-              </div>
-              <div className="bg-white p-2 rounded-lg">
-                <p className="text-[10px] text-zinc-500 font-medium">Carbs</p>
-                <p className="text-sm font-bold text-zinc-900">{dayPlan.dayTotalCarbs}g</p>
-              </div>
-              <div className="bg-white p-2 rounded-lg">
-                <p className="text-[10px] text-zinc-500 font-medium">Fat</p>
-                <p className="text-sm font-bold text-zinc-900">{dayPlan.dayTotalFat}g</p>
-              </div>
-            </div>
+              <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
 
-            {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(mealType => (
-              <div key={mealType} className="mb-2">
-                <h6 className="text-xs font-semibold text-zinc-600 capitalize mb-1">{mealType}</h6>
-                <div className="space-y-1">
-                  {dayPlan[mealType]?.map((meal: Meal, idx: number) => (
-                    <div key={idx} className="flex items-center gap-1">
-                      <button
-                        onClick={() => setSelectedMeal(meal)}
-                        className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
-                      >
-                        <div className="flex-1">
-                          <p className="font-medium text-zinc-900 text-xs">{meal.meal}</p>
-                          <p className="text-[10px] text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+            <AnimatePresence initial={false}>
+              {isOpen && (
+                <motion.div
+                  key="content"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.22, ease: 'easeInOut' }}
+                  className="overflow-hidden"
+                >
+                  <div className="px-4 pb-3 pt-1">
+                    {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(mealType => (
+                      <div key={mealType} className="mb-2">
+                        <h6 className="text-xs font-semibold text-zinc-600 capitalize mb-1">{mealType}</h6>
+                        <div className="space-y-1">
+                          {dayPlan[mealType]?.map((meal: Meal, idx: number) => (
+                            <div key={idx} className="flex items-center gap-1">
+                              <button
+                                onClick={() => setSelectedMeal(meal)}
+                                className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
+                              >
+                                <div className="flex-1">
+                                  <p className="font-medium text-zinc-900 text-xs">{meal.meal}</p>
+                                  <p className="text-[10px] text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+                                </div>
+                                <div className="text-right ml-3">
+                                  <p className="font-bold text-zinc-900 text-xs">{meal.calories}</p>
+                                  <p className="text-[10px] text-zinc-500">kcal</p>
+                                </div>
+                              </button>
+                              {onLogMeal && (
+                                <button
+                                  onClick={() => onLogMeal({ mealName: meal.meal, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat })}
+                                  className="p-1.5 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded transition-colors shrink-0"
+                                  title="Log this meal"
+                                >
+                                  <ClipboardList className="w-3 h-3" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
+                                className={`p-1.5 rounded transition-colors shrink-0 ${isDisliked(meal.meal) ? 'bg-red-50 text-red-500 cursor-default' : 'bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500'}`}
+                                title={isDisliked(meal.meal) ? "Disliked" : "Dislike this meal"}
+                              >
+                                <ThumbsDown className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                        <div className="text-right ml-3">
-                          <p className="font-bold text-zinc-900 text-xs">{meal.calories}</p>
-                          <p className="text-[10px] text-zinc-500">kcal</p>
-                        </div>
-                      </button>
-                      {onLogMeal && (
-                        <button
-                          onClick={() => onLogMeal({ mealName: meal.meal, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat })}
-                          className="p-1.5 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded transition-colors shrink-0"
-                          title="Log this meal"
-                        >
-                          <ClipboardList className="w-3 h-3" />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
-                        className={`p-1.5 rounded transition-colors shrink-0 ${isDisliked(meal.meal) ? 'bg-red-50 text-red-500 cursor-default' : 'bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500'}`}
-                        title={isDisliked(meal.meal) ? "Disliked" : "Dislike this meal"}
-                      >
-                        <ThumbsDown className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         );
       })}
