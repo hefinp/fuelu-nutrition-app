@@ -5,13 +5,24 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Plus, Trash2, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, BookOpen, UtensilsCrossed,
-  Coffee, Salad, Moon, Apple,
+  Coffee, Salad, Moon, Apple, Search, X, Check,
 } from "lucide-react";
 import type { SavedMealPlan } from "@shared/schema";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
+
+interface FoodResult {
+  id: string;
+  name: string;
+  calories100g: number;
+  protein100g: number;
+  carbs100g: number;
+  fat100g: number;
+  servingSize: string;
+  servingGrams: number;
+}
 
 interface FoodLogEntry {
   id: number;
@@ -217,7 +228,7 @@ export function FoodLog({
 
   // Form state
   const [showForm, setShowForm] = useState(false);
-  const [formTab, setFormTab] = useState<"manual" | "plan">("manual");
+  const [formTab, setFormTab] = useState<"manual" | "plan" | "search">("manual");
   const [form, setForm] = useState({
     mealName: "", calories: "", protein: "", carbs: "", fat: "",
     mealSlot: null as MealSlot | null,
@@ -230,6 +241,17 @@ export function FoodLog({
   // Plan picker state
   const [expandedPlanId, setExpandedPlanId] = useState<number | null>(null);
   const [selectedWeekDay, setSelectedWeekDay] = useState<string>("monday");
+
+  // Food search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [selectedFood, setSelectedFood] = useState<FoodResult | null>(null);
+  const [servingGrams, setServingGrams] = useState("100");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   const weekRange = getWeekRange(weekOffset);
 
@@ -285,6 +307,18 @@ export function FoodLog({
       return res.json();
     },
     enabled: showForm && formTab === "plan",
+  });
+
+  const { data: foodResults = [], isLoading: searchLoading } = useQuery<FoodResult[]>({
+    queryKey: ["/api/food-search", debouncedQuery],
+    queryFn: async () => {
+      if (!debouncedQuery || debouncedQuery.length < 2) return [];
+      const res = await fetch(`/api/food-search?q=${encodeURIComponent(debouncedQuery)}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: formTab === "search" && debouncedQuery.length >= 2,
+    staleTime: 60_000,
   });
 
   // ── Mutations ─────────────────────────────────────────────────────────────
@@ -346,6 +380,34 @@ export function FoodLog({
       fat: String(m.fat),
       mealSlot: normalizeSlot(m.slot),
     });
+    setFormTab("manual");
+  }
+
+  function selectFood(food: FoodResult) {
+    setSelectedFood(food);
+    setServingGrams(String(food.servingGrams));
+  }
+
+  function clearSearch() {
+    setSearchQuery("");
+    setDebouncedQuery("");
+    setSelectedFood(null);
+    setServingGrams("100");
+  }
+
+  function useSelectedFood() {
+    if (!selectedFood) return;
+    const grams = parseFloat(servingGrams) || 100;
+    const factor = grams / 100;
+    setForm(f => ({
+      ...f,
+      mealName: selectedFood.name,
+      calories: String(Math.round(selectedFood.calories100g * factor)),
+      protein: String(Math.round(selectedFood.protein100g * factor)),
+      carbs: String(Math.round(selectedFood.carbs100g * factor)),
+      fat: String(Math.round(selectedFood.fat100g * factor)),
+    }));
+    clearSearch();
     setFormTab("manual");
   }
 
@@ -454,20 +516,29 @@ export function FoodLog({
             <button
               type="button"
               onClick={() => setFormTab("manual")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${formTab === "manual" ? "bg-white text-zinc-900 border-b-2 border-zinc-900" : "text-zinc-500 hover:text-zinc-700"}`}
+              className={`flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-semibold transition-colors ${formTab === "manual" ? "bg-white text-zinc-900 border-b-2 border-zinc-900" : "text-zinc-500 hover:text-zinc-700"}`}
               data-testid="button-form-tab-manual"
             >
               <UtensilsCrossed className="w-3.5 h-3.5" />
-              Manual entry
+              Manual
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormTab("search")}
+              className={`flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-semibold transition-colors ${formTab === "search" ? "bg-white text-zinc-900 border-b-2 border-zinc-900" : "text-zinc-500 hover:text-zinc-700"}`}
+              data-testid="button-form-tab-search"
+            >
+              <Search className="w-3.5 h-3.5" />
+              Search food
             </button>
             <button
               type="button"
               onClick={() => setFormTab("plan")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${formTab === "plan" ? "bg-white text-zinc-900 border-b-2 border-zinc-900" : "text-zinc-500 hover:text-zinc-700"}`}
+              className={`flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-semibold transition-colors ${formTab === "plan" ? "bg-white text-zinc-900 border-b-2 border-zinc-900" : "text-zinc-500 hover:text-zinc-700"}`}
               data-testid="button-form-tab-plan"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              From saved plan
+              From plan
             </button>
           </div>
 
@@ -550,6 +621,147 @@ export function FoodLog({
                 </button>
               </div>
             </form>
+          )}
+
+          {/* Search food tab */}
+          {formTab === "search" && (
+            <div className="p-4">
+              {/* Search input */}
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Search foods, brands…"
+                  value={searchQuery}
+                  onChange={e => { setSearchQuery(e.target.value); setSelectedFood(null); }}
+                  className="w-full pl-8 pr-8 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
+                  data-testid="input-food-search"
+                />
+                {searchQuery && (
+                  <button type="button" onClick={clearSearch} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Selected food: serving adjuster */}
+              {selectedFood && (
+                <div className="mb-3 p-3 bg-violet-50 border border-violet-200 rounded-xl" data-testid="food-serving-adjuster">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-zinc-900 truncate">{selectedFood.name}</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">per 100g: {selectedFood.calories100g} kcal · P:{selectedFood.protein100g}g C:{selectedFood.carbs100g}g F:{selectedFood.fat100g}g</p>
+                    </div>
+                    <button type="button" onClick={() => setSelectedFood(null)} className="shrink-0 text-zinc-400 hover:text-zinc-600 mt-0.5">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <label className="text-[10px] text-zinc-500 font-medium shrink-0">Serving (g)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={servingGrams}
+                      onChange={e => setServingGrams(e.target.value)}
+                      className="w-20 px-2 py-1 text-sm border border-violet-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-violet-400 text-center bg-white"
+                      data-testid="input-serving-grams"
+                    />
+                    <span className="text-[10px] text-zinc-400">{selectedFood.servingSize && selectedFood.servingSize !== `${selectedFood.servingGrams}g` ? `(1 serving = ${selectedFood.servingSize})` : ""}</span>
+                  </div>
+
+                  {/* Live macro preview */}
+                  {(() => {
+                    const f = (parseFloat(servingGrams) || 0) / 100;
+                    return (
+                      <div className="grid grid-cols-4 gap-1.5 mb-2.5">
+                        {[
+                          { label: "kcal", value: Math.round(selectedFood.calories100g * f), color: "bg-orange-50 text-orange-700" },
+                          { label: "protein", value: Math.round(selectedFood.protein100g * f), color: "bg-red-50 text-red-700" },
+                          { label: "carbs", value: Math.round(selectedFood.carbs100g * f), color: "bg-blue-50 text-blue-700" },
+                          { label: "fat", value: Math.round(selectedFood.fat100g * f), color: "bg-yellow-50 text-yellow-700" },
+                        ].map(({ label, value, color }) => (
+                          <div key={label} className={`${color} rounded-lg p-1.5 text-center`}>
+                            <p className="text-sm font-bold">{value}</p>
+                            <p className="text-[9px] font-medium uppercase tracking-wide opacity-70">{label}</p>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  <button
+                    type="button"
+                    onClick={useSelectedFood}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors"
+                    data-testid="button-use-food"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    Use this food
+                  </button>
+                </div>
+              )}
+
+              {/* Results list */}
+              {!selectedFood && (
+                <>
+                  {searchLoading && debouncedQuery.length >= 2 && (
+                    <div className="flex items-center justify-center gap-2 py-6 text-zinc-400">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Searching…</span>
+                    </div>
+                  )}
+
+                  {!searchLoading && debouncedQuery.length >= 2 && foodResults.length === 0 && (
+                    <div className="text-center py-6 text-zinc-400">
+                      <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">No results for "{debouncedQuery}"</p>
+                      <p className="text-xs mt-1">Try a different name or use Manual entry.</p>
+                    </div>
+                  )}
+
+                  {!searchLoading && debouncedQuery.length < 2 && !searchQuery && (
+                    <div className="text-center py-6 text-zinc-300">
+                      <Search className="w-8 h-8 mx-auto mb-2" />
+                      <p className="text-sm">Start typing to search 3M+ foods</p>
+                    </div>
+                  )}
+
+                  {foodResults.length > 0 && (
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto" data-testid="food-search-results">
+                      {foodResults.map(food => (
+                        <button
+                          key={food.id}
+                          type="button"
+                          onClick={() => selectFood(food)}
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white hover:bg-violet-50 hover:border-violet-200 border border-zinc-100 transition-colors text-left"
+                          data-testid={`button-food-result-${food.id}`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-zinc-900 truncate">{food.name}</p>
+                            <p className="text-[10px] text-zinc-400 mt-0.5">P:{food.protein100g}g · C:{food.carbs100g}g · F:{food.fat100g}g per 100g</p>
+                          </div>
+                          <div className="ml-3 shrink-0 text-right">
+                            <p className="text-xs font-bold text-zinc-900">{food.calories100g}</p>
+                            <p className="text-[10px] text-zinc-400">kcal/100g</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="mt-3 w-full py-2 bg-zinc-100 text-zinc-600 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-colors"
+                data-testid="button-log-cancel-search"
+              >
+                Cancel
+              </button>
+            </div>
           )}
 
           {/* From saved plan tab */}
@@ -816,9 +1028,12 @@ export function FoodLog({
                     data-testid={`weekly-day-${d}`}
                   >
                     {/* Day header row */}
-                    <button
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => toggleDay(d)}
-                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-xs transition-colors ${isDayToday ? "bg-violet-50 hover:bg-violet-100" : "bg-zinc-50 hover:bg-zinc-100"}`}
+                      onKeyDown={e => e.key === "Enter" && toggleDay(d)}
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-xs cursor-pointer transition-colors ${isDayToday ? "bg-violet-50 hover:bg-violet-100" : "bg-zinc-50 hover:bg-zinc-100"}`}
                       data-testid={`button-expand-day-${d}`}
                     >
                       <ChevronDown className={`w-3.5 h-3.5 transition-transform shrink-0 ${isDayToday ? "text-violet-400" : "text-zinc-400"} ${isExpanded ? "rotate-180" : ""}`} />
@@ -839,7 +1054,7 @@ export function FoodLog({
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
-                    </button>
+                    </div>
 
                     {/* Accordion body */}
                     {isExpanded && (

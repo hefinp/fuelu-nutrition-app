@@ -1025,6 +1025,49 @@ export async function registerRoutes(
     res.json({ message: "Dislike removed." });
   });
 
+  // ── Food search (Open Food Facts proxy) ──────────────────────────────────
+
+  app.get("/api/food-search", async (req, res) => {
+    const q = (req.query.q as string | undefined)?.trim();
+    if (!q || q.length < 2) return res.json([]);
+    try {
+      const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=20&api_key=DEMO_KEY`;
+      const upstream = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!upstream.ok) return res.json([]);
+      const data = await upstream.json() as any;
+      const foods = (data.foods ?? []) as any[];
+
+      const getNutrient = (nutrients: any[], id: number) =>
+        nutrients.find((n: any) => n.nutrientId === id)?.value ?? 0;
+
+      const results = foods
+        .filter((f: any) => {
+          const cal = getNutrient(f.foodNutrients ?? [], 1008);
+          return f.description && cal > 0;
+        })
+        .slice(0, 10)
+        .map((f: any) => {
+          const n = f.foodNutrients ?? [];
+          const servingGrams = (f.servingSizeUnit === "g" || f.servingSizeUnit === "G")
+            ? Math.round(parseFloat(f.servingSize) || 100)
+            : 100;
+          return {
+            id: String(f.fdcId),
+            name: f.description.charAt(0).toUpperCase() + f.description.slice(1).toLowerCase(),
+            calories100g: Math.round(getNutrient(n, 1008)),
+            protein100g: Math.round(getNutrient(n, 1003) * 10) / 10,
+            carbs100g: Math.round(getNutrient(n, 1005) * 10) / 10,
+            fat100g: Math.round(getNutrient(n, 1004) * 10) / 10,
+            servingSize: servingGrams > 0 ? `${servingGrams}g` : "100g",
+            servingGrams: servingGrams || 100,
+          };
+        });
+      res.json(results);
+    } catch {
+      res.json([]);
+    }
+  });
+
   // ── Food log ──────────────────────────────────────────────────────────────
 
   app.get("/api/food-log", async (req, res) => {
