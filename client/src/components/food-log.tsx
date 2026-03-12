@@ -5,10 +5,13 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Plus, Trash2, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, BookOpen, UtensilsCrossed,
+  Coffee, Salad, Moon, Apple,
 } from "lucide-react";
 import type { SavedMealPlan } from "@shared/schema";
 
 // ── Types ────────────────────────────────────────────────────────────────────
+
+type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
 
 interface FoodLogEntry {
   id: number;
@@ -18,6 +21,7 @@ interface FoodLogEntry {
   protein: number;
   carbs: number;
   fat: number;
+  mealSlot: MealSlot | null;
   createdAt: string;
 }
 
@@ -27,6 +31,7 @@ export interface PrefillEntry {
   protein: number;
   carbs: number;
   fat: number;
+  mealSlot?: MealSlot | null;
 }
 
 interface FoodLogProps {
@@ -46,6 +51,34 @@ interface PlanMeal {
   carbs: number;
   fat: number;
 }
+
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const SLOT_LABELS: Record<MealSlot, string> = {
+  breakfast: "Breakfast",
+  lunch: "Lunch",
+  dinner: "Dinner",
+  snack: "Snack",
+};
+
+const SLOT_ICONS: Record<MealSlot, typeof Coffee> = {
+  breakfast: Coffee,
+  lunch: Salad,
+  dinner: Moon,
+  snack: Apple,
+};
+
+const SLOT_COLORS: Record<MealSlot, string> = {
+  breakfast: "text-amber-600 bg-amber-50",
+  lunch: "text-green-600 bg-green-50",
+  dinner: "text-indigo-600 bg-indigo-50",
+  snack: "text-pink-600 bg-pink-50",
+};
+
+const ALL_SLOTS: MealSlot[] = ["breakfast", "lunch", "dinner", "snack"];
+const WEEK_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
+const WEEK_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MEAL_SLOTS_PLAN = ["breakfast", "lunch", "dinner", "snacks"] as const;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -85,15 +118,20 @@ function getWeekRange(): { from: string; to: string; days: string[] } {
   return { from: days[0], to: days[6], days };
 }
 
-const WEEK_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
-const WEEK_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MEAL_SLOTS = ["breakfast", "lunch", "dinner", "snacks"] as const;
+function normalizeSlot(slot: string): MealSlot | null {
+  const s = slot.toLowerCase();
+  if (s.includes("breakfast")) return "breakfast";
+  if (s.includes("lunch")) return "lunch";
+  if (s.includes("dinner")) return "dinner";
+  if (s.includes("snack")) return "snack";
+  return null;
+}
 
 function extractPlanMeals(plan: SavedMealPlan, selectedDay?: string): PlanMeal[] {
   const data = plan.planData as any;
   const meals: PlanMeal[] = [];
   if (plan.planType === "daily") {
-    for (const slot of MEAL_SLOTS) {
+    for (const slot of MEAL_SLOTS_PLAN) {
       for (const m of (data[slot] ?? [])) {
         meals.push({ slot: slot.charAt(0).toUpperCase() + slot.slice(1), ...m, meal: m.meal });
       }
@@ -101,7 +139,7 @@ function extractPlanMeals(plan: SavedMealPlan, selectedDay?: string): PlanMeal[]
   } else {
     const dayKey = selectedDay ?? "monday";
     const dayPlan = (data.dayMealPlan ?? {})[dayKey] ?? {};
-    for (const slot of MEAL_SLOTS) {
+    for (const slot of MEAL_SLOTS_PLAN) {
       for (const m of (dayPlan[slot] ?? [])) {
         meals.push({ slot: slot.charAt(0).toUpperCase() + slot.slice(1), ...m, meal: m.meal });
       }
@@ -171,7 +209,13 @@ export function FoodLog({
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [formTab, setFormTab] = useState<"manual" | "plan">("manual");
-  const [form, setForm] = useState({ mealName: "", calories: "", protein: "", carbs: "", fat: "" });
+  const [form, setForm] = useState({
+    mealName: "", calories: "", protein: "", carbs: "", fat: "",
+    mealSlot: null as MealSlot | null,
+  });
+
+  // Weekly accordion state
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set([today]));
 
   // Plan picker state
   const [expandedPlanId, setExpandedPlanId] = useState<number | null>(null);
@@ -179,7 +223,7 @@ export function FoodLog({
 
   const weekRange = getWeekRange();
 
-  // Prefill from meal-plan card log button
+  // Prefill from meal-plan card
   useEffect(() => {
     if (prefill) {
       setForm({
@@ -188,6 +232,7 @@ export function FoodLog({
         protein: String(prefill.protein),
         carbs: String(prefill.carbs),
         fat: String(prefill.fat),
+        mealSlot: prefill.mealSlot ?? null,
       });
       setView("daily");
       setSelectedDate(today);
@@ -235,12 +280,14 @@ export function FoodLog({
   // ── Mutations ─────────────────────────────────────────────────────────────
 
   const addMutation = useMutation({
-    mutationFn: (entry: { date: string; mealName: string; calories: number; protein: number; carbs: number; fat: number }) =>
-      apiRequest("POST", "/api/food-log", entry).then(r => r.json()),
+    mutationFn: (entry: {
+      date: string; mealName: string; calories: number;
+      protein: number; carbs: number; fat: number; mealSlot?: MealSlot | null;
+    }) => apiRequest("POST", "/api/food-log", entry).then(r => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log", selectedDate] });
       queryClient.invalidateQueries({ queryKey: ["/api/food-log-week", weekRange.from, weekRange.to] });
-      setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "" });
+      setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", mealSlot: null });
       setShowForm(false);
       toast({ title: "Meal logged" });
     },
@@ -268,6 +315,7 @@ export function FoodLog({
       protein: parseInt(form.protein) || 0,
       carbs: parseInt(form.carbs) || 0,
       fat: parseInt(form.fat) || 0,
+      mealSlot: form.mealSlot,
     });
   }
 
@@ -276,16 +324,17 @@ export function FoodLog({
     setView("daily");
     setShowForm(true);
     setFormTab("manual");
-    setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "" });
+    setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", mealSlot: null });
   }
 
-  function prefillFromPlan(meal: PlanMeal) {
+  function prefillFromPlan(m: PlanMeal) {
     setForm({
-      mealName: meal.meal,
-      calories: String(meal.calories),
-      protein: String(meal.protein),
-      carbs: String(meal.carbs),
-      fat: String(meal.fat),
+      mealName: m.meal,
+      calories: String(m.calories),
+      protein: String(m.protein),
+      carbs: String(m.carbs),
+      fat: String(m.fat),
+      mealSlot: normalizeSlot(m.slot),
     });
     setFormTab("manual");
   }
@@ -294,11 +343,19 @@ export function FoodLog({
     setShowForm(v => !v);
     if (!showForm) {
       setFormTab("manual");
-      setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "" });
+      setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", mealSlot: null });
     }
   }
 
-  // ── Derived values ────────────────────────────────────────────────────────
+  function toggleDay(date: string) {
+    setExpandedDays(prev => {
+      const next = new Set(prev);
+      next.has(date) ? next.delete(date) : next.add(date);
+      return next;
+    });
+  }
+
+  // ── Derived ───────────────────────────────────────────────────────────────
 
   const isToday = selectedDate === today;
 
@@ -322,7 +379,7 @@ export function FoodLog({
   return (
     <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-6">
 
-      {/* ── Header row 1: Title ─────────────────────────────────────────── */}
+      {/* ── Header row 1 ──────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 mb-3">
         <div className="p-2 bg-violet-100 text-violet-600 rounded-lg shrink-0">
           <ClipboardList className="w-5 h-5" />
@@ -330,12 +387,14 @@ export function FoodLog({
         <div>
           <h2 className="text-lg font-bold text-zinc-900">Food Log</h2>
           <p className="text-xs text-zinc-500">
-            {view === "daily" ? (isToday ? "Track what you eat today" : `Logging for ${formatDateLabel(selectedDate)}`) : "This week's nutrition"}
+            {view === "daily"
+              ? isToday ? "Track what you eat today" : `Logging for ${formatDateLabel(selectedDate)}`
+              : "This week's nutrition"}
           </p>
         </div>
       </div>
 
-      {/* ── Header row 2: Toolbar ───────────────────────────────────────── */}
+      {/* ── Header row 2: Toolbar ─────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center bg-zinc-100 rounded-xl p-0.5" data-testid="toggle-food-log-view">
           <button
@@ -365,7 +424,7 @@ export function FoodLog({
         </button>
       </div>
 
-      {/* ── Log-meal form (shown in both views) ────────────────────────── */}
+      {/* ── Log-meal form ─────────────────────────────────────────────── */}
       {showForm && (
         <div className="mb-4 bg-zinc-50 rounded-xl border border-zinc-200 overflow-hidden">
           {/* Tab bar */}
@@ -398,6 +457,30 @@ export function FoodLog({
                   Logging to {formatDateLabel(selectedDate)}
                 </p>
               )}
+
+              {/* Meal slot selector */}
+              <div>
+                <p className="text-[10px] text-zinc-500 font-medium mb-1.5">Meal type</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {ALL_SLOTS.map(slot => {
+                    const Icon = SLOT_ICONS[slot];
+                    const active = form.mealSlot === slot;
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, mealSlot: active ? null : slot }))}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${active ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`}
+                        data-testid={`button-slot-${slot}`}
+                      >
+                        <Icon className="w-3 h-3" />
+                        {SLOT_LABELS[slot]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <input
                 type="text"
                 required
@@ -484,7 +567,6 @@ export function FoodLog({
 
                         {isOpen && (
                           <div className="border-t border-zinc-100 px-3 pb-3 pt-2">
-                            {/* Day selector for weekly plans */}
                             {plan.planType === "weekly" && (
                               <div className="flex gap-1 mb-3 flex-wrap">
                                 {WEEK_DAYS.map((d, i) => (
@@ -500,7 +582,6 @@ export function FoodLog({
                                 ))}
                               </div>
                             )}
-
                             {planMeals.length === 0 ? (
                               <p className="text-xs text-zinc-400 py-2">No meals found.</p>
                             ) : (
@@ -545,7 +626,7 @@ export function FoodLog({
         </div>
       )}
 
-      {/* ── Daily View ─────────────────────────────────────────────────── */}
+      {/* ── Daily View ────────────────────────────────────────────────── */}
       {view === "daily" && (
         <>
           {/* Day navigation */}
@@ -554,18 +635,14 @@ export function FoodLog({
               onClick={() => setSelectedDate(d => shiftDate(d, -1))}
               className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors text-zinc-500 hover:text-zinc-900"
               data-testid="button-prev-day"
-              aria-label="Previous day"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-
             <div className="text-center">
               <span className="text-sm font-semibold text-zinc-800" data-testid="text-log-date">
                 {isToday ? "Today" : formatDateLabel(selectedDate)}
               </span>
-              {isToday && (
-                <span className="block text-[10px] text-zinc-400">{formatDateLabel(selectedDate)}</span>
-              )}
+              {isToday && <span className="block text-[10px] text-zinc-400">{formatDateLabel(selectedDate)}</span>}
               {!isToday && (
                 <button
                   onClick={() => setSelectedDate(today)}
@@ -576,26 +653,22 @@ export function FoodLog({
                 </button>
               )}
             </div>
-
             <button
               onClick={() => setSelectedDate(d => shiftDate(d, 1))}
               disabled={selectedDate >= today}
               className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors text-zinc-500 hover:text-zinc-900 disabled:opacity-30 disabled:cursor-not-allowed"
               data-testid="button-next-day"
-              aria-label="Next day"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Macro progress bars */}
           <MacroGrid
             cal={totalCal} prot={totalProt} carbs={totalCarbs} fat={totalFat}
             calTarget={dailyCaloriesTarget} protTarget={dailyProteinTarget}
             carbsTarget={dailyCarbsTarget} fatTarget={dailyFatTarget}
           />
 
-          {/* Entry list */}
           {dailyLoading ? (
             <div className="flex justify-center py-6">
               <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
@@ -607,34 +680,44 @@ export function FoodLog({
             </div>
           ) : (
             <div className="space-y-2">
-              {dailyEntries.map(entry => (
-                <div
-                  key={entry.id}
-                  className="flex items-center gap-2 p-3 bg-zinc-50 rounded-xl border border-transparent hover:border-zinc-200 transition-colors"
-                  data-testid={`log-entry-${entry.id}`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-zinc-900 truncate">{entry.mealName}</p>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                      {entry.calories} kcal &nbsp;·&nbsp; P: {entry.protein}g &nbsp;·&nbsp; C: {entry.carbs}g &nbsp;·&nbsp; F: {entry.fat}g
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => deleteMutation.mutate(entry.id)}
-                    disabled={deleteMutation.isPending}
-                    className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                    data-testid={`button-delete-log-${entry.id}`}
+              {dailyEntries.map(entry => {
+                const slot = entry.mealSlot as MealSlot | null;
+                const SlotIcon = slot ? SLOT_ICONS[slot] : null;
+                const slotColor = slot ? SLOT_COLORS[slot] : null;
+                return (
+                  <div
+                    key={entry.id}
+                    className="flex items-center gap-2 p-3 bg-zinc-50 rounded-xl border border-transparent hover:border-zinc-200 transition-colors"
+                    data-testid={`log-entry-${entry.id}`}
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
+                    {SlotIcon && slotColor && (
+                      <div className={`p-1.5 rounded-lg shrink-0 ${slotColor}`}>
+                        <SlotIcon className="w-3 h-3" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-zinc-900 truncate">{entry.mealName}</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {entry.calories} kcal · P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => deleteMutation.mutate(entry.id)}
+                      disabled={deleteMutation.isPending}
+                      className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                      data-testid={`button-delete-log-${entry.id}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </>
       )}
 
-      {/* ── Weekly View ────────────────────────────────────────────────── */}
+      {/* ── Weekly View ───────────────────────────────────────────────── */}
       {view === "weekly" && (
         <>
           <MacroGrid
@@ -650,45 +733,130 @@ export function FoodLog({
               <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
             </div>
           ) : (
-            <div className="space-y-1" data-testid="weekly-log-table">
+            <div className="space-y-1.5" data-testid="weekly-log-table">
               {weekRange.days.map(d => {
                 const dayEntries = entriesByDay[d] ?? [];
                 const dayCal = dayEntries.reduce((s, e) => s + e.calories, 0);
-                const dayProt = dayEntries.reduce((s, e) => s + e.protein, 0);
-                const dayCarbs = dayEntries.reduce((s, e) => s + e.carbs, 0);
-                const dayFat = dayEntries.reduce((s, e) => s + e.fat, 0);
                 const isDayToday = d === today;
+                const isExpanded = expandedDays.has(d);
+
+                // Group entries by slot
+                const bySlot: Record<string, FoodLogEntry[]> = {};
+                for (const slot of ALL_SLOTS) bySlot[slot] = [];
+                bySlot["other"] = [];
+                for (const e of dayEntries) {
+                  const key = e.mealSlot && ALL_SLOTS.includes(e.mealSlot) ? e.mealSlot : "other";
+                  bySlot[key].push(e);
+                }
 
                 return (
                   <div
                     key={d}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs ${isDayToday ? "bg-violet-50 border border-violet-100" : "bg-zinc-50"}`}
+                    className={`rounded-xl overflow-hidden border ${isDayToday ? "border-violet-200" : "border-zinc-100"}`}
                     data-testid={`weekly-day-${d}`}
                   >
-                    <span className={`font-semibold shrink-0 w-[90px] ${isDayToday ? "text-violet-700" : "text-zinc-700"}`}>
-                      {formatDateLabel(d).split(",")[0] ?? formatDateLabel(d)}
-                      {isDayToday && <span className="ml-1 text-[10px] text-violet-400 font-normal">today</span>}
-                    </span>
-
-                    <div className="flex-1 min-w-0">
-                      {dayEntries.length > 0 ? (
-                        <span className="text-zinc-500">
-                          <span className="font-semibold text-zinc-900">{dayCal}</span> kcal
-                          <span className="text-zinc-400 ml-1.5 hidden sm:inline">P:{dayProt}g C:{dayCarbs}g F:{dayFat}g</span>
-                        </span>
-                      ) : (
-                        <span className="text-zinc-300 italic">—</span>
-                      )}
-                    </div>
-
+                    {/* Day header row */}
                     <button
-                      onClick={() => openFormForDay(d)}
-                      className={`shrink-0 p-1.5 rounded-lg transition-colors ${isDayToday ? "text-violet-500 hover:bg-violet-100" : "text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"}`}
-                      title={`Log meal for ${formatDateLabel(d)}`}
-                      data-testid={`button-log-for-day-${d}`}
+                      onClick={() => toggleDay(d)}
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-xs transition-colors ${isDayToday ? "bg-violet-50 hover:bg-violet-100" : "bg-zinc-50 hover:bg-zinc-100"}`}
+                      data-testid={`button-expand-day-${d}`}
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform shrink-0 ${isDayToday ? "text-violet-400" : "text-zinc-400"} ${isExpanded ? "rotate-180" : ""}`} />
+                      <span className={`font-semibold w-[85px] text-left shrink-0 ${isDayToday ? "text-violet-700" : "text-zinc-700"}`}>
+                        {formatDateLabel(d).split(",")[0]}
+                        {isDayToday && <span className="ml-1 font-normal text-[10px] text-violet-400">today</span>}
+                      </span>
+                      <span className="flex-1 text-left text-zinc-500">
+                        {dayEntries.length > 0
+                          ? <><span className="font-semibold text-zinc-900">{dayCal}</span> kcal · {dayEntries.length} item{dayEntries.length !== 1 ? "s" : ""}</>
+                          : <span className="text-zinc-300 italic">No entries</span>}
+                      </span>
+                      <button
+                        onClick={e => { e.stopPropagation(); openFormForDay(d); }}
+                        className={`shrink-0 p-1 rounded-lg transition-colors ${isDayToday ? "text-violet-500 hover:bg-violet-200" : "text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"}`}
+                        title={`Log meal for ${formatDateLabel(d)}`}
+                        data-testid={`button-log-for-day-${d}`}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
                     </button>
+
+                    {/* Accordion body */}
+                    {isExpanded && (
+                      <div className="bg-white border-t border-zinc-100 px-3 py-2 space-y-3">
+                        {dayEntries.length === 0 ? (
+                          <p className="text-xs text-zinc-400 italic py-1">Nothing logged yet.</p>
+                        ) : (
+                          <>
+                            {ALL_SLOTS.map(slot => {
+                              const slotEntries = bySlot[slot];
+                              if (slotEntries.length === 0) return null;
+                              const SlotIcon = SLOT_ICONS[slot];
+                              const slotCal = slotEntries.reduce((s, e) => s + e.calories, 0);
+                              const slotColor = SLOT_COLORS[slot];
+                              return (
+                                <div key={slot} data-testid={`weekly-slot-${d}-${slot}`}>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${slotColor}`}>
+                                      <SlotIcon className="w-2.5 h-2.5" />
+                                      {SLOT_LABELS[slot]}
+                                    </div>
+                                    <span className="text-[10px] text-zinc-400 font-medium">{slotCal} kcal</span>
+                                  </div>
+                                  <div className="space-y-1 ml-1">
+                                    {slotEntries.map(entry => (
+                                      <div key={entry.id} className="flex items-center gap-2 py-1 border-b border-zinc-50 last:border-0">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-medium text-zinc-800 truncate">{entry.mealName}</p>
+                                          <p className="text-[10px] text-zinc-400">
+                                            {entry.calories} kcal · P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
+                                          </p>
+                                        </div>
+                                        <button
+                                          onClick={() => deleteMutation.mutate(entry.id)}
+                                          className="p-1 text-zinc-300 hover:text-red-400 transition-colors shrink-0"
+                                          data-testid={`button-delete-weekly-${entry.id}`}
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {/* "other" slot — entries without a slot assigned */}
+                            {bySlot["other"].length > 0 && (
+                              <div data-testid={`weekly-slot-${d}-other`}>
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Other</span>
+                                  <span className="text-[10px] text-zinc-400">{bySlot["other"].reduce((s, e) => s + e.calories, 0)} kcal</span>
+                                </div>
+                                <div className="space-y-1 ml-1">
+                                  {bySlot["other"].map(entry => (
+                                    <div key={entry.id} className="flex items-center gap-2 py-1 border-b border-zinc-50 last:border-0">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-zinc-800 truncate">{entry.mealName}</p>
+                                        <p className="text-[10px] text-zinc-400">
+                                          {entry.calories} kcal · P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
+                                        </p>
+                                      </div>
+                                      <button
+                                        onClick={() => deleteMutation.mutate(entry.id)}
+                                        className="p-1 text-zinc-300 hover:text-red-400 transition-colors shrink-0"
+                                        data-testid={`button-delete-weekly-${entry.id}`}
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

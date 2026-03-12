@@ -128,6 +128,7 @@ export const foodLogEntries = pgTable("food_log_entries", {
   protein: integer("protein").notNull(),
   carbs: integer("carbs").notNull(),
   fat: integer("fat").notNull(),
+  mealSlot: text("meal_slot"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

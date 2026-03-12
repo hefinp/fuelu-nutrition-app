@@ -1049,6 +1049,7 @@ export async function registerRoutes(
         protein: z.number().int().min(0),
         carbs: z.number().int().min(0),
         fat: z.number().int().min(0),
+        mealSlot: z.enum(["breakfast", "lunch", "dinner", "snack"]).nullable().optional(),
       }).parse(req.body);
       const entry = await storage.createFoodLogEntry({ ...body, userId: req.session.userId });
       res.status(201).json(entry);
