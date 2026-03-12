@@ -1031,7 +1031,8 @@ export async function registerRoutes(
     const q = (req.query.q as string | undefined)?.trim();
     if (!q || q.length < 2) return res.json([]);
     try {
-      const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=20&api_key=DEMO_KEY`;
+      const apiKey = process.env.USDA_API_KEY || "DEMO_KEY";
+      const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=25&api_key=${apiKey}`;
       const upstream = await fetch(url, { signal: AbortSignal.timeout(8000) });
       if (!upstream.ok) return res.json([]);
       const data = await upstream.json() as any;
@@ -1040,10 +1041,15 @@ export async function registerRoutes(
       const getNutrient = (nutrients: any[], id: number) =>
         nutrients.find((n: any) => n.nutrientId === id)?.value ?? 0;
 
+      // USDA uses different energy IDs depending on food type:
+      // 1008 = branded/packaged foods, 2047 = Foundation foods (whole produce,
+      // raw meats), 2048 = SR Legacy. Check all three so nothing is filtered out.
+      const getEnergy = (n: any[]) =>
+        getNutrient(n, 1008) || getNutrient(n, 2047) || getNutrient(n, 2048);
+
       const results = foods
         .filter((f: any) => {
-          const cal = getNutrient(f.foodNutrients ?? [], 1008);
-          return f.description && cal > 0;
+          return f.description && getEnergy(f.foodNutrients ?? []) > 0;
         })
         .slice(0, 10)
         .map((f: any) => {
@@ -1054,7 +1060,7 @@ export async function registerRoutes(
           return {
             id: String(f.fdcId),
             name: f.description.charAt(0).toUpperCase() + f.description.slice(1).toLowerCase(),
-            calories100g: Math.round(getNutrient(n, 1008)),
+            calories100g: Math.round(getEnergy(n)),
             protein100g: Math.round(getNutrient(n, 1003) * 10) / 10,
             carbs100g: Math.round(getNutrient(n, 1005) * 10) / 10,
             fat100g: Math.round(getNutrient(n, 1004) * 10) / 10,
