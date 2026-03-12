@@ -208,12 +208,17 @@ export default function AuthPage() {
                 Sign In
               </button>
 
-              <p className="text-center text-sm text-zinc-500">
-                No account?{" "}
-                <button type="button" onClick={() => setTab("register")} className="text-zinc-900 font-medium hover:underline">
-                  Create one
-                </button>
-              </p>
+              <div className="flex items-center justify-between text-sm text-zinc-500">
+                <span>
+                  No account?{" "}
+                  <button type="button" onClick={() => setTab("register")} className="text-zinc-900 font-medium hover:underline">
+                    Create one
+                  </button>
+                </span>
+                <a href="/forgot-password" className="text-zinc-400 hover:text-zinc-700 transition-colors text-xs" data-testid="link-forgot-password">
+                  Forgot password?
+                </a>
+              </div>
             </motion.form>
           ) : (
             <motion.form

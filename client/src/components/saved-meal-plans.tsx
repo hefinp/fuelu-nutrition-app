@@ -2,8 +2,9 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { SavedMealPlan } from "@shared/schema";
-import { Calendar, Trash2, Pencil, Check, X, UtensilsCrossed, ChefHat, Loader2, ChevronDown, ChevronUp, Download, ShoppingCart } from "lucide-react";
+import { Calendar, Trash2, Pencil, Check, X, UtensilsCrossed, ChefHat, Loader2, ChevronDown, ChevronUp, Download, ShoppingCart, ThumbsDown, ClipboardList, Mail } from "lucide-react";
 import { RECIPES, exportMealPlanToPDF, exportShoppingListToPDF, type Meal } from "./results-display";
 import type { Calculation } from "@shared/schema";
 
@@ -25,11 +26,13 @@ function buildCalcStub(plan: SavedMealPlan): Calculation {
 
 export function SavedMealPlans() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [shoppingDialogId, setShoppingDialogId] = useState<number | null>(null);
   const [shoppingDays, setShoppingDays] = useState("7");
+  const [emailingId, setEmailingId] = useState<number | null>(null);
 
   const { data: plans = [], isLoading, isError } = useQuery<SavedMealPlan[]>({
     queryKey: ["/api/saved-meal-plans"],
@@ -59,6 +62,25 @@ export function SavedMealPlans() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/saved-meal-plans"] });
+    },
+  });
+
+  const emailMutation = useMutation({
+    mutationFn: async (id: number) => {
+      setEmailingId(id);
+      const res = await apiRequest("POST", `/api/saved-meal-plans/${id}/email`, {});
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || "Failed to send email");
+      }
+    },
+    onSuccess: () => {
+      toast({ title: "Plan emailed!", description: "Check your inbox for the meal plan." });
+      setEmailingId(null);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "Failed to send email", variant: "destructive" });
+      setEmailingId(null);
     },
   });
 
@@ -238,7 +260,7 @@ export function SavedMealPlans() {
                   >
                     <div className="border-t border-zinc-100 p-5">
                       {/* Action buttons */}
-                      <div className="flex items-center gap-2 mb-5">
+                      <div className="flex flex-wrap items-center gap-2 mb-5">
                         <button
                           onClick={() => {
                             if (plan.planType === 'daily') {
@@ -261,6 +283,15 @@ export function SavedMealPlans() {
                         >
                           <Download className="w-3.5 h-3.5" />
                           Export PDF
+                        </button>
+                        <button
+                          onClick={() => emailMutation.mutate(plan.id)}
+                          disabled={emailingId === plan.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-medium text-xs transition-colors border border-blue-200 disabled:opacity-50"
+                          data-testid={`button-saved-email-${plan.id}`}
+                        >
+                          {emailingId === plan.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                          Email Plan
                         </button>
                       </div>
 
@@ -315,6 +346,29 @@ export function SavedMealPlans() {
 
 function SavedDailyView({ plan }: { plan: any }) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const dislikeMutation = useMutation({
+    mutationFn: (mealName: string) => apiRequest("POST", "/api/preferences/disliked-meals", { mealName }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+      toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
+    },
+    onError: () => toast({ title: "Sign in to dislike meals", variant: "destructive" }),
+  });
+
+  const logMutation = useMutation({
+    mutationFn: (meal: Meal) => apiRequest("POST", "/api/food-log", {
+      date: new Date().toISOString().slice(0, 10),
+      mealName: meal.meal, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
+      toast({ title: "Meal logged", description: "Added to today's food log." });
+    },
+    onError: () => toast({ title: "Sign in to log meals", variant: "destructive" }),
+  });
 
   return (
     <>
@@ -342,20 +396,35 @@ function SavedDailyView({ plan }: { plan: any }) {
           <h5 className="text-sm font-semibold text-zinc-800 capitalize mb-2">{mealType}</h5>
           <div className="space-y-1.5">
             {plan[mealType]?.map((meal: Meal, idx: number) => (
-              <button
-                key={idx}
-                onClick={() => setSelectedMeal(meal)}
-                className="w-full flex justify-between p-2.5 bg-zinc-50 rounded-lg hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
-              >
-                <div className="flex-1">
-                  <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
-                </div>
-                <div className="text-right ml-4">
-                  <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
-                  <p className="text-xs text-zinc-500">kcal</p>
-                </div>
-              </button>
+              <div key={idx} className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setSelectedMeal(meal)}
+                  className="flex-1 flex justify-between p-2.5 bg-zinc-50 rounded-lg hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+                  </div>
+                  <div className="text-right ml-4">
+                    <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
+                    <p className="text-xs text-zinc-500">kcal</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => logMutation.mutate(meal)}
+                  className="p-2 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded-lg transition-colors shrink-0"
+                  title="Log this meal"
+                >
+                  <ClipboardList className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => dislikeMutation.mutate(meal.meal)}
+                  className="p-2 bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-lg transition-colors shrink-0"
+                  title="Dislike this meal"
+                >
+                  <ThumbsDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -371,6 +440,29 @@ function SavedDailyView({ plan }: { plan: any }) {
 function SavedWeeklyView({ plan }: { plan: any }) {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const dislikeMutation = useMutation({
+    mutationFn: (mealName: string) => apiRequest("POST", "/api/preferences/disliked-meals", { mealName }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+      toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
+    },
+    onError: () => toast({ title: "Sign in to dislike meals", variant: "destructive" }),
+  });
+
+  const logMutation = useMutation({
+    mutationFn: (meal: Meal) => apiRequest("POST", "/api/food-log", {
+      date: new Date().toISOString().slice(0, 10),
+      mealName: meal.meal, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
+      toast({ title: "Meal logged", description: "Added to today's food log." });
+    },
+    onError: () => toast({ title: "Sign in to log meals", variant: "destructive" }),
+  });
 
   return (
     <>
@@ -405,20 +497,35 @@ function SavedWeeklyView({ plan }: { plan: any }) {
                 <h6 className="text-xs font-semibold text-zinc-600 capitalize mb-1">{mealType}</h6>
                 <div className="space-y-1">
                   {dayPlan[mealType]?.map((meal: Meal, idx: number) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedMeal(meal)}
-                      className="w-full flex justify-between p-2 bg-white rounded hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-zinc-900 text-xs">{meal.meal}</p>
-                        <p className="text-[10px] text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
-                      </div>
-                      <div className="text-right ml-3">
-                        <p className="font-bold text-zinc-900 text-xs">{meal.calories}</p>
-                        <p className="text-[10px] text-zinc-500">kcal</p>
-                      </div>
-                    </button>
+                    <div key={idx} className="flex items-center gap-1">
+                      <button
+                        onClick={() => setSelectedMeal(meal)}
+                        className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium text-zinc-900 text-xs">{meal.meal}</p>
+                          <p className="text-[10px] text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+                        </div>
+                        <div className="text-right ml-3">
+                          <p className="font-bold text-zinc-900 text-xs">{meal.calories}</p>
+                          <p className="text-[10px] text-zinc-500">kcal</p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => logMutation.mutate(meal)}
+                        className="p-1.5 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded transition-colors shrink-0"
+                        title="Log this meal"
+                      >
+                        <ClipboardList className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => dislikeMutation.mutate(meal.meal)}
+                        className="p-1.5 bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded transition-colors shrink-0"
+                        title="Dislike this meal"
+                      >
+                        <ThumbsDown className="w-3 h-3" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and } from "drizzle-orm";
 
@@ -8,6 +8,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserById(id: number): Promise<User | undefined>;
   findOrCreateOAuthUser(opts: { email: string; name: string; provider: string; providerId: string }): Promise<User>;
+  updateUserPassword(userId: number, passwordHash: string): Promise<void>;
 
   // Calculations
   createCalculation(calc: InsertCalculation & { userId?: number; dailyCalories: number; weeklyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number }): Promise<Calculation>;
@@ -26,6 +27,17 @@ export interface IStorage {
   getSavedMealPlans(userId: number): Promise<SavedMealPlan[]>;
   updateMealPlanName(id: number, userId: number, name: string): Promise<SavedMealPlan | undefined>;
   deleteMealPlan(id: number, userId: number): Promise<void>;
+  getSavedMealPlanById(id: number, userId: number): Promise<SavedMealPlan | undefined>;
+
+  // Food log
+  getFoodLogEntries(userId: number, date: string): Promise<FoodLogEntry[]>;
+  createFoodLogEntry(entry: InsertFoodLogEntry & { userId: number }): Promise<FoodLogEntry>;
+  deleteFoodLogEntry(id: number, userId: number): Promise<void>;
+
+  // Password reset tokens
+  createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void>;
+  getPasswordResetToken(token: string): Promise<{ id: number; userId: number; expiresAt: Date; usedAt: Date | null } | undefined>;
+  markPasswordResetTokenUsed(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -61,6 +73,10 @@ export class DatabaseStorage implements IStorage {
 
     const [created] = await db.insert(users).values({ email, name, provider, providerId }).returning();
     return created;
+  }
+
+  async updateUserPassword(userId: number, passwordHash: string): Promise<void> {
+    await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
   }
 
   async createCalculation(calc: InsertCalculation & { userId?: number; dailyCalories: number; weeklyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number }): Promise<Calculation> {
@@ -119,6 +135,42 @@ export class DatabaseStorage implements IStorage {
   async deleteMealPlan(id: number, userId: number): Promise<void> {
     await db.delete(savedMealPlans)
       .where(and(eq(savedMealPlans.id, id), eq(savedMealPlans.userId, userId)));
+  }
+
+  async getSavedMealPlanById(id: number, userId: number): Promise<SavedMealPlan | undefined> {
+    const [plan] = await db.select().from(savedMealPlans)
+      .where(and(eq(savedMealPlans.id, id), eq(savedMealPlans.userId, userId)));
+    return plan;
+  }
+
+  async getFoodLogEntries(userId: number, date: string): Promise<FoodLogEntry[]> {
+    return await db.select().from(foodLogEntries)
+      .where(and(eq(foodLogEntries.userId, userId), eq(foodLogEntries.date, date)))
+      .orderBy(foodLogEntries.createdAt);
+  }
+
+  async createFoodLogEntry(entry: InsertFoodLogEntry & { userId: number }): Promise<FoodLogEntry> {
+    const [created] = await db.insert(foodLogEntries).values(entry).returning();
+    return created;
+  }
+
+  async deleteFoodLogEntry(id: number, userId: number): Promise<void> {
+    await db.delete(foodLogEntries)
+      .where(and(eq(foodLogEntries.id, id), eq(foodLogEntries.userId, userId)));
+  }
+
+  async createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void> {
+    await db.insert(passwordResetTokens).values({ userId, token, expiresAt });
+  }
+
+  async getPasswordResetToken(token: string): Promise<{ id: number; userId: number; expiresAt: Date; usedAt: Date | null } | undefined> {
+    const [row] = await db.select().from(passwordResetTokens).where(eq(passwordResetTokens.token, token));
+    if (!row) return undefined;
+    return { id: row.id, userId: row.userId, expiresAt: row.expiresAt, usedAt: row.usedAt };
+  }
+
+  async markPasswordResetTokenUsed(id: number): Promise<void> {
+    await db.update(passwordResetTokens).set({ usedAt: new Date() }).where(eq(passwordResetTokens.id, id));
   }
 }
 

@@ -4,8 +4,10 @@ import { storage } from "./storage";
 import { api, mealPlanSchema } from "@shared/routes";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { registerSchema, loginSchema, userPreferencesSchema, type UserPreferences } from "@shared/schema";
 import passport from "passport";
+import { sendEmail, buildPasswordResetEmailHtml, buildMealPlanEmailHtml } from "./email";
 
 const MEAL_DATABASE: MealDb = {
   breakfast: [
@@ -230,13 +232,22 @@ function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPreferences 
     excludeKeywords.push(...preferences.excludedFoods);
   }
 
-  if (!excludeKeywords.length) return mealDb;
+  const disliked = (preferences.dislikedMeals ?? []).map(m => m.toLowerCase());
+
+  const filterWithDisliked = (pool: MealEntry[]): MealEntry[] => {
+    let filtered = excludeKeywords.length ? filterMealPool(pool, excludeKeywords) : pool;
+    if (disliked.length) {
+      const withoutDisliked = filtered.filter(m => !disliked.includes(m.meal.toLowerCase()));
+      filtered = withoutDisliked.length > 0 ? withoutDisliked : filtered;
+    }
+    return filtered;
+  };
 
   return {
-    breakfast: filterMealPool(mealDb.breakfast, excludeKeywords),
-    lunch:     filterMealPool(mealDb.lunch,     excludeKeywords),
-    dinner:    filterMealPool(mealDb.dinner,    excludeKeywords),
-    snack:     filterMealPool(mealDb.snack,     excludeKeywords),
+    breakfast: filterWithDisliked(mealDb.breakfast),
+    lunch:     filterWithDisliked(mealDb.lunch),
+    dinner:    filterWithDisliked(mealDb.dinner),
+    snack:     filterWithDisliked(mealDb.snack),
   };
 }
 
@@ -941,6 +952,126 @@ export async function registerRoutes(
     const id = parseInt(req.params.id);
     await storage.deleteWeightEntry(id, req.session.userId);
     res.status(204).send();
+  });
+
+  // ── Password reset ────────────────────────────────────────────────────────
+
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = z.object({ email: z.string().email() }).parse(req.body);
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.json({ message: "If that email is registered you will receive a reset link." });
+      }
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      await storage.createPasswordResetToken(user.id, token, expiresAt);
+      const appUrl = process.env.APP_URL || `http://localhost:5000`;
+      const resetUrl = `${appUrl}/reset-password?token=${token}`;
+      await sendEmail({
+        to: user.email,
+        subject: "Reset your NutriSync password",
+        html: buildPasswordResetEmailHtml(resetUrl, user.name),
+      });
+      res.json({ message: "If that email is registered you will receive a reset link." });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = z.object({ token: z.string(), password: z.string().min(6) }).parse(req.body);
+      const row = await storage.getPasswordResetToken(token);
+      if (!row) return res.status(400).json({ message: "Invalid or expired reset link." });
+      if (row.usedAt) return res.status(400).json({ message: "This reset link has already been used." });
+      if (row.expiresAt < new Date()) return res.status(400).json({ message: "This reset link has expired. Please request a new one." });
+      const passwordHash = await bcrypt.hash(password, 12);
+      await storage.updateUserPassword(row.userId, passwordHash);
+      await storage.markPasswordResetTokenUsed(row.id);
+      res.json({ message: "Password updated successfully." });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  });
+
+  // ── Disliked meals ────────────────────────────────────────────────────────
+
+  app.post("/api/preferences/disliked-meals", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const { mealName } = z.object({ mealName: z.string().min(1) }).parse(req.body);
+    const user = await storage.getUserById(req.session.userId);
+    const prefs = (user?.preferences as UserPreferences | null) ?? {};
+    const existing = prefs.dislikedMeals ?? [];
+    if (!existing.map(m => m.toLowerCase()).includes(mealName.toLowerCase())) {
+      const updated: UserPreferences = { ...prefs, dislikedMeals: [...existing, mealName] };
+      await storage.updateUserPreferences(req.session.userId, updated);
+    }
+    res.json({ message: "Meal disliked." });
+  });
+
+  app.delete("/api/preferences/disliked-meals/:mealName", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const mealName = decodeURIComponent(req.params.mealName);
+    const user = await storage.getUserById(req.session.userId);
+    const prefs = (user?.preferences as UserPreferences | null) ?? {};
+    const updated: UserPreferences = {
+      ...prefs,
+      dislikedMeals: (prefs.dislikedMeals ?? []).filter(m => m.toLowerCase() !== mealName.toLowerCase()),
+    };
+    await storage.updateUserPreferences(req.session.userId, updated);
+    res.json({ message: "Dislike removed." });
+  });
+
+  // ── Food log ──────────────────────────────────────────────────────────────
+
+  app.get("/api/food-log", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
+    const entries = await storage.getFoodLogEntries(req.session.userId, date);
+    res.json(entries);
+  });
+
+  app.post("/api/food-log", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const body = z.object({
+        date: z.string(),
+        mealName: z.string().min(1),
+        calories: z.number().int().min(0),
+        protein: z.number().int().min(0),
+        carbs: z.number().int().min(0),
+        fat: z.number().int().min(0),
+      }).parse(req.body);
+      const entry = await storage.createFoodLogEntry({ ...body, userId: req.session.userId });
+      res.status(201).json(entry);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  });
+
+  app.delete("/api/food-log/:id", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const id = parseInt(req.params.id);
+    await storage.deleteFoodLogEntry(id, req.session.userId);
+    res.status(204).send();
+  });
+
+  // ── Email meal plan ───────────────────────────────────────────────────────
+
+  app.post("/api/saved-meal-plans/:id/email", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const planId = parseInt(req.params.id);
+    const plan = await storage.getSavedMealPlanById(planId, req.session.userId);
+    if (!plan) return res.status(404).json({ message: "Plan not found" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) return res.status(401).json({ message: "User not found" });
+    const html = buildMealPlanEmailHtml(plan.name, user.name, plan.planData as any, plan.planType);
+    await sendEmail({ to: user.email, subject: `Your NutriSync plan: ${plan.name}`, html });
+    res.json({ message: "Plan sent to your email." });
   });
 
   return httpServer;

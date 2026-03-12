@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type UserPreferences } from "@shared/schema";
-import { Check, Loader2, X, Sparkles } from "lucide-react";
+import { Check, Loader2, X, Sparkles, ThumbsDown } from "lucide-react";
 
 type Diet = NonNullable<UserPreferences["diet"]>;
 type Allergy = NonNullable<UserPreferences["allergies"]>[number];
@@ -287,6 +287,22 @@ export function PreferencesForm() {
         </button>
       </div>
 
+      {/* Disliked meals */}
+      {(data?.dislikedMeals?.length ?? 0) > 0 && (
+        <div className="mb-6">
+          <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2.5 flex items-center gap-1.5">
+            <ThumbsDown className="w-3.5 h-3.5 text-zinc-400" />
+            Disliked meals
+          </p>
+          <p className="text-xs text-zinc-400 mb-2">These meals won't appear in future generated plans.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {(data?.dislikedMeals ?? []).map((meal, i) => (
+              <DislikedMealTag key={i} meal={meal} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <button
         type="button"
         onClick={handleSave}
@@ -301,5 +317,33 @@ export function PreferencesForm() {
         )}
       </button>
     </div>
+  );
+}
+
+function DislikedMealTag({ meal }: { meal: string }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const deleteMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/preferences/disliked-meals/${encodeURIComponent(meal)}`, undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+      toast({ title: "Dislike removed", description: `${meal} will appear in future plans again.` });
+    },
+    onError: () => toast({ title: "Failed to remove", variant: "destructive" }),
+  });
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100 text-xs font-medium text-red-700">
+      {meal}
+      <button
+        type="button"
+        onClick={() => deleteMutation.mutate()}
+        disabled={deleteMutation.isPending}
+        className="hover:text-red-900 transition-colors ml-0.5"
+        data-testid={`button-remove-disliked-${meal}`}
+      >
+        {deleteMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+      </button>
+    </span>
   );
 }

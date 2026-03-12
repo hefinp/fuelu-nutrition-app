@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { Flame, Calendar, UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check } from "lucide-react";
+import { Flame, Calendar, UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Calculation } from "@shared/schema";
@@ -2088,6 +2088,33 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
 
 function DailyMealView({ plan, onReplace, replacingSlot }: { plan: any; onReplace?: (slot: string, mealName: string, idx: number) => void; replacingSlot?: string }) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const dislikeMutation = useMutation({
+    mutationFn: (mealName: string) => apiRequest("POST", "/api/preferences/disliked-meals", { mealName }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+      toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
+    },
+    onError: () => toast({ title: "Sign in to dislike meals", variant: "destructive" }),
+  });
+
+  const logMutation = useMutation({
+    mutationFn: (meal: Meal) => apiRequest("POST", "/api/food-log", {
+      date: new Date().toISOString().slice(0, 10),
+      mealName: meal.meal,
+      calories: meal.calories,
+      protein: meal.protein,
+      carbs: meal.carbs,
+      fat: meal.fat,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
+      toast({ title: "Meal logged", description: "Added to today's food log." });
+    },
+    onError: () => toast({ title: "Sign in to log meals", variant: "destructive" }),
+  });
 
   return (
     <>
@@ -2117,7 +2144,7 @@ function DailyMealView({ plan, onReplace, replacingSlot }: { plan: any; onReplac
             <h4 className="text-lg font-semibold text-zinc-900 capitalize mb-3">{mealType}</h4>
             <div className="space-y-2">
               {plan[mealType]?.map((meal: Meal, idx: number) => (
-                <div key={idx} className="flex items-center gap-2">
+                <div key={idx} className="flex items-center gap-1.5">
                   <button
                     onClick={() => setSelectedMeal(meal)}
                     className="flex-1 flex justify-between p-3 bg-zinc-50 rounded-lg hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
@@ -2131,6 +2158,22 @@ function DailyMealView({ plan, onReplace, replacingSlot }: { plan: any; onReplac
                       <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
                       <p className="text-xs text-zinc-500">kcal</p>
                     </div>
+                  </button>
+                  <button
+                    onClick={() => logMutation.mutate(meal)}
+                    className="p-2 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded-lg transition-colors shrink-0"
+                    title="Log this meal"
+                    data-testid={`button-log-${slotKey}-${idx}`}
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => dislikeMutation.mutate(meal.meal)}
+                    className="p-2 bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-lg transition-colors shrink-0"
+                    title="Dislike this meal"
+                    data-testid={`button-dislike-${slotKey}-${idx}`}
+                  >
+                    <ThumbsDown className="w-4 h-4" />
                   </button>
                   {onReplace && (
                     <button
@@ -2160,7 +2203,34 @@ function DailyMealView({ plan, onReplace, replacingSlot }: { plan: any; onReplac
 function WeeklyMealView({ plan, onReplace, replacingSlot }: { plan: any; onReplace?: (day: string, slot: string, mealName: string, idx: number) => void; replacingSlot?: string }) {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
-  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const dislikeMutation = useMutation({
+    mutationFn: (mealName: string) => apiRequest("POST", "/api/preferences/disliked-meals", { mealName }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+      toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
+    },
+    onError: () => toast({ title: "Sign in to dislike meals", variant: "destructive" }),
+  });
+
+  const logMutation = useMutation({
+    mutationFn: (meal: Meal) => apiRequest("POST", "/api/food-log", {
+      date: new Date().toISOString().slice(0, 10),
+      mealName: meal.meal,
+      calories: meal.calories,
+      protein: meal.protein,
+      carbs: meal.carbs,
+      fat: meal.fat,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
+      toast({ title: "Meal logged", description: "Added to today's food log." });
+    },
+    onError: () => toast({ title: "Sign in to log meals", variant: "destructive" }),
+  });
+
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -2215,7 +2285,7 @@ function WeeklyMealView({ plan, onReplace, replacingSlot }: { plan: any; onRepla
                   <h5 className="text-sm font-semibold text-zinc-700 capitalize mb-2">{mealType}</h5>
                   <div className="space-y-1">
                     {dayPlan[mealType]?.map((meal: Meal, idx: number) => (
-                      <div key={idx} className="flex items-center gap-1.5">
+                      <div key={idx} className="flex items-center gap-1">
                         <button
                           onClick={() => setSelectedMeal(meal)}
                           className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
@@ -2229,6 +2299,22 @@ function WeeklyMealView({ plan, onReplace, replacingSlot }: { plan: any; onRepla
                             <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
                             <p className="text-xs text-zinc-500">kcal</p>
                           </div>
+                        </button>
+                        <button
+                          onClick={() => logMutation.mutate(meal)}
+                          className="p-1.5 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded transition-colors shrink-0"
+                          title="Log this meal"
+                          data-testid={`button-log-${day}-${slotKey}-${idx}`}
+                        >
+                          <ClipboardList className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => dislikeMutation.mutate(meal.meal)}
+                          className="p-1.5 bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded transition-colors shrink-0"
+                          title="Dislike this meal"
+                          data-testid={`button-dislike-${day}-${slotKey}-${idx}`}
+                        >
+                          <ThumbsDown className="w-3.5 h-3.5" />
                         </button>
                         {onReplace && (
                           <button

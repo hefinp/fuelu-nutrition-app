@@ -2,7 +2,7 @@
 
 ## Overview
 
-NutriSync is a nutrition calculator web app. Users enter their biometrics (weight, height, age, gender, activity level, fitness goal) and receive a personalized daily/weekly calorie target plus macronutrient breakdowns (protein, carbs, fat). The app generates daily and weekly meal plans (Simple, Gourmet, or Michelin style) from a built-in meal database filtered by user food preferences and allergies, displays results with charts, supports PDF export of meal plans (with recipes) and shopping lists, and allows user accounts to save and manage meal plans. Weight tracking with a graph is also included.
+NutriSync is a full-stack nutrition calculator web app. Users enter their biometrics to receive personalized daily/weekly calorie targets and macronutrient breakdowns. The app generates meal plans (Simple, Gourmet, Michelin) filtered by food preferences, allergies, and disliked meals. Features include: meal plan save/export (PDF), shopping lists, individual meal replace buttons, food log (daily tracking with macro progress bars), weight tracking (chart + log), password reset via email (Resend), email meal plan to inbox, and a meal dislike system that excludes disliked meals from future generated plans.
 
 ---
 
@@ -33,7 +33,10 @@ Preferred communication style: Simple, everyday language.
 - `pages/auth.tsx` — Login/register page with tabbed UI; shows Google/Apple OAuth buttons when provider secrets are configured (fetched from `/api/auth/providers`); handles `?error=google_failed` and `?error=apple_failed` query params
 - `pages/dashboard.tsx` — Main app page; auto-loads last calculation on login; CalculatorForm is in a slide-over panel (user icon → "My Metrics"); two-column layout with ResultsDisplay + WeightTracker when metrics exist; "Set up your metrics" CTA only shown if no prior calculations.
 - `components/weight-tracker.tsx` — Weight logging + recharts LineChart; logs weight entries with date, shows current/change/count stats, recent entry list with delete.
-- `components/preferences-form.tsx` — Food preferences & allergies form rendered inside the My Metrics panel. Diet types: Vegetarian, Vegan, Pescatarian, Halal, Kosher. Allergies: Gluten, Dairy, Eggs, Nuts, Peanuts, Shellfish, Fish, Soy. Custom food exclusions (tag input), preferred foods (tag input, boosts meal selection), micronutrient optimisation toggle (favours nutrient-dense meals). Saves to `PUT /api/user/preferences`; reads from `GET /api/user/preferences`.
+- `components/preferences-form.tsx` — Food preferences & allergies form rendered inside the My Metrics panel. Diet types: Vegetarian, Vegan, Pescatarian, Halal, Kosher. Allergies: Gluten, Dairy, Eggs, Nuts, Peanuts, Shellfish, Fish, Soy. Custom food exclusions (tag input), preferred foods (tag input, boosts meal selection), micronutrient optimisation toggle (favours nutrient-dense meals). Saves to `PUT /api/user/preferences`; reads from `GET /api/user/preferences`. Also shows Disliked Meals section to view/remove individually disliked meals.
+- `components/food-log.tsx` — Daily food log with date navigation, macro progress bars (calories/protein/carbs/fat vs targets), add-entry form, entry list with delete. Reads from `GET /api/food-log?date=YYYY-MM-DD`; posts to `POST /api/food-log`.
+- `pages/forgot-password.tsx` — Forgot password form; POSTs to `/api/auth/forgot-password`, shows confirmation after sending.
+- `pages/reset-password.tsx` — Password reset form accessed via `?token=` param; POSTs to `/api/auth/reset-password`, redirects to `/auth` on success.
 - `pages/landing.tsx` — Marketing landing page for logged-out visitors
 - `hooks/use-auth.ts` — Auth state hook (user, login, register, logout, loading states)
 - `hooks/use-calculations.ts` — Calculation history hook and create mutation
@@ -63,11 +66,14 @@ Preferred communication style: Simple, everyday language.
 - **Database:** PostgreSQL (Drizzle ORM, `drizzle-orm/node-postgres`)
 - **Connection:** `pg.Pool` via `DATABASE_URL` env var
 - **Tables:**
-  - `users` — id, email (unique), name, password_hash (nullable), provider (nullable: 'google'|'apple'), provider_id (nullable), preferences (jsonb nullable: `{diet, allergies}`), created_at
+  - `users` — id, email (unique), name, password_hash (nullable), provider, provider_id, preferences (jsonb: `{diet, allergies, excludedFoods, preferredFoods, micronutrientOptimize, dislikedMeals}`), created_at
   - `calculations` — id, user_id (FK nullable), weight, height, age, gender, activity_level, goal, target_type, target_amount, daily_calories, weekly_calories, protein_goal, carbs_goal, fat_goal, created_at
   - `saved_meal_plans` — id, user_id (FK), calculation_id (FK nullable), name, plan_type, meal_style, plan_data (jsonb), created_at
+  - `weight_entries` — id, user_id (FK), weight (numeric), recorded_at
+  - `food_log_entries` — id, user_id (FK), date (text YYYY-MM-DD), meal_name, calories, protein, carbs, fat, created_at
+  - `password_reset_tokens` — id, user_id (FK), token (unique), expires_at, used_at (nullable)
   - `session` — connect-pg-simple session store (created manually via SQL)
-- **Migrations:** Drizzle Kit (`drizzle-kit push` for schema sync)
+- **Migrations:** Drizzle Kit (`drizzle-kit push` for schema sync); new tables were created directly via psql when drizzle-kit interactive prompts couldn't be bypassed
 - **Storage interface:** `IStorage` / `DatabaseStorage` in `server/storage.ts`
 
 ### Authentication

@@ -6,6 +6,7 @@ import { ResultsDisplay } from "@/components/results-display";
 import { SavedMealPlans } from "@/components/saved-meal-plans";
 import { WeightTracker } from "@/components/weight-tracker";
 import { PreferencesForm } from "@/components/preferences-form";
+import { FoodLog } from "@/components/food-log";
 import { useCalculations } from "@/hooks/use-calculations";
 import { useAuth } from "@/hooks/use-auth";
 import { LogOut, BookOpen, Settings, X, SlidersHorizontal, ChevronDown, Salad } from "lucide-react";
@@ -355,15 +356,15 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Two-column layout: results + weight tracker */}
+            {/* Two-column layout: results + right sidebar */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
               {/* Nutrition results (left, wider) */}
               <div className="xl:col-span-7">
                 <ResultsDisplay data={activeResult!} />
               </div>
 
-              {/* Weight tracker (right) */}
-              <div className="xl:col-span-5">
+              {/* Right sidebar: weight tracker + food log */}
+              <div className="xl:col-span-5 space-y-6">
                 {user ? (
                   <WeightTracker
                     targetWeight={
@@ -376,7 +377,7 @@ export default function Dashboard() {
                     }
                   />
                 ) : (
-                  <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 flex flex-col items-center text-center h-full justify-center">
+                  <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 flex flex-col items-center text-center justify-center">
                     <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mb-4">
                       <SlidersHorizontal className="w-5 h-5 text-zinc-400" />
                     </div>
@@ -390,6 +391,15 @@ export default function Dashboard() {
                     </Link>
                   </div>
                 )}
+
+                {user ? (
+                  <FoodLog
+                    dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
+                    dailyProteinTarget={activeResult?.proteinGoal ?? undefined}
+                    dailyCarbsTarget={activeResult?.carbsGoal ?? undefined}
+                    dailyFatTarget={activeResult?.fatGoal ?? undefined}
+                  />
+                ) : null}
               </div>
             </div>
           </motion.div>
