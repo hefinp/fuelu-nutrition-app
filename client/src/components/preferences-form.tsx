@@ -265,12 +265,12 @@ export function PreferencesForm() {
           data-testid="toggle-micronutrient"
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
             micronutrientOptimize
-              ? "bg-emerald-50 border-emerald-200"
+              ? "bg-zinc-100 border-zinc-300"
               : "bg-white border-zinc-200 hover:border-zinc-400"
           }`}
         >
           <div className={`w-10 h-5 rounded-full relative transition-colors ${
-            micronutrientOptimize ? "bg-emerald-500" : "bg-zinc-300"
+            micronutrientOptimize ? "bg-zinc-900" : "bg-zinc-300"
           }`}>
             <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
               micronutrientOptimize ? "left-5" : "left-0.5"
@@ -278,8 +278,8 @@ export function PreferencesForm() {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
-              <Sparkles className={`w-3.5 h-3.5 ${micronutrientOptimize ? "text-emerald-600" : "text-zinc-400"}`} />
-              <span className={`text-xs font-medium ${micronutrientOptimize ? "text-emerald-700" : "text-zinc-600"}`}>
+              <Sparkles className={`w-3.5 h-3.5 ${micronutrientOptimize ? "text-zinc-600" : "text-zinc-400"}`} />
+              <span className={`text-xs font-medium ${micronutrientOptimize ? "text-zinc-900" : "text-zinc-600"}`}>
                 Micronutrient optimisation
               </span>
             </div>

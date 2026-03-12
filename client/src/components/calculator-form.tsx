@@ -135,7 +135,7 @@ export function CalculatorForm({
     });
   };
 
-  const fieldClass = "w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200";
+  const fieldClass = "w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all duration-200";
 
   const watched = form.watch();
 
@@ -163,7 +163,7 @@ export function CalculatorForm({
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Weight (kg)</label>
+                <label className="text-sm font-medium text-zinc-700">Weight (kg)</label>
                 <input type="number" step="0.1" {...form.register("weight")}
                   className={fieldClass} placeholder="e.g. 75" data-testid="input-weight" />
                 {form.formState.errors.weight && (
@@ -171,7 +171,7 @@ export function CalculatorForm({
                 )}
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Height (cm)</label>
+                <label className="text-sm font-medium text-zinc-700">Height (cm)</label>
                 <input type="number" {...form.register("height")}
                   className={fieldClass} placeholder="e.g. 180" data-testid="input-height" />
                 {form.formState.errors.height && (
@@ -179,7 +179,7 @@ export function CalculatorForm({
                 )}
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Age</label>
+                <label className="text-sm font-medium text-zinc-700">Age</label>
                 <input type="number" {...form.register("age")}
                   className={fieldClass} placeholder="e.g. 30" data-testid="input-age" />
                 {form.formState.errors.age && (
@@ -187,7 +187,7 @@ export function CalculatorForm({
                 )}
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Gender</label>
+                <label className="text-sm font-medium text-zinc-700">Gender</label>
                 <div className="flex gap-2">
                   {["male", "female"].map((g) => (
                     <label key={g} className={`flex-1 cursor-pointer text-center px-3 py-3 rounded-xl border text-sm transition-all ${
@@ -202,7 +202,7 @@ export function CalculatorForm({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Activity Level</label>
+              <label className="text-sm font-medium text-zinc-700">Activity Level</label>
               <div className="grid grid-cols-5 gap-1.5">
                 {[
                   { id: "sedentary", label: "Sed." },
@@ -232,7 +232,7 @@ export function CalculatorForm({
         >
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Body Goal</label>
+              <label className="text-sm font-medium text-zinc-700">Body Goal</label>
               <div className="space-y-2">
                 {[
                   { id: "fat_loss", label: "Fat Loss", desc: "−500 kcal/day", icon: "🔥" },
@@ -258,7 +258,7 @@ export function CalculatorForm({
             {watched.goal !== "maintain" && (
               <>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Target Period</label>
+                  <label className="text-sm font-medium text-zinc-700">Target Period</label>
                   <div className="flex gap-2">
                     {["weekly", "monthly"].map((type) => (
                       <label key={type} className={`flex-1 cursor-pointer text-center px-3 py-2.5 rounded-xl border text-sm transition-all ${
@@ -271,7 +271,7 @@ export function CalculatorForm({
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
+                  <label className="text-sm font-medium text-zinc-700">
                     Target {watched.goal === "fat_loss" || watched.goal === "tone" ? "Loss" : "Gain"} (kg)
                   </label>
                   <input type="number" step="0.1" {...form.register("targetAmount")}
@@ -290,10 +290,10 @@ export function CalculatorForm({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="bg-white p-8 rounded-3xl subtle-shadow border border-zinc-100"
+      className="bg-white p-8 rounded-3xl shadow-sm border border-zinc-100"
     >
       <div className="mb-8">
-        <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Enter Metrics</h2>
+        <h2 className="text-2xl font-display font-bold tracking-tight text-zinc-900">Enter Metrics</h2>
         <p className="text-zinc-500 mt-2 text-sm">Provide your accurate body metrics for precise calculation.</p>
       </div>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">

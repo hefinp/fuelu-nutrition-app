@@ -149,7 +149,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-zinc-100 rounded-2xl shadow-sm overflow-hidden"
+              className="bg-white border border-zinc-100 rounded-3xl shadow-sm overflow-hidden"
               data-testid={`card-saved-plan-${plan.id}`}
             >
               <div className="p-5">
@@ -171,7 +171,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                         <button
                           onClick={() => confirmEdit(plan.id)}
                           disabled={renameMutation.isPending}
-                          className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                          className="p-1 text-zinc-600 hover:bg-zinc-100 rounded-lg"
                           data-testid={`button-rename-confirm-${plan.id}`}
                         >
                           <Check className="w-4 h-4" />
@@ -274,7 +274,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                               exportShoppingListToPDF(planData, buildCalcStub(plan));
                             }
                           }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-medium text-xs transition-colors border border-emerald-200"
+                          className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
                           data-testid={`button-saved-shopping-${plan.id}`}
                         >
                           <ShoppingCart className="w-3.5 h-3.5" />
@@ -282,7 +282,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                         </button>
                         <button
                           onClick={() => exportMealPlanToPDF(planData, buildCalcStub(plan))}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg font-medium text-xs transition-colors border border-zinc-200"
+                          className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
                           data-testid={`button-saved-pdf-${plan.id}`}
                         >
                           <Download className="w-3.5 h-3.5" />
@@ -299,7 +299,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                             }
                           }}
                           disabled={emailingId === plan.id}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-medium text-xs transition-colors border border-blue-200 disabled:opacity-50"
+                          className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors disabled:opacity-50"
                           data-testid={`button-saved-email-${plan.id}`}
                         >
                           {emailingId === plan.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
@@ -326,7 +326,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                               exportShoppingListToPDF(planData, buildCalcStub(plan), parseInt(shoppingDays) || 1);
                               setShoppingDialogId(null);
                             }}
-                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium transition-colors"
+                            className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-medium transition-colors"
                           >
                             Export
                           </button>
@@ -340,18 +340,18 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                       )}
 
                       {emailDaysDialogId === plan.id && (
-                        <div className="flex items-center gap-2 mb-4 p-3 bg-blue-50 rounded-xl border border-blue-200">
-                          <span className="text-xs text-blue-700 font-medium">Scale shopping list for</span>
+                        <div className="flex items-center gap-2 mb-4 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
+                          <span className="text-xs text-zinc-600 font-medium">Scale shopping list for</span>
                           <input
                             type="number"
                             min={1}
                             max={30}
                             value={emailDays}
                             onChange={e => setEmailDays(e.target.value)}
-                            className="w-16 px-2 py-1 text-xs border border-blue-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-16 px-2 py-1 text-xs border border-zinc-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-zinc-900"
                             data-testid={`input-email-days-${plan.id}`}
                           />
-                          <span className="text-xs text-blue-700 font-medium">days</span>
+                          <span className="text-xs text-zinc-600 font-medium">days</span>
                           <button
                             onClick={() => {
                               const d = Math.max(1, parseInt(emailDays) || 1);
@@ -359,7 +359,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                               emailMutation.mutate({ id: plan.id, shoppingList });
                             }}
                             disabled={emailingId === plan.id}
-                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                            className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
                             data-testid={`button-email-confirm-${plan.id}`}
                           >
                             {emailingId === plan.id && <Loader2 className="w-3 h-3 animate-spin" />}
@@ -367,7 +367,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                           </button>
                           <button
                             onClick={() => setEmailDaysDialogId(null)}
-                            className="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                            className="p-1 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
@@ -446,7 +446,7 @@ function SavedDailyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pre
               <div key={idx} className="flex items-center gap-1.5">
                 <button
                   onClick={() => setSelectedMeal(meal)}
-                  className="flex-1 flex justify-between p-2.5 bg-zinc-50 rounded-lg hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
+                  className="flex-1 flex justify-between p-2.5 bg-zinc-50 rounded-lg hover:bg-zinc-100 transition-colors text-left cursor-pointer border border-transparent hover:border-zinc-200"
                 >
                   <div className="flex-1">
                     <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
@@ -460,7 +460,7 @@ function SavedDailyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pre
                 {onLogMeal && (
                   <button
                     onClick={() => onLogMeal({ mealName: meal.meal, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat })}
-                    className="p-2 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded-lg transition-colors shrink-0"
+                    className="p-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded-lg transition-colors shrink-0"
                     title="Log this meal"
                   >
                     <ClipboardList className="w-3.5 h-3.5" />
@@ -556,7 +556,7 @@ function SavedWeeklyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pr
                             <div key={idx} className="flex items-center gap-1">
                               <button
                                 onClick={() => setSelectedMeal(meal)}
-                                className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
+                                className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-zinc-100 transition-colors text-left cursor-pointer border border-transparent hover:border-zinc-200"
                               >
                                 <div className="flex-1">
                                   <p className="font-medium text-zinc-900 text-xs">{meal.meal}</p>
@@ -570,7 +570,7 @@ function SavedWeeklyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pr
                               {onLogMeal && (
                                 <button
                                   onClick={() => onLogMeal({ mealName: meal.meal, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat })}
-                                  className="p-1.5 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded transition-colors shrink-0"
+                                  className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0"
                                   title="Log this meal"
                                 >
                                   <ClipboardList className="w-3 h-3" />
@@ -665,7 +665,7 @@ function SavedRecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }
 
         <button
           onClick={onClose}
-          className="w-full px-4 py-2 bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 transition-colors"
+          className="w-full px-4 py-2 bg-zinc-900 text-white rounded-xl font-medium hover:bg-zinc-800 transition-colors"
         >
           Close
         </button>

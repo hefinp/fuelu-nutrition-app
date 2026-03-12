@@ -147,7 +147,7 @@ export function WeightTracker({
               : <Flame className="w-4 h-4 text-zinc-600" />}
           </div>
           <div>
-            <h3 className="font-bold text-zinc-900">Progress Tracker</h3>
+            <h3 className="font-display font-bold text-zinc-900">Progress Tracker</h3>
             <p className="text-xs text-zinc-500">
               {activeTab === "weight" ? "Log your weight over time" : "Calories consumed vs planned"}
             </p>

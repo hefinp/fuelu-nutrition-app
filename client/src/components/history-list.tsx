@@ -36,7 +36,7 @@ export function HistoryList({ onSelect }: { onSelect: (id: number) => void }) {
 
   return (
     <div className="mt-16">
-      <h3 className="text-lg font-bold tracking-tight mb-6 text-zinc-800">Recent Calculations</h3>
+      <h3 className="text-lg font-display font-bold tracking-tight mb-6 text-zinc-900">Recent Calculations</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sorted.map((item, i) => (
           <motion.div
@@ -45,7 +45,7 @@ export function HistoryList({ onSelect }: { onSelect: (id: number) => void }) {
             transition={{ delay: i * 0.05 }}
             key={item.id}
             onClick={() => onSelect(item.id)}
-            className="group cursor-pointer bg-white p-5 rounded-2xl border border-zinc-100 subtle-shadow hover:border-zinc-300"
+            className="group cursor-pointer bg-white p-5 rounded-3xl border border-zinc-100 shadow-sm hover:border-zinc-300"
           >
             <div className="flex justify-between items-start mb-4">
               <div className="bg-zinc-50 px-3 py-1 rounded-lg text-xs font-medium text-zinc-500">

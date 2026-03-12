@@ -1828,7 +1828,7 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
               <button
                 onClick={() => generateMealPlan.mutate('daily')}
                 disabled={generateMealPlan.isPending}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium text-sm transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium text-sm transition-colors"
                 data-testid="button-generate-daily"
               >
                 {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
@@ -1837,7 +1837,7 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
               <button
                 onClick={() => generateMealPlan.mutate('weekly')}
                 disabled={generateMealPlan.isPending}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium text-sm transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium text-sm transition-colors"
                 data-testid="button-generate-weekly"
               >
                 {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
@@ -1878,20 +1878,20 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
 
       {/* Meal Plan Display */}
       {mealPlan && (
-        <motion.div variants={itemVariants} className="bg-white p-8 rounded-3xl border border-zinc-100 shadow-lg">
+        <motion.div variants={itemVariants} className="bg-white p-8 rounded-3xl border border-zinc-100 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+              <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
                 <UtensilsCrossed className="w-5 h-5" />
               </div>
-              <h3 className="text-2xl font-bold text-zinc-900 capitalize">{mealPlan.planType} Meal Plan</h3>
+              <h3 className="text-2xl font-display font-bold text-zinc-900 capitalize">{mealPlan.planType} Meal Plan</h3>
             </div>
             <button
               onClick={() => savePlanMutation.mutate()}
               disabled={savePlanMutation.isPending || planSaved}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-colors ${
                 planSaved
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default"
+                  ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
                   : "bg-zinc-900 hover:bg-zinc-700 text-white"
               }`}
               data-testid="button-save-plan"
@@ -1915,7 +1915,7 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
                   exportShoppingListToPDF(mealPlan, data);
                 }
               }}
-              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-medium text-xs transition-colors border border-emerald-200"
+              className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
               data-testid="button-export-shopping-list"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
@@ -1923,7 +1923,7 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
             </button>
             <button
               onClick={() => exportMealPlanToPDF(mealPlan, data)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg font-medium text-xs transition-colors border border-zinc-200"
+              className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
               data-testid="button-export-pdf"
             >
               <Download className="w-3.5 h-3.5" />
@@ -2005,10 +2005,10 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
             className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4"
           >
             <div className="flex items-center gap-3 mb-1">
-              <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+              <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
                 <ShoppingCart className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-bold text-zinc-900">Shopping List</h3>
+              <h3 className="text-lg font-display font-bold text-zinc-900">Shopping List</h3>
             </div>
             <p className="text-sm text-zinc-500 mb-5 mt-1">
               How many days are you shopping for? Ingredient quantities will be scaled accordingly.
@@ -2047,7 +2047,7 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
                   setShoppingDaysOpen(false);
                   exportShoppingListToPDF(mealPlan!, data, d);
                 }}
-                className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-sm transition-colors"
+                className="flex-1 px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-medium text-sm transition-colors"
                 data-testid="button-shopping-days-confirm"
               >
                 Generate PDF
@@ -2117,7 +2117,7 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: an
                 <div key={idx} className="flex items-center gap-1.5">
                   <button
                     onClick={() => setSelectedMeal(meal)}
-                    className="flex-1 flex justify-between p-3 bg-zinc-50 rounded-lg hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
+                    className="flex-1 flex justify-between p-3 bg-zinc-50 rounded-lg hover:bg-zinc-100 transition-colors text-left cursor-pointer border border-transparent hover:border-zinc-200"
                     data-testid={`meal-card-${slotKey}-${idx}`}
                   >
                     <div className="flex-1">
@@ -2132,7 +2132,7 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: an
                   {onLogMeal && (
                     <button
                       onClick={() => onLogMeal(meal)}
-                      className="p-2 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded-lg transition-colors shrink-0"
+                      className="p-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded-lg transition-colors shrink-0"
                       title="Log this meal"
                       data-testid={`button-log-${slotKey}-${idx}`}
                     >
@@ -2151,7 +2151,7 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: an
                     <button
                       onClick={() => onReplace(slotKey, meal.meal, idx)}
                       disabled={replacingSlot === slotKey}
-                      className="p-2 bg-zinc-100 hover:bg-amber-50 text-zinc-500 hover:text-amber-600 rounded-lg transition-colors border border-transparent hover:border-amber-200 shrink-0"
+                      className="p-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-700 rounded-lg transition-colors shrink-0"
                       title="Replace meal"
                       data-testid={`button-replace-${slotKey}-${idx}`}
                     >
@@ -2264,7 +2264,7 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: a
                               <div key={idx} className="flex items-center gap-1">
                                 <button
                                   onClick={() => setSelectedMeal(meal)}
-                                  className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
+                                  className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-zinc-100 transition-colors text-left cursor-pointer border border-transparent hover:border-zinc-200"
                                   data-testid={`meal-card-${day}-${slotKey}-${idx}`}
                                 >
                                   <div className="flex-1">
@@ -2279,7 +2279,7 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: a
                                 {onLogMeal && (
                                   <button
                                     onClick={() => onLogMeal(meal)}
-                                    className="p-1.5 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded transition-colors shrink-0"
+                                    className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0"
                                     title="Log this meal"
                                     data-testid={`button-log-${day}-${slotKey}-${idx}`}
                                   >
@@ -2298,7 +2298,7 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: a
                                   <button
                                     onClick={() => onReplace(day, slotKey, meal.meal, idx)}
                                     disabled={replacingSlot === slotKey}
-                                    className="p-1.5 bg-zinc-100 hover:bg-amber-50 text-zinc-400 hover:text-amber-600 rounded transition-colors shrink-0"
+                                    className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0"
                                     title="Replace meal"
                                     data-testid={`button-replace-${day}-${slotKey}-${idx}`}
                                   >
@@ -2342,7 +2342,7 @@ function RecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
           <p className="text-zinc-600">Recipe not available for this meal.</p>
           <button
             onClick={onClose}
-            className="mt-4 w-full px-4 py-2 bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 transition-colors"
+            className="mt-4 w-full px-4 py-2 bg-zinc-900 text-white rounded-xl font-medium hover:bg-zinc-800 transition-colors"
           >
             Close
           </button>
@@ -2411,7 +2411,7 @@ function RecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
 
         <button
           onClick={onClose}
-          className="w-full px-4 py-2 bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 transition-colors"
+          className="w-full px-4 py-2 bg-zinc-900 text-white rounded-xl font-medium hover:bg-zinc-800 transition-colors"
         >
           Close
         </button>
