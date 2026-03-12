@@ -158,7 +158,7 @@ function extractPlanMeals(plan: SavedMealPlan, selectedDay?: string): PlanMeal[]
     }
   } else {
     const dayKey = selectedDay ?? "monday";
-    const dayPlan = (data.dayMealPlan ?? {})[dayKey] ?? {};
+    const dayPlan = data[dayKey] ?? {};
     for (const slot of MEAL_SLOTS_PLAN) {
       for (const m of (dayPlan[slot] ?? [])) {
         meals.push({ slot: slot.charAt(0).toUpperCase() + slot.slice(1), ...m, meal: m.meal });
@@ -381,6 +381,30 @@ export function FoodLog({
       mealSlot: normalizeSlot(m.slot),
     });
     setFormTab("manual");
+  }
+
+  async function addWholeDay(meals: PlanMeal[], dayLabel: string) {
+    try {
+      await Promise.all(
+        meals.map(m =>
+          apiRequest("POST", "/api/food-log", {
+            date: selectedDate,
+            mealName: m.meal,
+            calories: Number(m.calories),
+            protein: Number(m.protein),
+            carbs: Number(m.carbs),
+            fat: Number(m.fat),
+            mealSlot: normalizeSlot(m.slot),
+          })
+        )
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log", selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log-week"] });
+      setShowForm(false);
+      toast({ title: `${meals.length} meal${meals.length !== 1 ? "s" : ""} added for ${dayLabel}` });
+    } catch {
+      toast({ title: "Failed to log meals", variant: "destructive" });
+    }
   }
 
   function selectFood(food: FoodResult) {
@@ -838,6 +862,20 @@ export function FoodLog({
                                     </div>
                                   </button>
                                 ))}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const label = plan.planType === "weekly"
+                                      ? (WEEK_SHORT[WEEK_DAYS.indexOf(selectedWeekDay as typeof WEEK_DAYS[number])] ?? selectedWeekDay)
+                                      : "today";
+                                    addWholeDay(planMeals, label);
+                                  }}
+                                  className="w-full mt-1 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                                  data-testid="button-add-whole-day"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  Add whole day ({planMeals.length} meal{planMeals.length !== 1 ? "s" : ""})
+                                </button>
                               </div>
                             )}
                           </div>
