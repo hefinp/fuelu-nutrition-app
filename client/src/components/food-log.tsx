@@ -203,7 +203,7 @@ function MacroGrid({
     <div className="grid grid-cols-2 gap-3 mb-4">
       {[
         { label: "Calories", value: cal, target: calTarget, color: "bg-orange-400", unit: "kcal" },
-        { label: "Protein", value: prot, target: protTarget, color: "bg-red-400", unit: "g" },
+        { label: "Protein", value: prot, target: protTarget, color: "bg-violet-500", unit: "g" },
         { label: "Carbs", value: carbs, target: carbsTarget, color: "bg-blue-400", unit: "g" },
         { label: "Fat", value: fat, target: fatTarget, color: "bg-yellow-400", unit: "g" },
       ].map(({ label, value, target, color, unit }) => (
