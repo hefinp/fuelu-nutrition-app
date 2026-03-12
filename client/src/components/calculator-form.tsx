@@ -159,7 +159,7 @@ export function CalculatorForm({
     if (watched.gender !== "female" && cycleTrackingEnabled) {
       updatePrefsMutation.mutate({ cycleTrackingEnabled: false });
     }
-  }, [watched.gender]);
+  }, [watched.gender, cycleTrackingEnabled]);
 
   if (compact) {
     const metricsSummary = [
