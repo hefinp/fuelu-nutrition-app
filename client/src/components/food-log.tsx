@@ -104,11 +104,11 @@ function shiftDate(dateStr: string, days: number): string {
   return toDateStr(dt);
 }
 
-function getWeekRange(): { from: string; to: string; days: string[] } {
+function getWeekRange(weekOffset = 0): { from: string; to: string; days: string[] } {
   const now = new Date();
   const dow = now.getDay();
   const monday = new Date(now);
-  monday.setDate(now.getDate() - ((dow + 6) % 7));
+  monday.setDate(now.getDate() - ((dow + 6) % 7) + weekOffset * 7);
   const days: string[] = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
@@ -116,6 +116,15 @@ function getWeekRange(): { from: string; to: string; days: string[] } {
     days.push(toDateStr(d));
   }
   return { from: days[0], to: days[6], days };
+}
+
+function formatWeekLabel(from: string, to: string): string {
+  const [fy, fm, fd] = from.split("-").map(Number);
+  const [, tm, td] = to.split("-").map(Number);
+  const fromDate = new Date(fy, fm - 1, fd);
+  const fromStr = fromDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const toStr = new Date(fy, tm - 1, td).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return `${fromStr} – ${toStr}`;
 }
 
 function normalizeSlot(slot: string): MealSlot | null {
@@ -215,13 +224,14 @@ export function FoodLog({
   });
 
   // Weekly accordion state
+  const [weekOffset, setWeekOffset] = useState(0);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set([today]));
 
   // Plan picker state
   const [expandedPlanId, setExpandedPlanId] = useState<number | null>(null);
   const [selectedWeekDay, setSelectedWeekDay] = useState<string>("monday");
 
-  const weekRange = getWeekRange();
+  const weekRange = getWeekRange(weekOffset);
 
   // Prefill from meal-plan card
   useEffect(() => {
@@ -256,7 +266,7 @@ export function FoodLog({
   });
 
   const { data: weeklyEntries = [], isLoading: weeklyLoading } = useQuery<FoodLogEntry[]>({
-    queryKey: ["/api/food-log-week", weekRange.from, weekRange.to],
+    queryKey: ["/api/food-log-week", weekOffset, weekRange.from, weekRange.to],
     queryFn: async () => {
       const res = await fetch(`/api/food-log?from=${weekRange.from}&to=${weekRange.to}`, { credentials: "include" });
       if (res.status === 401) return [];
@@ -286,7 +296,7 @@ export function FoodLog({
     }) => apiRequest("POST", "/api/food-log", entry).then(r => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log", selectedDate] });
-      queryClient.invalidateQueries({ queryKey: ["/api/food-log-week", weekRange.from, weekRange.to] });
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log-week"] });
       setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", mealSlot: null });
       setShowForm(false);
       toast({ title: "Meal logged" });
@@ -298,7 +308,7 @@ export function FoodLog({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/food-log/${id}`, undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log", selectedDate] });
-      queryClient.invalidateQueries({ queryKey: ["/api/food-log-week", weekRange.from, weekRange.to] });
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log-week"] });
     },
     onError: () => toast({ title: "Failed to delete entry", variant: "destructive" }),
   });
@@ -353,6 +363,18 @@ export function FoodLog({
       next.has(date) ? next.delete(date) : next.add(date);
       return next;
     });
+  }
+
+  function changeWeek(delta: number) {
+    const nextOffset = weekOffset + delta;
+    setWeekOffset(nextOffset);
+    const nextRange = getWeekRange(nextOffset);
+    // Auto-expand today's row if it's in the new week range, otherwise collapse all
+    if (nextRange.days.includes(today)) {
+      setExpandedDays(new Set([today]));
+    } else {
+      setExpandedDays(new Set());
+    }
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -720,6 +742,44 @@ export function FoodLog({
       {/* ── Weekly View ───────────────────────────────────────────────── */}
       {view === "weekly" && (
         <>
+          {/* Week navigation */}
+          <div className="flex items-center justify-between mb-4 bg-zinc-50 rounded-xl px-2 py-1.5">
+            <button
+              onClick={() => changeWeek(-1)}
+              className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors text-zinc-500 hover:text-zinc-900"
+              data-testid="button-prev-week"
+              aria-label="Previous week"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="text-center">
+              <span className="text-sm font-semibold text-zinc-800" data-testid="text-week-label">
+                {weekOffset === 0 ? "This week" : formatWeekLabel(weekRange.from, weekRange.to)}
+              </span>
+              {weekOffset === 0 && (
+                <span className="block text-[10px] text-zinc-400">{formatWeekLabel(weekRange.from, weekRange.to)}</span>
+              )}
+              {weekOffset < 0 && (
+                <button
+                  onClick={() => changeWeek(-weekOffset)}
+                  className="block mx-auto text-[10px] text-violet-500 hover:text-violet-700 font-medium transition-colors mt-0.5"
+                  data-testid="button-go-to-current-week"
+                >
+                  Back to this week
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => changeWeek(1)}
+              disabled={weekOffset >= 0}
+              className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors text-zinc-500 hover:text-zinc-900 disabled:opacity-30 disabled:cursor-not-allowed"
+              data-testid="button-next-week"
+              aria-label="Next week"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
           <MacroGrid
             cal={weekTotalCal} prot={weekTotalProt} carbs={weekTotalCarbs} fat={weekTotalFat}
             calTarget={dailyCaloriesTarget ? dailyCaloriesTarget * 7 : undefined}
