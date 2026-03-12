@@ -105,7 +105,7 @@ export function WeightTracker({
 
   // ── Calories data ───────────────────────────────────────────────────────────
   const { data: logEntries = [], isLoading: calLoading } = useQuery<FoodLogEntry[]>({
-    queryKey: ["/api/food-log", weekFrom, today, "cal-tracker"],
+    queryKey: ["/api/food-log-week", weekFrom, today, "cal-tracker"],
     queryFn: async () => {
       const res = await fetch(`/api/food-log?from=${weekFrom}&to=${today}`, { credentials: "include" });
       return res.json();
