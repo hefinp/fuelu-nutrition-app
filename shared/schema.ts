@@ -51,6 +51,10 @@ export const userPreferencesSchema = z.object({
   recipeWeeklyLimit: z.number().int().min(1).max(14).optional(),
   hydrationGoalMl: z.number().int().min(500).max(6000).optional(),
   hydrationUnit: z.enum(["ml", "glasses"]).optional(),
+  dashboardLayout: z.object({
+    left: z.array(z.string()),
+    right: z.array(z.string()),
+  }).optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;

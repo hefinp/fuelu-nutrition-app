@@ -9,11 +9,27 @@ import { PreferencesForm } from "@/components/preferences-form";
 import { FoodLog } from "@/components/food-log";
 import { RecipeLibrary } from "@/components/recipe-library";
 import { HydrationTracker } from "@/components/hydration-tracker";
+import { SortableWidget } from "@/components/sortable-widget";
+import { useDashboardLayout, DEFAULT_LEFT, DEFAULT_RIGHT } from "@/hooks/use-dashboard-layout";
+import type { WidgetId } from "@/hooks/use-dashboard-layout";
 import type { PrefillEntry } from "@/components/food-log";
 import type { Meal } from "@/components/results-display";
 import { useCalculations } from "@/hooks/use-calculations";
 import { useAuth } from "@/hooks/use-auth";
-import { LogOut, BookOpen, Settings, X, SlidersHorizontal, ChevronDown, Salad } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { LogOut, BookOpen, Settings, X, SlidersHorizontal, ChevronDown, Salad, LayoutDashboard, Check, Loader2 } from "lucide-react";
 import type { Calculation } from "@shared/schema";
 
 export default function Dashboard() {
@@ -28,6 +44,22 @@ export default function Dashboard() {
   const { user, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
 
+  const {
+    leftOrder,
+    rightOrder,
+    setLeftOrder,
+    setRightOrder,
+    isEditing,
+    setIsEditing,
+    saveLayout,
+    cancelEdit,
+    isSaving,
+  } = useDashboardLayout(!!user);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
   const handleLogMeal = useCallback((meal: Meal | PrefillEntry) => {
     const entry: PrefillEntry = 'mealName' in meal
       ? meal
@@ -41,7 +73,6 @@ export default function Dashboard() {
 
   const lastCalculation: Partial<Calculation> | undefined = history?.[0];
 
-  // Auto-load the most recent calculation when history arrives
   useEffect(() => {
     if (history && history.length > 0 && !activeResult) {
       setActiveResult(history[0]);
@@ -64,7 +95,89 @@ export default function Dashboard() {
     setShowMetricsPanel(false);
   }
 
+  function handleLeftDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setLeftOrder(prev => {
+        const oldIdx = prev.indexOf(active.id as WidgetId);
+        const newIdx = prev.indexOf(over.id as WidgetId);
+        return arrayMove(prev, oldIdx, newIdx);
+      });
+    }
+  }
+
+  function handleRightDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setRightOrder(prev => {
+        const oldIdx = prev.indexOf(active.id as WidgetId);
+        const newIdx = prev.indexOf(over.id as WidgetId);
+        return arrayMove(prev, oldIdx, newIdx);
+      });
+    }
+  }
+
   const hasMetrics = !!activeResult;
+
+  const targetWeight = activeResult
+    ? parseFloat(activeResult.weight) +
+      (activeResult.targetAmount
+        ? parseFloat(activeResult.targetAmount) *
+          (activeResult.goal === "fat_loss" || activeResult.goal === "tone" ? -1 : 1)
+        : 0)
+    : undefined;
+
+  // Widget renderers
+  function renderLeftWidget(id: WidgetId) {
+    switch (id) {
+      case "nutrition":
+        return <NutritionDisplay data={activeResult!} />;
+      case "recipe-library":
+        return user ? <RecipeLibrary /> : null;
+      default:
+        return null;
+    }
+  }
+
+  function renderRightWidget(id: WidgetId) {
+    switch (id) {
+      case "food-log":
+        return user ? (
+          <FoodLog
+            dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
+            dailyProteinTarget={activeResult?.proteinGoal ?? undefined}
+            dailyCarbsTarget={activeResult?.carbsGoal ?? undefined}
+            dailyFatTarget={activeResult?.fatGoal ?? undefined}
+            prefill={logPrefill}
+            onPrefillConsumed={handlePrefillConsumed}
+          />
+        ) : null;
+      case "meal-plan":
+        return <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} />;
+      case "hydration":
+        return user ? <HydrationTracker /> : null;
+      case "weight":
+        return user ? (
+          <WeightTracker
+            targetWeight={targetWeight}
+            dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
+          />
+        ) : (
+          <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 flex flex-col items-center text-center justify-center">
+            <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mb-4">
+              <SlidersHorizontal className="w-5 h-5 text-zinc-400" />
+            </div>
+            <p className="text-sm font-medium text-zinc-600 mb-1">Track your weight over time</p>
+            <p className="text-xs text-zinc-400 mb-4">Sign in to log and chart your weight progress.</p>
+            <Link href="/auth" className="text-sm font-medium text-zinc-900 hover:underline">
+              Sign in to start tracking
+            </Link>
+          </div>
+        );
+      default:
+        return null;
+    }
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50/50 pb-20">
@@ -170,7 +283,6 @@ export default function Dashboard() {
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="fixed right-0 top-0 h-full w-full max-w-lg bg-white z-50 shadow-2xl flex flex-col"
             >
-              {/* Fixed header */}
               <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-zinc-100">
                 <div className="flex items-center gap-2">
                   <Settings className="w-4 h-4 text-zinc-400" />
@@ -185,9 +297,7 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              {/* Scrollable sections */}
               <div className="flex-1 overflow-y-auto">
-                {/* Metrics + Goals accordion sections (inside form) */}
                 <CalculatorForm
                   onResult={handleMetricsResult}
                   defaultValues={lastCalculation}
@@ -195,7 +305,6 @@ export default function Dashboard() {
                   onPendingChange={setIsCalculating}
                 />
 
-                {/* Preferences accordion section */}
                 {user && (
                   <div className="border-t border-zinc-100">
                     <button
@@ -230,7 +339,6 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {/* Fixed footer: Create Plan button */}
               <div className="flex-shrink-0 border-t border-zinc-100 px-6 py-4 bg-white">
                 <button
                   type="submit"
@@ -360,89 +468,117 @@ export default function Dashboard() {
                   Your current nutrition targets and weight progress.
                 </p>
               </div>
-              {user && (
-                <button
-                  onClick={handleOpenMetrics}
-                  className="flex-shrink-0 flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
-                  data-testid="button-edit-metrics"
-                >
-                  <SlidersHorizontal className="w-4 h-4" />
-                  <span className="hidden sm:inline">Edit Metrics</span>
-                </button>
-              )}
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {user && !isEditing && (
+                  <>
+                    <button
+                      onClick={handleOpenMetrics}
+                      className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+                      data-testid="button-edit-metrics"
+                    >
+                      <SlidersHorizontal className="w-4 h-4" />
+                      <span className="hidden sm:inline">Edit Metrics</span>
+                    </button>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+                      data-testid="button-edit-layout"
+                    >
+                      <LayoutDashboard className="w-4 h-4" />
+                      <span className="hidden sm:inline">Edit Layout</span>
+                    </button>
+                  </>
+                )}
+
+                {isEditing && (
+                  <>
+                    <button
+                      onClick={cancelEdit}
+                      className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-500 hover:bg-zinc-50 transition-colors"
+                      data-testid="button-cancel-layout"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveLayout}
+                      disabled={isSaving}
+                      className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-zinc-900 text-white rounded-xl hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                      data-testid="button-save-layout"
+                    >
+                      {isSaving ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4" />
+                      )}
+                      Done
+                    </button>
+                  </>
+                )}
+
+                {!user && (
+                  <button
+                    onClick={handleOpenMetrics}
+                    className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+                    data-testid="button-edit-metrics"
+                  >
+                    <SlidersHorizontal className="w-4 h-4" />
+                    <span className="hidden sm:inline">Edit Metrics</span>
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Dashboard grid:
-                Mobile stack order: FoodLog → MealPlanning → NutritionDistribution → WeightTracker
-                Desktop: left col (7) = NutritionDisplay; right col (5) = FoodLog / MealPlanGenerator / WeightTracker stacked */}
+            {isEditing && (
+              <div className="flex items-center gap-2 mb-4 px-4 py-3 bg-blue-50 border border-blue-100 rounded-2xl text-sm text-blue-700">
+                <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+                <span>Drag the <strong>⠿</strong> handle on any card to reorder it. Click <strong>Done</strong> to save.</span>
+              </div>
+            )}
+
+            {/* Dashboard grid */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-              {/* Food log — order-1 on mobile, right col top on desktop */}
-              <div className="xl:col-span-5 xl:col-start-8 order-1">
-                {user ? (
-                  <FoodLog
-                    dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
-                    dailyProteinTarget={activeResult?.proteinGoal ?? undefined}
-                    dailyCarbsTarget={activeResult?.carbsGoal ?? undefined}
-                    dailyFatTarget={activeResult?.fatGoal ?? undefined}
-                    prefill={logPrefill}
-                    onPrefillConsumed={handlePrefillConsumed}
-                  />
-                ) : null}
+              {/* Left column — col-span-7 */}
+              <div className="xl:col-span-7 flex flex-col gap-6">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleLeftDragEnd}
+                >
+                  <SortableContext items={leftOrder} strategy={verticalListSortingStrategy}>
+                    {leftOrder.map(id => {
+                      const content = renderLeftWidget(id);
+                      if (!content) return null;
+                      return (
+                        <SortableWidget key={id} id={id} isEditing={isEditing}>
+                          {content}
+                        </SortableWidget>
+                      );
+                    })}
+                  </SortableContext>
+                </DndContext>
               </div>
 
-              {/* Meal Planning — order-2 on mobile, right col middle on desktop */}
-              <div className="xl:col-span-5 xl:col-start-8 order-2">
-                <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} />
-              </div>
-
-              {/* Nutrition Distribution — order-3 on mobile, left col on desktop (auto-placed at row 1, col 1-7) */}
-              <div className="xl:col-span-7 order-3">
-                <NutritionDisplay data={activeResult!} />
-              </div>
-
-              {/* My Recipes — order-4 on mobile, left col second row on desktop */}
-              {user && (
-                <div className="xl:col-span-7 order-4">
-                  <RecipeLibrary />
-                </div>
-              )}
-
-              {/* Hydration tracker — order-5 on mobile, right col on desktop */}
-              {user && (
-                <div className="xl:col-span-5 xl:col-start-8 order-5">
-                  <HydrationTracker />
-                </div>
-              )}
-
-              {/* Weight tracker — order-6 on mobile, right col bottom on desktop */}
-              <div className="xl:col-span-5 xl:col-start-8 order-6">
-                {user ? (
-                  <WeightTracker
-                    targetWeight={
-                      activeResult
-                        ? parseFloat(activeResult.weight) +
-                          (activeResult.targetAmount ? parseFloat(activeResult.targetAmount) * (
-                            activeResult.goal === "fat_loss" || activeResult.goal === "tone" ? -1 : 1
-                          ) : 0)
-                        : undefined
-                    }
-                    dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
-                  />
-                ) : (
-                  <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 flex flex-col items-center text-center justify-center">
-                    <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mb-4">
-                      <SlidersHorizontal className="w-5 h-5 text-zinc-400" />
-                    </div>
-                    <p className="text-sm font-medium text-zinc-600 mb-1">Track your weight over time</p>
-                    <p className="text-xs text-zinc-400 mb-4">Sign in to log and chart your weight progress.</p>
-                    <Link
-                      href="/auth"
-                      className="text-sm font-medium text-zinc-900 hover:underline"
-                    >
-                      Sign in to start tracking
-                    </Link>
-                  </div>
-                )}
+              {/* Right column — col-span-5 */}
+              <div className="xl:col-span-5 xl:col-start-8 flex flex-col gap-6">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleRightDragEnd}
+                >
+                  <SortableContext items={rightOrder} strategy={verticalListSortingStrategy}>
+                    {rightOrder.map(id => {
+                      const content = renderRightWidget(id);
+                      if (!content) return null;
+                      return (
+                        <SortableWidget key={id} id={id} isEditing={isEditing}>
+                          {content}
+                        </SortableWidget>
+                      );
+                    })}
+                  </SortableContext>
+                </DndContext>
               </div>
             </div>
           </motion.div>
