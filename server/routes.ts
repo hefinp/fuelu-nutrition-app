@@ -5,7 +5,7 @@ import { api, mealPlanSchema } from "@shared/routes";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { registerSchema, loginSchema, userPreferencesSchema, type UserPreferences } from "@shared/schema";
+import { registerSchema, loginSchema, userPreferencesSchema, insertUserRecipeSchema, type UserPreferences } from "@shared/schema";
 import passport from "passport";
 import { sendEmail, buildPasswordResetEmailHtml, buildMealPlanEmailHtml } from "./email";
 
@@ -780,6 +780,23 @@ export async function registerRoutes(
         const user = await storage.getUserById(req.session.userId);
         prefs = (user?.preferences as UserPreferences | null) ?? null;
         baseDb = filterMealDbByPreferences(baseDb, prefs);
+
+        if (prefs?.recipeWebsitesEnabled) {
+          const userRecipesList = await storage.getUserRecipes(req.session.userId);
+          const style = input.mealStyle ?? 'simple';
+          for (const r of userRecipesList) {
+            if (r.mealStyle === style && (r.mealSlot === 'breakfast' || r.mealSlot === 'lunch' || r.mealSlot === 'dinner' || r.mealSlot === 'snack')) {
+              baseDb[r.mealSlot as keyof MealDb].push({
+                meal: r.name,
+                calories: r.caloriesPerServing,
+                protein: r.proteinPerServing,
+                carbs: r.carbsPerServing,
+                fat: r.fatPerServing,
+                microScore: 3,
+              });
+            }
+          }
+        }
       }
 
       const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly', baseDb, prefs);
@@ -818,6 +835,23 @@ export async function registerRoutes(
         const user = await storage.getUserById(req.session.userId);
         prefs = (user?.preferences as UserPreferences | null) ?? null;
         baseDb = filterMealDbByPreferences(baseDb, prefs);
+
+        if (prefs?.recipeWebsitesEnabled) {
+          const userRecipesList = await storage.getUserRecipes(req.session.userId);
+          const style = input.mealStyle ?? 'simple';
+          for (const r of userRecipesList) {
+            if (r.mealStyle === style && (r.mealSlot === 'breakfast' || r.mealSlot === 'lunch' || r.mealSlot === 'dinner' || r.mealSlot === 'snack')) {
+              baseDb[r.mealSlot as keyof MealDb].push({
+                meal: r.name,
+                calories: r.caloriesPerServing,
+                protein: r.proteinPerServing,
+                carbs: r.carbsPerServing,
+                fat: r.fatPerServing,
+                microScore: 3,
+              });
+            }
+          }
+        }
       }
 
       const pool = baseDb[input.slot === 'snack' ? 'snack' : input.slot];
@@ -1222,6 +1256,106 @@ export async function registerRoutes(
     if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
     const id = parseInt(req.params.id);
     await storage.deleteCustomFood(id, req.session.userId);
+    res.json({ message: "Deleted" });
+  });
+
+  // ── User recipes ──────────────────────────────────────────────────────────
+
+  function parseNutrientValue(raw: string | number | undefined): number | null {
+    if (raw === undefined || raw === null) return null;
+    if (typeof raw === 'number') return Math.round(raw);
+    const match = String(raw).match(/[\d.]+/);
+    return match ? Math.round(parseFloat(match[0])) : null;
+  }
+
+  app.post("/api/recipes/import", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const { url } = z.object({ url: z.string().url() }).parse(req.body);
+
+    let html: string;
+    try {
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; NutriSync/1.0; +https://nutrisync.app)",
+          "Accept": "text/html,application/xhtml+xml",
+        },
+        signal: AbortSignal.timeout(12000),
+      });
+      if (!response.ok) return res.status(400).json({ message: `Could not fetch that page (HTTP ${response.status})` });
+      html = await response.text();
+    } catch (e: any) {
+      return res.status(400).json({ message: `Could not reach that URL: ${e?.message ?? 'timeout'}` });
+    }
+
+    const ldJsonBlocks = [...html.matchAll(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)];
+    let recipe: any = null;
+
+    for (const block of ldJsonBlocks) {
+      try {
+        let parsed = JSON.parse(block[1].trim());
+        if (Array.isArray(parsed)) {
+          parsed = parsed.find((p: any) => p["@type"] === "Recipe" || (Array.isArray(p["@type"]) && p["@type"].includes("Recipe")));
+        } else if (parsed["@graph"]) {
+          parsed = parsed["@graph"].find((p: any) => p["@type"] === "Recipe" || (Array.isArray(p["@type"]) && p["@type"].includes("Recipe")));
+        }
+        if (parsed && (parsed["@type"] === "Recipe" || (Array.isArray(parsed["@type"]) && parsed["@type"].includes("Recipe")))) {
+          recipe = parsed;
+          break;
+        }
+      } catch { continue; }
+    }
+
+    if (!recipe) return res.status(422).json({ message: "No recipe data found on that page. The site may not support structured recipe data." });
+
+    const name: string = recipe.name ?? "Untitled Recipe";
+    const imageUrl: string | null = Array.isArray(recipe.image)
+      ? (typeof recipe.image[0] === 'string' ? recipe.image[0] : recipe.image[0]?.url ?? null)
+      : (typeof recipe.image === 'string' ? recipe.image : recipe.image?.url ?? null);
+
+    const ingredients: string[] = Array.isArray(recipe.recipeIngredient) ? recipe.recipeIngredient : [];
+    const servingsRaw = recipe.recipeYield;
+    const servings = typeof servingsRaw === 'number' ? servingsRaw
+      : typeof servingsRaw === 'string' ? (parseInt(servingsRaw.match(/\d+/)?.[0] ?? '1') || 1)
+      : Array.isArray(servingsRaw) ? (parseInt(String(servingsRaw[0]).match(/\d+/)?.[0] ?? '1') || 1)
+      : 1;
+
+    const nutrition = recipe.nutrition ?? null;
+    const calories = nutrition ? parseNutrientValue(nutrition.calories) : null;
+    const protein = nutrition ? parseNutrientValue(nutrition.proteinContent) : null;
+    const carbs = nutrition ? parseNutrientValue(nutrition.carbohydrateContent) : null;
+    const fat = nutrition ? parseNutrientValue(nutrition.fatContent) : null;
+
+    res.json({
+      name,
+      imageUrl,
+      ingredients,
+      servings,
+      sourceUrl: url,
+      calories,
+      protein,
+      carbs,
+      fat,
+      hasNutrition: calories !== null,
+    });
+  });
+
+  app.get("/api/recipes", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const recipes = await storage.getUserRecipes(req.session.userId);
+    res.json(recipes);
+  });
+
+  app.post("/api/recipes", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const body = insertUserRecipeSchema.parse(req.body);
+    const recipe = await storage.createUserRecipe({ ...body, userId: req.session.userId });
+    res.status(201).json(recipe);
+  });
+
+  app.delete("/api/recipes/:id", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const id = parseInt(req.params.id);
+    await storage.deleteUserRecipe(id, req.session.userId);
     res.json({ message: "Deleted" });
   });
 

@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte } from "drizzle-orm";
 
@@ -46,6 +46,11 @@ export interface IStorage {
   createCustomFood(food: InsertCustomFood): Promise<CustomFood>;
   getCustomFoods(): Promise<CustomFood[]>;
   deleteCustomFood(id: number, userId: number): Promise<void>;
+
+  // User recipes
+  getUserRecipes(userId: number): Promise<UserRecipe[]>;
+  createUserRecipe(recipe: InsertUserRecipe & { userId: number }): Promise<UserRecipe>;
+  deleteUserRecipe(id: number, userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -220,6 +225,22 @@ export class DatabaseStorage implements IStorage {
   async deleteCustomFood(id: number, userId: number): Promise<void> {
     await db.delete(customFoods)
       .where(and(eq(customFoods.id, id), eq(customFoods.contributedByUserId, userId)));
+  }
+
+  async getUserRecipes(userId: number): Promise<UserRecipe[]> {
+    return await db.select().from(userRecipes)
+      .where(eq(userRecipes.userId, userId))
+      .orderBy(desc(userRecipes.createdAt));
+  }
+
+  async createUserRecipe(recipe: InsertUserRecipe & { userId: number }): Promise<UserRecipe> {
+    const [created] = await db.insert(userRecipes).values(recipe).returning();
+    return created;
+  }
+
+  async deleteUserRecipe(id: number, userId: number): Promise<void> {
+    await db.delete(userRecipes)
+      .where(and(eq(userRecipes.id, id), eq(userRecipes.userId, userId)));
   }
 }
 

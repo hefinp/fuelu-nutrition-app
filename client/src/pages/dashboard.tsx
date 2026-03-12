@@ -7,6 +7,7 @@ import { SavedMealPlans } from "@/components/saved-meal-plans";
 import { WeightTracker } from "@/components/weight-tracker";
 import { PreferencesForm } from "@/components/preferences-form";
 import { FoodLog } from "@/components/food-log";
+import { RecipeLibrary } from "@/components/recipe-library";
 import type { PrefillEntry } from "@/components/food-log";
 import type { Meal } from "@/components/results-display";
 import { useCalculations } from "@/hooks/use-calculations";
@@ -398,8 +399,15 @@ export default function Dashboard() {
                 <NutritionDisplay data={activeResult!} />
               </div>
 
-              {/* Weight tracker — order-4 on mobile, right col bottom on desktop */}
-              <div className="xl:col-span-5 xl:col-start-8 order-4">
+              {/* My Recipes — order-4 on mobile, left col second row on desktop */}
+              {user && (
+                <div className="xl:col-span-7 order-4">
+                  <RecipeLibrary />
+                </div>
+              )}
+
+              {/* Weight tracker — order-5 on mobile, right col bottom on desktop */}
+              <div className="xl:col-span-5 xl:col-start-8 order-5">
                 {user ? (
                   <WeightTracker
                     targetWeight={

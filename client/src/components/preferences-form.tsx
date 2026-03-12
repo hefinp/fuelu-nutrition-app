@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type UserPreferences } from "@shared/schema";
-import { Check, Loader2, X, Sparkles, ThumbsDown, Leaf, Sprout, Fish, Moon, Star } from "lucide-react";
+import { Check, Loader2, X, Sparkles, ThumbsDown, Leaf, Sprout, Fish, Moon, Star, Globe } from "lucide-react";
 
 type Diet = NonNullable<UserPreferences["diet"]>;
 type Allergy = NonNullable<UserPreferences["allergies"]>[number];
@@ -110,6 +110,8 @@ export function PreferencesForm() {
   const [excludedFoods, setExcludedFoods] = useState<string[]>([]);
   const [preferredFoods, setPreferredFoods] = useState<string[]>([]);
   const [micronutrientOptimize, setMicronutrientOptimize] = useState(false);
+  const [recipeWebsitesEnabled, setRecipeWebsitesEnabled] = useState(false);
+  const [recipeWebsites, setRecipeWebsites] = useState<string[]>([]);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -120,6 +122,8 @@ export function PreferencesForm() {
     setExcludedFoods(data.excludedFoods ?? []);
     setPreferredFoods(data.preferredFoods ?? []);
     setMicronutrientOptimize(data.micronutrientOptimize ?? false);
+    setRecipeWebsitesEnabled(data.recipeWebsitesEnabled ?? false);
+    setRecipeWebsites(data.recipeWebsites ?? []);
   }, [data]);
 
   const mutation = useMutation({
@@ -148,6 +152,8 @@ export function PreferencesForm() {
       preferredFoods,
       micronutrientOptimize,
       dislikedMeals: data?.dislikedMeals ?? [],
+      recipeWebsitesEnabled,
+      recipeWebsites,
     });
   };
 
@@ -156,7 +162,9 @@ export function PreferencesForm() {
     JSON.stringify([...allergies].sort()) !== JSON.stringify([...(data?.allergies ?? [])].sort()) ||
     JSON.stringify(excludedFoods) !== JSON.stringify(data?.excludedFoods ?? []) ||
     JSON.stringify(preferredFoods) !== JSON.stringify(data?.preferredFoods ?? []) ||
-    micronutrientOptimize !== (data?.micronutrientOptimize ?? false);
+    micronutrientOptimize !== (data?.micronutrientOptimize ?? false) ||
+    recipeWebsitesEnabled !== (data?.recipeWebsitesEnabled ?? false) ||
+    JSON.stringify(recipeWebsites) !== JSON.stringify(data?.recipeWebsites ?? []);
 
   if (isLoading) {
     return (
@@ -286,6 +294,50 @@ export function PreferencesForm() {
             <p className="text-xs text-zinc-400 mt-0.5">Favour nutrient-dense meals (leafy greens, oily fish, legumes)</p>
           </div>
         </button>
+      </div>
+
+      {/* Recipe Websites */}
+      <div className="mb-6">
+        <button
+          type="button"
+          onClick={() => setRecipeWebsitesEnabled(prev => !prev)}
+          data-testid="toggle-recipe-websites"
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
+            recipeWebsitesEnabled
+              ? "bg-zinc-100 border-zinc-300"
+              : "bg-white border-zinc-200 hover:border-zinc-400"
+          }`}
+        >
+          <div className={`w-10 h-5 rounded-full relative transition-colors ${
+            recipeWebsitesEnabled ? "bg-zinc-900" : "bg-zinc-300"
+          }`}>
+            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+              recipeWebsitesEnabled ? "left-5" : "left-0.5"
+            }`} />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5">
+              <Globe className={`w-3.5 h-3.5 ${recipeWebsitesEnabled ? "text-zinc-600" : "text-zinc-400"}`} />
+              <span className={`text-xs font-medium ${recipeWebsitesEnabled ? "text-zinc-900" : "text-zinc-600"}`}>
+                Recipe website integration
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 mt-0.5">Include recipes from your favourite websites in meal plans</p>
+          </div>
+        </button>
+
+        {recipeWebsitesEnabled && (
+          <div className="mt-3 pl-1">
+            <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-1.5">Your recipe websites</p>
+            <p className="text-xs text-zinc-400 mb-2">Add site URLs (e.g. allrecipes.com, bite.co.nz) — press Enter to add each one</p>
+            <TagInput
+              tags={recipeWebsites}
+              onChange={setRecipeWebsites}
+              placeholder="e.g. allrecipes.com, bbcgoodfood.com..."
+              testIdPrefix="recipe-websites"
+            />
+          </div>
+        )}
       </div>
 
       {/* Disliked meals */}

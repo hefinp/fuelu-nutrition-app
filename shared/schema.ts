@@ -45,6 +45,8 @@ export const userPreferencesSchema = z.object({
   preferredFoods: z.array(z.string()).optional(),
   micronutrientOptimize: z.boolean().optional(),
   dislikedMeals: z.array(z.string()).optional(),
+  recipeWebsitesEnabled: z.boolean().optional(),
+  recipeWebsites: z.array(z.string()).optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;
@@ -161,6 +163,32 @@ export const insertCustomFoodSchema = createInsertSchema(customFoods).omit({
 
 export type InsertCustomFood = z.infer<typeof insertCustomFoodSchema>;
 export type CustomFood = typeof customFoods.$inferSelect;
+
+export const userRecipes = pgTable("user_recipes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  imageUrl: text("image_url"),
+  servings: integer("servings").notNull().default(1),
+  caloriesPerServing: integer("calories_per_serving").notNull(),
+  proteinPerServing: integer("protein_per_serving").notNull(),
+  carbsPerServing: integer("carbs_per_serving").notNull(),
+  fatPerServing: integer("fat_per_serving").notNull(),
+  ingredients: text("ingredients"),
+  mealSlot: text("meal_slot").notNull(),
+  mealStyle: text("meal_style").notNull().default("simple"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserRecipeSchema = createInsertSchema(userRecipes).omit({
+  id: true,
+  createdAt: true,
+  userId: true,
+});
+
+export type InsertUserRecipe = z.infer<typeof insertUserRecipeSchema>;
+export type UserRecipe = typeof userRecipes.$inferSelect;
 
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: serial("id").primaryKey(),
