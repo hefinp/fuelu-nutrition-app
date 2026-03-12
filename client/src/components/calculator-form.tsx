@@ -156,10 +156,10 @@ export function CalculatorForm({
   const watched = form.watch();
 
   useEffect(() => {
-    if (watched.gender !== "female" && cycleTrackingEnabled) {
+    if (prefilled && watched.gender !== "female" && cycleTrackingEnabled) {
       updatePrefsMutation.mutate({ cycleTrackingEnabled: false });
     }
-  }, [watched.gender, cycleTrackingEnabled]);
+  }, [watched.gender, cycleTrackingEnabled, prefilled]);
 
   if (compact) {
     const metricsSummary = [
