@@ -501,7 +501,7 @@ export function exportShoppingListToPDF(mealPlan: any, data: Calculation, days =
   doc.save(`shopping-list-${mealPlan.planType}${daysSuffix}-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
-interface Recipe {
+export interface Recipe {
   instructions: string;
   ingredients: Array<{ item: string; quantity: string }>;
 }

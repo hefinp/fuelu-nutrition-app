@@ -5,9 +5,10 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Plus, Trash2, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, BookOpen, UtensilsCrossed,
-  Coffee, Salad, Moon, Apple, Search, X, Check, Barcode,
+  Coffee, Salad, Moon, Apple, Search, X, Check, Barcode, ExternalLink,
 } from "lucide-react";
-import type { SavedMealPlan } from "@shared/schema";
+import type { SavedMealPlan, UserRecipe } from "@shared/schema";
+import { RECIPES } from "@/components/results-display";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -220,6 +221,111 @@ function MacroGrid({
   );
 }
 
+// ── Meal Detail Modal ─────────────────────────────────────────────────────────
+
+function LoggedMealModal({
+  entry,
+  userRecipes,
+  onClose,
+}: {
+  entry: FoodLogEntry;
+  userRecipes: UserRecipe[];
+  onClose: () => void;
+}) {
+  const recipe = RECIPES[entry.mealName];
+  const webRecipe = userRecipes.find(
+    r => r.name.toLowerCase() === entry.mealName.toLowerCase()
+  );
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl my-8"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <h3 className="text-xl font-bold text-zinc-900 pr-4">{entry.mealName}</h3>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-zinc-100 rounded-lg transition-colors shrink-0"
+            data-testid="button-close-meal-detail"
+          >
+            <X className="w-5 h-5 text-zinc-400" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mb-5">
+          <div className="bg-orange-50 p-2.5 rounded-lg">
+            <p className="text-xs text-orange-600 font-medium">Calories</p>
+            <p className="text-lg font-bold text-orange-700">{entry.calories}</p>
+          </div>
+          <div className="bg-red-50 p-2.5 rounded-lg">
+            <p className="text-xs text-red-600 font-medium">Protein</p>
+            <p className="text-lg font-bold text-red-700">{entry.protein}g</p>
+          </div>
+          <div className="bg-blue-50 p-2.5 rounded-lg">
+            <p className="text-xs text-blue-600 font-medium">Carbs</p>
+            <p className="text-lg font-bold text-blue-700">{entry.carbs}g</p>
+          </div>
+          <div className="bg-yellow-50 p-2.5 rounded-lg">
+            <p className="text-xs text-yellow-600 font-medium">Fat</p>
+            <p className="text-lg font-bold text-yellow-700">{entry.fat}g</p>
+          </div>
+        </div>
+
+        {recipe ? (
+          <>
+            <div className="bg-zinc-50 p-4 rounded-xl mb-4">
+              <h4 className="text-sm font-semibold text-zinc-900 mb-3">Ingredients</h4>
+              <ul className="space-y-2">
+                {recipe.ingredients.map((ing, idx) => (
+                  <li key={idx} className="flex justify-between text-sm text-zinc-700">
+                    <span>{ing.item}</span>
+                    <span className="font-medium text-zinc-900">{ing.quantity}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="bg-zinc-50 p-4 rounded-xl mb-4">
+              <h4 className="text-sm font-semibold text-zinc-900 mb-2">Instructions</h4>
+              <p className="text-sm text-zinc-600 leading-relaxed">{recipe.instructions}</p>
+            </div>
+          </>
+        ) : !webRecipe ? (
+          <p className="text-zinc-500 text-sm mb-4">No recipe details available for this meal.</p>
+        ) : null}
+
+        {webRecipe && (
+          <div className="bg-zinc-50 p-4 rounded-xl mb-4">
+            <h4 className="text-sm font-semibold text-zinc-900 mb-2">Recipe source</h4>
+            <a
+              href={webRecipe.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline break-all"
+              data-testid="link-recipe-source"
+            >
+              <ExternalLink className="w-4 h-4 shrink-0" />
+              {webRecipe.sourceUrl}
+            </a>
+          </div>
+        )}
+
+        <button
+          onClick={onClose}
+          className="w-full px-4 py-2 bg-zinc-900 text-white rounded-xl font-medium hover:bg-zinc-800 transition-colors"
+          data-testid="button-close-meal-detail-bottom"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ───────────────────────────────────────────────────────────
 
 export function FoodLog({
@@ -255,6 +361,9 @@ export function FoodLog({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedFood, setSelectedFood] = useState<FoodResult | null>(null);
   const [servingGrams, setServingGrams] = useState("100");
+
+  // Meal detail modal state
+  const [selectedEntry, setSelectedEntry] = useState<FoodLogEntry | null>(null);
 
   // Barcode scanner state
   const [scannerError, setScannerError] = useState(false);
@@ -427,6 +536,11 @@ export function FoodLog({
     },
     enabled: showForm,
     staleTime: 30_000,
+  });
+
+  const { data: userRecipes = [] } = useQuery<UserRecipe[]>({
+    queryKey: ["/api/recipes"],
+    staleTime: 60_000,
   });
 
   // ── Mutations ─────────────────────────────────────────────────────────────
@@ -1365,24 +1479,30 @@ export function FoodLog({
                 return (
                   <div
                     key={entry.id}
-                    className="flex items-center gap-2 p-3 bg-zinc-50 rounded-xl border border-transparent hover:border-zinc-200 transition-colors"
+                    className="flex items-center gap-2 bg-zinc-50 rounded-xl border border-transparent hover:border-zinc-200 transition-colors"
                     data-testid={`log-entry-${entry.id}`}
                   >
-                    {SlotIcon && slotColor && (
-                      <div className={`p-1.5 rounded-lg shrink-0 ${slotColor}`}>
-                        <SlotIcon className="w-3 h-3" />
+                    <button
+                      onClick={() => setSelectedEntry(entry)}
+                      className="flex items-center gap-2 flex-1 min-w-0 p-3 text-left"
+                      data-testid={`button-open-meal-detail-${entry.id}`}
+                    >
+                      {SlotIcon && slotColor && (
+                        <div className={`p-1.5 rounded-lg shrink-0 ${slotColor}`}>
+                          <SlotIcon className="w-3 h-3" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-zinc-900 truncate">{entry.mealName}</p>
+                        <p className="text-xs text-zinc-500 mt-0.5">
+                          {entry.calories} kcal · P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
+                        </p>
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-900 truncate">{entry.mealName}</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">
-                        {entry.calories} kcal · P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
-                      </p>
-                    </div>
+                    </button>
                     <button
                       onClick={() => deleteMutation.mutate(entry.id)}
                       disabled={deleteMutation.isPending}
-                      className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                      className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0 mr-2"
                       data-testid={`button-delete-log-${entry.id}`}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -1524,13 +1644,17 @@ export function FoodLog({
                                   </div>
                                   <div className="space-y-1 ml-1">
                                     {slotEntries.map(entry => (
-                                      <div key={entry.id} className="flex items-center gap-2 py-1 border-b border-zinc-50 last:border-0">
-                                        <div className="flex-1 min-w-0">
+                                      <div key={entry.id} className="flex items-center gap-1 border-b border-zinc-50 last:border-0">
+                                        <button
+                                          onClick={() => setSelectedEntry(entry)}
+                                          className="flex-1 min-w-0 py-1 text-left"
+                                          data-testid={`button-open-meal-detail-${entry.id}`}
+                                        >
                                           <p className="text-xs font-medium text-zinc-800 truncate">{entry.mealName}</p>
                                           <p className="text-[10px] text-zinc-400">
                                             {entry.calories} kcal · P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
                                           </p>
-                                        </div>
+                                        </button>
                                         <button
                                           onClick={() => deleteMutation.mutate(entry.id)}
                                           className="p-1 text-zinc-300 hover:text-red-400 transition-colors shrink-0"
@@ -1553,13 +1677,17 @@ export function FoodLog({
                                 </div>
                                 <div className="space-y-1 ml-1">
                                   {bySlot["other"].map(entry => (
-                                    <div key={entry.id} className="flex items-center gap-2 py-1 border-b border-zinc-50 last:border-0">
-                                      <div className="flex-1 min-w-0">
+                                    <div key={entry.id} className="flex items-center gap-1 border-b border-zinc-50 last:border-0">
+                                      <button
+                                        onClick={() => setSelectedEntry(entry)}
+                                        className="flex-1 min-w-0 py-1 text-left"
+                                        data-testid={`button-open-meal-detail-${entry.id}`}
+                                      >
                                         <p className="text-xs font-medium text-zinc-800 truncate">{entry.mealName}</p>
                                         <p className="text-[10px] text-zinc-400">
                                           {entry.calories} kcal · P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
                                         </p>
-                                      </div>
+                                      </button>
                                       <button
                                         onClick={() => deleteMutation.mutate(entry.id)}
                                         className="p-1 text-zinc-300 hover:text-red-400 transition-colors shrink-0"
@@ -1582,6 +1710,14 @@ export function FoodLog({
             </div>
           )}
         </>
+      )}
+
+      {selectedEntry && (
+        <LoggedMealModal
+          entry={selectedEntry}
+          userRecipes={userRecipes}
+          onClose={() => setSelectedEntry(null)}
+        />
       )}
     </div>
   );
