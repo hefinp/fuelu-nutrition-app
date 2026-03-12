@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte } from "drizzle-orm";
 
@@ -51,6 +51,11 @@ export interface IStorage {
   getUserRecipes(userId: number): Promise<UserRecipe[]>;
   createUserRecipe(recipe: InsertUserRecipe & { userId: number }): Promise<UserRecipe>;
   deleteUserRecipe(id: number, userId: number): Promise<void>;
+
+  // Hydration
+  getHydrationLogs(userId: number, date: string): Promise<HydrationLog[]>;
+  createHydrationLog(entry: InsertHydrationLog & { userId: number }): Promise<HydrationLog>;
+  deleteHydrationLog(id: number, userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -241,6 +246,22 @@ export class DatabaseStorage implements IStorage {
   async deleteUserRecipe(id: number, userId: number): Promise<void> {
     await db.delete(userRecipes)
       .where(and(eq(userRecipes.id, id), eq(userRecipes.userId, userId)));
+  }
+
+  async getHydrationLogs(userId: number, date: string): Promise<HydrationLog[]> {
+    return await db.select().from(hydrationLogs)
+      .where(and(eq(hydrationLogs.userId, userId), eq(hydrationLogs.date, date)))
+      .orderBy(hydrationLogs.loggedAt);
+  }
+
+  async createHydrationLog(entry: InsertHydrationLog & { userId: number }): Promise<HydrationLog> {
+    const [created] = await db.insert(hydrationLogs).values(entry).returning();
+    return created;
+  }
+
+  async deleteHydrationLog(id: number, userId: number): Promise<void> {
+    await db.delete(hydrationLogs)
+      .where(and(eq(hydrationLogs.id, id), eq(hydrationLogs.userId, userId)));
   }
 }
 

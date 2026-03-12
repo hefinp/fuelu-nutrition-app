@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type UserPreferences } from "@shared/schema";
-import { Check, Loader2, X, Sparkles, ThumbsDown, Leaf, Sprout, Fish, Moon, Star, Globe } from "lucide-react";
+import { Check, Loader2, X, Sparkles, ThumbsDown, Leaf, Sprout, Fish, Moon, Star, Globe, Droplets } from "lucide-react";
 
 type Diet = NonNullable<UserPreferences["diet"]>;
 type Allergy = NonNullable<UserPreferences["allergies"]>[number];
@@ -124,6 +124,8 @@ export function PreferencesForm() {
   const [recipeWebsites, setRecipeWebsites] = useState<string[]>([]);
   const [recipeEnabledSlots, setRecipeEnabledSlots] = useState<MealSlot[]>([...ALL_SLOTS]);
   const [recipeWeeklyLimit, setRecipeWeeklyLimit] = useState(5);
+  const [hydrationGoalMl, setHydrationGoalMl] = useState(2000);
+  const [hydrationUnit, setHydrationUnit] = useState<"ml" | "glasses">("ml");
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -138,6 +140,8 @@ export function PreferencesForm() {
     setRecipeWebsites(data.recipeWebsites ?? []);
     setRecipeEnabledSlots((data.recipeEnabledSlots as MealSlot[] | undefined) ?? [...ALL_SLOTS]);
     setRecipeWeeklyLimit(data.recipeWeeklyLimit ?? 5);
+    setHydrationGoalMl(data.hydrationGoalMl ?? 2000);
+    setHydrationUnit((data.hydrationUnit as "ml" | "glasses" | undefined) ?? "ml");
   }, [data]);
 
   const mutation = useMutation({
@@ -180,6 +184,8 @@ export function PreferencesForm() {
       recipeWebsites,
       recipeEnabledSlots,
       recipeWeeklyLimit,
+      hydrationGoalMl,
+      hydrationUnit,
     });
   };
 
@@ -192,7 +198,9 @@ export function PreferencesForm() {
     recipeWebsitesEnabled !== (data?.recipeWebsitesEnabled ?? false) ||
     JSON.stringify(recipeWebsites) !== JSON.stringify(data?.recipeWebsites ?? []) ||
     JSON.stringify([...recipeEnabledSlots].sort()) !== JSON.stringify([...(data?.recipeEnabledSlots ?? [...ALL_SLOTS])].sort()) ||
-    recipeWeeklyLimit !== (data?.recipeWeeklyLimit ?? 5);
+    recipeWeeklyLimit !== (data?.recipeWeeklyLimit ?? 5) ||
+    hydrationGoalMl !== (data?.hydrationGoalMl ?? 2000) ||
+    hydrationUnit !== (data?.hydrationUnit ?? "ml");
 
   if (isLoading) {
     return (
@@ -411,6 +419,58 @@ export function PreferencesForm() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Hydration goal */}
+      <div className="mb-6">
+        <div className="flex items-center gap-1.5 mb-3">
+          <Droplets className="w-3.5 h-3.5 text-blue-400" />
+          <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide">Daily water goal</p>
+        </div>
+        <div className="flex items-center gap-3 mb-2">
+          <div className="flex rounded-xl border border-zinc-200 overflow-hidden">
+            {(["ml", "glasses"] as const).map(u => (
+              <button
+                key={u}
+                type="button"
+                onClick={() => {
+                  if (u === hydrationUnit) return;
+                  if (u === "glasses") {
+                    setHydrationGoalMl(Math.round(hydrationGoalMl / 250) * 250);
+                  }
+                  setHydrationUnit(u);
+                }}
+                data-testid={`hydration-unit-${u}`}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  hydrationUnit === u
+                    ? "bg-zinc-900 text-white"
+                    : "bg-white text-zinc-500 hover:bg-zinc-50"
+                }`}
+              >
+                {u === "ml" ? "ml" : "Glasses"}
+              </button>
+            ))}
+          </div>
+          <input
+            type="number"
+            min={hydrationUnit === "glasses" ? 2 : 500}
+            max={hydrationUnit === "glasses" ? 24 : 6000}
+            step={hydrationUnit === "glasses" ? 1 : 100}
+            value={hydrationUnit === "glasses" ? Math.round(hydrationGoalMl / 250) : hydrationGoalMl}
+            onChange={e => {
+              const v = parseInt(e.target.value) || 0;
+              setHydrationGoalMl(hydrationUnit === "glasses" ? v * 250 : v);
+            }}
+            data-testid="input-hydration-goal"
+            className="w-24 px-3 py-1.5 text-sm border border-zinc-200 rounded-xl focus:border-zinc-400 focus:outline-none transition-colors"
+          />
+          <span className="text-xs text-zinc-400">
+            {hydrationUnit === "glasses"
+              ? `(${hydrationGoalMl}ml)`
+              : `(${Math.round(hydrationGoalMl / 250)} glasses)`}
+          </span>
+        </div>
+        <p className="text-xs text-zinc-400">Recommended: 8 glasses / 2,000ml per day</p>
       </div>
 
       {/* Disliked meals */}

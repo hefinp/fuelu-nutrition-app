@@ -49,6 +49,8 @@ export const userPreferencesSchema = z.object({
   recipeWebsites: z.array(z.string()).optional(),
   recipeEnabledSlots: z.array(z.enum(["breakfast", "lunch", "dinner", "snack"])).optional(),
   recipeWeeklyLimit: z.number().int().min(1).max(14).optional(),
+  hydrationGoalMl: z.number().int().min(500).max(6000).optional(),
+  hydrationUnit: z.enum(["ml", "glasses"]).optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;
@@ -191,6 +193,23 @@ export const insertUserRecipeSchema = createInsertSchema(userRecipes).omit({
 
 export type InsertUserRecipe = z.infer<typeof insertUserRecipeSchema>;
 export type UserRecipe = typeof userRecipes.$inferSelect;
+
+export const hydrationLogs = pgTable("hydration_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  date: text("date").notNull(),
+  amountMl: integer("amount_ml").notNull(),
+  loggedAt: timestamp("logged_at").defaultNow(),
+});
+
+export const insertHydrationLogSchema = createInsertSchema(hydrationLogs).omit({
+  id: true,
+  userId: true,
+  loggedAt: true,
+});
+
+export type InsertHydrationLog = z.infer<typeof insertHydrationLogSchema>;
+export type HydrationLog = typeof hydrationLogs.$inferSelect;
 
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: serial("id").primaryKey(),
