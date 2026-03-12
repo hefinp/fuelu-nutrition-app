@@ -37,7 +37,7 @@ function drawPDFLogo(doc: jsPDF, pageW: number) {
   doc.text("NutriSync", sqX + sqSize + 2.5, sqY + 6);
 }
 
-function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
+export function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
   let y = 20;
@@ -400,7 +400,7 @@ function buildShoppingList(mealPlan: any, multiplier = 1): Record<string, Array<
 
 const CATEGORY_ORDER = ["Protein", "Produce", "Grains & Carbs", "Dairy", "Pantry & Spices", "Other"];
 
-function exportShoppingListToPDF(mealPlan: any, data: Calculation, days = 1) {
+export function exportShoppingListToPDF(mealPlan: any, data: Calculation, days = 1) {
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
   let y = 20;

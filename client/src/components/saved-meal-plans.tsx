@@ -3,14 +3,33 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import type { SavedMealPlan } from "@shared/schema";
-import { Calendar, Trash2, Pencil, Check, X, UtensilsCrossed, ChefHat, Loader2, ChevronDown, ChevronUp } from "lucide-react";
-import { RECIPES, type Meal } from "./results-display";
+import { Calendar, Trash2, Pencil, Check, X, UtensilsCrossed, ChefHat, Loader2, ChevronDown, ChevronUp, Download, ShoppingCart } from "lucide-react";
+import { RECIPES, exportMealPlanToPDF, exportShoppingListToPDF, type Meal } from "./results-display";
+import type { Calculation } from "@shared/schema";
+
+function buildCalcStub(plan: SavedMealPlan): Calculation {
+  const d = plan.planData as any;
+  const isWeekly = plan.planType === 'weekly';
+  return {
+    id: 0,
+    userId: null,
+    goal: '',
+    dailyCalories: isWeekly ? Math.round((d.weekTotalCalories || 0) / 7) : (d.dayTotalCalories || 0),
+    weeklyCalories: isWeekly ? (d.weekTotalCalories || 0) : (d.dayTotalCalories || 0) * 7,
+    proteinGoal: isWeekly ? Math.round((d.weekTotalProtein || 0) / 7) : (d.dayTotalProtein || 0),
+    carbsGoal: isWeekly ? Math.round((d.weekTotalCarbs || 0) / 7) : (d.dayTotalCarbs || 0),
+    fatGoal: isWeekly ? Math.round((d.weekTotalFat || 0) / 7) : (d.dayTotalFat || 0),
+    age: null, weight: null, height: null, gender: null, activityLevel: null, createdAt: null,
+  } as unknown as Calculation;
+}
 
 export function SavedMealPlans() {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [shoppingDialogId, setShoppingDialogId] = useState<number | null>(null);
+  const [shoppingDays, setShoppingDays] = useState("7");
 
   const { data: plans = [], isLoading, isError } = useQuery<SavedMealPlan[]>({
     queryKey: ["/api/saved-meal-plans"],
@@ -218,6 +237,65 @@ export function SavedMealPlans() {
                     className="overflow-hidden"
                   >
                     <div className="border-t border-zinc-100 p-5">
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-2 mb-5">
+                        <button
+                          onClick={() => {
+                            if (plan.planType === 'daily') {
+                              setShoppingDialogId(plan.id);
+                              setShoppingDays("7");
+                            } else {
+                              exportShoppingListToPDF(planData, buildCalcStub(plan));
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-medium text-xs transition-colors border border-emerald-200"
+                          data-testid={`button-saved-shopping-${plan.id}`}
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5" />
+                          Shopping List
+                        </button>
+                        <button
+                          onClick={() => exportMealPlanToPDF(planData, buildCalcStub(plan))}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg font-medium text-xs transition-colors border border-zinc-200"
+                          data-testid={`button-saved-pdf-${plan.id}`}
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Export PDF
+                        </button>
+                      </div>
+
+                      {/* Days dialog for daily shopping list */}
+                      {shoppingDialogId === plan.id && (
+                        <div className="flex items-center gap-2 mb-4 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
+                          <span className="text-xs text-zinc-600 font-medium">Scale for</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={30}
+                            value={shoppingDays}
+                            onChange={e => setShoppingDays(e.target.value)}
+                            className="w-16 px-2 py-1 text-xs border border-zinc-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                            data-testid={`input-shopping-days-${plan.id}`}
+                          />
+                          <span className="text-xs text-zinc-600 font-medium">days</span>
+                          <button
+                            onClick={() => {
+                              exportShoppingListToPDF(planData, buildCalcStub(plan), parseInt(shoppingDays) || 1);
+                              setShoppingDialogId(null);
+                            }}
+                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium transition-colors"
+                          >
+                            Export
+                          </button>
+                          <button
+                            onClick={() => setShoppingDialogId(null)}
+                            className="p-1 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+
                       {plan.planType === 'daily' ? (
                         <SavedDailyView plan={planData} />
                       ) : (
