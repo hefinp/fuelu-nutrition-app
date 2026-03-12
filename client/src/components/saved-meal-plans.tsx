@@ -387,6 +387,12 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                       </span>
                     );
                   })()}
+                  {(planData as any)?.cycleOptimised === false && (
+                    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-700" data-testid={`badge-not-cycle-optimised-${plan.id}`}>
+                      <AlertTriangle className="w-2.5 h-2.5" />
+                      Not cycle-optimised
+                    </span>
+                  )}
                 </div>
 
                 {(totalCal || totalProtein) && (

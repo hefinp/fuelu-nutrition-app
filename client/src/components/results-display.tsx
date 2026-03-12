@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Pill, Circle, CalendarDays } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Pill, Circle, CalendarDays, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences } from "@shared/schema";
@@ -1922,11 +1922,13 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
   const [planSaved, setPlanSaved] = useState(false);
   const [selectedDates, setSelectedDates] = useState<string[]>([toDateStr(new Date())]);
   const [weekStart, setWeekStart] = useState<string>(getMonday(toDateStr(new Date())));
+  const [ignoreCycle, setIgnoreCycle] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const { data: mealPlanPrefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
   const hasCycleData = !!(mealPlanPrefs?.cycleTrackingEnabled && mealPlanPrefs?.lastPeriodDate && data.gender === "female");
+  const cycleEnabledButMissing = !!(mealPlanPrefs?.cycleTrackingEnabled && !mealPlanPrefs?.lastPeriodDate && data.gender === "female");
   const dailyRef = selectedDates[0] || toDateStr(new Date());
   const cycleInfo = hasCycleData
     ? getCyclePhase(mealPlanPrefs!.lastPeriodDate!, mealPlanPrefs!.cycleLength ?? 28, dailyRef)
@@ -1965,8 +1967,12 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
         : selectedDates.length === 1
           ? ` (${formatShort(selectedDates[0])})`
           : ` (${formatShort(selectedDates[0])} +${selectedDates.length - 1})`;
+      const savePlanData: Record<string, any> = { ...mealPlan };
+      if (mealPlanPrefs?.cycleTrackingEnabled && data.gender === "female") {
+        savePlanData.cycleOptimised = hasCycleData && !ignoreCycle;
+      }
       const res = await apiRequest('POST', '/api/saved-meal-plans', {
-        planData: mealPlan,
+        planData: savePlanData,
         planType: mealPlan.planType === 'multi-daily' ? 'daily' : mealPlan.planType,
         mealStyle,
         calculationId: data.id,
@@ -2055,6 +2061,29 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
           );
         })()}
       </div>
+
+      {/* Cycle data missing callout */}
+      {cycleEnabledButMissing && !ignoreCycle && (
+        <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 mb-4" data-testid="callout-cycle-missing">
+          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-xs font-medium text-amber-800">
+              Cycle tracking is on, but your last period date isn't set — plans won't be cycle-optimised.
+            </p>
+            <p className="text-xs text-amber-600 mt-1">
+              Set your last period date in the Cycle Tracker on your dashboard to enable optimisation.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIgnoreCycle(true)}
+              className="mt-1.5 text-[11px] font-medium text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors"
+              data-testid="button-ignore-cycle"
+            >
+              Ignore cycle tracking for now
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Cycle phase banner — daily */}
       {cycleInfo && (
