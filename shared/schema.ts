@@ -58,6 +58,7 @@ export const userPreferencesSchema = z.object({
   cycleTrackingEnabled: z.boolean().optional(),
   lastPeriodDate: z.string().optional(),
   cycleLength: z.number().int().min(21).max(35).optional(),
+  onboardingComplete: z.boolean().optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;

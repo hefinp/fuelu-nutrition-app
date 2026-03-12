@@ -11,6 +11,7 @@ import { FoodLog } from "@/components/food-log";
 import { RecipeLibrary } from "@/components/recipe-library";
 import { HydrationTracker } from "@/components/hydration-tracker";
 import { CycleTracker } from "@/components/cycle-tracker";
+import { OnboardingTour } from "@/components/onboarding-tour";
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
 import { useDashboardLayout, WIDE_WIDGETS } from "@/hooks/use-dashboard-layout";
@@ -88,6 +89,13 @@ export default function Dashboard() {
       apiRequest("PUT", "/api/user/preferences", { ...userPrefs, hiddenWidgets: newHidden }).then(r => r.json()),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }),
   });
+
+  const showOnboarding = !!user && userPrefs !== undefined && userPrefs?.onboardingComplete !== true;
+
+  const dismissOnboarding = useCallback(() => {
+    apiRequest("PUT", "/api/user/preferences", { ...userPrefs, onboardingComplete: true })
+      .then(() => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }));
+  }, [userPrefs, queryClient]);
 
   function toggleWidget(id: string) {
     const next = hiddenWidgets.includes(id)
@@ -785,6 +793,10 @@ export default function Dashboard() {
           </div>
         </div>
       </footer>
+
+      <AnimatePresence>
+        {showOnboarding && <OnboardingTour onDismiss={dismissOnboarding} />}
+      </AnimatePresence>
     </div>
   );
 }
