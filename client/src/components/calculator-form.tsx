@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Activity, Ruler, Scale, User, Target, ChevronDown, Flame, Zap, Dumbbell, TrendingUp } from "lucide-react";
+import { Activity, Ruler, Scale, User, Target, ChevronDown, Flame, Zap, Dumbbell, TrendingUp, Circle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCreateCalculation } from "@/hooks/use-calculations";
 import { useToast } from "@/hooks/use-toast";
-import type { Calculation } from "@shared/schema";
+import { Switch } from "@/components/ui/switch";
+import { apiRequest } from "@/lib/queryClient";
+import type { Calculation, UserPreferences } from "@shared/schema";
 
 const formSchema = z.object({
   weight: z.string().min(1, "Weight is required"),
@@ -90,6 +93,19 @@ export function CalculatorForm({
   const { toast } = useToast();
   const createCalc = useCreateCalculation();
   const [prefilled, setPrefilled] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: prefs } = useQuery<UserPreferences>({
+    queryKey: ["/api/user/preferences"],
+  });
+
+  const updatePrefsMutation = useMutation({
+    mutationFn: (updates: Partial<UserPreferences>) =>
+      apiRequest("PUT", "/api/user/preferences", { ...prefs, ...updates }).then(r => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }),
+  });
+
+  const cycleTrackingEnabled = prefs?.cycleTrackingEnabled ?? false;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -200,6 +216,37 @@ export function CalculatorForm({
                 </div>
               </div>
             </div>
+
+          {/* Cycle tracking toggle — compact form, shown only when Female selected */}
+          <AnimatePresence initial={false}>
+            {watched.gender === "female" && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-zinc-50 border border-zinc-200">
+                  <div className="flex items-start gap-2.5">
+                    <Circle className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-zinc-800">Cycle Tracking</p>
+                      <p className="text-xs text-zinc-500 leading-relaxed mt-0.5">
+                        Optimises meal plans based on your menstrual cycle phase, including iron needs during menstruation and energy adjustments in the luteal phase.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={cycleTrackingEnabled}
+                    onCheckedChange={v => updatePrefsMutation.mutate({ cycleTrackingEnabled: v })}
+                    data-testid="toggle-cycle-tracking"
+                    className="flex-shrink-0 mt-0.5"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-zinc-700">Activity Level</label>
@@ -336,6 +383,38 @@ export function CalculatorForm({
             </div>
           </div>
         </div>
+
+        {/* Cycle tracking toggle — full form, shown only when Female selected */}
+        <AnimatePresence initial={false}>
+          {watched.gender === "female" && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="flex items-start justify-between gap-4 p-4 rounded-xl bg-zinc-50 border border-zinc-200">
+                <div className="flex items-start gap-3">
+                  <Circle className="w-4 h-4 text-zinc-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-800">Cycle Tracking</p>
+                    <p className="text-sm text-zinc-500 leading-relaxed mt-0.5">
+                      Optimises meal plans based on your menstrual cycle phase, including iron needs during menstruation and energy adjustments in the luteal phase.
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={cycleTrackingEnabled}
+                  onCheckedChange={v => updatePrefsMutation.mutate({ cycleTrackingEnabled: v })}
+                  data-testid="toggle-cycle-tracking"
+                  className="flex-shrink-0 mt-0.5"
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="space-y-2">
           <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
             <Activity className="w-4 h-4 text-zinc-400" />Activity Level

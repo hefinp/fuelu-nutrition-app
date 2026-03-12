@@ -10,6 +10,7 @@ import { PreferencesForm } from "@/components/preferences-form";
 import { FoodLog } from "@/components/food-log";
 import { RecipeLibrary } from "@/components/recipe-library";
 import { HydrationTracker } from "@/components/hydration-tracker";
+import { CycleTracker } from "@/components/cycle-tracker";
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
 import { useDashboardLayout, WIDE_WIDGETS } from "@/hooks/use-dashboard-layout";
@@ -205,6 +206,8 @@ export default function Dashboard() {
         return <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} />;
       case "hydration":
         return user ? <HydrationTracker /> : null;
+      case "cycle":
+        return (user && userPrefs?.cycleTrackingEnabled) ? <CycleTracker /> : null;
       case "weight":
         return user ? (
           <WeightTracker
@@ -365,6 +368,7 @@ export default function Dashboard() {
                     { id: "nutrition",      label: "Nutrition",        Icon: SlidersHorizontal },
                     { id: "weight",         label: "Progress Tracker", Icon: Scale },
                     { id: "recipe-library", label: "Recipe Library",   Icon: BookMarked },
+                    // "cycle" is intentionally excluded — its visibility is controlled by the Metrics toggle
                   ];
 
                   const CONNECTIONS = [

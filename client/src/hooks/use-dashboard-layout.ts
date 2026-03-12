@@ -10,7 +10,8 @@ export type WidgetId =
   | "food-log"
   | "meal-plan"
   | "hydration"
-  | "weight";
+  | "weight"
+  | "cycle";
 
 // Widgets that span the wide (left) desktop column
 export const WIDE_WIDGETS = new Set<WidgetId>(["nutrition", "recipe-library"]);
@@ -19,12 +20,16 @@ export const WIDE_WIDGETS = new Set<WidgetId>(["nutrition", "recipe-library"]);
 // Desktop splits by WIDE_WIDGETS automatically
 export const DEFAULT_ORDER: WidgetId[] = [
   "food-log",
+  "cycle",
   "hydration",
   "meal-plan",
   "nutrition",
   "weight",
   "recipe-library",
 ];
+
+// All known widget IDs — used to merge new widgets into saved layouts
+const ALL_WIDGET_IDS: WidgetId[] = DEFAULT_ORDER;
 
 export function useDashboardLayout(isLoggedIn: boolean) {
   const queryClient = useQueryClient();
@@ -40,7 +45,18 @@ export function useDashboardLayout(isLoggedIn: boolean) {
   useEffect(() => {
     if (!prefs) return;
     const saved = prefs.dashboardLayout?.order;
-    if (saved?.length) setWidgetOrder(saved as WidgetId[]);
+    if (saved?.length) {
+      const base = saved as WidgetId[];
+      // Merge any new widget IDs that aren't in the saved layout
+      const merged = [...base];
+      for (const id of ALL_WIDGET_IDS) {
+        if (!merged.includes(id)) {
+          const anchor = merged.indexOf("food-log");
+          merged.splice(anchor >= 0 ? anchor + 1 : merged.length, 0, id);
+        }
+      }
+      setWidgetOrder(merged);
+    }
   }, [prefs]);
 
   // Desktop: derived left/right from flat order

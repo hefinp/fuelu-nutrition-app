@@ -55,6 +55,9 @@ export const userPreferencesSchema = z.object({
     order: z.array(z.string()),
   }).optional(),
   hiddenWidgets: z.array(z.string()).optional(),
+  cycleTrackingEnabled: z.boolean().optional(),
+  lastPeriodDate: z.string().optional(),
+  cycleLength: z.number().int().min(21).max(35).optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;

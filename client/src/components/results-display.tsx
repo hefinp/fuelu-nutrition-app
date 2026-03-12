@@ -1,9 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, Salad, ChefHat, Star, Pill } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, Salad, ChefHat, Star, Pill, Circle } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences } from "@shared/schema";
+import { getCyclePhase } from "@/lib/cycle";
 import type { Calculation } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -1882,6 +1883,11 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const { data: mealPlanPrefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
+  const cycleInfo = (mealPlanPrefs?.cycleTrackingEnabled && mealPlanPrefs?.lastPeriodDate)
+    ? getCyclePhase(mealPlanPrefs.lastPeriodDate, mealPlanPrefs.cycleLength ?? 28)
+    : null;
+
   const generateMealPlan = useMutation({
     mutationFn: async (planType: 'daily' | 'weekly') => {
       const res = await apiRequest('POST', '/api/meal-plans', {
@@ -1994,6 +2000,16 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
           );
         })()}
       </div>
+
+      {/* Cycle phase banner */}
+      {cycleInfo && (
+        <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border mb-4 ${cycleInfo.bgClass} ${cycleInfo.borderClass}`}>
+          <Circle className={`w-3.5 h-3.5 flex-shrink-0 ${cycleInfo.colorClass}`} />
+          <p className={`text-xs font-medium ${cycleInfo.textClass}`}>
+            {cycleInfo.name} phase · Day {cycleInfo.day} · {cycleInfo.shortTip} prioritised
+          </p>
+        </div>
+      )}
 
       {/* Generate buttons */}
       <div className="flex gap-3">

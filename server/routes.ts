@@ -264,6 +264,29 @@ function scaleMeal(meal: MealEntry, targetCalories: number): MealEntry {
   };
 }
 
+// Cycle phase keyword lists — meals matching these get a small score boost
+const CYCLE_PHASE_KEYWORDS: Record<string, string[]> = {
+  menstrual:  ['beef', 'lentil', 'spinach', 'kale', 'bean', 'legume', 'salmon', 'broccoli', 'edamame', 'lamb', 'pumpkin seed'],
+  follicular: ['egg', 'quinoa', 'yogurt', 'chicken', 'turkey', 'brown rice', 'oat', 'avocado', 'whole grain', 'kefir'],
+  ovulatory:  ['salmon', 'berry', 'blueberry', 'raspberry', 'avocado', 'spinach', 'broccoli', 'asparagus', 'walnut', 'strawberry'],
+  luteal:     ['turkey', 'sweet potato', 'banana', 'dark chocolate', 'cashew', 'almond', 'walnut', 'pumpkin', 'oat', 'chickpea'],
+};
+
+function computeCyclePhase(lastPeriodDate: string, cycleLength: number = 28): string | null {
+  const start = new Date(lastPeriodDate);
+  if (isNaN(start.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  start.setHours(0, 0, 0, 0);
+  const diffMs = today.getTime() - start.getTime();
+  if (diffMs < 0) return null;
+  const day = (Math.floor(diffMs / (1000 * 60 * 60 * 24)) % Math.max(cycleLength, 21)) + 1;
+  if (day <= 5) return 'menstrual';
+  if (day <= 13) return 'follicular';
+  if (day <= 16) return 'ovulatory';
+  return 'luteal';
+}
+
 // Score a meal's macro ratio distance from targets (lower is better)
 function macroScore(m: MealEntry, tProtein: number, tCarbs: number, tFat: number): number {
   const pPct = (m.protein * 4) / m.calories;
@@ -278,7 +301,10 @@ function pickBestMeal(
   tCarbs: number,
   tFat: number,
   preferences?: UserPreferences | null,
+  cyclePhase?: string | null,
 ): MealEntry {
+  const phaseKeywords = cyclePhase ? (CYCLE_PHASE_KEYWORDS[cyclePhase] ?? []) : [];
+
   const scored = pool.map(m => {
     let score = macroScore(m, tProtein, tCarbs, tFat);
 
@@ -290,6 +316,12 @@ function pickBestMeal(
       const mealLower = m.meal.toLowerCase();
       const hasPreferred = preferences.preferredFoods.some(kw => mealLower.includes(kw.toLowerCase()));
       if (hasPreferred) score -= 0.2;
+    }
+
+    if (phaseKeywords.length) {
+      const mealLower = m.meal.toLowerCase();
+      const isPhaseMatch = phaseKeywords.some(kw => mealLower.includes(kw));
+      if (isPhaseMatch) score -= 0.15;
     }
 
     return { meal: m, score };
@@ -309,6 +341,7 @@ function buildDayPlan(
   db: MealDb,
   lunchOverride?: MealEntry,
   preferences?: UserPreferences | null,
+  cyclePhase?: string | null,
 ) {
   const bfTarget     = Math.round(dailyCalories * 0.25);
   const lunchTarget  = Math.round(dailyCalories * 0.30);
@@ -320,9 +353,9 @@ function buildDayPlan(
   const tCarbs   = (carbsGoal   * 4) / totalMacroCals;
   const tFat     = (fatGoal     * 9) / totalMacroCals;
 
-  const breakfastBase = pickBestMeal(db.breakfast, tProtein, tCarbs, tFat, preferences);
-  const lunchBase     = lunchOverride ?? pickBestMeal(db.lunch, tProtein, tCarbs, tFat, preferences);
-  const dinnerBase    = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences);
+  const breakfastBase = pickBestMeal(db.breakfast, tProtein, tCarbs, tFat, preferences, cyclePhase);
+  const lunchBase     = lunchOverride ?? pickBestMeal(db.lunch, tProtein, tCarbs, tFat, preferences, cyclePhase);
+  const dinnerBase    = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences, cyclePhase);
 
   const breakfast = scaleMeal(breakfastBase, bfTarget);
   const lunch     = scaleMeal(lunchBase, lunchTarget);
@@ -337,7 +370,7 @@ function buildDayPlan(
     const snackTargetEach = Math.round(snackBudget / numSnacks);
 
     for (let i = 0; i < numSnacks; i++) {
-      const snackBase = pickBestMeal(db.snack, tProtein, tCarbs, tFat, preferences);
+      const snackBase = pickBestMeal(db.snack, tProtein, tCarbs, tFat, preferences, cyclePhase);
       snacksList.push(scaleMeal(snackBase, snackTargetEach));
       snackRemaining -= snackTargetEach;
     }
@@ -362,11 +395,11 @@ function buildDayPlan(
   };
 }
 
-function generateDayPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, db: MealDb, preferences?: UserPreferences | null) {
-  return buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences);
+function generateDayPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, db: MealDb, preferences?: UserPreferences | null, cyclePhase?: string | null) {
+  return buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences, cyclePhase);
 }
 
-function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, isWeekly: boolean, db: MealDb, preferences?: UserPreferences | null) {
+function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, isWeekly: boolean, db: MealDb, preferences?: UserPreferences | null, cyclePhase?: string | null) {
   const lunchTarget = Math.round(dailyCalories * 0.30);
 
   // Target macro ratios — used when scaling the lunch override
@@ -393,11 +426,11 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
 
       if (index === 0) {
         // Monday: pick one dinner base, use it for BOTH lunch (at lunchTarget) and dinner (at dinnerTarget)
-        const mondayDinnerBase = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences);
+        const mondayDinnerBase = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences, cyclePhase);
         const mondayLunch  = scaleMeal(mondayDinnerBase, lunchTarget);
         const mondayDinner = scaleMeal(mondayDinnerBase, dinnerTarget);
 
-        const dayPlanBase = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, mondayLunch, preferences);
+        const dayPlanBase = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, mondayLunch, preferences, cyclePhase);
         const allMeals = [dayPlanBase.breakfast[0], mondayLunch, mondayDinner, ...dayPlanBase.snacks];
         dayPlan = {
           breakfast:       dayPlanBase.breakfast,
@@ -413,7 +446,7 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
       } else {
         // Tue–Sun: scale the raw dinner base from the previous day to lunchTarget
         const lunchOverride = scaleMeal(previousDinnerBase!, lunchTarget);
-        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, lunchOverride, preferences);
+        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, lunchOverride, preferences, cyclePhase);
         // Store raw (unscaled) dinner base for the next day
         const dinnerBase = db.dinner.find(m => m.meal === dayPlan.dinner[0].meal) ?? dayPlan.dinner[0];
         previousDinnerBase = dinnerBase;
@@ -435,7 +468,7 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
       weekTotalFat,
     };
   } else {
-    const dayPlan = generateDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, preferences);
+    const dayPlan = generateDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, preferences, cyclePhase);
     return {
       planType: 'daily' as const,
       ...dayPlan,
@@ -805,7 +838,11 @@ export async function registerRoutes(
         }
       }
 
-      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly', baseDb, prefs);
+      const cyclePhase = (prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate)
+        ? computeCyclePhase(prefs.lastPeriodDate, prefs.cycleLength ?? 28)
+        : null;
+
+      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly', baseDb, prefs, cyclePhase);
 
       res.status(201).json(mealPlan);
     } catch (err) {
@@ -877,7 +914,10 @@ export async function registerRoutes(
       const tCarbs = (input.carbsGoal * 4) / totalMacroCals;
       const tFat = (input.fatGoal * 9) / totalMacroCals;
 
-      const picked = pickBestMeal(candidates, tProtein, tCarbs, tFat, prefs);
+      const replCyclePhase = (prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate)
+        ? computeCyclePhase(prefs.lastPeriodDate, prefs.cycleLength ?? 28)
+        : null;
+      const picked = pickBestMeal(candidates, tProtein, tCarbs, tFat, prefs, replCyclePhase);
 
       const slotCalMap: Record<string, number> = {
         breakfast: 0.25,
