@@ -6,7 +6,7 @@ function esc(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-const FROM_ADDRESS = "NutriSync <noreply@nutrisync.app>";
+const FROM_ADDRESS = "NutriSync <onboarding@resend.dev>";
 
 export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }): Promise<void> {
   if (!resend) {
