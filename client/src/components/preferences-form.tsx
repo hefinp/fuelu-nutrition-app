@@ -3,17 +3,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type UserPreferences } from "@shared/schema";
-import { Check, Loader2, X, Sparkles, ThumbsDown } from "lucide-react";
+import { Check, Loader2, X, Sparkles, ThumbsDown, Leaf, Sprout, Fish, Moon, Star } from "lucide-react";
 
 type Diet = NonNullable<UserPreferences["diet"]>;
 type Allergy = NonNullable<UserPreferences["allergies"]>[number];
 
-const DIET_OPTIONS: { value: Diet; label: string; emoji: string }[] = [
-  { value: "vegetarian", label: "Vegetarian", emoji: "🥦" },
-  { value: "vegan",      label: "Vegan",       emoji: "🌱" },
-  { value: "pescatarian",label: "Pescatarian", emoji: "🐟" },
-  { value: "halal",      label: "Halal",       emoji: "☪️" },
-  { value: "kosher",     label: "Kosher",      emoji: "✡️" },
+const DIET_OPTIONS = [
+  { value: "vegetarian" as Diet, label: "Vegetarian", icon: Leaf },
+  { value: "vegan"      as Diet, label: "Vegan",       icon: Sprout },
+  { value: "pescatarian"as Diet, label: "Pescatarian", icon: Fish },
+  { value: "halal"      as Diet, label: "Halal",       icon: Moon },
+  { value: "kosher"     as Diet, label: "Kosher",      icon: Star },
 ];
 
 const ALLERGY_OPTIONS: { value: Allergy; label: string }[] = [
@@ -200,7 +200,7 @@ export function PreferencesForm() {
                   : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400"
               }`}
             >
-              <span>{opt.emoji}</span>
+              <opt.icon className="w-3.5 h-3.5 flex-shrink-0" />
               {opt.label}
             </button>
           ))}

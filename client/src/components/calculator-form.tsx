@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Activity, Ruler, Scale, User, Target, ChevronDown } from "lucide-react";
+import { Activity, Ruler, Scale, User, Target, ChevronDown, Flame, Zap, Dumbbell, TrendingUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCreateCalculation } from "@/hooks/use-calculations";
 import { useToast } from "@/hooks/use-toast";
@@ -235,17 +235,17 @@ export function CalculatorForm({
               <label className="text-sm font-medium text-zinc-700">Body Goal</label>
               <div className="space-y-2">
                 {[
-                  { id: "fat_loss", label: "Fat Loss", desc: "−500 kcal/day", icon: "🔥" },
-                  { id: "tone", label: "Tone & Define", desc: "−250 kcal/day", icon: "⚡" },
-                  { id: "maintain", label: "Maintain", desc: "Stay at current weight", icon: "⚖️" },
-                  { id: "muscle", label: "Build Muscle", desc: "+300 kcal/day", icon: "💪" },
-                  { id: "bulk", label: "Bulk Up", desc: "+600 kcal/day", icon: "🏋️" },
+                  { id: "fat_loss", label: "Fat Loss", desc: "−500 kcal/day", icon: Flame },
+                  { id: "tone", label: "Tone & Define", desc: "−250 kcal/day", icon: Zap },
+                  { id: "maintain", label: "Maintain", desc: "Stay at current weight", icon: Scale },
+                  { id: "muscle", label: "Build Muscle", desc: "+300 kcal/day", icon: Dumbbell },
+                  { id: "bulk", label: "Bulk Up", desc: "+600 kcal/day", icon: TrendingUp },
                 ].map((g) => (
                   <label key={g.id} className={`cursor-pointer flex items-center gap-3 px-3 py-2.5 rounded-xl border text-sm transition-all ${
                     watched.goal === g.id ? "bg-zinc-900 text-white border-zinc-900" : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
                   }`}>
                     <input type="radio" value={g.id} {...form.register("goal")} className="hidden" />
-                    <span className="text-base">{g.icon}</span>
+                    <g.icon className="w-4 h-4 flex-shrink-0" />
                     <div>
                       <span className={`font-semibold block text-xs ${watched.goal === g.id ? "text-white" : "text-zinc-900"}`}>{g.label}</span>
                       <span className={`text-xs ${watched.goal === g.id ? "text-zinc-300" : "text-zinc-400"}`}>{g.desc}</span>
@@ -359,17 +359,17 @@ export function CalculatorForm({
           <label className="text-sm font-medium text-zinc-700">Body Goal</label>
           <div className="grid grid-cols-1 gap-2">
             {[
-              { id: "fat_loss", label: "Fat Loss", desc: "Lose body fat, preserve muscle · −500 kcal/day", icon: "🔥" },
-              { id: "tone", label: "Tone & Define", desc: "Lean out and improve definition · −250 kcal/day", icon: "⚡" },
-              { id: "maintain", label: "Maintain & Balance", desc: "Stay at current weight, optimise health", icon: "⚖️" },
-              { id: "muscle", label: "Build Muscle", desc: "Lean muscle gain with minimal fat · +300 kcal/day", icon: "💪" },
-              { id: "bulk", label: "Bulk Up", desc: "Maximum muscle growth, faster gains · +600 kcal/day", icon: "🏋️" },
+              { id: "fat_loss", label: "Fat Loss", desc: "Lose body fat, preserve muscle · −500 kcal/day", icon: Flame },
+              { id: "tone", label: "Tone & Define", desc: "Lean out and improve definition · −250 kcal/day", icon: Zap },
+              { id: "maintain", label: "Maintain & Balance", desc: "Stay at current weight, optimise health", icon: Scale },
+              { id: "muscle", label: "Build Muscle", desc: "Lean muscle gain with minimal fat · +300 kcal/day", icon: Dumbbell },
+              { id: "bulk", label: "Bulk Up", desc: "Maximum muscle growth, faster gains · +600 kcal/day", icon: TrendingUp },
             ].map((g) => (
               <label key={g.id} className={`cursor-pointer flex items-center gap-4 px-4 py-3 rounded-xl border transition-all duration-200 ${
                 watched.goal === g.id ? "bg-zinc-900 text-white border-zinc-900 shadow-md" : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
               }`}>
                 <input type="radio" value={g.id} {...form.register("goal")} className="hidden" />
-                <span className="text-xl">{g.icon}</span>
+                <g.icon className="w-5 h-5 flex-shrink-0" />
                 <div className="text-left">
                   <span className={`font-semibold text-sm block ${watched.goal === g.id ? "text-white" : "text-zinc-900"}`}>{g.label}</span>
                   <span className={`text-xs ${watched.goal === g.id ? "text-zinc-300" : "text-zinc-400"}`}>{g.desc}</span>
