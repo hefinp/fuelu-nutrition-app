@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { SavedMealPlan } from "@shared/schema";
 import { Calendar, Trash2, Pencil, Check, X, UtensilsCrossed, ChefHat, Loader2, ChevronDown, ChevronUp, Download, ShoppingCart, ThumbsDown, ClipboardList, Mail } from "lucide-react";
-import { RECIPES, exportMealPlanToPDF, exportShoppingListToPDF, type Meal } from "./results-display";
+import { RECIPES, exportMealPlanToPDF, exportShoppingListToPDF, buildShoppingList, CATEGORY_ORDER, type Meal } from "./results-display";
 import type { Calculation } from "@shared/schema";
 
 function buildCalcStub(plan: SavedMealPlan): Calculation {
@@ -33,6 +33,8 @@ export function SavedMealPlans() {
   const [shoppingDialogId, setShoppingDialogId] = useState<number | null>(null);
   const [shoppingDays, setShoppingDays] = useState("7");
   const [emailingId, setEmailingId] = useState<number | null>(null);
+  const [emailDaysDialogId, setEmailDaysDialogId] = useState<number | null>(null);
+  const [emailDays, setEmailDays] = useState("7");
 
   const { data: plans = [], isLoading, isError } = useQuery<SavedMealPlan[]>({
     queryKey: ["/api/saved-meal-plans"],
@@ -66,9 +68,9 @@ export function SavedMealPlans() {
   });
 
   const emailMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async ({ id, shoppingList }: { id: number; shoppingList?: Record<string, Array<{ item: string; quantity: string }>> }) => {
       setEmailingId(id);
-      const res = await apiRequest("POST", `/api/saved-meal-plans/${id}/email`, {});
+      const res = await apiRequest("POST", `/api/saved-meal-plans/${id}/email`, { shoppingList });
       if (!res.ok) {
         const body = await res.json();
         throw new Error(body.message || "Failed to send email");
@@ -77,6 +79,7 @@ export function SavedMealPlans() {
     onSuccess: () => {
       toast({ title: "Plan emailed!", description: "Check your inbox for the meal plan." });
       setEmailingId(null);
+      setEmailDaysDialogId(null);
     },
     onError: (err: any) => {
       toast({ title: err.message || "Failed to send email", variant: "destructive" });
@@ -285,7 +288,15 @@ export function SavedMealPlans() {
                           Export PDF
                         </button>
                         <button
-                          onClick={() => emailMutation.mutate(plan.id)}
+                          onClick={() => {
+                            if (plan.planType === 'daily') {
+                              setEmailDaysDialogId(plan.id);
+                              setEmailDays("7");
+                            } else {
+                              const shoppingList = buildShoppingList(planData);
+                              emailMutation.mutate({ id: plan.id, shoppingList });
+                            }
+                          }}
                           disabled={emailingId === plan.id}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-medium text-xs transition-colors border border-blue-200 disabled:opacity-50"
                           data-testid={`button-saved-email-${plan.id}`}
@@ -321,6 +332,41 @@ export function SavedMealPlans() {
                           <button
                             onClick={() => setShoppingDialogId(null)}
                             className="p-1 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+
+                      {emailDaysDialogId === plan.id && (
+                        <div className="flex items-center gap-2 mb-4 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                          <span className="text-xs text-blue-700 font-medium">Scale shopping list for</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={30}
+                            value={emailDays}
+                            onChange={e => setEmailDays(e.target.value)}
+                            className="w-16 px-2 py-1 text-xs border border-blue-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            data-testid={`input-email-days-${plan.id}`}
+                          />
+                          <span className="text-xs text-blue-700 font-medium">days</span>
+                          <button
+                            onClick={() => {
+                              const d = Math.max(1, parseInt(emailDays) || 1);
+                              const shoppingList = buildShoppingList(planData, d);
+                              emailMutation.mutate({ id: plan.id, shoppingList });
+                            }}
+                            disabled={emailingId === plan.id}
+                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                            data-testid={`button-email-confirm-${plan.id}`}
+                          >
+                            {emailingId === plan.id && <Loader2 className="w-3 h-3 animate-spin" />}
+                            Send
+                          </button>
+                          <button
+                            onClick={() => setEmailDaysDialogId(null)}
+                            className="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>

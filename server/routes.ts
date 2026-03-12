@@ -1069,7 +1069,8 @@ export async function registerRoutes(
     if (!plan) return res.status(404).json({ message: "Plan not found" });
     const user = await storage.getUserById(req.session.userId);
     if (!user) return res.status(401).json({ message: "User not found" });
-    const html = buildMealPlanEmailHtml(plan.name, user.name, plan.planData as any, plan.planType);
+    const shoppingList = req.body?.shoppingList as Record<string, Array<{ item: string; quantity: string }>> | undefined;
+    const html = buildMealPlanEmailHtml(plan.name, user.name, plan.planData as any, plan.planType, shoppingList);
     await sendEmail({ to: user.email, subject: `Your NutriSync plan: ${plan.name}`, html });
     res.json({ message: "Plan sent to your email." });
   });

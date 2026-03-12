@@ -368,7 +368,7 @@ function scaleQuantity(quantity: string, multiplier: number): string {
   return `${scaled}${parsed.unit ? ' ' + parsed.unit : ''}`.trim();
 }
 
-function buildShoppingList(mealPlan: any, multiplier = 1): Record<string, Array<{ item: string; quantity: string }>> {
+export function buildShoppingList(mealPlan: any, multiplier = 1): Record<string, Array<{ item: string; quantity: string }>> {
   const mealNames: string[] = [];
   const slots = ['breakfast', 'lunch', 'dinner', 'snacks'] as const;
 
@@ -417,7 +417,7 @@ function buildShoppingList(mealPlan: any, multiplier = 1): Record<string, Array<
   return grouped;
 }
 
-const CATEGORY_ORDER = ["Protein", "Produce", "Grains & Carbs", "Dairy", "Pantry & Spices", "Other"];
+export const CATEGORY_ORDER = ["Protein", "Produce", "Grains & Carbs", "Dairy", "Pantry & Spices", "Other"];
 
 export function exportShoppingListToPDF(mealPlan: any, data: Calculation, days = 1) {
   const doc = new jsPDF();
