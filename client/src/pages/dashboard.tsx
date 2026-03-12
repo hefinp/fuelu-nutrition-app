@@ -377,8 +377,8 @@ export default function Dashboard() {
                 <ResultsDisplay data={activeResult!} onLogMeal={handleLogMeal} />
               </div>
 
-              {/* Right sidebar: food log first, then weight tracker */}
-              <div className="xl:col-span-5 order-1 xl:order-2 space-y-6">
+              {/* Food log — order-1 on mobile (top), right column on desktop */}
+              <div className="xl:col-span-5 xl:col-start-8 order-1 xl:order-2">
                 {user ? (
                   <FoodLog
                     dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
@@ -389,7 +389,10 @@ export default function Dashboard() {
                     onPrefillConsumed={handlePrefillConsumed}
                   />
                 ) : null}
+              </div>
 
+              {/* Weight tracker — order-3 on mobile (bottom), right column on desktop */}
+              <div className="xl:col-span-5 xl:col-start-8 order-3 xl:order-3">
                 {user ? (
                   <WeightTracker
                     targetWeight={
