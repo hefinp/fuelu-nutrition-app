@@ -73,6 +73,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
   const [scheduleWeekStart, setScheduleWeekStart] = useState(getMondayOf(toDateStr(new Date())));
   const [mismatchInfo, setMismatchInfo] = useState<{ planId: number; storedPhase: string; targetPhase: string } | null>(null);
   const [filterPhase, setFilterPhase] = useState<string | null>(null);
+  const [duplicateInfo, setDuplicateInfo] = useState<{ planId: number; count: number } | null>(null);
 
   const { data: plans = [], isLoading, isError } = useQuery<SavedMealPlan[]>({
     queryKey: ["/api/saved-meal-plans"],
@@ -129,8 +130,8 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
   });
 
   const scheduleMutation = useMutation({
-    mutationFn: async ({ planId, targetDate, weekStartDate, force }: { planId: number; targetDate?: string; weekStartDate?: string; force?: boolean }) => {
-      const res = await apiRequest("POST", `/api/saved-meal-plans/${planId}/schedule`, { targetDate, weekStartDate, force });
+    mutationFn: async ({ planId, targetDate, weekStartDate, force, allowDuplicate }: { planId: number; targetDate?: string; weekStartDate?: string; force?: boolean; allowDuplicate?: boolean }) => {
+      const res = await apiRequest("POST", `/api/saved-meal-plans/${planId}/schedule`, { targetDate, weekStartDate, force, allowDuplicate });
       if (!res.ok) {
         const body = await res.json();
         throw new Error(body.message || "Failed to schedule plan");
@@ -142,10 +143,19 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
         setMismatchInfo({ planId: variables.planId, storedPhase: data.storedPhase, targetPhase: data.targetPhase });
         return;
       }
+      if (data.duplicate) {
+        setDuplicateInfo({ planId: variables.planId, count: data.duplicateCount });
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
-      toast({ title: "Meals scheduled!", description: `${data.entryCount} meals added to your food log.` });
+      const plan = plans.find(p => p.id === variables.planId);
+      const dateRange = plan?.planType === 'weekly' && variables.weekStartDate
+        ? `${formatShortDate(variables.weekStartDate)} – ${formatShortDate(addDaysLocal(variables.weekStartDate, 6))}`
+        : variables.targetDate ? formatShortDate(variables.targetDate) : 'today';
+      toast({ title: "Meals scheduled!", description: `${data.entryCount} meals added to your food log for ${dateRange}.` });
       setSchedulingPlanId(null);
       setMismatchInfo(null);
+      setDuplicateInfo(null);
     },
     onError: (err: any) => {
       toast({ title: err.message || "Failed to schedule plan", variant: "destructive" });
@@ -184,6 +194,48 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
     setFilterPhase(mismatchInfo.targetPhase);
     setMismatchInfo(null);
     setSchedulingPlanId(null);
+  }
+
+  function confirmDuplicate() {
+    if (!duplicateInfo) return;
+    const plan = plans.find(p => p.id === duplicateInfo.planId);
+    if (!plan) return;
+    if (plan.planType === 'weekly') {
+      scheduleMutation.mutate({ planId: plan.id, weekStartDate: scheduleWeekStart, force: true, allowDuplicate: true });
+    } else {
+      scheduleMutation.mutate({ planId: plan.id, targetDate: scheduleDate, force: true, allowDuplicate: true });
+    }
+  }
+
+  const generateOptimisedMutation = useMutation({
+    mutationFn: async ({ planId, targetDate, weekStartDate }: { planId: number; targetDate?: string; weekStartDate?: string }) => {
+      const res = await apiRequest("POST", `/api/saved-meal-plans/${planId}/generate-optimised`, { targetDate, weekStartDate });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || "Failed to generate plan");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
+      toast({ title: "Optimised plan generated!", description: `${data.entryCount} meals scheduled into your food log.` });
+      setMismatchInfo(null);
+      setSchedulingPlanId(null);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "Failed to generate plan", variant: "destructive" });
+    },
+  });
+
+  function generateOptimised() {
+    if (!mismatchInfo) return;
+    const plan = plans.find(p => p.id === mismatchInfo.planId);
+    if (!plan) return;
+    if (plan.planType === 'weekly') {
+      generateOptimisedMutation.mutate({ planId: plan.id, weekStartDate: scheduleWeekStart });
+    } else {
+      generateOptimisedMutation.mutate({ planId: plan.id, targetDate: scheduleDate });
+    }
   }
 
   function startEdit(plan: SavedMealPlan) {
@@ -604,6 +656,15 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                 Find a matching saved plan
               </button>
               <button
+                onClick={generateOptimised}
+                disabled={generateOptimisedMutation.isPending}
+                className="flex items-center justify-center gap-2 w-full px-4 py-2.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-sm transition-colors disabled:opacity-50"
+                data-testid="button-mismatch-generate-optimised"
+              >
+                {generateOptimisedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Generate an optimised plan
+              </button>
+              <button
                 onClick={scheduleAnyway}
                 disabled={scheduleMutation.isPending}
                 className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-zinc-900 text-white hover:bg-zinc-800 rounded-xl font-medium text-sm transition-colors disabled:opacity-50"
@@ -618,6 +679,46 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                 data-testid="button-mismatch-cancel"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {duplicateInfo && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setDuplicateInfo(null)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-amber-50 rounded-full">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900">Already Scheduled</h3>
+            </div>
+            <p className="text-sm text-zinc-600 mb-5">
+              You already have {duplicateInfo.count} meal{duplicateInfo.count > 1 ? 's' : ''} from this plan scheduled for this date. Schedule again?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDuplicateInfo(null)}
+                className="flex-1 px-4 py-2 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-sm transition-colors"
+                data-testid="button-duplicate-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDuplicate}
+                disabled={scheduleMutation.isPending}
+                className="flex-1 px-4 py-2 bg-zinc-900 text-white hover:bg-zinc-800 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                data-testid="button-duplicate-confirm"
+              >
+                {scheduleMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Schedule anyway
               </button>
             </div>
           </div>
