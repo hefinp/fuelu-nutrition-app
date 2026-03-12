@@ -185,7 +185,7 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
   return (
     <div className="w-full bg-zinc-100 rounded-full h-1.5 overflow-hidden">
       <div
-        className={`h-full rounded-full transition-all ${over ? "bg-red-400" : color}`}
+        className={`h-full rounded-full transition-all ${over ? "bg-red-600" : color}`}
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -206,17 +206,20 @@ function MacroGrid({
         { label: "Protein", value: prot, target: protTarget, color: "bg-red-400", unit: "g" },
         { label: "Carbs", value: carbs, target: carbsTarget, color: "bg-blue-400", unit: "g" },
         { label: "Fat", value: fat, target: fatTarget, color: "bg-yellow-400", unit: "g" },
-      ].map(({ label, value, target, color, unit }) => (
-        <div key={label} className="bg-zinc-50 rounded-xl p-3">
-          <div className="flex items-baseline justify-between mb-1.5">
-            <span className="text-xs text-zinc-500 font-medium">{label}</span>
-            <span className="text-xs font-bold text-zinc-900">
-              {value}<span className="font-normal text-zinc-400">/{target ?? "–"}{unit}</span>
-            </span>
+      ].map(({ label, value, target, color, unit }) => {
+        const exceeded = target != null && target > 0 && value > target;
+        return (
+          <div key={label} className="bg-zinc-50 rounded-xl p-3">
+            <div className="flex items-baseline justify-between mb-1.5">
+              <span className="text-xs text-zinc-500 font-medium">{label}</span>
+              <span className={`text-xs font-bold ${exceeded ? "text-red-600" : "text-zinc-900"}`}>
+                {value}<span className="font-normal text-zinc-400">/{target ?? "–"}{unit}</span>
+              </span>
+            </div>
+            <ProgressBar value={value} max={target ?? 0} color={color} />
           </div>
-          <ProgressBar value={value} max={target ?? 0} color={color} />
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
