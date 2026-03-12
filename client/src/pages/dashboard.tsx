@@ -259,7 +259,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-zinc-900">Saved Plans</h2>
-                    <p className="text-xs text-zinc-500">Plans are saved automatically each time you generate one</p>
+                    <p className="text-xs text-zinc-500">Save your favorite meal plans after reviewing them</p>
                   </div>
                 </div>
                 <SavedMealPlans />
