@@ -403,6 +403,7 @@ export default function Dashboard() {
                           ) : 0)
                         : undefined
                     }
+                    dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
                   />
                 ) : (
                   <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 flex flex-col items-center text-center justify-center">
