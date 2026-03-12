@@ -1912,8 +1912,13 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
   const { toast } = useToast();
 
   const { data: mealPlanPrefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
-  const cycleInfo = (mealPlanPrefs?.cycleTrackingEnabled && mealPlanPrefs?.lastPeriodDate && data.gender === "female")
-    ? getCyclePhase(mealPlanPrefs.lastPeriodDate, mealPlanPrefs.cycleLength ?? 28)
+  const hasCycleData = !!(mealPlanPrefs?.cycleTrackingEnabled && mealPlanPrefs?.lastPeriodDate && data.gender === "female");
+  const dailyRef = selectedDates[0] || toDateStr(new Date());
+  const cycleInfo = hasCycleData
+    ? getCyclePhase(mealPlanPrefs!.lastPeriodDate!, mealPlanPrefs!.cycleLength ?? 28, dailyRef)
+    : null;
+  const weekCycleInfo = hasCycleData
+    ? getCyclePhase(mealPlanPrefs!.lastPeriodDate!, mealPlanPrefs!.cycleLength ?? 28, weekStart)
     : null;
 
   const generateMealPlan = useMutation({
@@ -1942,10 +1947,10 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
       if (!mealPlan) throw new Error("No plan to save");
       const planTypeLabel = mealPlan.planType === 'weekly' ? 'Weekly' : 'Daily';
       const dateLabel = mealPlan.planType === 'weekly'
-        ? ` (${formatShort(weekStart)})`
+        ? ` (${formatShort(weekStart)} – ${formatShort(addDays(weekStart, 6))})`
         : selectedDates.length === 1
           ? ` (${formatShort(selectedDates[0])})`
-          : ` (${selectedDates.length} days)`;
+          : ` (${formatShort(selectedDates[0])} +${selectedDates.length - 1})`;
       const res = await apiRequest('POST', '/api/saved-meal-plans', {
         planData: mealPlan,
         planType: mealPlan.planType === 'multi-daily' ? 'daily' : mealPlan.planType,
@@ -2037,12 +2042,20 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
         })()}
       </div>
 
-      {/* Cycle phase banner */}
+      {/* Cycle phase banner — daily */}
       {cycleInfo && (
         <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border mb-4 ${cycleInfo.bgClass} ${cycleInfo.borderClass}`}>
           <Circle className={`w-3.5 h-3.5 flex-shrink-0 ${cycleInfo.colorClass}`} />
           <p className={`text-xs font-medium ${cycleInfo.textClass}`}>
-            {cycleInfo.name} phase · Day {cycleInfo.day} · {cycleInfo.shortTip} prioritised
+            Daily: {cycleInfo.name} phase · Day {cycleInfo.day} · {cycleInfo.shortTip}
+          </p>
+        </div>
+      )}
+      {weekCycleInfo && weekCycleInfo.phase !== cycleInfo?.phase && (
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border mb-4 ${weekCycleInfo.bgClass} ${weekCycleInfo.borderClass}`}>
+          <Circle className={`w-3 h-3 flex-shrink-0 ${weekCycleInfo.colorClass}`} />
+          <p className={`text-xs ${weekCycleInfo.textClass}`}>
+            Weekly: {weekCycleInfo.name} phase from {formatShort(weekStart)} · {weekCycleInfo.shortTip}
           </p>
         </div>
       )}
@@ -2134,9 +2147,25 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
       {mealPlan && (
         <div className="mt-6 pt-6 border-t border-zinc-100">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-display font-bold text-zinc-900 capitalize">
-              {mealPlan.planType === 'multi-daily' ? 'Multi-Day' : mealPlan.planType} Meal Plan
-            </h3>
+            <div>
+              <h3 className="text-lg font-display font-bold text-zinc-900 capitalize">
+                {mealPlan.planType === 'multi-daily' ? 'Multi-Day' : mealPlan.planType} Meal Plan
+              </h3>
+              {mealPlan.planType === 'weekly' && (mealPlan as any).weekStartDate && (
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  <CalendarDays className="w-3 h-3 inline mr-1" />
+                  {formatShort((mealPlan as any).weekStartDate)} – {formatShort(addDays((mealPlan as any).weekStartDate, 6))}
+                </p>
+              )}
+              {(mealPlan.planType === 'daily' || mealPlan.planType === 'multi-daily') && selectedDates.length > 0 && (
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  <CalendarDays className="w-3 h-3 inline mr-1" />
+                  {selectedDates.length === 1
+                    ? formatShort(selectedDates[0])
+                    : `${formatShort(selectedDates[0])} + ${selectedDates.length - 1} more`}
+                </p>
+              )}
+            </div>
             <button
               onClick={() => savePlanMutation.mutate()}
               disabled={savePlanMutation.isPending || planSaved}

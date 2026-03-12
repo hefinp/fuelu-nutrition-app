@@ -51,17 +51,18 @@ const PHASE_DATA: Record<CyclePhase, Omit<CycleInfo, "phase" | "day">> = {
   },
 };
 
-export function getCyclePhase(lastPeriodDate: string, cycleLength: number = 28): CycleInfo | null {
+export function getCyclePhase(lastPeriodDate: string, cycleLength: number = 28, referenceDate?: string): CycleInfo | null {
   if (!lastPeriodDate) return null;
 
   const start = new Date(lastPeriodDate);
   if (isNaN(start.getTime())) return null;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const ref = referenceDate ? new Date(referenceDate) : new Date();
+  if (isNaN(ref.getTime())) return null;
+  ref.setHours(0, 0, 0, 0);
   start.setHours(0, 0, 0, 0);
 
-  const diffMs = today.getTime() - start.getTime();
+  const diffMs = ref.getTime() - start.getTime();
   if (diffMs < 0) return null;
 
   const daysSincePeriod = Math.floor(diffMs / (1000 * 60 * 60 * 24));
