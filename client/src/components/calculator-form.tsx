@@ -155,6 +155,12 @@ export function CalculatorForm({
 
   const watched = form.watch();
 
+  useEffect(() => {
+    if (watched.gender !== "female" && cycleTrackingEnabled) {
+      updatePrefsMutation.mutate({ cycleTrackingEnabled: false });
+    }
+  }, [watched.gender]);
+
   if (compact) {
     const metricsSummary = [
       watched.weight && `${watched.weight} kg`,

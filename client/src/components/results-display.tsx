@@ -1884,7 +1884,7 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
   const { toast } = useToast();
 
   const { data: mealPlanPrefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
-  const cycleInfo = (mealPlanPrefs?.cycleTrackingEnabled && mealPlanPrefs?.lastPeriodDate)
+  const cycleInfo = (mealPlanPrefs?.cycleTrackingEnabled && mealPlanPrefs?.lastPeriodDate && data.gender === "female")
     ? getCyclePhase(mealPlanPrefs.lastPeriodDate, mealPlanPrefs.cycleLength ?? 28)
     : null;
 

@@ -207,7 +207,7 @@ export default function Dashboard() {
       case "hydration":
         return user ? <HydrationTracker /> : null;
       case "cycle":
-        return (user && userPrefs?.cycleTrackingEnabled) ? <CycleTracker /> : null;
+        return (user && userPrefs?.cycleTrackingEnabled && lastCalculation?.gender === "female") ? <CycleTracker /> : null;
       case "weight":
         return user ? (
           <WeightTracker
