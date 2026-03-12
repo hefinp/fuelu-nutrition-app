@@ -4,10 +4,34 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { SavedMealPlan, UserPreferences } from "@shared/schema";
-import { Calendar, Trash2, Pencil, Check, X, UtensilsCrossed, ChefHat, Loader2, ChevronDown, ChevronUp, Download, ShoppingCart, ThumbsDown, ClipboardList, Mail, Circle } from "lucide-react";
+import { Calendar, Trash2, Pencil, Check, X, UtensilsCrossed, ChefHat, Loader2, ChevronDown, ChevronUp, Download, ShoppingCart, ThumbsDown, ClipboardList, Mail, Circle, CalendarPlus, ChevronLeft, ChevronRight, AlertTriangle, Sparkles, Search } from "lucide-react";
 import { RECIPES, exportMealPlanToPDF, exportShoppingListToPDF, buildShoppingList, CATEGORY_ORDER, type Meal } from "./results-display";
 import type { Calculation } from "@shared/schema";
 import type { PrefillEntry } from "./food-log";
+
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function addDaysLocal(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return toDateStr(dt);
+}
+
+function getMondayOf(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const dow = dt.getDay();
+  dt.setDate(dt.getDate() - ((dow + 6) % 7));
+  return toDateStr(dt);
+}
+
+function formatShortDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
 
 const PHASE_STYLES: Record<string, { bg: string; text: string; border: string; label: string }> = {
   menstrual: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200", label: "Menstrual" },
@@ -43,6 +67,12 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
   const [emailingId, setEmailingId] = useState<number | null>(null);
   const [emailDaysDialogId, setEmailDaysDialogId] = useState<number | null>(null);
   const [emailDays, setEmailDays] = useState("7");
+
+  const [schedulingPlanId, setSchedulingPlanId] = useState<number | null>(null);
+  const [scheduleDate, setScheduleDate] = useState(toDateStr(new Date()));
+  const [scheduleWeekStart, setScheduleWeekStart] = useState(getMondayOf(toDateStr(new Date())));
+  const [mismatchInfo, setMismatchInfo] = useState<{ planId: number; storedPhase: string; targetPhase: string } | null>(null);
+  const [filterPhase, setFilterPhase] = useState<string | null>(null);
 
   const { data: plans = [], isLoading, isError } = useQuery<SavedMealPlan[]>({
     queryKey: ["/api/saved-meal-plans"],
@@ -97,6 +127,64 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
       setEmailingId(null);
     },
   });
+
+  const scheduleMutation = useMutation({
+    mutationFn: async ({ planId, targetDate, weekStartDate, force }: { planId: number; targetDate?: string; weekStartDate?: string; force?: boolean }) => {
+      const res = await apiRequest("POST", `/api/saved-meal-plans/${planId}/schedule`, { targetDate, weekStartDate, force });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || "Failed to schedule plan");
+      }
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      if (data.mismatch) {
+        setMismatchInfo({ planId: variables.planId, storedPhase: data.storedPhase, targetPhase: data.targetPhase });
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
+      toast({ title: "Meals scheduled!", description: `${data.entryCount} meals added to your food log.` });
+      setSchedulingPlanId(null);
+      setMismatchInfo(null);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "Failed to schedule plan", variant: "destructive" });
+    },
+  });
+
+  function openSchedulePicker(plan: SavedMealPlan) {
+    setSchedulingPlanId(plan.id);
+    setScheduleDate(toDateStr(new Date()));
+    setScheduleWeekStart(getMondayOf(toDateStr(new Date())));
+    setMismatchInfo(null);
+    setFilterPhase(null);
+  }
+
+  function confirmSchedule(plan: SavedMealPlan) {
+    if (plan.planType === 'weekly') {
+      scheduleMutation.mutate({ planId: plan.id, weekStartDate: scheduleWeekStart });
+    } else {
+      scheduleMutation.mutate({ planId: plan.id, targetDate: scheduleDate });
+    }
+  }
+
+  function scheduleAnyway() {
+    if (!mismatchInfo) return;
+    const plan = plans.find(p => p.id === mismatchInfo.planId);
+    if (!plan) return;
+    if (plan.planType === 'weekly') {
+      scheduleMutation.mutate({ planId: plan.id, weekStartDate: scheduleWeekStart, force: true });
+    } else {
+      scheduleMutation.mutate({ planId: plan.id, targetDate: scheduleDate, force: true });
+    }
+  }
+
+  function showMatchingPlans() {
+    if (!mismatchInfo) return;
+    setFilterPhase(mismatchInfo.targetPhase);
+    setMismatchInfo(null);
+    setSchedulingPlanId(null);
+  }
 
   function startEdit(plan: SavedMealPlan) {
     setEditingId(plan.id);
@@ -270,18 +358,82 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                   <p className="text-xs text-zinc-400">
                     {new Date(plan.createdAt!).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                   </p>
-                  <button
-                    onClick={() => setExpandedId(isExpanded ? null : plan.id)}
-                    className="flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
-                    data-testid={`button-toggle-plan-${plan.id}`}
-                  >
-                    {isExpanded ? (
-                      <><ChevronUp className="w-3.5 h-3.5" /> Hide Plan</>
-                    ) : (
-                      <><ChevronDown className="w-3.5 h-3.5" /> View Plan</>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => schedulingPlanId === plan.id ? setSchedulingPlanId(null) : openSchedulePicker(plan)}
+                      className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg transition-colors ${schedulingPlanId === plan.id ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100'}`}
+                      data-testid={`button-schedule-plan-${plan.id}`}
+                    >
+                      <CalendarPlus className="w-3.5 h-3.5" />
+                      Schedule
+                    </button>
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : plan.id)}
+                      className="flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
+                      data-testid={`button-toggle-plan-${plan.id}`}
+                    >
+                      {isExpanded ? (
+                        <><ChevronUp className="w-3.5 h-3.5" /> Hide Plan</>
+                      ) : (
+                        <><ChevronDown className="w-3.5 h-3.5" /> View Plan</>
+                      )}
+                    </button>
+                  </div>
                 </div>
+
+                {schedulingPlanId === plan.id && !mismatchInfo && (
+                  <div className="mt-3 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
+                    {plan.planType === 'weekly' ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setScheduleWeekStart(addDaysLocal(scheduleWeekStart, -7))}
+                          className="p-1 hover:bg-zinc-200 rounded-lg transition-colors"
+                          data-testid={`button-schedule-prev-week-${plan.id}`}
+                        >
+                          <ChevronLeft className="w-4 h-4 text-zinc-600" />
+                        </button>
+                        <span className="text-xs font-medium text-zinc-700 flex-1 text-center" data-testid={`text-schedule-week-range-${plan.id}`}>
+                          {formatShortDate(scheduleWeekStart)} – {formatShortDate(addDaysLocal(scheduleWeekStart, 6))}
+                        </span>
+                        <button
+                          onClick={() => setScheduleWeekStart(addDaysLocal(scheduleWeekStart, 7))}
+                          className="p-1 hover:bg-zinc-200 rounded-lg transition-colors"
+                          data-testid={`button-schedule-next-week-${plan.id}`}
+                        >
+                          <ChevronRight className="w-4 h-4 text-zinc-600" />
+                        </button>
+                        <button
+                          onClick={() => confirmSchedule(plan)}
+                          disabled={scheduleMutation.isPending}
+                          className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                          data-testid={`button-schedule-confirm-${plan.id}`}
+                        >
+                          {scheduleMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                          Schedule
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={scheduleDate}
+                          onChange={e => setScheduleDate(e.target.value)}
+                          className="flex-1 px-2 py-1 text-xs border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                          data-testid={`input-schedule-date-${plan.id}`}
+                        />
+                        <button
+                          onClick={() => confirmSchedule(plan)}
+                          disabled={scheduleMutation.isPending}
+                          className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center gap-1"
+                          data-testid={`button-schedule-confirm-${plan.id}`}
+                        >
+                          {scheduleMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                          Schedule
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <AnimatePresence>
@@ -418,6 +570,113 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
           );
         })}
       </AnimatePresence>
+
+      {mismatchInfo && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setMismatchInfo(null)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-amber-50 rounded-full">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900">Cycle Phase Mismatch</h3>
+            </div>
+
+            <p className="text-sm text-zinc-600 mb-2">
+              This plan was optimised for your <span className={`font-semibold ${PHASE_STYLES[mismatchInfo.storedPhase]?.text || 'text-zinc-900'}`}>{PHASE_STYLES[mismatchInfo.storedPhase]?.label || mismatchInfo.storedPhase}</span> phase.
+            </p>
+            <p className="text-sm text-zinc-600 mb-5">
+              You're scheduling it for a period when you'll be in your <span className={`font-semibold ${PHASE_STYLES[mismatchInfo.targetPhase]?.text || 'text-zinc-900'}`}>{PHASE_STYLES[mismatchInfo.targetPhase]?.label || mismatchInfo.targetPhase}</span> phase.
+            </p>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={showMatchingPlans}
+                className="flex items-center justify-center gap-2 w-full px-4 py-2.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-sm transition-colors"
+                data-testid="button-mismatch-find-matching"
+              >
+                <Search className="w-4 h-4" />
+                Find a matching saved plan
+              </button>
+              <button
+                onClick={scheduleAnyway}
+                disabled={scheduleMutation.isPending}
+                className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-zinc-900 text-white hover:bg-zinc-800 rounded-xl font-medium text-sm transition-colors disabled:opacity-50"
+                data-testid="button-mismatch-schedule-anyway"
+              >
+                {scheduleMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarPlus className="w-4 h-4" />}
+                Schedule anyway
+              </button>
+              <button
+                onClick={() => setMismatchInfo(null)}
+                className="w-full px-4 py-2 text-zinc-500 hover:text-zinc-700 text-sm font-medium transition-colors"
+                data-testid="button-mismatch-cancel"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {filterPhase && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={() => setFilterPhase(null)}>
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl my-8" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-zinc-900">
+                Plans for {PHASE_STYLES[filterPhase]?.label || filterPhase} phase
+              </h3>
+              <button onClick={() => setFilterPhase(null)} className="p-1 hover:bg-zinc-100 rounded-lg" data-testid="button-close-filter">
+                <X className="w-5 h-5 text-zinc-400" />
+              </button>
+            </div>
+
+            {(() => {
+              const matchingPlans = plans.filter(p => {
+                const pd = p.planData as any;
+                const phase = pd?.cyclePhase || (pd?.cyclePhaseByDay ? Object.values(pd.cyclePhaseByDay).find(Boolean) : null) || (pd?.cyclePhaseByDate ? Object.values(pd.cyclePhaseByDate).find(Boolean) : null);
+                return phase === filterPhase;
+              });
+
+              if (matchingPlans.length === 0) {
+                return (
+                  <div className="text-center py-6">
+                    <UtensilsCrossed className="w-8 h-8 mx-auto mb-3 text-zinc-300" />
+                    <p className="text-sm text-zinc-500 mb-1">No saved plans match the {PHASE_STYLES[filterPhase]?.label || filterPhase} phase.</p>
+                    <p className="text-xs text-zinc-400">Generate a new plan with cycle optimisation for this phase.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                  {matchingPlans.map(mp => (
+                    <button
+                      key={mp.id}
+                      onClick={() => {
+                        setFilterPhase(null);
+                        openSchedulePicker(mp);
+                      }}
+                      className="w-full text-left p-3 bg-zinc-50 hover:bg-zinc-100 rounded-xl border border-zinc-200 transition-colors"
+                      data-testid={`button-matching-plan-${mp.id}`}
+                    >
+                      <p className="text-sm font-semibold text-zinc-900 truncate">{mp.name}</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">
+                        {mp.planType === 'weekly' ? 'Weekly' : 'Daily'} · {mp.mealStyle === 'michelin' ? 'Michelin' : mp.mealStyle === 'gourmet' ? 'Gourmet' : 'Simple'}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

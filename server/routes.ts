@@ -1087,6 +1087,109 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  app.post("/api/saved-meal-plans/:id/schedule", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    try {
+      const planId = parseInt(req.params.id);
+      const body = z.object({
+        targetDate: z.string().optional(),
+        weekStartDate: z.string().optional(),
+        force: z.boolean().optional().default(false),
+      }).parse(req.body);
+
+      const plan = await storage.getSavedMealPlanById(planId, req.session.userId);
+      if (!plan) return res.status(404).json({ message: "Plan not found" });
+
+      const planData = plan.planData as any;
+
+      const user = await storage.getUserById(req.session.userId);
+      const prefs = (user?.preferences as UserPreferences | null) ?? null;
+      const hasCycle = !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate);
+
+      if (hasCycle && !body.force) {
+        if (plan.planType === 'daily' && body.targetDate) {
+          const storedPhase = planData?.cyclePhase || null;
+          const targetPhase = computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, body.targetDate);
+          if (storedPhase && targetPhase && storedPhase !== targetPhase) {
+            return res.status(200).json({ mismatch: true, storedPhase, targetPhase });
+          }
+        } else if (plan.planType === 'weekly' && body.weekStartDate) {
+          const storedPhases = planData?.perDayPhases || planData?.cyclePhaseByDay || {};
+          const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+          let hasMismatch = false;
+          let firstStoredPhase: string | null = null;
+          let firstTargetPhase: string | null = null;
+          dayNames.forEach((dayName, i) => {
+            const storedP = storedPhases[dayName] || null;
+            const targetP = computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, addDaysToDate(body.weekStartDate!, i));
+            if (storedP && targetP && storedP !== targetP) {
+              hasMismatch = true;
+              if (!firstStoredPhase) { firstStoredPhase = storedP; firstTargetPhase = targetP; }
+            }
+          });
+          if (hasMismatch) {
+            return res.status(200).json({ mismatch: true, storedPhase: firstStoredPhase, targetPhase: firstTargetPhase });
+          }
+        }
+      }
+
+      const foodLogRows: Array<{ userId: number; date: string; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot: string; confirmed: boolean }> = [];
+
+      const extractMeals = (dayData: any, dateStr: string) => {
+        const slots = ['breakfast', 'lunch', 'dinner', 'snacks'] as const;
+        for (const slot of slots) {
+          const meals = dayData?.[slot];
+          if (!Array.isArray(meals)) continue;
+          for (const m of meals) {
+            if (m?.meal && typeof m.calories === 'number') {
+              foodLogRows.push({
+                userId: req.session.userId!,
+                date: dateStr,
+                mealName: m.meal,
+                calories: Math.round(m.calories),
+                protein: Math.round(m.protein ?? 0),
+                carbs: Math.round(m.carbs ?? 0),
+                fat: Math.round(m.fat ?? 0),
+                mealSlot: slot === 'snacks' ? 'snack' : slot,
+                confirmed: false,
+              });
+            }
+          }
+        }
+      };
+
+      if (plan.planType === 'daily') {
+        const targetDate = body.targetDate || new Date().toISOString().split('T')[0];
+        extractMeals(planData, targetDate);
+      } else {
+        const weekStart = body.weekStartDate || new Date().toISOString().split('T')[0];
+        const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        dayNames.forEach((dayName, i) => {
+          if (planData[dayName]) {
+            extractMeals(planData[dayName], addDaysToDate(weekStart, i));
+          }
+        });
+      }
+
+      if (foodLogRows.length > 0) {
+        await storage.bulkCreateFoodLogEntries(foodLogRows);
+      }
+
+      const dateLabel = plan.planType === 'weekly' && body.weekStartDate
+        ? `${body.weekStartDate} week`
+        : (body.targetDate || 'today');
+
+      res.status(200).json({ scheduled: true, entryCount: foodLogRows.length, dateLabel });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
   // ── Weight tracking ───────────────────────────────────────────────────────
 
   app.get("/api/weight-entries", async (req, res) => {
