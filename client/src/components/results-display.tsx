@@ -2134,7 +2134,9 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
       {mealPlan && (
         <div className="mt-6 pt-6 border-t border-zinc-100">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-display font-bold text-zinc-900 capitalize">{mealPlan.planType} Meal Plan</h3>
+            <h3 className="text-lg font-display font-bold text-zinc-900 capitalize">
+              {mealPlan.planType === 'multi-daily' ? 'Multi-Day' : mealPlan.planType} Meal Plan
+            </h3>
             <button
               onClick={() => savePlanMutation.mutate()}
               disabled={savePlanMutation.isPending || planSaved}
@@ -2180,7 +2182,47 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
             </button>
           </div>
 
-          {mealPlan.planType === 'daily' ? (
+          {mealPlan.planType === 'multi-daily' ? (
+            <div className="space-y-6">
+              {(mealPlan as any).targetDates?.map((dateStr: string) => {
+                const dayPlan = (mealPlan as any).days?.[dateStr];
+                if (!dayPlan) return null;
+                const [y, m, d] = dateStr.split("-").map(Number);
+                const dateLabel = new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+                return (
+                  <div key={dateStr}>
+                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                      <CalendarDays className="w-3.5 h-3.5" />
+                      {dateLabel}
+                    </p>
+                    <DailyMealView
+                      plan={{ ...dayPlan, planType: 'daily' }}
+                      onLogMeal={onLogMeal}
+                      onReplace={(slot, mealName, idx) => {
+                        replaceMealMutation.mutate({ slot, currentMealName: mealName }, {
+                          onSuccess: ({ slot: s, meal: newMeal }) => {
+                            setMealPlan((prev: any) => {
+                              if (!prev) return prev;
+                              const key = s === 'snack' ? 'snacks' : s;
+                              const updatedDay = { ...prev.days[dateStr] };
+                              const arr = [...(updatedDay[key] || [])];
+                              arr[idx] = newMeal;
+                              updatedDay[key] = arr;
+                              const allMeals = [...updatedDay.breakfast, ...updatedDay.lunch, ...updatedDay.dinner, ...updatedDay.snacks];
+                              updatedDay.dayTotalCalories = allMeals.reduce((sum: number, m: any) => sum + m.calories, 0);
+                              return { ...prev, days: { ...prev.days, [dateStr]: updatedDay } };
+                            });
+                            setPlanSaved(false);
+                          },
+                        });
+                      }}
+                      replacingSlot={replaceMealMutation.isPending ? replaceMealMutation.variables?.slot : undefined}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          ) : mealPlan.planType === 'daily' ? (
             <DailyMealView
               plan={mealPlan}
               onLogMeal={onLogMeal}

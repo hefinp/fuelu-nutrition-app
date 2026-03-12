@@ -228,14 +228,18 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                   </span>
                   {showCycleBanner && (() => {
                     const pd = planData as any;
-                    const phase = pd?.cyclePhase || pd?.cyclePhaseByDay
-                      ? (pd.cyclePhase || (() => {
-                          const phases = pd.cyclePhaseByDay ? Object.values(pd.cyclePhaseByDay).filter(Boolean) : [];
-                          return phases.length > 0 ? phases[0] : null;
-                        })())
-                      : null;
-                    if (!phase || !PHASE_STYLES[phase as string]) return null;
-                    const ps = PHASE_STYLES[phase as string];
+                    let phase: string | null = null;
+                    if (pd?.cyclePhase) {
+                      phase = pd.cyclePhase;
+                    } else if (pd?.cyclePhaseByDay) {
+                      const phases = Object.values(pd.cyclePhaseByDay).filter(Boolean) as string[];
+                      phase = phases[0] ?? null;
+                    } else if (pd?.cyclePhaseByDate) {
+                      const phases = Object.values(pd.cyclePhaseByDate).filter(Boolean) as string[];
+                      phase = phases[0] ?? null;
+                    }
+                    if (!phase || !PHASE_STYLES[phase]) return null;
+                    const ps = PHASE_STYLES[phase];
                     return (
                       <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${ps.bg} ${ps.text} ${ps.border}`} data-testid={`badge-cycle-phase-${plan.id}`}>
                         <Circle className="w-2.5 h-2.5" />

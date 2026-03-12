@@ -1026,13 +1026,13 @@ export async function registerRoutes(
           }
         };
 
-        if (body.planType === 'daily') {
-          const targetDate = planData.targetDate || new Date().toISOString().split('T')[0];
-          extractMeals(planData, targetDate);
-        } else if (planData.planType === 'multi-daily' && planData.days) {
+        if (planData.planType === 'multi-daily' && planData.days) {
           for (const dateStr of Object.keys(planData.days)) {
             extractMeals(planData.days[dateStr], dateStr);
           }
+        } else if (body.planType === 'daily') {
+          const targetDate = planData.targetDate || new Date().toISOString().split('T')[0];
+          extractMeals(planData, targetDate);
         } else {
           const weekStart = planData.weekStartDate || new Date().toISOString().split('T')[0];
           const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
