@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowRight, Zap, BarChart3, CalendarDays, ShoppingCart, ChefHat, Filter, FileDown } from "lucide-react";
+import { ArrowRight, Zap, BarChart3, CalendarDays, ShoppingCart, ChefHat, Filter, FileDown, Check } from "lucide-react";
 
 const features = [
   {
@@ -100,9 +100,30 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
             <span className="text-zinc-400">how you eat.</span>
           </h1>
 
-          <p className="text-lg text-zinc-500 max-w-xl mx-auto mb-10 leading-relaxed">
-            Pick Simple, Gourmet, or Michelin-tier meals — NutriSync builds personalised daily and weekly plans around your exact calorie targets, allergies, and food preferences.
+          <p className="text-lg text-zinc-500 max-w-xl mx-auto mb-6 leading-relaxed">
+            NutriSync builds personalised daily and weekly meal plans around your exact calorie targets — then gets out of your way.
           </p>
+
+          <ul className="inline-flex flex-col gap-2 text-sm text-zinc-600 text-left mb-10 mx-auto">
+            <li className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center flex-shrink-0">
+                <Check className="w-3 h-3 text-white" strokeWidth={3} />
+              </span>
+              Three meal-style tiers — Simple, Gourmet, and Michelin-inspired
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center flex-shrink-0">
+                <Check className="w-3 h-3 text-white" strokeWidth={3} />
+              </span>
+              Allergy &amp; preference filtering — diets, exclusions, disliked meals
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center flex-shrink-0">
+                <Check className="w-3 h-3 text-white" strokeWidth={3} />
+              </span>
+              PDF export &amp; shopping lists — print-ready in one click
+            </li>
+          </ul>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             {loggedIn ? (
