@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, Salad, ChefHat, Star } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences } from "@shared/schema";
@@ -1785,9 +1785,9 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
               <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Meal Style</p>
               {(() => {
                 const styles = [
-                  { key: 'simple' as const,  emoji: '🥗',  label: 'Simple' },
-                  { key: 'gourmet' as const, emoji: '🍽️', label: 'Fancy' },
-                  { key: 'michelin' as const,emoji: '⭐',  label: 'Michelin' },
+                  { key: 'simple' as const,  icon: Salad,   label: 'Simple' },
+                  { key: 'gourmet' as const, icon: ChefHat, label: 'Fancy' },
+                  { key: 'michelin' as const,icon: Star,    label: 'Michelin' },
                 ];
                 const idx = styles.findIndex(s => s.key === mealStyle);
                 const descriptions: Record<string, string> = {
@@ -1809,11 +1809,11 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
                           type="button"
                           data-testid={`toggle-meal-style-${style.key}`}
                           onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
-                          className={`relative z-10 flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl text-xs font-semibold transition-colors duration-200 ${
+                          className={`relative z-10 flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold transition-colors duration-200 ${
                             mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'
                           }`}
                         >
-                          <span className="text-base leading-none">{style.emoji}</span>
+                          <style.icon className="w-4 h-4" />
                           <span>{style.label}</span>
                         </button>
                       ))}

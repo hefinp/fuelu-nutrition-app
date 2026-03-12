@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowRight, Zap, BarChart3, CalendarDays, ShoppingCart, ChefHat, Filter, FileDown, Check } from "lucide-react";
+import { ArrowRight, Zap, BarChart3, CalendarDays, ShoppingCart, ChefHat, Filter, FileDown, Check, Salad, Star } from "lucide-react";
 
 const features = [
   {
@@ -26,9 +26,9 @@ const features = [
 ];
 
 const highlights = [
-  { emoji: "🥗", label: "Simple", desc: "Quick & wholesome" },
-  { emoji: "👨‍🍳", label: "Gourmet", desc: "Restaurant-quality" },
-  { emoji: "⭐", label: "Michelin", desc: "Chef-level dining" },
+  { icon: Salad, label: "Simple", desc: "Quick & wholesome" },
+  { icon: ChefHat, label: "Gourmet", desc: "Restaurant-quality" },
+  { icon: Star, label: "Michelin", desc: "Chef-level dining" },
 ];
 
 const goals = [
@@ -160,7 +160,9 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
           <div className="grid grid-cols-3 gap-3 max-w-md mx-auto mt-12">
             {highlights.map(h => (
               <div key={h.label} className="bg-zinc-50 border border-zinc-100 rounded-2xl p-4 text-center">
-                <span className="text-2xl mb-1 block">{h.emoji}</span>
+                <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center mx-auto mb-2">
+                  <h.icon className="w-5 h-5 text-white" />
+                </div>
                 <p className="font-semibold text-sm text-zinc-900">{h.label}</p>
                 <p className="text-xs text-zinc-400 mt-0.5">{h.desc}</p>
               </div>
