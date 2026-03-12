@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, ClipboardList, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Plus, Trash2, ClipboardList } from "lucide-react";
 
 interface FoodLogEntry {
   id: number;
@@ -15,26 +15,25 @@ interface FoodLogEntry {
   createdAt: string;
 }
 
+export interface PrefillEntry {
+  mealName: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
 interface FoodLogProps {
   dailyCaloriesTarget?: number;
   dailyProteinTarget?: number;
   dailyCarbsTarget?: number;
   dailyFatTarget?: number;
+  prefill?: PrefillEntry | null;
+  onPrefillConsumed?: () => void;
 }
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr + "T12:00:00");
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-}
-
-function offsetDate(dateStr: string, days: number) {
-  const d = new Date(dateStr + "T12:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
 }
 
 function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
@@ -50,13 +49,27 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
   );
 }
 
-export function FoodLog({ dailyCaloriesTarget, dailyProteinTarget, dailyCarbsTarget, dailyFatTarget }: FoodLogProps) {
+export function FoodLog({ dailyCaloriesTarget, dailyProteinTarget, dailyCarbsTarget, dailyFatTarget, prefill, onPrefillConsumed }: FoodLogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [date, setDate] = useState(todayStr());
+  const date = todayStr();
   const [showForm, setShowForm] = useState(false);
 
   const [form, setForm] = useState({ mealName: "", calories: "", protein: "", carbs: "", fat: "" });
+
+  useEffect(() => {
+    if (prefill) {
+      setForm({
+        mealName: prefill.mealName,
+        calories: String(prefill.calories),
+        protein: String(prefill.protein),
+        carbs: String(prefill.carbs),
+        fat: String(prefill.fat),
+      });
+      setShowForm(true);
+      onPrefillConsumed?.();
+    }
+  }, [prefill, onPrefillConsumed]);
 
   const { data: entries = [], isLoading } = useQuery<FoodLogEntry[]>({
     queryKey: ["/api/food-log", date],
@@ -69,7 +82,7 @@ export function FoodLog({ dailyCaloriesTarget, dailyProteinTarget, dailyCarbsTar
   });
 
   const addMutation = useMutation({
-    mutationFn: (entry: Omit<FoodLogEntry, "id" | "createdAt">) =>
+    mutationFn: (entry: { date: string; mealName: string; calories: number; protein: number; carbs: number; fat: number }) =>
       apiRequest("POST", "/api/food-log", entry).then(r => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log", date] });
@@ -98,8 +111,7 @@ export function FoodLog({ dailyCaloriesTarget, dailyProteinTarget, dailyCarbsTar
       protein: parseInt(form.protein) || 0,
       carbs: parseInt(form.carbs) || 0,
       fat: parseInt(form.fat) || 0,
-      userId: 0,
-    } as any);
+    });
   }
 
   const totalCal = entries.reduce((s, e) => s + e.calories, 0);
@@ -107,11 +119,8 @@ export function FoodLog({ dailyCaloriesTarget, dailyProteinTarget, dailyCarbsTar
   const totalCarbs = entries.reduce((s, e) => s + e.carbs, 0);
   const totalFat = entries.reduce((s, e) => s + e.fat, 0);
 
-  const isToday = date === todayStr();
-
   return (
     <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-6">
-      {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-violet-100 text-violet-600 rounded-lg">
@@ -133,29 +142,12 @@ export function FoodLog({ dailyCaloriesTarget, dailyProteinTarget, dailyCarbsTar
         </button>
       </div>
 
-      {/* Date navigation */}
-      <div className="flex items-center justify-between mb-5 bg-zinc-50 rounded-xl px-4 py-2">
-        <button
-          onClick={() => setDate(d => offsetDate(d, -1))}
-          className="p-1 hover:bg-zinc-200 rounded-lg transition-colors"
-          data-testid="button-log-prev-day"
-        >
-          <ChevronLeft className="w-4 h-4 text-zinc-500" />
-        </button>
+      <div className="flex items-center justify-center mb-5 bg-zinc-50 rounded-xl px-4 py-2">
         <span className="text-sm font-medium text-zinc-700" data-testid="text-log-date">
-          {isToday ? "Today" : formatDate(date)}
+          Today
         </span>
-        <button
-          onClick={() => setDate(d => offsetDate(d, 1))}
-          disabled={isToday}
-          className="p-1 hover:bg-zinc-200 rounded-lg transition-colors disabled:opacity-30"
-          data-testid="button-log-next-day"
-        >
-          <ChevronRight className="w-4 h-4 text-zinc-500" />
-        </button>
       </div>
 
-      {/* Macro progress bars */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         {[
           { label: "Calories", value: totalCal, target: dailyCaloriesTarget, color: "bg-orange-400", unit: "kcal" },
@@ -175,7 +167,6 @@ export function FoodLog({ dailyCaloriesTarget, dailyProteinTarget, dailyCarbsTar
         ))}
       </div>
 
-      {/* Add form */}
       {showForm && (
         <form onSubmit={handleSubmit} className="mb-4 p-4 bg-zinc-50 rounded-xl border border-zinc-200 space-y-3">
           <p className="text-xs font-semibold text-zinc-700 uppercase tracking-wide">Add entry</p>
@@ -226,7 +217,6 @@ export function FoodLog({ dailyCaloriesTarget, dailyProteinTarget, dailyCarbsTar
         </form>
       )}
 
-      {/* Entries list */}
       {isLoading ? (
         <div className="flex justify-center py-6">
           <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
@@ -234,7 +224,7 @@ export function FoodLog({ dailyCaloriesTarget, dailyProteinTarget, dailyCarbsTar
       ) : entries.length === 0 ? (
         <div className="text-center py-6 text-zinc-400">
           <ClipboardList className="w-8 h-8 mx-auto mb-2 opacity-30" />
-          <p className="text-sm">No entries for {isToday ? "today" : formatDate(date)}.</p>
+          <p className="text-sm">No entries for today.</p>
         </div>
       ) : (
         <div className="space-y-2">

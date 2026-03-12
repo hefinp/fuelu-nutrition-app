@@ -1640,7 +1640,7 @@ interface DayMealPlan {
 
 type MealPlan = any;
 
-export function ResultsDisplay({ data }: { data: Calculation }) {
+export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMeal?: (meal: Meal) => void }) {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [mealStyle, setMealStyle] = useState<'simple' | 'gourmet' | 'michelin'>('simple');
   const [selectedMeal, setSelectedMeal] = useState<{ meal: string; calories: number; protein: number; carbs: number; fat: number } | null>(null);
@@ -1962,6 +1962,7 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
           {mealPlan.planType === 'daily' ? (
             <DailyMealView
               plan={mealPlan}
+              onLogMeal={onLogMeal}
               onReplace={(slot, mealName, idx) => {
                 replaceMealMutation.mutate({ slot, currentMealName: mealName }, {
                   onSuccess: ({ slot: s, meal: newMeal }) => {
@@ -1988,6 +1989,7 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
           ) : (
             <WeeklyMealView
               plan={mealPlan}
+              onLogMeal={onLogMeal}
               onReplace={(day, slot, mealName, idx) => {
                 replaceMealMutation.mutate({ slot, currentMealName: mealName }, {
                   onSuccess: ({ slot: s, meal: newMeal }) => {
@@ -2086,7 +2088,7 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
   );
 }
 
-function DailyMealView({ plan, onReplace, replacingSlot }: { plan: any; onReplace?: (slot: string, mealName: string, idx: number) => void; replacingSlot?: string }) {
+function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: any; onReplace?: (slot: string, mealName: string, idx: number) => void; replacingSlot?: string; onLogMeal?: (meal: Meal) => void }) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -2098,22 +2100,6 @@ function DailyMealView({ plan, onReplace, replacingSlot }: { plan: any; onReplac
       toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
     },
     onError: () => toast({ title: "Sign in to dislike meals", variant: "destructive" }),
-  });
-
-  const logMutation = useMutation({
-    mutationFn: (meal: Meal) => apiRequest("POST", "/api/food-log", {
-      date: new Date().toISOString().slice(0, 10),
-      mealName: meal.meal,
-      calories: meal.calories,
-      protein: meal.protein,
-      carbs: meal.carbs,
-      fat: meal.fat,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
-      toast({ title: "Meal logged", description: "Added to today's food log." });
-    },
-    onError: () => toast({ title: "Sign in to log meals", variant: "destructive" }),
   });
 
   return (
@@ -2159,14 +2145,16 @@ function DailyMealView({ plan, onReplace, replacingSlot }: { plan: any; onReplac
                       <p className="text-xs text-zinc-500">kcal</p>
                     </div>
                   </button>
-                  <button
-                    onClick={() => logMutation.mutate(meal)}
-                    className="p-2 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded-lg transition-colors shrink-0"
-                    title="Log this meal"
-                    data-testid={`button-log-${slotKey}-${idx}`}
-                  >
-                    <ClipboardList className="w-4 h-4" />
-                  </button>
+                  {onLogMeal && (
+                    <button
+                      onClick={() => onLogMeal(meal)}
+                      className="p-2 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded-lg transition-colors shrink-0"
+                      title="Log this meal"
+                      data-testid={`button-log-${slotKey}-${idx}`}
+                    >
+                      <ClipboardList className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() => dislikeMutation.mutate(meal.meal)}
                     className="p-2 bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-lg transition-colors shrink-0"
@@ -2200,7 +2188,7 @@ function DailyMealView({ plan, onReplace, replacingSlot }: { plan: any; onReplac
   );
 }
 
-function WeeklyMealView({ plan, onReplace, replacingSlot }: { plan: any; onReplace?: (day: string, slot: string, mealName: string, idx: number) => void; replacingSlot?: string }) {
+function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: any; onReplace?: (day: string, slot: string, mealName: string, idx: number) => void; replacingSlot?: string; onLogMeal?: (meal: Meal) => void }) {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const { toast } = useToast();
@@ -2213,22 +2201,6 @@ function WeeklyMealView({ plan, onReplace, replacingSlot }: { plan: any; onRepla
       toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
     },
     onError: () => toast({ title: "Sign in to dislike meals", variant: "destructive" }),
-  });
-
-  const logMutation = useMutation({
-    mutationFn: (meal: Meal) => apiRequest("POST", "/api/food-log", {
-      date: new Date().toISOString().slice(0, 10),
-      mealName: meal.meal,
-      calories: meal.calories,
-      protein: meal.protein,
-      carbs: meal.carbs,
-      fat: meal.fat,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
-      toast({ title: "Meal logged", description: "Added to today's food log." });
-    },
-    onError: () => toast({ title: "Sign in to log meals", variant: "destructive" }),
   });
 
   return (
@@ -2300,14 +2272,16 @@ function WeeklyMealView({ plan, onReplace, replacingSlot }: { plan: any; onRepla
                             <p className="text-xs text-zinc-500">kcal</p>
                           </div>
                         </button>
-                        <button
-                          onClick={() => logMutation.mutate(meal)}
-                          className="p-1.5 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded transition-colors shrink-0"
-                          title="Log this meal"
-                          data-testid={`button-log-${day}-${slotKey}-${idx}`}
-                        >
-                          <ClipboardList className="w-3.5 h-3.5" />
-                        </button>
+                        {onLogMeal && (
+                          <button
+                            onClick={() => onLogMeal(meal)}
+                            className="p-1.5 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded transition-colors shrink-0"
+                            title="Log this meal"
+                            data-testid={`button-log-${day}-${slotKey}-${idx}`}
+                          >
+                            <ClipboardList className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => dislikeMutation.mutate(meal.meal)}
                           className="p-1.5 bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded transition-colors shrink-0"

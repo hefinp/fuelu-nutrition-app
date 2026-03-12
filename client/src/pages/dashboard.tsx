@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { CalculatorForm } from "@/components/calculator-form";
@@ -7,6 +7,8 @@ import { SavedMealPlans } from "@/components/saved-meal-plans";
 import { WeightTracker } from "@/components/weight-tracker";
 import { PreferencesForm } from "@/components/preferences-form";
 import { FoodLog } from "@/components/food-log";
+import type { PrefillEntry } from "@/components/food-log";
+import type { Meal } from "@/components/results-display";
 import { useCalculations } from "@/hooks/use-calculations";
 import { useAuth } from "@/hooks/use-auth";
 import { LogOut, BookOpen, Settings, X, SlidersHorizontal, ChevronDown, Salad } from "lucide-react";
@@ -19,9 +21,21 @@ export default function Dashboard() {
   const [showMetricsPanel, setShowMetricsPanel] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
+  const [logPrefill, setLogPrefill] = useState<PrefillEntry | null>(null);
   const { data: history, isLoading: historyLoading } = useCalculations();
   const { user, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
+
+  const handleLogMeal = useCallback((meal: Meal | PrefillEntry) => {
+    const entry: PrefillEntry = 'mealName' in meal
+      ? meal
+      : { mealName: meal.meal, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat };
+    setLogPrefill(entry);
+  }, []);
+
+  const handlePrefillConsumed = useCallback(() => {
+    setLogPrefill(null);
+  }, []);
 
   const lastCalculation: Partial<Calculation> | undefined = history?.[0];
 
@@ -263,7 +277,7 @@ export default function Dashboard() {
                     <p className="text-xs text-zinc-500">Save your favorite meal plans after reviewing them</p>
                   </div>
                 </div>
-                <SavedMealPlans />
+                <SavedMealPlans onLogMeal={handleLogMeal} />
               </div>
             </motion.div>
           )}
@@ -360,7 +374,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
               {/* Nutrition results (left, wider) */}
               <div className="xl:col-span-7">
-                <ResultsDisplay data={activeResult!} />
+                <ResultsDisplay data={activeResult!} onLogMeal={handleLogMeal} />
               </div>
 
               {/* Right sidebar: weight tracker + food log */}
@@ -398,6 +412,8 @@ export default function Dashboard() {
                     dailyProteinTarget={activeResult?.proteinGoal ?? undefined}
                     dailyCarbsTarget={activeResult?.carbsGoal ?? undefined}
                     dailyFatTarget={activeResult?.fatGoal ?? undefined}
+                    prefill={logPrefill}
+                    onPrefillConsumed={handlePrefillConsumed}
                   />
                 ) : null}
               </div>

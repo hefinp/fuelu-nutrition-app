@@ -7,6 +7,7 @@ import type { SavedMealPlan } from "@shared/schema";
 import { Calendar, Trash2, Pencil, Check, X, UtensilsCrossed, ChefHat, Loader2, ChevronDown, ChevronUp, Download, ShoppingCart, ThumbsDown, ClipboardList, Mail } from "lucide-react";
 import { RECIPES, exportMealPlanToPDF, exportShoppingListToPDF, buildShoppingList, CATEGORY_ORDER, type Meal } from "./results-display";
 import type { Calculation } from "@shared/schema";
+import type { PrefillEntry } from "./food-log";
 
 function buildCalcStub(plan: SavedMealPlan): Calculation {
   const d = plan.planData as any;
@@ -24,7 +25,7 @@ function buildCalcStub(plan: SavedMealPlan): Calculation {
   } as unknown as Calculation;
 }
 
-export function SavedMealPlans() {
+export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry) => void } = {}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -374,9 +375,9 @@ export function SavedMealPlans() {
                       )}
 
                       {plan.planType === 'daily' ? (
-                        <SavedDailyView plan={planData} />
+                        <SavedDailyView plan={planData} onLogMeal={onLogMeal} />
                       ) : (
-                        <SavedWeeklyView plan={planData} />
+                        <SavedWeeklyView plan={planData} onLogMeal={onLogMeal} />
                       )}
                     </div>
                   </motion.div>
@@ -390,7 +391,7 @@ export function SavedMealPlans() {
   );
 }
 
-function SavedDailyView({ plan }: { plan: any }) {
+function SavedDailyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: PrefillEntry) => void }) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -402,18 +403,6 @@ function SavedDailyView({ plan }: { plan: any }) {
       toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
     },
     onError: () => toast({ title: "Sign in to dislike meals", variant: "destructive" }),
-  });
-
-  const logMutation = useMutation({
-    mutationFn: (meal: Meal) => apiRequest("POST", "/api/food-log", {
-      date: new Date().toISOString().slice(0, 10),
-      mealName: meal.meal, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
-      toast({ title: "Meal logged", description: "Added to today's food log." });
-    },
-    onError: () => toast({ title: "Sign in to log meals", variant: "destructive" }),
   });
 
   return (
@@ -456,13 +445,15 @@ function SavedDailyView({ plan }: { plan: any }) {
                     <p className="text-xs text-zinc-500">kcal</p>
                   </div>
                 </button>
-                <button
-                  onClick={() => logMutation.mutate(meal)}
-                  className="p-2 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded-lg transition-colors shrink-0"
-                  title="Log this meal"
-                >
-                  <ClipboardList className="w-3.5 h-3.5" />
-                </button>
+                {onLogMeal && (
+                  <button
+                    onClick={() => onLogMeal({ mealName: meal.meal, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat })}
+                    className="p-2 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded-lg transition-colors shrink-0"
+                    title="Log this meal"
+                  >
+                    <ClipboardList className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button
                   onClick={() => dislikeMutation.mutate(meal.meal)}
                   className="p-2 bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-lg transition-colors shrink-0"
@@ -483,7 +474,7 @@ function SavedDailyView({ plan }: { plan: any }) {
   );
 }
 
-function SavedWeeklyView({ plan }: { plan: any }) {
+function SavedWeeklyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: PrefillEntry) => void }) {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const { toast } = useToast();
@@ -496,18 +487,6 @@ function SavedWeeklyView({ plan }: { plan: any }) {
       toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
     },
     onError: () => toast({ title: "Sign in to dislike meals", variant: "destructive" }),
-  });
-
-  const logMutation = useMutation({
-    mutationFn: (meal: Meal) => apiRequest("POST", "/api/food-log", {
-      date: new Date().toISOString().slice(0, 10),
-      mealName: meal.meal, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
-      toast({ title: "Meal logged", description: "Added to today's food log." });
-    },
-    onError: () => toast({ title: "Sign in to log meals", variant: "destructive" }),
   });
 
   return (
@@ -557,13 +536,15 @@ function SavedWeeklyView({ plan }: { plan: any }) {
                           <p className="text-[10px] text-zinc-500">kcal</p>
                         </div>
                       </button>
-                      <button
-                        onClick={() => logMutation.mutate(meal)}
-                        className="p-1.5 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded transition-colors shrink-0"
-                        title="Log this meal"
-                      >
-                        <ClipboardList className="w-3 h-3" />
-                      </button>
+                      {onLogMeal && (
+                        <button
+                          onClick={() => onLogMeal({ mealName: meal.meal, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat })}
+                          className="p-1.5 bg-zinc-100 hover:bg-violet-50 text-zinc-400 hover:text-violet-600 rounded transition-colors shrink-0"
+                          title="Log this meal"
+                        >
+                          <ClipboardList className="w-3 h-3" />
+                        </button>
+                      )}
                       <button
                         onClick={() => dislikeMutation.mutate(meal.meal)}
                         className="p-1.5 bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded transition-colors shrink-0"
