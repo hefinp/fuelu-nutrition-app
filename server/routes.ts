@@ -1029,8 +1029,13 @@ export async function registerRoutes(
 
   app.get("/api/food-log", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
-    const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
-    const entries = await storage.getFoodLogEntries(req.session.userId, date);
+    const { date, from, to } = req.query as { date?: string; from?: string; to?: string };
+    if (from && to) {
+      const entries = await storage.getFoodLogEntriesRange(req.session.userId, from, to);
+      return res.json(entries);
+    }
+    const singleDate = date || new Date().toISOString().slice(0, 10);
+    const entries = await storage.getFoodLogEntries(req.session.userId, singleDate);
     res.json(entries);
   });
 

@@ -1,6 +1,6 @@
 import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry } from "@shared/schema";
 import { db } from "./db";
-import { desc, eq, and } from "drizzle-orm";
+import { desc, eq, and, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   // Auth
@@ -31,6 +31,7 @@ export interface IStorage {
 
   // Food log
   getFoodLogEntries(userId: number, date: string): Promise<FoodLogEntry[]>;
+  getFoodLogEntriesRange(userId: number, from: string, to: string): Promise<FoodLogEntry[]>;
   createFoodLogEntry(entry: InsertFoodLogEntry & { userId: number }): Promise<FoodLogEntry>;
   deleteFoodLogEntry(id: number, userId: number): Promise<void>;
 
@@ -147,6 +148,12 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(foodLogEntries)
       .where(and(eq(foodLogEntries.userId, userId), eq(foodLogEntries.date, date)))
       .orderBy(foodLogEntries.createdAt);
+  }
+
+  async getFoodLogEntriesRange(userId: number, from: string, to: string): Promise<FoodLogEntry[]> {
+    return await db.select().from(foodLogEntries)
+      .where(and(eq(foodLogEntries.userId, userId), gte(foodLogEntries.date, from), lte(foodLogEntries.date, to)))
+      .orderBy(foodLogEntries.date, foodLogEntries.createdAt);
   }
 
   async createFoodLogEntry(entry: InsertFoodLogEntry & { userId: number }): Promise<FoodLogEntry> {

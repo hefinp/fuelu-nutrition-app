@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { Flame, Calendar, UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences } from "@shared/schema";
@@ -1737,35 +1737,6 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
       animate="visible"
       className="space-y-6"
     >
-      {/* Calories Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <motion.div variants={itemVariants} className="bg-white p-6 rounded-3xl subtle-shadow border border-zinc-100 flex items-start gap-4">
-          <div className="p-3 bg-orange-100 text-orange-600 rounded-2xl">
-            <Flame className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-zinc-500">Daily Calories</p>
-            <div className="flex items-baseline gap-1 mt-1">
-              <span className="text-4xl font-bold tracking-tighter text-zinc-900">{data.dailyCalories}</span>
-              <span className="text-zinc-400 font-medium">kcal</span>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="bg-white p-6 rounded-3xl subtle-shadow border border-zinc-100 flex items-start gap-4">
-          <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl">
-            <Calendar className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-zinc-500">Weekly Target</p>
-            <div className="flex items-baseline gap-1 mt-1">
-              <span className="text-4xl font-bold tracking-tighter text-zinc-900">{data.weeklyCalories}</span>
-              <span className="text-zinc-400 font-medium">kcal</span>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
       {/* Health Disclaimer */}
       <motion.div variants={itemVariants} className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-start gap-3">
         <span className="text-amber-500 mt-0.5 text-sm shrink-0">&#9888;</span>

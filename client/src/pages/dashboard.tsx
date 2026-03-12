@@ -372,13 +372,24 @@ export default function Dashboard() {
 
             {/* Two-column layout: results + right sidebar */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-              {/* Nutrition results (left, wider) */}
-              <div className="xl:col-span-7">
+              {/* Nutrition results (left, wider) — order-2 on mobile so food log shows first */}
+              <div className="xl:col-span-7 order-2 xl:order-1">
                 <ResultsDisplay data={activeResult!} onLogMeal={handleLogMeal} />
               </div>
 
-              {/* Right sidebar: weight tracker + food log */}
-              <div className="xl:col-span-5 space-y-6">
+              {/* Right sidebar: food log first, then weight tracker */}
+              <div className="xl:col-span-5 order-1 xl:order-2 space-y-6">
+                {user ? (
+                  <FoodLog
+                    dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
+                    dailyProteinTarget={activeResult?.proteinGoal ?? undefined}
+                    dailyCarbsTarget={activeResult?.carbsGoal ?? undefined}
+                    dailyFatTarget={activeResult?.fatGoal ?? undefined}
+                    prefill={logPrefill}
+                    onPrefillConsumed={handlePrefillConsumed}
+                  />
+                ) : null}
+
                 {user ? (
                   <WeightTracker
                     targetWeight={
@@ -405,17 +416,6 @@ export default function Dashboard() {
                     </Link>
                   </div>
                 )}
-
-                {user ? (
-                  <FoodLog
-                    dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
-                    dailyProteinTarget={activeResult?.proteinGoal ?? undefined}
-                    dailyCarbsTarget={activeResult?.carbsGoal ?? undefined}
-                    dailyFatTarget={activeResult?.fatGoal ?? undefined}
-                    prefill={logPrefill}
-                    onPrefillConsumed={handlePrefillConsumed}
-                  />
-                ) : null}
               </div>
             </div>
           </motion.div>
