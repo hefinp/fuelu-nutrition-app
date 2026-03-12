@@ -54,6 +54,7 @@ export const userPreferencesSchema = z.object({
   dashboardLayout: z.object({
     order: z.array(z.string()),
   }).optional(),
+  hiddenWidgets: z.array(z.string()).optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;

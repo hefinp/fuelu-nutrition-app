@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CalculatorForm } from "@/components/calculator-form";
 import { NutritionDisplay, MealPlanGenerator } from "@/components/results-display";
 import { SavedMealPlans } from "@/components/saved-meal-plans";
@@ -10,12 +11,15 @@ import { FoodLog } from "@/components/food-log";
 import { RecipeLibrary } from "@/components/recipe-library";
 import { HydrationTracker } from "@/components/hydration-tracker";
 import { SortableWidget } from "@/components/sortable-widget";
+import { Switch } from "@/components/ui/switch";
 import { useDashboardLayout, WIDE_WIDGETS } from "@/hooks/use-dashboard-layout";
 import type { WidgetId } from "@/hooks/use-dashboard-layout";
 import type { PrefillEntry } from "@/components/food-log";
 import type { Meal } from "@/components/results-display";
 import { useCalculations } from "@/hooks/use-calculations";
 import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
+import type { Calculation, UserPreferences } from "@shared/schema";
 import {
   DndContext,
   closestCenter,
@@ -33,8 +37,9 @@ import {
 import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2,
+  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked,
 } from "lucide-react";
-import type { Calculation } from "@shared/schema";
+import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
 
 // Detect whether the viewport is desktop-width (xl = 1280px)
 function useIsDesktop() {
@@ -57,11 +62,39 @@ export default function Dashboard() {
   const [showMetricsPanel, setShowMetricsPanel] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
+  const [dashboardAccordionOpen, setDashboardAccordionOpen] = useState(false);
+  const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [logPrefill, setLogPrefill] = useState<PrefillEntry | null>(null);
   const { data: history, isLoading: historyLoading } = useCalculations();
   const { user, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
   const isDesktop = useIsDesktop();
+  const queryClient = useQueryClient();
+
+  const { data: userPrefs } = useQuery<UserPreferences>({
+    queryKey: ["/api/user/preferences"],
+    enabled: !!user,
+  });
+
+  // Local hidden-widget state: derived from prefs, updated optimistically on toggle
+  const [hiddenWidgets, setHiddenWidgets] = useState<string[]>([]);
+  useEffect(() => {
+    setHiddenWidgets(userPrefs?.hiddenWidgets ?? []);
+  }, [userPrefs?.hiddenWidgets]);
+
+  const toggleWidgetMutation = useMutation({
+    mutationFn: (newHidden: string[]) =>
+      apiRequest("PUT", "/api/user/preferences", { ...userPrefs, hiddenWidgets: newHidden }).then(r => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }),
+  });
+
+  function toggleWidget(id: string) {
+    const next = hiddenWidgets.includes(id)
+      ? hiddenWidgets.filter(w => w !== id)
+      : [...hiddenWidgets, id];
+    setHiddenWidgets(next);
+    toggleWidgetMutation.mutate(next);
+  }
 
   const {
     widgetOrder,
@@ -151,6 +184,7 @@ export default function Dashboard() {
 
   // Single render function for all widgets — used by both mobile and desktop paths
   function renderWidget(id: WidgetId): JSX.Element | null {
+    if (hiddenWidgets.includes(id)) return null;
     switch (id) {
       case "nutrition":
         return <NutritionDisplay data={activeResult!} />;
@@ -323,38 +357,154 @@ export default function Dashboard() {
                   onPendingChange={setIsCalculating}
                 />
 
-                {user && (
-                  <div className="border-t border-zinc-100">
-                    <button
-                      type="button"
-                      onClick={() => setPrefsOpen(v => !v)}
-                      className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-zinc-50/60 transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Salad className="w-4 h-4 text-zinc-400" />
-                        <span className="text-sm font-semibold text-zinc-900">Preferences</span>
-                      </div>
-                      <ChevronDown
-                        className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${prefsOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {prefsOpen && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.22, ease: "easeInOut" }}
-                          className="overflow-hidden"
+                {user && (() => {
+                  const WIDGET_CONFIG: { id: string; label: string; Icon: React.ElementType }[] = [
+                    { id: "food-log",       label: "Food Log",         Icon: ClipboardList },
+                    { id: "hydration",      label: "Hydration",        Icon: Droplets },
+                    { id: "meal-plan",      label: "Meal Planner",     Icon: UtensilsCrossed },
+                    { id: "nutrition",      label: "Nutrition",        Icon: SlidersHorizontal },
+                    { id: "weight",         label: "Progress Tracker", Icon: Scale },
+                    { id: "recipe-library", label: "Recipe Library",   Icon: BookMarked },
+                  ];
+
+                  const CONNECTIONS = [
+                    { label: "Email",  Icon: Mail,      connected: true,                                    colour: "text-zinc-500" },
+                    { label: "Google", Icon: SiGoogle,  connected: user.provider === "google",              colour: "text-blue-500" },
+                    { label: "Apple",  Icon: SiApple,   connected: user.provider === "apple",               colour: "text-zinc-900" },
+                    { label: "Strava", Icon: SiStrava,  connected: false,                                   colour: "text-orange-500" },
+                  ];
+
+                  return (
+                    <>
+                      {/* ── Dashboard accordion ── */}
+                      <div className="border-t border-zinc-100">
+                        <button
+                          type="button"
+                          onClick={() => setDashboardAccordionOpen(v => !v)}
+                          className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-zinc-50/60 transition-colors"
+                          data-testid="button-accordion-dashboard"
                         >
-                          <div className="px-6 pb-5 pt-1">
-                            <PreferencesForm />
+                          <div className="flex items-center gap-2.5">
+                            <LayoutDashboard className="w-4 h-4 text-zinc-400" />
+                            <span className="text-sm font-semibold text-zinc-900">Dashboard</span>
                           </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                )}
+                          <ChevronDown
+                            className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${dashboardAccordionOpen ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                        <AnimatePresence initial={false}>
+                          {dashboardAccordionOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.22, ease: "easeInOut" }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-6 pb-4 pt-1 space-y-1">
+                                {WIDGET_CONFIG.map(({ id, label, Icon }) => (
+                                  <div key={id} className="flex items-center justify-between py-2.5">
+                                    <div className="flex items-center gap-2.5">
+                                      <Icon className="w-4 h-4 text-zinc-400" />
+                                      <span className="text-sm text-zinc-700">{label}</span>
+                                    </div>
+                                    <Switch
+                                      checked={!hiddenWidgets.includes(id)}
+                                      onCheckedChange={() => toggleWidget(id)}
+                                      data-testid={`toggle-widget-${id}`}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* ── Preferences accordion ── */}
+                      <div className="border-t border-zinc-100">
+                        <button
+                          type="button"
+                          onClick={() => setPrefsOpen(v => !v)}
+                          className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-zinc-50/60 transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Salad className="w-4 h-4 text-zinc-400" />
+                            <span className="text-sm font-semibold text-zinc-900">Preferences</span>
+                          </div>
+                          <ChevronDown
+                            className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${prefsOpen ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                        <AnimatePresence initial={false}>
+                          {prefsOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.22, ease: "easeInOut" }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-6 pb-5 pt-1">
+                                <PreferencesForm />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* ── Connections accordion ── */}
+                      <div className="border-t border-zinc-100">
+                        <button
+                          type="button"
+                          onClick={() => setConnectionsOpen(v => !v)}
+                          className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-zinc-50/60 transition-colors"
+                          data-testid="button-accordion-connections"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Link2 className="w-4 h-4 text-zinc-400" />
+                            <span className="text-sm font-semibold text-zinc-900">Connections</span>
+                          </div>
+                          <ChevronDown
+                            className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${connectionsOpen ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                        <AnimatePresence initial={false}>
+                          {connectionsOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.22, ease: "easeInOut" }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-6 pb-4 pt-1 space-y-1">
+                                {CONNECTIONS.map(({ label, Icon, connected, colour }) => (
+                                  <div key={label} className="flex items-center justify-between py-2.5">
+                                    <div className="flex items-center gap-2.5">
+                                      <Icon className={`w-4 h-4 ${colour}`} />
+                                      <span className="text-sm text-zinc-700">{label}</span>
+                                    </div>
+                                    <span
+                                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                        connected
+                                          ? "bg-green-50 text-green-700"
+                                          : "bg-zinc-100 text-zinc-400"
+                                      }`}
+                                      data-testid={`status-connection-${label.toLowerCase()}`}
+                                    >
+                                      {connected ? "Connected" : "Not connected"}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               <div className="flex-shrink-0 border-t border-zinc-100 px-6 py-4 bg-white">
