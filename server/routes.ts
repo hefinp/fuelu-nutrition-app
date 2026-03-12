@@ -1069,7 +1069,18 @@ export async function registerRoutes(
     if (!plan) return res.status(404).json({ message: "Plan not found" });
     const user = await storage.getUserById(req.session.userId);
     if (!user) return res.status(401).json({ message: "User not found" });
-    const shoppingList = req.body?.shoppingList as Record<string, Array<{ item: string; quantity: string }>> | undefined;
+    let shoppingList: Record<string, Array<{ item: string; quantity: string }>> | undefined;
+    if (req.body?.shoppingList && typeof req.body.shoppingList === 'object') {
+      const raw = req.body.shoppingList as Record<string, unknown>;
+      const validated: Record<string, Array<{ item: string; quantity: string }>> = {};
+      for (const [cat, items] of Object.entries(raw)) {
+        if (!Array.isArray(items)) continue;
+        validated[String(cat).slice(0, 50)] = items
+          .filter((i: any) => i && typeof i.item === 'string' && typeof i.quantity === 'string')
+          .map((i: any) => ({ item: String(i.item).slice(0, 200), quantity: String(i.quantity).slice(0, 50) }));
+      }
+      if (Object.keys(validated).length > 0) shoppingList = validated;
+    }
     const html = buildMealPlanEmailHtml(plan.name, user.name, plan.planData as any, plan.planType, shoppingList);
     await sendEmail({ to: user.email, subject: `Your NutriSync plan: ${plan.name}`, html });
     res.json({ message: "Plan sent to your email." });
