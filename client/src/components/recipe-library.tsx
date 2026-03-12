@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { type UserRecipe, type UserPreferences } from "@shared/schema";
 import {
   BookOpen, Plus, X, Loader2, ExternalLink, Trash2, ChefHat,
-  UtensilsCrossed, Globe, AlertCircle, Check,
+  UtensilsCrossed, Globe, AlertCircle, Check, AlertTriangle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -23,6 +23,7 @@ interface ParsedRecipe {
   carbs: number | null;
   fat: number | null;
   hasNutrition: boolean;
+  suggestedSlot: string | null;
 }
 
 const MEAL_SLOT_OPTIONS: { value: MealSlot; label: string }[] = [
@@ -53,6 +54,11 @@ const STYLE_COLOURS: Record<MealStyle, string> = {
 
 function sourceDomain(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
+}
+
+function isMacrosComplete(recipe: UserRecipe): boolean {
+  return recipe.caloriesPerServing > 0 && recipe.proteinPerServing > 0 &&
+    recipe.carbsPerServing > 0 && recipe.fatPerServing > 0;
 }
 
 export function RecipeLibrary() {
@@ -129,6 +135,7 @@ export function RecipeLibrary() {
 function RecipeCard({ recipe }: { recipe: UserRecipe }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const complete = isMacrosComplete(recipe);
 
   const deleteMutation = useMutation({
     mutationFn: () => apiRequest("DELETE", `/api/recipes/${recipe.id}`, undefined),
@@ -164,6 +171,13 @@ function RecipeCard({ recipe }: { recipe: UserRecipe }) {
           </button>
         </div>
 
+        {!complete && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 border border-amber-200 rounded-xl" data-testid={`banner-incomplete-${recipe.id}`}>
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+            <p className="text-[11px] text-amber-700 leading-tight">Macros incomplete — won't appear in meal plans</p>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-1.5">
           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${SLOT_COLOURS[recipe.mealSlot as MealSlot] ?? "bg-zinc-100 text-zinc-600 border-zinc-200"}`}>
             {recipe.mealSlot}
@@ -175,10 +189,10 @@ function RecipeCard({ recipe }: { recipe: UserRecipe }) {
 
         <div className="grid grid-cols-4 gap-1">
           {[
-            { label: "Cal", value: recipe.caloriesPerServing },
-            { label: "P", value: `${recipe.proteinPerServing}g` },
-            { label: "C", value: `${recipe.carbsPerServing}g` },
-            { label: "F", value: `${recipe.fatPerServing}g` },
+            { label: "Cal", value: recipe.caloriesPerServing || "—" },
+            { label: "P", value: recipe.proteinPerServing ? `${recipe.proteinPerServing}g` : "—" },
+            { label: "C", value: recipe.carbsPerServing ? `${recipe.carbsPerServing}g` : "—" },
+            { label: "F", value: recipe.fatPerServing ? `${recipe.fatPerServing}g` : "—" },
           ].map(m => (
             <div key={m.label} className="bg-white rounded-lg px-1.5 py-1 text-center border border-zinc-100">
               <p className="text-xs font-bold text-zinc-900">{m.value}</p>
@@ -227,6 +241,7 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
       setProtein(data.protein !== null ? String(data.protein) : "");
       setCarbs(data.carbs !== null ? String(data.carbs) : "");
       setFat(data.fat !== null ? String(data.fat) : "");
+      if (data.suggestedSlot) setMealSlot(data.suggestedSlot as MealSlot);
       setFetchError(null);
       setStep("confirm");
     },
@@ -270,7 +285,8 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
     });
   };
 
-  const macrosComplete = calories && protein && carbs && fat;
+  const macrosComplete = calories && protein && carbs && fat &&
+    parseInt(calories) > 0 && parseInt(protein) > 0 && parseInt(carbs) > 0 && parseInt(fat) > 0;
 
   return (
     <>
@@ -420,11 +436,25 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
                     </div>
                   ))}
                 </div>
+
+                {!macrosComplete && (
+                  <div className="flex items-start gap-2 mt-2.5 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl" data-testid="banner-macros-warning">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-amber-700">Missing macros — this recipe will be saved but won't appear in meal plans until all values are filled in.</p>
+                  </div>
+                )}
               </div>
 
               {/* Meal slot */}
               <div>
-                <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2">Meal slot</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide">Meal slot</p>
+                  {parsed.suggestedSlot && (
+                    <span className="text-[10px] px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-full">
+                      suggested from recipe
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {MEAL_SLOT_OPTIONS.map(opt => (
                     <button
@@ -515,7 +545,7 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
               </button>
               <button
                 onClick={handleSave}
-                disabled={!macrosComplete || saveMutation.isPending}
+                disabled={saveMutation.isPending}
                 data-testid="button-save-recipe"
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-zinc-900 text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >

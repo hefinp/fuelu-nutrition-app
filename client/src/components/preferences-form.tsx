@@ -27,6 +27,16 @@ const ALLERGY_OPTIONS: { value: Allergy; label: string }[] = [
   { value: "soy",       label: "Soy" },
 ];
 
+const ALL_SLOTS = ["breakfast", "lunch", "dinner", "snack"] as const;
+type MealSlot = typeof ALL_SLOTS[number];
+
+const SLOT_LABELS: Record<MealSlot, string> = {
+  breakfast: "Breakfast",
+  lunch: "Lunch",
+  dinner: "Dinner",
+  snack: "Snack",
+};
+
 function TagInput({
   tags,
   onChange,
@@ -112,6 +122,8 @@ export function PreferencesForm() {
   const [micronutrientOptimize, setMicronutrientOptimize] = useState(false);
   const [recipeWebsitesEnabled, setRecipeWebsitesEnabled] = useState(false);
   const [recipeWebsites, setRecipeWebsites] = useState<string[]>([]);
+  const [recipeEnabledSlots, setRecipeEnabledSlots] = useState<MealSlot[]>([...ALL_SLOTS]);
+  const [recipeWeeklyLimit, setRecipeWeeklyLimit] = useState(5);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -124,6 +136,8 @@ export function PreferencesForm() {
     setMicronutrientOptimize(data.micronutrientOptimize ?? false);
     setRecipeWebsitesEnabled(data.recipeWebsitesEnabled ?? false);
     setRecipeWebsites(data.recipeWebsites ?? []);
+    setRecipeEnabledSlots((data.recipeEnabledSlots as MealSlot[] | undefined) ?? [...ALL_SLOTS]);
+    setRecipeWeeklyLimit(data.recipeWeeklyLimit ?? 5);
   }, [data]);
 
   const mutation = useMutation({
@@ -144,6 +158,16 @@ export function PreferencesForm() {
     );
   };
 
+  const toggleSlot = (slot: MealSlot) => {
+    setRecipeEnabledSlots(prev => {
+      if (prev.includes(slot)) {
+        const next = prev.filter(s => s !== slot);
+        return next.length === 0 ? [...ALL_SLOTS] : next;
+      }
+      return [...prev, slot];
+    });
+  };
+
   const handleSave = () => {
     mutation.mutate({
       diet: diet ?? undefined,
@@ -154,6 +178,8 @@ export function PreferencesForm() {
       dislikedMeals: data?.dislikedMeals ?? [],
       recipeWebsitesEnabled,
       recipeWebsites,
+      recipeEnabledSlots,
+      recipeWeeklyLimit,
     });
   };
 
@@ -164,7 +190,9 @@ export function PreferencesForm() {
     JSON.stringify(preferredFoods) !== JSON.stringify(data?.preferredFoods ?? []) ||
     micronutrientOptimize !== (data?.micronutrientOptimize ?? false) ||
     recipeWebsitesEnabled !== (data?.recipeWebsitesEnabled ?? false) ||
-    JSON.stringify(recipeWebsites) !== JSON.stringify(data?.recipeWebsites ?? []);
+    JSON.stringify(recipeWebsites) !== JSON.stringify(data?.recipeWebsites ?? []) ||
+    JSON.stringify([...recipeEnabledSlots].sort()) !== JSON.stringify([...(data?.recipeEnabledSlots ?? [...ALL_SLOTS])].sort()) ||
+    recipeWeeklyLimit !== (data?.recipeWeeklyLimit ?? 5);
 
   if (isLoading) {
     return (
@@ -327,15 +355,60 @@ export function PreferencesForm() {
         </button>
 
         {recipeWebsitesEnabled && (
-          <div className="mt-3 pl-1">
-            <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-1.5">Your recipe websites</p>
-            <p className="text-xs text-zinc-400 mb-2">Add site URLs (e.g. allrecipes.com, bite.co.nz) — press Enter to add each one</p>
-            <TagInput
-              tags={recipeWebsites}
-              onChange={setRecipeWebsites}
-              placeholder="e.g. allrecipes.com, bbcgoodfood.com..."
-              testIdPrefix="recipe-websites"
-            />
+          <div className="mt-3 pl-1 space-y-4">
+            <div>
+              <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-1.5">Your recipe websites</p>
+              <p className="text-xs text-zinc-400 mb-2">Add site URLs (e.g. allrecipes.com, bite.co.nz) — press Enter to add each one</p>
+              <TagInput
+                tags={recipeWebsites}
+                onChange={setRecipeWebsites}
+                placeholder="e.g. allrecipes.com, bbcgoodfood.com..."
+                testIdPrefix="recipe-websites"
+              />
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2">Use my recipes for</p>
+              <div className="flex flex-wrap gap-2">
+                {ALL_SLOTS.map(slot => {
+                  const active = recipeEnabledSlots.includes(slot);
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => toggleSlot(slot)}
+                      data-testid={`recipe-slot-${slot}`}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                        active
+                          ? "bg-zinc-900 text-white border-zinc-900"
+                          : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400"
+                      }`}
+                    >
+                      {SLOT_LABELS[slot]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 uppercase tracking-wide mb-1.5" htmlFor="recipe-weekly-limit">
+                Recipes per week
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  id="recipe-weekly-limit"
+                  type="number"
+                  min={1}
+                  max={14}
+                  value={recipeWeeklyLimit}
+                  onChange={e => setRecipeWeeklyLimit(Math.min(14, Math.max(1, parseInt(e.target.value) || 1)))}
+                  data-testid="input-recipe-weekly-limit"
+                  className="w-20 px-3 py-1.5 text-sm border border-zinc-200 rounded-xl focus:border-zinc-400 focus:outline-none transition-colors"
+                />
+                <p className="text-xs text-zinc-400">Maximum recipes from your library that can appear in a single plan</p>
+              </div>
+            </div>
           </div>
         )}
       </div>

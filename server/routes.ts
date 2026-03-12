@@ -784,17 +784,23 @@ export async function registerRoutes(
         if (prefs?.recipeWebsitesEnabled) {
           const userRecipesList = await storage.getUserRecipes(req.session.userId);
           const style = input.mealStyle ?? 'simple';
-          for (const r of userRecipesList) {
-            if (r.mealStyle === style && (r.mealSlot === 'breakfast' || r.mealSlot === 'lunch' || r.mealSlot === 'dinner' || r.mealSlot === 'snack')) {
-              baseDb[r.mealSlot as keyof MealDb].push({
-                meal: r.name,
-                calories: r.caloriesPerServing,
-                protein: r.proteinPerServing,
-                carbs: r.carbsPerServing,
-                fat: r.fatPerServing,
-                microScore: 3,
-              });
-            }
+          const limit = (prefs as any).recipeWeeklyLimit ?? 5;
+          const enabledSlots: string[] = (prefs as any).recipeEnabledSlots ?? ["breakfast", "lunch", "dinner", "snack"];
+          const eligible = userRecipesList.filter(r =>
+            r.caloriesPerServing > 0 && r.proteinPerServing > 0 && r.carbsPerServing > 0 && r.fatPerServing > 0 &&
+            r.mealStyle === style &&
+            enabledSlots.includes(r.mealSlot)
+          );
+          const capped = [...eligible].sort(() => Math.random() - 0.5).slice(0, limit);
+          for (const r of capped) {
+            baseDb[r.mealSlot as keyof MealDb].push({
+              meal: r.name,
+              calories: r.caloriesPerServing,
+              protein: r.proteinPerServing,
+              carbs: r.carbsPerServing,
+              fat: r.fatPerServing,
+              microScore: 3,
+            });
           }
         }
       }
@@ -839,17 +845,23 @@ export async function registerRoutes(
         if (prefs?.recipeWebsitesEnabled) {
           const userRecipesList = await storage.getUserRecipes(req.session.userId);
           const style = input.mealStyle ?? 'simple';
-          for (const r of userRecipesList) {
-            if (r.mealStyle === style && (r.mealSlot === 'breakfast' || r.mealSlot === 'lunch' || r.mealSlot === 'dinner' || r.mealSlot === 'snack')) {
-              baseDb[r.mealSlot as keyof MealDb].push({
-                meal: r.name,
-                calories: r.caloriesPerServing,
-                protein: r.proteinPerServing,
-                carbs: r.carbsPerServing,
-                fat: r.fatPerServing,
-                microScore: 3,
-              });
-            }
+          const limit = (prefs as any).recipeWeeklyLimit ?? 5;
+          const enabledSlots: string[] = (prefs as any).recipeEnabledSlots ?? ["breakfast", "lunch", "dinner", "snack"];
+          const eligible = userRecipesList.filter(r =>
+            r.caloriesPerServing > 0 && r.proteinPerServing > 0 && r.carbsPerServing > 0 && r.fatPerServing > 0 &&
+            r.mealStyle === style &&
+            enabledSlots.includes(r.mealSlot)
+          );
+          const capped = [...eligible].sort(() => Math.random() - 0.5).slice(0, limit);
+          for (const r of capped) {
+            baseDb[r.mealSlot as keyof MealDb].push({
+              meal: r.name,
+              calories: r.caloriesPerServing,
+              protein: r.proteinPerServing,
+              carbs: r.carbsPerServing,
+              fat: r.fatPerServing,
+              microScore: 3,
+            });
           }
         }
       }
@@ -1325,6 +1337,24 @@ export async function registerRoutes(
     const carbs = nutrition ? parseNutrientValue(nutrition.carbohydrateContent) : null;
     const fat = nutrition ? parseNutrientValue(nutrition.fatContent) : null;
 
+    // Detect suggested meal slot from Schema.org recipeCategory
+    const categoryRaw = recipe.recipeCategory;
+    const categories: string[] = Array.isArray(categoryRaw)
+      ? categoryRaw.map((c: any) => String(c).toLowerCase())
+      : typeof categoryRaw === 'string' ? [categoryRaw.toLowerCase()] : [];
+    const SLOT_MAP: Array<[string[], string]> = [
+      [["breakfast", "brunch", "morning"], "breakfast"],
+      [["lunch", "midday"], "lunch"],
+      [["snack", "appetizer", "starter", "side", "dessert"], "snack"],
+      [["dinner", "main", "supper", "entree", "entrée", "evening"], "dinner"],
+    ];
+    let suggestedSlot: string | null = null;
+    outer: for (const cat of categories) {
+      for (const [keywords, slot] of SLOT_MAP) {
+        if (keywords.some(k => cat.includes(k))) { suggestedSlot = slot; break outer; }
+      }
+    }
+
     res.json({
       name,
       imageUrl,
@@ -1336,6 +1366,7 @@ export async function registerRoutes(
       carbs,
       fat,
       hasNutrition: calories !== null,
+      suggestedSlot,
     });
   });
 

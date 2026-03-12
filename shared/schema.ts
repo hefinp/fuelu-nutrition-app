@@ -47,6 +47,8 @@ export const userPreferencesSchema = z.object({
   dislikedMeals: z.array(z.string()).optional(),
   recipeWebsitesEnabled: z.boolean().optional(),
   recipeWebsites: z.array(z.string()).optional(),
+  recipeEnabledSlots: z.array(z.enum(["breakfast", "lunch", "dinner", "snack"])).optional(),
+  recipeWeeklyLimit: z.number().int().min(1).max(14).optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;
