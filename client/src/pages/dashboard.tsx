@@ -90,9 +90,11 @@ export default function Dashboard() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }),
   });
 
-  const showOnboarding = !!user && userPrefs !== undefined && userPrefs?.onboardingComplete !== true;
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const showOnboarding = !!user && userPrefs !== undefined && userPrefs?.onboardingComplete !== true && !onboardingDismissed;
 
   const dismissOnboarding = useCallback(() => {
+    setOnboardingDismissed(true);
     apiRequest("PUT", "/api/user/preferences", { ...userPrefs, onboardingComplete: true })
       .then(() => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }));
   }, [userPrefs, queryClient]);
