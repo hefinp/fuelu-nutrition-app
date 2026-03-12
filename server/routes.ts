@@ -1079,7 +1079,7 @@ export async function registerRoutes(
   app.get("/api/barcode/:barcode", async (req, res) => {
     const barcode = req.params.barcode;
 
-    // 1. Check app's custom foods database first
+    // 1. Check app's community database first
     const custom = await storage.getCustomFoodByBarcode(barcode);
     if (custom) {
       return res.json({
@@ -1095,6 +1095,23 @@ export async function registerRoutes(
       });
     }
 
+    // Helper: silently cache a found product to community DB
+    const cacheToDb = (food: {
+      name: string; calories100g: number; protein100g: number;
+      carbs100g: number; fat100g: number; servingGrams: number;
+    }) => {
+      storage.createCustomFood({
+        barcode,
+        name: food.name,
+        calories100g: food.calories100g,
+        protein100g: food.protein100g,
+        carbs100g: food.carbs100g,
+        fat100g: food.fat100g,
+        servingGrams: food.servingGrams,
+        contributedByUserId: null,
+      }).catch(() => {});
+    };
+
     // 2. Try Open Food Facts
     try {
       const offUrl = `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`;
@@ -1108,17 +1125,23 @@ export async function registerRoutes(
           const name = (p.product_name_en || p.product_name || "").trim();
           if (kcal100g > 0 && name) {
             const servingGrams = Math.round(parseFloat(p.serving_quantity) || 100);
-            return res.json({
+            const result = {
               id: `off-${barcode}`,
               name: name.charAt(0).toUpperCase() + name.slice(1),
               calories100g: Math.round(kcal100g),
               protein100g: Math.round((n.proteins_100g || 0) * 10) / 10,
               carbs100g: Math.round((n.carbohydrates_100g || 0) * 10) / 10,
               fat100g: Math.round((n.fat_100g || 0) * 10) / 10,
+              fibre100g: Math.round((n["fiber_100g"] ?? n["fibre_100g"] ?? 0) * 10) / 10,
+              sodium100g: Math.round((n["sodium_100g"] || 0) * 1000) / 10,
+              sugar100g: Math.round((n["sugars_100g"] ?? n["carbohydrates-sugars_100g"] ?? 0) * 10) / 10,
+              saturatedFat100g: Math.round((n["saturated-fat_100g"] || 0) * 10) / 10,
               servingSize: p.serving_size || `${servingGrams}g`,
               servingGrams: servingGrams || 100,
               source: "open_food_facts",
-            });
+            };
+            cacheToDb(result);
+            return res.json(result);
           }
         }
       }
@@ -1141,17 +1164,23 @@ export async function registerRoutes(
           if (calories100g > 0) {
             const servingGrams = (match.servingSizeUnit === "g" || match.servingSizeUnit === "G")
               ? Math.round(parseFloat(match.servingSize) || 100) : 100;
-            return res.json({
+            const result = {
               id: String(match.fdcId),
               name: match.description.charAt(0).toUpperCase() + match.description.slice(1).toLowerCase(),
               calories100g,
               protein100g: Math.round(getNutrient(1003) * 10) / 10,
               carbs100g: Math.round(getNutrient(1005) * 10) / 10,
               fat100g: Math.round(getNutrient(1004) * 10) / 10,
+              fibre100g: Math.round(getNutrient(1079) * 10) / 10,
+              sodium100g: Math.round(getNutrient(1093) / 10) / 10,
+              sugar100g: Math.round(getNutrient(2000) * 10) / 10,
+              saturatedFat100g: Math.round(getNutrient(1258) * 10) / 10,
               servingSize: servingGrams > 0 ? `${servingGrams}g` : "100g",
               servingGrams: servingGrams || 100,
               source: "usda",
-            });
+            };
+            cacheToDb(result);
+            return res.json(result);
           }
         }
       }
@@ -1197,6 +1226,12 @@ export async function registerRoutes(
   });
 
   // ── Food log ──────────────────────────────────────────────────────────────
+
+  app.get("/api/food-log/recent", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const entries = await storage.getRecentFoodEntries(req.session.userId, 5);
+    res.json(entries);
+  });
 
   app.get("/api/food-log", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });

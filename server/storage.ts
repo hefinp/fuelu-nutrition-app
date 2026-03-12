@@ -32,6 +32,7 @@ export interface IStorage {
   // Food log
   getFoodLogEntries(userId: number, date: string): Promise<FoodLogEntry[]>;
   getFoodLogEntriesRange(userId: number, from: string, to: string): Promise<FoodLogEntry[]>;
+  getRecentFoodEntries(userId: number, limit: number): Promise<FoodLogEntry[]>;
   createFoodLogEntry(entry: InsertFoodLogEntry & { userId: number }): Promise<FoodLogEntry>;
   deleteFoodLogEntry(id: number, userId: number): Promise<void>;
 
@@ -160,6 +161,22 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(foodLogEntries)
       .where(and(eq(foodLogEntries.userId, userId), gte(foodLogEntries.date, from), lte(foodLogEntries.date, to)))
       .orderBy(foodLogEntries.date, foodLogEntries.createdAt);
+  }
+
+  async getRecentFoodEntries(userId: number, limit: number): Promise<FoodLogEntry[]> {
+    const rows = await db.select().from(foodLogEntries)
+      .where(eq(foodLogEntries.userId, userId))
+      .orderBy(desc(foodLogEntries.createdAt))
+      .limit(limit * 10);
+    const seen = new Set<string>();
+    const unique: typeof rows = [];
+    for (const r of rows) {
+      if (!seen.has(r.mealName) && unique.length < limit) {
+        seen.add(r.mealName);
+        unique.push(r);
+      }
+    }
+    return unique;
   }
 
   async createFoodLogEntry(entry: InsertFoodLogEntry & { userId: number }): Promise<FoodLogEntry> {

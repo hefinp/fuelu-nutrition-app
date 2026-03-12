@@ -24,6 +24,14 @@ interface FoodResult {
   servingGrams: number;
 }
 
+interface ExtendedFoodResult extends FoodResult {
+  fibre100g?: number;
+  sodium100g?: number;
+  sugar100g?: number;
+  saturatedFat100g?: number;
+  source?: string;
+}
+
 interface FoodLogEntry {
   id: number;
   date: string;
@@ -253,6 +261,13 @@ export function FoodLog({
   const [scanLookingUp, setScanLookingUp] = useState(false);
   const [scanResult, setScanResult] = useState<{ type: "found" | "not_found"; barcode: string; name?: string } | null>(null);
   const [saveAsCustomFood, setSaveAsCustomFood] = useState(false);
+  const [scannedFood, setScannedFood] = useState<ExtendedFoodResult | null>(null);
+  const [scanServingGrams, setScanServingGrams] = useState("100");
+  const [scanMealSlot, setScanMealSlot] = useState<MealSlot | null>(null);
+  const [showScanAnother, setShowScanAnother] = useState(false);
+  const [scanKey, setScanKey] = useState(0);
+  const scanConfirmModeRef = useRef(false);
+  const zxingModuleRef = useRef<typeof import("@zxing/browser") | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scanControlsRef = useRef<{ stop: () => void } | null>(null);
 
@@ -261,8 +276,17 @@ export function FoodLog({
     return () => clearTimeout(t);
   }, [searchQuery]);
 
+  // Pre-load ZXing when the form opens to eliminate cold-start camera delay
   useEffect(() => {
-    if (formTab !== "scan") {
+    if (!showForm) return;
+    if (zxingModuleRef.current) return;
+    import("@zxing/browser").then(mod => {
+      zxingModuleRef.current = mod;
+    }).catch(() => {});
+  }, [showForm]);
+
+  useEffect(() => {
+    if (formTab !== "scan" || scannedFood || showScanAnother) {
       scanControlsRef.current?.stop();
       scanControlsRef.current = null;
       return;
@@ -273,7 +297,9 @@ export function FoodLog({
 
     (async () => {
       try {
-        const { BrowserMultiFormatReader } = await import("@zxing/browser");
+        const mod = zxingModuleRef.current ?? await import("@zxing/browser");
+        if (!zxingModuleRef.current) zxingModuleRef.current = mod;
+        const { BrowserMultiFormatReader } = mod;
         if (cancelled || !videoRef.current) return;
 
         const reader = new BrowserMultiFormatReader();
@@ -292,28 +318,23 @@ export function FoodLog({
             try {
               const res = await fetch(`/api/barcode/${encodeURIComponent(barcode)}`);
               if (res.ok) {
-                const food = await res.json();
-                const factor = (food.servingGrams || 100) / 100;
-                setForm(f => ({
-                  ...f,
-                  mealName: food.name,
-                  calories: String(Math.round(food.calories100g * factor)),
-                  protein: String(Math.round(food.protein100g * factor)),
-                  carbs: String(Math.round(food.carbs100g * factor)),
-                  fat: String(Math.round(food.fat100g * factor)),
-                }));
-                setScanResult({ type: "found", barcode, name: food.name });
+                const food: ExtendedFoodResult = await res.json();
+                setScannedFood(food);
+                setScanServingGrams(String(food.servingGrams || 100));
+                setScanMealSlot(null);
                 setSaveAsCustomFood(false);
+                setScanResult(null);
               } else {
                 setScanResult({ type: "not_found", barcode });
                 setSaveAsCustomFood(true);
+                setFormTab("manual");
               }
             } catch {
               setScanResult({ type: "not_found", barcode });
               setSaveAsCustomFood(true);
+              setFormTab("manual");
             }
             setScanLookingUp(false);
-            setFormTab("manual");
           }
         );
         if (!cancelled) scanControlsRef.current = controls;
@@ -327,7 +348,7 @@ export function FoodLog({
       scanControlsRef.current?.stop();
       scanControlsRef.current = null;
     };
-  }, [formTab]);
+  }, [formTab, scanKey, scannedFood, showScanAnother]);
 
   const weekRange = getWeekRange(weekOffset);
 
@@ -397,6 +418,17 @@ export function FoodLog({
     staleTime: 60_000,
   });
 
+  const { data: recentFoods = [] } = useQuery<FoodLogEntry[]>({
+    queryKey: ["/api/food-log/recent"],
+    queryFn: async () => {
+      const res = await fetch("/api/food-log/recent", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: showForm,
+    staleTime: 30_000,
+  });
+
   // ── Mutations ─────────────────────────────────────────────────────────────
 
   const addMutation = useMutation({
@@ -407,9 +439,16 @@ export function FoodLog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log", selectedDate] });
       queryClient.invalidateQueries({ queryKey: ["/api/food-log-week"] });
-      setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", mealSlot: null });
-      setShowForm(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log/recent"] });
       toast({ title: "Meal logged" });
+      if (scanConfirmModeRef.current) {
+        scanConfirmModeRef.current = false;
+        setScannedFood(null);
+        setShowScanAnother(true);
+      } else {
+        setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", mealSlot: null });
+        setShowForm(false);
+      }
     },
     onError: () => toast({ title: "Failed to log meal", variant: "destructive" }),
   });
@@ -533,7 +572,33 @@ export function FoodLog({
       setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", mealSlot: null });
       setScanResult(null);
       setSaveAsCustomFood(false);
+      setScannedFood(null);
+      setScanMealSlot(null);
+      setShowScanAnother(false);
+      setScanKey(0);
     }
+  }
+
+  function logScannedFood() {
+    if (!scannedFood) return;
+    const grams = parseFloat(scanServingGrams) || 100;
+    const f = grams / 100;
+    scanConfirmModeRef.current = true;
+    addMutation.mutate({
+      date: selectedDate,
+      mealName: scannedFood.name,
+      calories: Math.round(scannedFood.calories100g * f),
+      protein: Math.round(scannedFood.protein100g * f),
+      carbs: Math.round(scannedFood.carbs100g * f),
+      fat: Math.round(scannedFood.fat100g * f),
+      mealSlot: scanMealSlot,
+    });
+  }
+
+  function resetScanner() {
+    setScannedFood(null);
+    setShowScanAnother(false);
+    setScanKey(k => k + 1);
   }
 
   function toggleDay(date: string) {
@@ -713,6 +778,35 @@ export function FoodLog({
                   })}
                 </div>
               </div>
+
+              {/* Recent foods quick-add — shown when meal name is empty */}
+              {!form.mealName && recentFoods.length > 0 && (
+                <div>
+                  <p className="text-[10px] text-zinc-400 font-medium mb-1.5">Recent</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {recentFoods.map(food => (
+                      <button
+                        key={food.id}
+                        type="button"
+                        onClick={() => setForm(f => ({
+                          ...f,
+                          mealName: food.mealName,
+                          calories: String(food.calories),
+                          protein: String(food.protein),
+                          carbs: String(food.carbs),
+                          fat: String(food.fat),
+                          mealSlot: (food.mealSlot as MealSlot) || f.mealSlot,
+                        }))}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 hover:bg-zinc-100 transition-colors"
+                        data-testid={`button-recent-food-${food.id}`}
+                      >
+                        <span className="font-medium max-w-[6rem] truncate">{food.mealName}</span>
+                        <span className="text-zinc-400 shrink-0">{food.calories}kcal</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <input
                 type="text"
@@ -920,7 +1014,130 @@ export function FoodLog({
           {/* Barcode scan tab */}
           {formTab === "scan" && (
             <div className="p-4">
-              {scannerError ? (
+              {showScanAnother ? (
+                /* ── Logged successfully — scan another or done ── */
+                <div className="text-center py-8 space-y-4">
+                  <div className="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mx-auto">
+                    <Check className="w-7 h-7 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-900">Logged!</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">Added to your food log for today</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={resetScanner}
+                      className="flex-1 py-2.5 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors"
+                      data-testid="button-scan-another"
+                    >
+                      Scan another
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowForm(false)}
+                      className="flex-1 py-2.5 bg-zinc-100 text-zinc-700 rounded-xl text-xs font-semibold hover:bg-zinc-200 transition-colors"
+                      data-testid="button-scan-done"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              ) : scannedFood ? (
+                /* ── Scan confirmation card ── */
+                (() => {
+                  const grams = parseFloat(scanServingGrams) || 100;
+                  const f = grams / 100;
+                  const cells = [
+                    { label: "Calories", value: Math.round(scannedFood.calories100g * f), unit: "kcal", color: "bg-violet-50 text-violet-700" },
+                    { label: "Protein", value: Math.round(scannedFood.protein100g * f * 10) / 10, unit: "g", color: "bg-red-50 text-red-700" },
+                    { label: "Carbs", value: Math.round(scannedFood.carbs100g * f * 10) / 10, unit: "g", color: "bg-blue-50 text-blue-700" },
+                    { label: "Fat", value: Math.round(scannedFood.fat100g * f * 10) / 10, unit: "g", color: "bg-yellow-50 text-yellow-700" },
+                    { label: "Fibre", value: Math.round((scannedFood.fibre100g ?? 0) * f * 10) / 10, unit: "g", color: "bg-green-50 text-green-700" },
+                    { label: "Sodium", value: Math.round((scannedFood.sodium100g ?? 0) * f * 10) / 10, unit: "mg", color: "bg-orange-50 text-orange-700" },
+                  ];
+                  const mealSlots: { slot: MealSlot; label: string; icon: typeof Coffee }[] = [
+                    { slot: "breakfast", label: "Breakfast", icon: Coffee },
+                    { slot: "lunch", label: "Lunch", icon: Salad },
+                    { slot: "dinner", label: "Dinner", icon: Moon },
+                    { slot: "snack", label: "Snack", icon: Apple },
+                  ];
+                  return (
+                    <div className="space-y-4">
+                      {/* Header */}
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-zinc-900 leading-snug" data-testid="text-scan-product-name">{scannedFood.name}</p>
+                          <p className="text-[10px] text-zinc-400 mt-0.5">
+                            {scannedFood.source === "community" ? "Community database" : scannedFood.source === "open_food_facts" ? "Open Food Facts" : "USDA database"}
+                          </p>
+                        </div>
+                        <button type="button" onClick={resetScanner} className="p-1 hover:bg-zinc-100 rounded-lg transition-colors shrink-0" data-testid="button-scan-reset">
+                          <X className="w-4 h-4 text-zinc-400" />
+                        </button>
+                      </div>
+
+                      {/* Serving adjuster */}
+                      <div className="flex items-center gap-2 bg-zinc-50 rounded-xl p-3">
+                        <label className="text-[10px] text-zinc-500 font-medium shrink-0">Serving size</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={scanServingGrams}
+                          onChange={e => setScanServingGrams(e.target.value)}
+                          className="w-20 text-sm font-semibold text-zinc-900 bg-transparent border-none outline-none text-right"
+                          data-testid="input-scan-serving"
+                        />
+                        <span className="text-xs text-zinc-400">g</span>
+                      </div>
+
+                      {/* Macro grid */}
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {cells.map(c => (
+                          <div key={c.label} className={`rounded-xl p-2.5 ${c.color}`}>
+                            <p className="text-[9px] font-medium opacity-70 mb-0.5">{c.label}</p>
+                            <p className="text-sm font-bold">{c.value}<span className="text-[9px] font-normal ml-0.5">{c.unit}</span></p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Meal slot */}
+                      <div>
+                        <p className="text-[10px] text-zinc-500 font-medium mb-1.5">Meal</p>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {mealSlots.map(({ slot, label, icon: Icon }) => {
+                            const active = scanMealSlot === slot;
+                            return (
+                              <button
+                                key={slot}
+                                type="button"
+                                onClick={() => setScanMealSlot(active ? null : slot)}
+                                className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-medium transition-colors ${active ? "bg-zinc-900 text-white" : "bg-zinc-50 text-zinc-500 hover:bg-zinc-100"}`}
+                                data-testid={`button-scan-slot-${slot}`}
+                              >
+                                <Icon className="w-3.5 h-3.5" />
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Log button */}
+                      <button
+                        type="button"
+                        onClick={logScannedFood}
+                        disabled={addMutation.isPending}
+                        className="w-full py-3 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                        data-testid="button-log-scanned-food"
+                      >
+                        {addMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                        Log this food
+                      </button>
+                    </div>
+                  );
+                })()
+              ) : scannerError ? (
                 <div className="text-center py-8">
                   <Barcode className="w-10 h-10 mx-auto mb-3 text-zinc-300" />
                   <p className="text-sm font-medium text-zinc-600">Camera not available</p>
