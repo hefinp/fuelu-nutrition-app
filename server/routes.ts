@@ -1176,13 +1176,20 @@ export async function registerRoutes(
 
       if (foodLogRows.length > 0 && !body.allowDuplicate) {
         const datesToCheck = [...new Set(foodLogRows.map(r => r.date))];
-        const mealNamesToCheck = new Set(foodLogRows.map(r => r.mealName.toLowerCase()));
+        const mealsByDate = new Map<string, Set<string>>();
+        for (const row of foodLogRows) {
+          if (!mealsByDate.has(row.date)) mealsByDate.set(row.date, new Set());
+          mealsByDate.get(row.date)!.add(row.mealName.toLowerCase());
+        }
         let duplicateCount = 0;
         for (const dateStr of datesToCheck) {
           const existing = await storage.getFoodLogEntries(req.session.userId, dateStr);
-          const unconfirmedNames = existing.filter(e => !e.confirmed).map(e => e.mealName.toLowerCase());
-          for (const name of unconfirmedNames) {
-            if (mealNamesToCheck.has(name)) duplicateCount++;
+          const plannedNames = mealsByDate.get(dateStr);
+          if (!plannedNames) continue;
+          for (const entry of existing) {
+            if (!entry.confirmed && plannedNames.has(entry.mealName.toLowerCase())) {
+              duplicateCount++;
+            }
           }
         }
         if (duplicateCount > 0) {
