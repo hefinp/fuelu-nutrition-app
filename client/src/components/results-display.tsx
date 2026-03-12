@@ -1641,10 +1641,114 @@ interface DayMealPlan {
 
 type MealPlan = any;
 
-export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMeal?: (meal: Meal) => void }) {
+export function NutritionDisplay({ data }: { data: Calculation }) {
+  const chartData = [
+    { name: "Protein", value: data.proteinGoal, color: "hsl(var(--chart-1))" },
+    { name: "Carbs", value: data.carbsGoal, color: "hsl(var(--chart-2))" },
+    { name: "Fat", value: data.fatGoal, color: "hsl(var(--chart-3))" },
+  ];
+
+  const containerVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: { staggerChildren: 0.1, delayChildren: 0.2, ease: "easeOut" }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  };
+
+  return (
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6"
+    >
+      {/* Health Disclaimer */}
+      <motion.div variants={itemVariants} className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-start gap-3">
+        <span className="text-amber-500 mt-0.5 text-sm shrink-0">&#9888;</span>
+        <p className="text-xs text-amber-800 leading-relaxed" data-testid="text-health-disclaimer">
+          Results are estimates based on the Mifflin-St Jeor equation. Consult a qualified healthcare professional before making significant dietary changes.
+        </p>
+      </motion.div>
+
+      {/* Nutrition Distribution */}
+      <motion.div variants={itemVariants} className="bg-zinc-900 text-white p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+        {/* Abstract background flair */}
+        <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl" />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center relative z-10">
+          <div>
+            <h3 className="text-2xl font-bold mb-2">Nutrition Distribution</h3>
+            <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
+              Based on your metrics, here is the optimal daily macronutrient split to achieve your body goals effectively.
+            </p>
+
+            <div className="space-y-4">
+              {chartData.map((item) => (
+                <div key={item.name}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="font-medium">{item.name}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 ml-6 text-sm">
+                    <div className="bg-white/10 p-2 rounded">
+                      <p className="text-zinc-400 text-xs">Daily</p>
+                      <p className="text-lg font-bold">{item.value}g</p>
+                    </div>
+                    <div className="bg-white/10 p-2 rounded">
+                      <p className="text-zinc-400 text-xs">Weekly</p>
+                      <p className="text-lg font-bold">{item.value * 7}g</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="h-64 relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={90}
+                  paddingAngle={5}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', color: '#fff' }}
+                  itemStyle={{ color: '#fff' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-sm font-semibold text-zinc-400 tracking-widest uppercase">MACROS</span>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLogMeal?: (meal: Meal) => void }) {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [mealStyle, setMealStyle] = useState<'simple' | 'gourmet' | 'michelin'>('simple');
-  const [selectedMeal, setSelectedMeal] = useState<{ meal: string; calories: number; protein: number; carbs: number; fat: number } | null>(null);
   const [shoppingDaysOpen, setShoppingDaysOpen] = useState(false);
   const [shoppingDaysInput, setShoppingDaysInput] = useState("7");
   const [planSaved, setPlanSaved] = useState(false);
@@ -1710,186 +1814,91 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
       toast({ title: "Replace failed", description: "Could not find an alternative meal. Try again.", variant: "destructive" });
     },
   });
-  const chartData = [
-    { name: "Protein", value: data.proteinGoal, color: "hsl(var(--chart-1))" },
-    { name: "Carbs", value: data.carbsGoal, color: "hsl(var(--chart-2))" },
-    { name: "Fat", value: data.fatGoal, color: "hsl(var(--chart-3))" },
-  ];
-
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.2, ease: "easeOut" }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
-  };
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-6"
-    >
-      {/* Health Disclaimer */}
-      <motion.div variants={itemVariants} className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-start gap-3">
-        <span className="text-amber-500 mt-0.5 text-sm shrink-0">&#9888;</span>
-        <p className="text-xs text-amber-800 leading-relaxed" data-testid="text-health-disclaimer">
-          Results are estimates based on the Mifflin-St Jeor equation. Consult a qualified healthcare professional before making significant dietary changes.
-        </p>
-      </motion.div>
-
-      {/* Macros Breakdown */}
-      <motion.div variants={itemVariants} className="bg-zinc-900 text-white p-8 rounded-3xl shadow-2xl relative overflow-hidden">
-        {/* Abstract background flair */}
-        <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl" />
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center relative z-10">
-          <div>
-            <h3 className="text-2xl font-bold mb-2">Macro Distribution</h3>
-            <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
-              Based on your metrics, here is the optimal daily macronutrient split to achieve your body goals effectively.
-            </p>
-
-            <div className="space-y-4">
-              {chartData.map((item) => (
-                <div key={item.name}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="font-medium">{item.name}</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 ml-6 text-sm">
-                    <div className="bg-white/10 p-2 rounded">
-                      <p className="text-zinc-400 text-xs">Daily</p>
-                      <p className="text-lg font-bold">{item.value}g</p>
-                    </div>
-                    <div className="bg-white/10 p-2 rounded">
-                      <p className="text-zinc-400 text-xs">Weekly</p>
-                      <p className="text-lg font-bold">{item.value * 7}g</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Meal style slide scale */}
-            <div className="mt-8 mb-4">
-              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Meal Style</p>
-              {(() => {
-                const styles = [
-                  { key: 'simple' as const,  icon: Salad,   label: 'Simple' },
-                  { key: 'gourmet' as const, icon: ChefHat, label: 'Fancy' },
-                  { key: 'michelin' as const,icon: Star,    label: 'Michelin' },
-                ];
-                const idx = styles.findIndex(s => s.key === mealStyle);
-                const descriptions: Record<string, string> = {
-                  simple:  'Quick, clean meals — ideal for busy weeks.',
-                  gourmet: 'Bold flavours and restaurant-style dishes.',
-                  michelin:'Fine-dining tasting menus — truffle, Wagyu and more.',
-                };
-                return (
-                  <>
-                    <div className="relative bg-white/10 rounded-2xl p-1 flex items-stretch" data-testid="meal-style-scale">
-                      {/* sliding pill */}
-                      <div
-                        className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
-                        style={{ width: `calc((100% - 8px) / 3)`, left: `calc(4px + ${idx} * (100% - 8px) / 3)` }}
-                      />
-                      {styles.map((style) => (
-                        <button
-                          key={style.key}
-                          type="button"
-                          data-testid={`toggle-meal-style-${style.key}`}
-                          onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
-                          className={`relative z-10 flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold transition-colors duration-200 ${
-                            mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'
-                          }`}
-                        >
-                          <style.icon className="w-4 h-4" />
-                          <span>{style.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-zinc-400 mt-2">{descriptions[mealStyle]}</p>
-                  </>
-                );
-              })()}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => generateMealPlan.mutate('daily')}
-                disabled={generateMealPlan.isPending}
-                className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium text-sm transition-colors"
-                data-testid="button-generate-daily"
-              >
-                {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
-                Daily Meal Plan
-              </button>
-              <button
-                onClick={() => generateMealPlan.mutate('weekly')}
-                disabled={generateMealPlan.isPending}
-                className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium text-sm transition-colors"
-                data-testid="button-generate-weekly"
-              >
-                {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
-                Weekly Plan
-              </button>
-            </div>
-          </div>
-
-          <div className="h-64 relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', color: '#fff' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-sm font-semibold text-zinc-400 tracking-widest uppercase">MACROS</span>
-            </div>
-          </div>
+    <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-6">
+      {/* Card header */}
+      <div className="flex items-center gap-2 mb-6">
+        <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
+          <UtensilsCrossed className="w-5 h-5" />
         </div>
-      </motion.div>
+        <h2 className="text-lg font-display font-bold text-zinc-900">Meal Planning</h2>
+      </div>
 
-      {/* Meal Plan Display */}
-      {mealPlan && (
-        <motion.div variants={itemVariants} className="bg-white p-8 rounded-3xl border border-zinc-100 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
-                <UtensilsCrossed className="w-5 h-5" />
+      {/* Meal style selector */}
+      <div className="mb-4">
+        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Meal Style</p>
+        {(() => {
+          const styles = [
+            { key: 'simple' as const,  icon: Salad,   label: 'Simple' },
+            { key: 'gourmet' as const, icon: ChefHat, label: 'Fancy' },
+            { key: 'michelin' as const,icon: Star,    label: 'Michelin' },
+          ];
+          const idx = styles.findIndex(s => s.key === mealStyle);
+          const descriptions: Record<string, string> = {
+            simple:  'Quick, clean meals — ideal for busy weeks.',
+            gourmet: 'Bold flavours and restaurant-style dishes.',
+            michelin:'Fine-dining tasting menus — truffle, Wagyu and more.',
+          };
+          return (
+            <>
+              <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="meal-style-scale">
+                <div
+                  className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
+                  style={{ width: `calc((100% - 8px) / 3)`, left: `calc(4px + ${idx} * (100% - 8px) / 3)` }}
+                />
+                {styles.map((style) => (
+                  <button
+                    key={style.key}
+                    type="button"
+                    data-testid={`toggle-meal-style-${style.key}`}
+                    onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
+                    className={`relative z-10 flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold transition-colors duration-200 ${
+                      mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                    }`}
+                  >
+                    <style.icon className="w-4 h-4" />
+                    <span>{style.label}</span>
+                  </button>
+                ))}
               </div>
-              <h3 className="text-2xl font-display font-bold text-zinc-900 capitalize">{mealPlan.planType} Meal Plan</h3>
-            </div>
+              <p className="text-xs text-zinc-400 mt-2">{descriptions[mealStyle]}</p>
+            </>
+          );
+        })()}
+      </div>
+
+      {/* Generate buttons */}
+      <div className="flex gap-3">
+        <button
+          onClick={() => generateMealPlan.mutate('daily')}
+          disabled={generateMealPlan.isPending}
+          className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium text-sm transition-colors"
+          data-testid="button-generate-daily"
+        >
+          {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
+          Daily Meal Plan
+        </button>
+        <button
+          onClick={() => generateMealPlan.mutate('weekly')}
+          disabled={generateMealPlan.isPending}
+          className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium text-sm transition-colors"
+          data-testid="button-generate-weekly"
+        >
+          {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
+          Weekly Plan
+        </button>
+      </div>
+
+      {/* Generated meal plan */}
+      {mealPlan && (
+        <div className="mt-6 pt-6 border-t border-zinc-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-display font-bold text-zinc-900 capitalize">{mealPlan.planType} Meal Plan</h3>
             <button
               onClick={() => savePlanMutation.mutate()}
               disabled={savePlanMutation.isPending || planSaved}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-colors ${
                 planSaved
                   ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
                   : "bg-zinc-900 hover:bg-zinc-700 text-white"
@@ -1906,7 +1915,7 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
             </button>
           </div>
 
-          <div className="flex items-center gap-2 mb-6">
+          <div className="flex items-center gap-2 mb-5">
             <button
               onClick={() => {
                 if (mealPlan.planType === 'daily') {
@@ -1993,7 +2002,7 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
               replacingSlot={replaceMealMutation.isPending ? replaceMealMutation.variables?.slot : undefined}
             />
           )}
-        </motion.div>
+        </div>
       )}
 
       {/* Shopping days dialog — daily plans only */}
@@ -2028,7 +2037,7 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
                     exportShoppingListToPDF(mealPlan!, data, d);
                   }
                 }}
-                className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-base focus:outline-none focus:ring-2 focus:ring-zinc-400 focus:border-transparent"
                 data-testid="input-shopping-days"
                 autoFocus
               />
@@ -2056,7 +2065,7 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
           </motion.div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 

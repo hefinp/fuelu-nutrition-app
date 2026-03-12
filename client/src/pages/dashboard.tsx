@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { CalculatorForm } from "@/components/calculator-form";
-import { ResultsDisplay } from "@/components/results-display";
+import { NutritionDisplay, MealPlanGenerator } from "@/components/results-display";
 import { SavedMealPlans } from "@/components/saved-meal-plans";
 import { WeightTracker } from "@/components/weight-tracker";
 import { PreferencesForm } from "@/components/preferences-form";
@@ -370,15 +370,12 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Two-column layout: results + right sidebar */}
+            {/* Dashboard grid:
+                Mobile stack order: FoodLog → MealPlanning → NutritionDistribution → WeightTracker
+                Desktop: left col (7) = NutritionDisplay; right col (5) = FoodLog / MealPlanGenerator / WeightTracker stacked */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-              {/* Nutrition results (left, wider) — order-2 on mobile so food log shows first */}
-              <div className="xl:col-span-7 order-2 xl:order-1">
-                <ResultsDisplay data={activeResult!} onLogMeal={handleLogMeal} />
-              </div>
-
-              {/* Food log — order-1 on mobile (top), right column on desktop */}
-              <div className="xl:col-span-5 xl:col-start-8 order-1 xl:order-2">
+              {/* Food log — order-1 on mobile, right col top on desktop */}
+              <div className="xl:col-span-5 xl:col-start-8 order-1">
                 {user ? (
                   <FoodLog
                     dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
@@ -391,8 +388,18 @@ export default function Dashboard() {
                 ) : null}
               </div>
 
-              {/* Weight tracker — order-3 on mobile (bottom), right column on desktop */}
-              <div className="xl:col-span-5 xl:col-start-8 order-3 xl:order-3">
+              {/* Meal Planning — order-2 on mobile, right col middle on desktop */}
+              <div className="xl:col-span-5 xl:col-start-8 order-2">
+                <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} />
+              </div>
+
+              {/* Nutrition Distribution — order-3 on mobile, left col on desktop (auto-placed at row 1, col 1-7) */}
+              <div className="xl:col-span-7 order-3">
+                <NutritionDisplay data={activeResult!} />
+              </div>
+
+              {/* Weight tracker — order-4 on mobile, right col bottom on desktop */}
+              <div className="xl:col-span-5 xl:col-start-8 order-4">
                 {user ? (
                   <WeightTracker
                     targetWeight={
