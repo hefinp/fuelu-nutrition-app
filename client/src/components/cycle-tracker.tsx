@@ -50,7 +50,7 @@ export function CycleTracker() {
   const todayStr = new Date().toISOString().split("T")[0];
 
   return (
-    <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
+    <div id="cycle-tracker-widget" className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
       {/* Header */}
       <div className="px-6 pt-6 pb-4 border-b border-zinc-50">
         <div className="flex items-center gap-2.5">

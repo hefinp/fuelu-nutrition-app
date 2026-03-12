@@ -2070,17 +2070,28 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
             <p className="text-xs font-medium text-amber-800">
               Cycle tracking is on, but your last period date isn't set — plans won't be cycle-optimised.
             </p>
-            <p className="text-xs text-amber-600 mt-1">
-              Set your last period date in the Cycle Tracker on your dashboard to enable optimisation.
-            </p>
-            <button
-              type="button"
-              onClick={() => setIgnoreCycle(true)}
-              className="mt-1.5 text-[11px] font-medium text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors"
-              data-testid="button-ignore-cycle"
-            >
-              Ignore cycle tracking for now
-            </button>
+            <div className="flex items-center gap-3 mt-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById("cycle-tracker-widget");
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                }}
+                className="text-[11px] font-medium text-amber-800 hover:text-amber-950 underline underline-offset-2 transition-colors"
+                data-testid="link-go-to-cycle-tracker"
+              >
+                Go to Cycle Tracker
+              </button>
+              <span className="text-amber-300">|</span>
+              <button
+                type="button"
+                onClick={() => setIgnoreCycle(true)}
+                className="text-[11px] font-medium text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors"
+                data-testid="button-ignore-cycle"
+              >
+                Ignore cycle tracking for now
+              </button>
+            </div>
           </div>
         </div>
       )}
