@@ -110,6 +110,7 @@ Preferred communication style: Simple, everyday language.
 | Wouter | Lightweight client-side routing |
 | express-session + connect-pg-simple | Session-based authentication with PostgreSQL store |
 | bcryptjs | Password hashing |
+| resend | Transactional email (password reset, email meal plan). Requires `RESEND_API_KEY` env var. The Replit integration was dismissed — either connect the Replit Resend integration or add `RESEND_API_KEY` manually as a secret. Without it, emails are skipped with a console warning. |
 | date-fns | Date formatting |
 | Vite + @vitejs/plugin-react | Client bundler and dev server |
 | esbuild | Server bundler for production |
