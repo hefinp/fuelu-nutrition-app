@@ -33,7 +33,12 @@ interface FoodLogProps {
 }
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function formatDateLabel() {
+  return new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 }
 
 function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
@@ -144,7 +149,7 @@ export function FoodLog({ dailyCaloriesTarget, dailyProteinTarget, dailyCarbsTar
 
       <div className="flex items-center justify-center mb-5 bg-zinc-50 rounded-xl px-4 py-2">
         <span className="text-sm font-medium text-zinc-700" data-testid="text-log-date">
-          Today
+          Today &middot; {formatDateLabel()}
         </span>
       </div>
 
