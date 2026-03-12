@@ -20,6 +20,32 @@ const GOAL_LABELS: Record<string, string> = {
   gain: "Gain Weight",
 };
 
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function addDays(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return toDateStr(dt);
+}
+
+function getMonday(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const dow = dt.getDay();
+  dt.setDate(dt.getDate() - ((dow + 6) % 7));
+  return toDateStr(dt);
+}
+
+function formatShort(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
 function drawPDFLogo(doc: jsPDF, pageW: number) {
   // White rounded square — inverted for dark header background
   const sqX = pageW - 56;
@@ -59,7 +85,21 @@ export function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(180, 180, 180);
-  doc.text(`${mealPlan.planType === "weekly" ? "Weekly" : "Daily"} Meal Plan  ·  Generated ${new Date().toLocaleDateString()}`, 14, 22);
+  const pdfDateLabel = (() => {
+    if (mealPlan.planType === "weekly" && (mealPlan as any).weekStartDate) {
+      const ws = (mealPlan as any).weekStartDate as string;
+      return `${formatShort(ws)} – ${formatShort(addDays(ws, 6))}`;
+    }
+    if ((mealPlan as any).targetDate) {
+      return formatShort((mealPlan as any).targetDate as string);
+    }
+    if ((mealPlan as any).targetDates?.length) {
+      const dates = (mealPlan as any).targetDates as string[];
+      return dates.length === 1 ? formatShort(dates[0]) : `${formatShort(dates[0])} + ${dates.length - 1} more days`;
+    }
+    return `Generated ${new Date().toLocaleDateString()}`;
+  })();
+  doc.text(`${mealPlan.planType === "weekly" ? "Weekly" : "Daily"} Meal Plan  ·  ${pdfDateLabel}`, 14, 22);
   drawPDFLogo(doc, pageW);
   y = 38;
 
@@ -1873,32 +1913,6 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
     </motion.div>
   );
 }
-
-function toDateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function addDays(dateStr: string, days: number): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  dt.setDate(dt.getDate() + days);
-  return toDateStr(dt);
-}
-
-function getMonday(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  const dow = dt.getDay();
-  dt.setDate(dt.getDate() - ((dow + 6) % 7));
-  return toDateStr(dt);
-}
-
-function formatShort(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLogMeal?: (meal: Meal) => void }) {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
