@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, Salad, ChefHat, Star } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, Salad, ChefHat, Star, Pill } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences } from "@shared/schema";
@@ -1641,7 +1641,63 @@ interface DayMealPlan {
 
 type MealPlan = any;
 
+interface MicroItem { name: string; amount: number; unit: string; note?: string }
+interface MicroCategory { label: string; items: MicroItem[] }
+
+function getMicronutrients(age: number, gender: string): MicroCategory[] {
+  const m = gender === 'male';
+  const o = age >= 51;
+  const e = age >= 71;
+  return [
+    {
+      label: "Vitamins",
+      items: [
+        { name: "Vitamin A",              amount: m ? 900 : 700,                            unit: "mcg" },
+        { name: "Vitamin C",              amount: m ? 90 : 75,                              unit: "mg" },
+        { name: "Vitamin D",              amount: e ? 20 : 15,                              unit: "mcg" },
+        { name: "Vitamin E",              amount: 15,                                        unit: "mg" },
+        { name: "Vitamin K",              amount: m ? 120 : 90,                             unit: "mcg" },
+        { name: "Vitamin B1 (Thiamine)",  amount: m ? 1.2 : 1.1,                           unit: "mg" },
+        { name: "Vitamin B2 (Riboflavin)",amount: m ? 1.3 : 1.1,                           unit: "mg" },
+        { name: "Vitamin B3 (Niacin)",    amount: m ? 16 : 14,                             unit: "mg NE" },
+        { name: "Vitamin B6",             amount: m ? (o ? 1.7 : 1.3) : (o ? 1.5 : 1.3),  unit: "mg" },
+        { name: "Vitamin B12",            amount: 2.4,                                       unit: "mcg" },
+        { name: "Folate",                 amount: 400,                                       unit: "mcg DFE" },
+        { name: "Biotin (B7)",            amount: 30,                                        unit: "mcg" },
+        { name: "Pantothenic Acid (B5)",  amount: 5,                                         unit: "mg" },
+      ],
+    },
+    {
+      label: "Minerals & Fibre",
+      items: [
+        { name: "Calcium",    amount: (o && !m) || e ? 1200 : 1000,                unit: "mg" },
+        { name: "Iron",       amount: m ? 8 : (o ? 8 : 18),                        unit: "mg" },
+        { name: "Magnesium",  amount: m ? (age < 31 ? 400 : 420) : (age < 31 ? 310 : 320), unit: "mg" },
+        { name: "Zinc",       amount: m ? 11 : 8,                                  unit: "mg" },
+        { name: "Potassium",  amount: m ? 3400 : 2600,                             unit: "mg" },
+        { name: "Phosphorus", amount: 700,                                          unit: "mg" },
+        { name: "Sodium",     amount: 2300,                                         unit: "mg", note: "max" },
+        { name: "Selenium",   amount: 55,                                           unit: "mcg" },
+        { name: "Iodine",     amount: 150,                                          unit: "mcg" },
+        { name: "Copper",     amount: 900,                                          unit: "mcg" },
+        { name: "Manganese",  amount: m ? 2.3 : 1.8,                              unit: "mg" },
+        { name: "Dietary Fibre", amount: m ? (o ? 30 : 38) : (o ? 21 : 25),      unit: "g" },
+      ],
+    },
+  ];
+}
+
 export function NutritionDisplay({ data }: { data: Calculation }) {
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(["Vitamins"]));
+  const toggleSection = (label: string) =>
+    setOpenSections(prev => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
+
+  const microCategories = getMicronutrients(data.age ?? 30, data.gender ?? 'male');
+
   const chartData = [
     { name: "Protein", value: data.proteinGoal, color: "hsl(var(--chart-1))" },
     { name: "Carbs", value: data.carbsGoal, color: "hsl(var(--chart-2))" },
@@ -1740,6 +1796,77 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
               <span className="text-sm font-semibold text-zinc-400 tracking-widest uppercase">MACROS</span>
             </div>
           </div>
+        </div>
+      </motion.div>
+
+      {/* Micronutrient Recommendations accordion */}
+      <motion.div variants={itemVariants} className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
+        {/* Card header */}
+        <div className="flex items-center gap-2 px-6 pt-5 pb-4">
+          <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
+            <Pill className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-display font-bold text-zinc-900">Recommended Micronutrients</h3>
+            <p className="text-xs text-zinc-400 mt-0.5">Daily reference values based on your age &amp; sex (DRI)</p>
+          </div>
+        </div>
+
+        {microCategories.map((cat) => {
+          const isOpen = openSections.has(cat.label);
+          return (
+            <div key={cat.label} className="border-t border-zinc-100">
+              <button
+                type="button"
+                onClick={() => toggleSection(cat.label)}
+                className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-zinc-50 transition-colors text-left"
+                data-testid={`accordion-${cat.label.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                <span className="text-sm font-semibold text-zinc-700">{cat.label}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-zinc-400">{cat.items.length} nutrients</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                  />
+                </div>
+              </button>
+
+              <AnimatePresence initial={false}>
+                {isOpen && (
+                  <motion.div
+                    key="content"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.22, ease: 'easeInOut' }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-6 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 pt-1">
+                      {cat.items.map((item) => (
+                        <div key={item.name} className="flex items-center justify-between py-1 border-b border-zinc-50">
+                          <span className="text-xs text-zinc-600">{item.name}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-semibold text-zinc-900">{item.amount} {item.unit}</span>
+                            {item.note && (
+                              <span className="text-[10px] font-medium text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded">
+                                {item.note}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+
+        <div className="px-6 py-3 border-t border-zinc-50 bg-zinc-50/50">
+          <p className="text-[10px] text-zinc-400 leading-relaxed">
+            Reference values from the Dietary Reference Intakes (DRI). Individual needs may vary — consult a healthcare professional for personalised guidance.
+          </p>
         </div>
       </motion.div>
     </motion.div>
