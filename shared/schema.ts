@@ -158,7 +158,7 @@ export type FoodLogEntry = typeof foodLogEntries.$inferSelect;
 
 export const customFoods = pgTable("custom_foods", {
   id: serial("id").primaryKey(),
-  barcode: text("barcode").notNull(),
+  barcode: text("barcode"),
   name: text("name").notNull(),
   calories100g: integer("calories_100g").notNull(),
   protein100g: numeric("protein_100g").notNull(),

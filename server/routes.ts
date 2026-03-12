@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { registerSchema, loginSchema, userPreferencesSchema, insertUserRecipeSchema, type UserPreferences } from "@shared/schema";
 import passport from "passport";
 import { sendEmail, buildPasswordResetEmailHtml, buildMealPlanEmailHtml } from "./email";
+import OpenAI from "openai";
 
 const MEAL_DATABASE: MealDb = {
   breakfast: [
@@ -1473,50 +1474,160 @@ export async function registerRoutes(
     const q = (req.query.q as string | undefined)?.trim();
     if (!q || q.length < 2) return res.json([]);
     try {
+      // 1. Community library first (prioritised over USDA)
+      const communityHits = await storage.searchCustomFoodsByName(q);
+      const communityResults = communityHits.map(c => ({
+        id: `community-${c.id}`,
+        name: c.name,
+        calories100g: c.calories100g,
+        protein100g: parseFloat(String(c.protein100g)),
+        carbs100g: parseFloat(String(c.carbs100g)),
+        fat100g: parseFloat(String(c.fat100g)),
+        servingSize: `${c.servingGrams}g`,
+        servingGrams: c.servingGrams,
+        source: "community",
+      }));
+
+      // 2. USDA fallback
       const apiKey = process.env.USDA_API_KEY || "DEMO_KEY";
       const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=25&api_key=${apiKey}`;
       const upstream = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      if (!upstream.ok) return res.json([]);
-      const data = await upstream.json() as any;
-      const foods = (data.foods ?? []) as any[];
+      let usdaResults: any[] = [];
+      if (upstream.ok) {
+        const data = await upstream.json() as any;
+        const foods = (data.foods ?? []) as any[];
+        const getNutrient = (nutrients: any[], id: number) =>
+          nutrients.find((n: any) => n.nutrientId === id)?.value ?? 0;
+        const getEnergy = (n: any[]) =>
+          getNutrient(n, 1008) || getNutrient(n, 2047) || getNutrient(n, 2048);
+        const communityNames = new Set(communityResults.map(r => r.name.toLowerCase()));
+        usdaResults = foods
+          .filter((f: any) => f.description && getEnergy(f.foodNutrients ?? []) > 0)
+          .slice(0, 10)
+          .map((f: any) => {
+            const n = f.foodNutrients ?? [];
+            const servingGrams = (f.servingSizeUnit === "g" || f.servingSizeUnit === "G")
+              ? Math.round(parseFloat(f.servingSize) || 100)
+              : 100;
+            return {
+              id: String(f.fdcId),
+              name: f.description.charAt(0).toUpperCase() + f.description.slice(1).toLowerCase(),
+              calories100g: Math.round(getEnergy(n)),
+              protein100g: Math.round(getNutrient(n, 1003) * 10) / 10,
+              carbs100g: Math.round(getNutrient(n, 1005) * 10) / 10,
+              fat100g: Math.round(getNutrient(n, 1004) * 10) / 10,
+              servingSize: servingGrams > 0 ? `${servingGrams}g` : "100g",
+              servingGrams: servingGrams || 100,
+            };
+          })
+          .filter((f: any) => !communityNames.has(f.name.toLowerCase()));
+      }
 
-      const getNutrient = (nutrients: any[], id: number) =>
-        nutrients.find((n: any) => n.nutrientId === id)?.value ?? 0;
-
-      // USDA uses different energy IDs depending on food type:
-      // 1008 = branded/packaged foods, 2047 = Foundation foods (whole produce,
-      // raw meats), 2048 = SR Legacy. Check all three so nothing is filtered out.
-      const getEnergy = (n: any[]) =>
-        getNutrient(n, 1008) || getNutrient(n, 2047) || getNutrient(n, 2048);
-
-      const results = foods
-        .filter((f: any) => {
-          return f.description && getEnergy(f.foodNutrients ?? []) > 0;
-        })
-        .slice(0, 10)
-        .map((f: any) => {
-          const n = f.foodNutrients ?? [];
-          const servingGrams = (f.servingSizeUnit === "g" || f.servingSizeUnit === "G")
-            ? Math.round(parseFloat(f.servingSize) || 100)
-            : 100;
-          return {
-            id: String(f.fdcId),
-            name: f.description.charAt(0).toUpperCase() + f.description.slice(1).toLowerCase(),
-            calories100g: Math.round(getEnergy(n)),
-            protein100g: Math.round(getNutrient(n, 1003) * 10) / 10,
-            carbs100g: Math.round(getNutrient(n, 1005) * 10) / 10,
-            fat100g: Math.round(getNutrient(n, 1004) * 10) / 10,
-            servingSize: servingGrams > 0 ? `${servingGrams}g` : "100g",
-            servingGrams: servingGrams || 100,
-          };
-        });
-      res.json(results);
+      res.json([...communityResults, ...usdaResults].slice(0, 15));
     } catch {
       res.json([]);
     }
   });
 
   // ── Barcode lookup ────────────────────────────────────────────────────────
+
+  // ── Label scan availability ───────────────────────────────────────────────
+
+  app.get("/api/food-log/label-scan-available", (req, res) => {
+    const available = !!process.env.OPENAI_API_KEY;
+    res.json({ available });
+  });
+
+  // ── Photo label scan via GPT-4o Vision ────────────────────────────────────
+
+  app.post("/api/food-log/extract-label", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    const { imageBase64 } = req.body as { imageBase64?: string };
+    if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
+    if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "Vision service unavailable" });
+
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const systemPrompt = `You are a nutrition label reader. Extract nutritional data from the provided food label image.
+Return ONLY a JSON object with these exact fields (per 100g):
+{
+  "name": "<product name>",
+  "calories100g": <number>,
+  "protein100g": <number>,
+  "carbs100g": <number>,
+  "fat100g": <number>,
+  "fibre100g": <number or null>,
+  "sugar100g": <number or null>,
+  "sodium100g": <number or null>,
+  "saturatedFat100g": <number or null>,
+  "servingGrams": <typical serving size in grams, default 100>,
+  "sourceType": "label"
+}
+If you cannot confidently read the values from the label, estimate them based on food type and return sourceType "estimated".
+Respond ONLY with the JSON — no markdown, no explanation.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: systemPrompt },
+              { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: "high" } },
+            ],
+          },
+        ],
+        max_tokens: 512,
+      });
+
+      const text = response.choices[0]?.message?.content?.trim() ?? "";
+      let extracted: any;
+      try {
+        const match = text.match(/\{[\s\S]*\}/);
+        extracted = JSON.parse(match ? match[0] : text);
+      } catch {
+        return res.status(422).json({ error: "Could not parse nutrition data from image" });
+      }
+
+      const result = {
+        id: `label-${Date.now()}`,
+        name: String(extracted.name ?? "Scanned Food"),
+        calories100g: Number(extracted.calories100g) || 0,
+        protein100g: Number(extracted.protein100g) || 0,
+        carbs100g: Number(extracted.carbs100g) || 0,
+        fat100g: Number(extracted.fat100g) || 0,
+        fibre100g: extracted.fibre100g != null ? Number(extracted.fibre100g) : undefined,
+        sugar100g: extracted.sugar100g != null ? Number(extracted.sugar100g) : undefined,
+        sodium100g: extracted.sodium100g != null ? Number(extracted.sodium100g) : undefined,
+        saturatedFat100g: extracted.saturatedFat100g != null ? Number(extracted.saturatedFat100g) : undefined,
+        servingGrams: Math.max(1, Number(extracted.servingGrams) || 100),
+        servingSize: `${Math.max(1, Number(extracted.servingGrams) || 100)}g`,
+        sourceType: (extracted.sourceType === "label" ? "label" : "estimated") as "label" | "estimated",
+      };
+
+      // Auto-save to community DB (dedup by name, skip if already exists)
+      if (result.calories100g > 0) {
+        const exists = await storage.customFoodExistsByName(result.name);
+        if (!exists) {
+          storage.createCustomFood({
+            barcode: null,
+            name: result.name,
+            calories100g: result.calories100g,
+            protein100g: result.protein100g,
+            carbs100g: result.carbs100g,
+            fat100g: result.fat100g,
+            servingGrams: result.servingGrams,
+            contributedByUserId: (req.user as any)?.id ?? null,
+          }).catch(() => {});
+        }
+      }
+
+      res.json(result);
+    } catch (err: any) {
+      console.error("Label scan error:", err?.message);
+      res.status(500).json({ error: "Label scan failed" });
+    }
+  });
 
   app.get("/api/barcode/:barcode", async (req, res) => {
     const barcode = req.params.barcode;
@@ -1537,20 +1648,24 @@ export async function registerRoutes(
       });
     }
 
-    // Helper: silently cache a found product to community DB
+    // Helper: silently cache a found product to community DB (dedup by name)
     const cacheToDb = (food: {
       name: string; calories100g: number; protein100g: number;
       carbs100g: number; fat100g: number; servingGrams: number;
     }) => {
-      storage.createCustomFood({
-        barcode,
-        name: food.name,
-        calories100g: food.calories100g,
-        protein100g: food.protein100g,
-        carbs100g: food.carbs100g,
-        fat100g: food.fat100g,
-        servingGrams: food.servingGrams,
-        contributedByUserId: null,
+      storage.customFoodExistsByName(food.name).then(exists => {
+        if (!exists) {
+          return storage.createCustomFood({
+            barcode,
+            name: food.name,
+            calories100g: food.calories100g,
+            protein100g: food.protein100g,
+            carbs100g: food.carbs100g,
+            fat100g: food.fat100g,
+            servingGrams: food.servingGrams,
+            contributedByUserId: null,
+          });
+        }
       }).catch(() => {});
     };
 

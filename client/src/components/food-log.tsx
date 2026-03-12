@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Plus, Trash2, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, BookOpen, UtensilsCrossed,
-  Coffee, Salad, Moon, Apple, Search, X, Check, Barcode, ExternalLink,
+  Coffee, Salad, Moon, Apple, Search, X, Check, Barcode, ExternalLink, Camera,
 } from "lucide-react";
 import type { SavedMealPlan, UserRecipe } from "@shared/schema";
 import { RECIPES } from "@/components/results-display";
@@ -31,6 +31,7 @@ interface ExtendedFoodResult extends FoodResult {
   sugar100g?: number;
   saturatedFat100g?: number;
   source?: string;
+  sourceType?: "label" | "estimated";
 }
 
 interface FoodLogEntry {
@@ -380,6 +381,10 @@ export function FoodLog({
   const [showScanAnother, setShowScanAnother] = useState(false);
   const [scanKey, setScanKey] = useState(0);
   const scanConfirmModeRef = useRef(false);
+  const [showPhotoInterstitial, setShowPhotoInterstitial] = useState(false);
+  const [photoLabelLoading, setPhotoLabelLoading] = useState(false);
+  const [labelScanBarcode, setLabelScanBarcode] = useState<string>("");
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const zxingModuleRef = useRef<typeof import("@zxing/browser") | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scanControlsRef = useRef<{ stop: () => void } | null>(null);
@@ -399,7 +404,7 @@ export function FoodLog({
   }, [showForm]);
 
   useEffect(() => {
-    if (formTab !== "scan" || scannedFood || showScanAnother) {
+    if (formTab !== "scan" || scannedFood || showScanAnother || showPhotoInterstitial) {
       scanControlsRef.current?.stop();
       scanControlsRef.current = null;
       return;
@@ -438,14 +443,12 @@ export function FoodLog({
                 setSaveAsCustomFood(false);
                 setScanResult(null);
               } else {
-                setScanResult({ type: "not_found", barcode });
-                setSaveAsCustomFood(true);
-                setFormTab("manual");
+                setLabelScanBarcode(barcode);
+                setShowPhotoInterstitial(true);
               }
             } catch {
-              setScanResult({ type: "not_found", barcode });
-              setSaveAsCustomFood(true);
-              setFormTab("manual");
+              setLabelScanBarcode("");
+              setShowPhotoInterstitial(true);
             }
             setScanLookingUp(false);
           }
@@ -461,7 +464,7 @@ export function FoodLog({
       scanControlsRef.current?.stop();
       scanControlsRef.current = null;
     };
-  }, [formTab, scanKey, scannedFood, showScanAnother]);
+  }, [formTab, scanKey, scannedFood, showScanAnother, showPhotoInterstitial]);
 
   const weekRange = getWeekRange(weekOffset);
 
@@ -546,6 +549,12 @@ export function FoodLog({
     queryKey: ["/api/recipes"],
     staleTime: 60_000,
   });
+
+  const { data: labelScanAvailability } = useQuery<{ available: boolean }>({
+    queryKey: ["/api/food-log/label-scan-available"],
+    staleTime: Infinity,
+  });
+  const labelScanAvailable = labelScanAvailability?.available ?? false;
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -729,7 +738,32 @@ export function FoodLog({
   function resetScanner() {
     setScannedFood(null);
     setShowScanAnother(false);
+    setShowPhotoInterstitial(false);
+    setLabelScanBarcode("");
     setScanKey(k => k + 1);
+  }
+
+  async function handlePhotoCapture(file: File) {
+    setPhotoLabelLoading(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const res = await apiRequest("POST", "/api/food-log/extract-label", { imageBase64: base64 });
+      if (!res.ok) throw new Error("scan failed");
+      const food: ExtendedFoodResult = await res.json();
+      setScannedFood(food);
+      setScanServingGrams(String(food.servingGrams || 100));
+      setScanMealSlot(null);
+      setShowPhotoInterstitial(false);
+    } catch {
+      toast({ title: "Could not read label", description: "Try entering the food manually.", variant: "destructive" });
+      setScanResult({ type: "not_found", barcode: labelScanBarcode });
+      setSaveAsCustomFood(true);
+      setFormTab("manual");
+      setShowPhotoInterstitial(false);
+    } finally {
+      setPhotoLabelLoading(false);
+    }
   }
 
   function toggleDay(date: string) {
@@ -1204,8 +1238,16 @@ export function FoodLog({
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-zinc-900 leading-snug" data-testid="text-scan-product-name">{scannedFood.name}</p>
                           <p className="text-[10px] text-zinc-400 mt-0.5">
-                            {scannedFood.source === "community" ? "Community database" : scannedFood.source === "open_food_facts" ? "Open Food Facts" : "USDA database"}
+                            {scannedFood.sourceType === "label" ? "Nutrition label scan" :
+                             scannedFood.sourceType === "estimated" ? "AI-estimated values" :
+                             scannedFood.source === "community" ? "Community database" :
+                             scannedFood.source === "open_food_facts" ? "Open Food Facts" : "USDA database"}
                           </p>
+                          {scannedFood.sourceType === "estimated" && (
+                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-[9px] font-medium text-amber-700" data-testid="badge-estimated-values">
+                              Estimated values — verify before logging
+                            </span>
+                          )}
                         </div>
                         <button type="button" onClick={resetScanner} className="p-1 hover:bg-zinc-100 rounded-lg transition-colors shrink-0" data-testid="button-scan-reset">
                           <X className="w-4 h-4 text-zinc-400" />
@@ -1272,6 +1314,68 @@ export function FoodLog({
                     </div>
                   );
                 })()
+              ) : showPhotoInterstitial ? (
+                /* ── Barcode not found interstitial ── */
+                <div className="text-center py-8 space-y-5">
+                  {photoLabelLoading ? (
+                    <>
+                      <Loader2 className="w-10 h-10 animate-spin text-zinc-400 mx-auto" />
+                      <p className="text-sm font-medium text-zinc-600">Reading nutrition label…</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center mx-auto">
+                        <Barcode className="w-7 h-7 text-amber-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-900">Barcode not found</p>
+                        <p className="text-xs text-zinc-400 mt-1">This product isn't in any database yet.</p>
+                      </div>
+                      <div className="space-y-2">
+                        {labelScanAvailable && (
+                          <button
+                            type="button"
+                            onClick={() => photoInputRef.current?.click()}
+                            className="w-full py-3 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2"
+                            data-testid="button-scan-photo-label"
+                          >
+                            <Camera className="w-4 h-4" />
+                            Take a photo of the label
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => { setScanResult({ type: "not_found", barcode: labelScanBarcode }); setSaveAsCustomFood(true); setFormTab("manual"); setShowPhotoInterstitial(false); }}
+                          className="w-full py-2.5 bg-zinc-100 text-zinc-700 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-colors"
+                          data-testid="button-scan-enter-manually"
+                        >
+                          Enter manually
+                        </button>
+                        <button
+                          type="button"
+                          onClick={resetScanner}
+                          className="w-full py-2 text-zinc-400 text-xs hover:text-zinc-600 transition-colors"
+                          data-testid="button-scan-try-again"
+                        >
+                          Try scanning again
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    data-testid="input-label-photo"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) handlePhotoCapture(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
               ) : scannerError ? (
                 <div className="text-center py-8">
                   <Barcode className="w-10 h-10 mx-auto mb-3 text-zinc-300" />
