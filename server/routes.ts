@@ -773,21 +773,7 @@ export async function registerRoutes(
 
       const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly', baseDb, prefs);
 
-      // If user is logged in, auto-save the plan
-      let savedId: number | undefined;
-      if (req.session.userId) {
-        const saved = await storage.saveMealPlan({
-          userId: req.session.userId,
-          calculationId: input.calculationId ?? undefined,
-          planType: input.planType,
-          mealStyle: input.mealStyle ?? 'simple',
-          planData: mealPlan as any,
-          name: `${input.planType === 'weekly' ? 'Weekly' : 'Daily'} Plan`,
-        });
-        savedId = saved.id;
-      }
-
-      res.status(201).json({ ...mealPlan, savedId });
+      res.status(201).json(mealPlan);
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({
@@ -799,7 +785,93 @@ export async function registerRoutes(
     }
   });
 
+  // ── Replace a single meal slot ─────────────────────────────────────────────
+
+  const replaceMealSchema = z.object({
+    slot: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
+    mealStyle: z.enum(['simple', 'gourmet', 'michelin']).optional().default('simple'),
+    dailyCalories: z.number(),
+    proteinGoal: z.number(),
+    carbsGoal: z.number(),
+    fatGoal: z.number(),
+    currentMealName: z.string().optional(),
+  });
+
+  app.post("/api/meal-plans/replace-meal", async (req, res) => {
+    try {
+      const input = replaceMealSchema.parse(req.body);
+      let baseDb: MealDb = input.mealStyle === 'michelin' ? MICHELIN_MEAL_DATABASE : input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
+
+      let prefs: UserPreferences | null = null;
+      if (req.session.userId) {
+        const user = await storage.getUserById(req.session.userId);
+        prefs = (user?.preferences as UserPreferences | null) ?? null;
+        baseDb = filterMealDbByPreferences(baseDb, prefs);
+      }
+
+      const pool = baseDb[input.slot === 'snack' ? 'snack' : input.slot];
+      const filtered = input.currentMealName
+        ? pool.filter(m => m.meal !== input.currentMealName)
+        : pool;
+      const candidates = filtered.length > 0 ? filtered : pool;
+
+      const totalMacroCals = input.proteinGoal * 4 + input.carbsGoal * 4 + input.fatGoal * 9;
+      const tProtein = (input.proteinGoal * 4) / totalMacroCals;
+      const tCarbs = (input.carbsGoal * 4) / totalMacroCals;
+      const tFat = (input.fatGoal * 9) / totalMacroCals;
+
+      const picked = pickBestMeal(candidates, tProtein, tCarbs, tFat, prefs);
+
+      const slotCalMap: Record<string, number> = {
+        breakfast: 0.25,
+        lunch: 0.30,
+        dinner: 0.35,
+        snack: 0.10,
+      };
+      const targetCals = Math.round(input.dailyCalories * slotCalMap[input.slot]);
+      const scaled = scaleMeal(picked, targetCals);
+
+      res.status(200).json(scaled);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
   // ── Saved meal plans ──────────────────────────────────────────────────────
+
+  app.post("/api/saved-meal-plans", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    try {
+      const body = z.object({
+        planData: z.any(),
+        planType: z.enum(['daily', 'weekly']),
+        mealStyle: z.enum(['simple', 'gourmet', 'michelin']).optional().default('simple'),
+        calculationId: z.number().optional(),
+        name: z.string().min(1).max(100).optional().default('My Plan'),
+      }).parse(req.body);
+
+      const saved = await storage.saveMealPlan({
+        userId: req.session.userId,
+        calculationId: body.calculationId,
+        planType: body.planType,
+        mealStyle: body.mealStyle,
+        planData: body.planData,
+        name: body.name,
+      });
+
+      res.status(201).json(saved);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
 
   app.get("/api/saved-meal-plans", async (req, res) => {
     if (!req.session.userId) {

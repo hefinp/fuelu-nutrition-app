@@ -111,14 +111,14 @@ export class DatabaseStorage implements IStorage {
   async updateMealPlanName(id: number, userId: number, name: string): Promise<SavedMealPlan | undefined> {
     const [updated] = await db.update(savedMealPlans)
       .set({ name })
-      .where(eq(savedMealPlans.id, id))
+      .where(and(eq(savedMealPlans.id, id), eq(savedMealPlans.userId, userId)))
       .returning();
     return updated;
   }
 
   async deleteMealPlan(id: number, userId: number): Promise<void> {
     await db.delete(savedMealPlans)
-      .where(eq(savedMealPlans.id, id));
+      .where(and(eq(savedMealPlans.id, id), eq(savedMealPlans.userId, userId)));
   }
 }
 

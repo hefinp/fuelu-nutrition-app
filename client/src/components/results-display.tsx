@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { Flame, Calendar, UtensilsCrossed, Loader2, X, Download, ShoppingCart } from "lucide-react";
+import { Flame, Calendar, UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Calculation } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 
 const GOAL_LABELS: Record<string, string> = {
@@ -485,7 +486,7 @@ interface Recipe {
   ingredients: Array<{ item: string; quantity: string }>;
 }
 
-const RECIPES: Record<string, Recipe> = {
+export const RECIPES: Record<string, Recipe> = {
   // ── Breakfasts ──────────────────────────────────────────────────────────────
   "Scrambled eggs (3) with whole grain toast": {
     instructions: "Whisk 3 eggs with a pinch of salt. Melt butter in a non-stick pan on medium heat, pour in eggs and stir slowly until just set. Serve on toasted whole grain bread.",
@@ -1599,7 +1600,7 @@ const RECIPES: Record<string, Recipe> = {
   },
 };
 
-interface Meal {
+export interface Meal {
   meal: string;
   calories: number;
   protein: number;
@@ -1626,7 +1627,9 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
   const [selectedMeal, setSelectedMeal] = useState<{ meal: string; calories: number; protein: number; carbs: number; fat: number } | null>(null);
   const [shoppingDaysOpen, setShoppingDaysOpen] = useState(false);
   const [shoppingDaysInput, setShoppingDaysInput] = useState("7");
+  const [planSaved, setPlanSaved] = useState(false);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const generateMealPlan = useMutation({
     mutationFn: async (planType: 'daily' | 'weekly') => {
@@ -1644,7 +1647,47 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
     },
     onSuccess: (planData) => {
       setMealPlan(planData);
+      setPlanSaved(false);
+    },
+  });
+
+  const savePlanMutation = useMutation({
+    mutationFn: async () => {
+      if (!mealPlan) throw new Error("No plan to save");
+      const res = await apiRequest('POST', '/api/saved-meal-plans', {
+        planData: mealPlan,
+        planType: mealPlan.planType,
+        mealStyle,
+        calculationId: data.id,
+        name: `${mealPlan.planType === 'weekly' ? 'Weekly' : 'Daily'} Plan`,
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      setPlanSaved(true);
       queryClient.invalidateQueries({ queryKey: ["/api/saved-meal-plans"] });
+      toast({ title: "Plan saved", description: "Your meal plan has been saved to My Plans." });
+    },
+    onError: () => {
+      toast({ title: "Failed to save", description: "Please try again.", variant: "destructive" });
+    },
+  });
+
+  const replaceMealMutation = useMutation({
+    mutationFn: async ({ slot, currentMealName }: { slot: string; currentMealName: string }) => {
+      const res = await apiRequest('POST', '/api/meal-plans/replace-meal', {
+        slot,
+        mealStyle,
+        dailyCalories: data.dailyCalories,
+        proteinGoal: data.proteinGoal,
+        carbsGoal: data.carbsGoal,
+        fatGoal: data.fatGoal,
+        currentMealName,
+      });
+      return { slot, meal: await res.json() };
+    },
+    onError: () => {
+      toast({ title: "Replace failed", description: "Could not find an alternative meal. Try again.", variant: "destructive" });
     },
   });
   const chartData = [
@@ -1837,43 +1880,117 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
       {/* Meal Plan Display */}
       {mealPlan && (
         <motion.div variants={itemVariants} className="bg-white p-8 rounded-3xl border border-zinc-100 shadow-lg">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
                 <UtensilsCrossed className="w-5 h-5" />
               </div>
               <h3 className="text-2xl font-bold text-zinc-900 capitalize">{mealPlan.planType} Meal Plan</h3>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  if (mealPlan.planType === 'daily') {
-                    setShoppingDaysOpen(true);
-                  } else {
-                    exportShoppingListToPDF(mealPlan, data);
-                  }
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl font-medium text-sm transition-colors border border-emerald-200"
-                data-testid="button-export-shopping-list"
-              >
-                <ShoppingCart className="w-4 h-4" />
-                Shopping List
-              </button>
-              <button
-                onClick={() => exportMealPlanToPDF(mealPlan, data)}
-                className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-medium text-sm transition-colors border border-zinc-200"
-                data-testid="button-export-pdf"
-              >
-                <Download className="w-4 h-4" />
-                Export PDF
-              </button>
-            </div>
+            <button
+              onClick={() => savePlanMutation.mutate()}
+              disabled={savePlanMutation.isPending || planSaved}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-colors ${
+                planSaved
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default"
+                  : "bg-zinc-900 hover:bg-zinc-700 text-white"
+              }`}
+              data-testid="button-save-plan"
+            >
+              {savePlanMutation.isPending ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+              ) : planSaved ? (
+                <><Check className="w-4 h-4" /> Saved</>
+              ) : (
+                <><Save className="w-4 h-4" /> Save Plan</>
+              )}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 mb-6">
+            <button
+              onClick={() => {
+                if (mealPlan.planType === 'daily') {
+                  setShoppingDaysOpen(true);
+                } else {
+                  exportShoppingListToPDF(mealPlan, data);
+                }
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg font-medium text-xs transition-colors border border-emerald-200"
+              data-testid="button-export-shopping-list"
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              Shopping List
+            </button>
+            <button
+              onClick={() => exportMealPlanToPDF(mealPlan, data)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg font-medium text-xs transition-colors border border-zinc-200"
+              data-testid="button-export-pdf"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export PDF
+            </button>
           </div>
 
           {mealPlan.planType === 'daily' ? (
-            <DailyMealView plan={mealPlan} />
+            <DailyMealView
+              plan={mealPlan}
+              onReplace={(slot, mealName, idx) => {
+                replaceMealMutation.mutate({ slot, currentMealName: mealName }, {
+                  onSuccess: ({ slot: s, meal: newMeal }) => {
+                    setMealPlan((prev: any) => {
+                      if (!prev) return prev;
+                      const key = s === 'snack' ? 'snacks' : s;
+                      const updated = { ...prev };
+                      const arr = [...(updated[key] || [])];
+                      arr[idx] = newMeal;
+                      updated[key] = arr;
+                      const allMeals = [...updated.breakfast, ...updated.lunch, ...updated.dinner, ...updated.snacks];
+                      updated.dayTotalCalories = allMeals.reduce((sum: number, m: any) => sum + m.calories, 0);
+                      updated.dayTotalProtein = allMeals.reduce((sum: number, m: any) => sum + m.protein, 0);
+                      updated.dayTotalCarbs = allMeals.reduce((sum: number, m: any) => sum + m.carbs, 0);
+                      updated.dayTotalFat = allMeals.reduce((sum: number, m: any) => sum + m.fat, 0);
+                      return updated;
+                    });
+                    setPlanSaved(false);
+                  },
+                });
+              }}
+              replacingSlot={replaceMealMutation.isPending ? replaceMealMutation.variables?.slot : undefined}
+            />
           ) : (
-            <WeeklyMealView plan={mealPlan} />
+            <WeeklyMealView
+              plan={mealPlan}
+              onReplace={(day, slot, mealName, idx) => {
+                replaceMealMutation.mutate({ slot, currentMealName: mealName }, {
+                  onSuccess: ({ slot: s, meal: newMeal }) => {
+                    setMealPlan((prev: any) => {
+                      if (!prev) return prev;
+                      const updated = { ...prev };
+                      const dayPlan = { ...updated[day] };
+                      const key = s === 'snack' ? 'snacks' : s;
+                      const arr = [...(dayPlan[key] || [])];
+                      arr[idx] = newMeal;
+                      dayPlan[key] = arr;
+                      const allDayMeals = [...dayPlan.breakfast, ...dayPlan.lunch, ...dayPlan.dinner, ...dayPlan.snacks];
+                      dayPlan.dayTotalCalories = allDayMeals.reduce((sum: number, m: any) => sum + m.calories, 0);
+                      dayPlan.dayTotalProtein = allDayMeals.reduce((sum: number, m: any) => sum + m.protein, 0);
+                      dayPlan.dayTotalCarbs = allDayMeals.reduce((sum: number, m: any) => sum + m.carbs, 0);
+                      dayPlan.dayTotalFat = allDayMeals.reduce((sum: number, m: any) => sum + m.fat, 0);
+                      updated[day] = dayPlan;
+                      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                      updated.weekTotalCalories = days.reduce((sum: number, d: string) => sum + (updated[d]?.dayTotalCalories || 0), 0);
+                      updated.weekTotalProtein = days.reduce((sum: number, d: string) => sum + (updated[d]?.dayTotalProtein || 0), 0);
+                      updated.weekTotalCarbs = days.reduce((sum: number, d: string) => sum + (updated[d]?.dayTotalCarbs || 0), 0);
+                      updated.weekTotalFat = days.reduce((sum: number, d: string) => sum + (updated[d]?.dayTotalFat || 0), 0);
+                      return updated;
+                    });
+                    setPlanSaved(false);
+                  },
+                });
+              }}
+              replacingSlot={replaceMealMutation.isPending ? replaceMealMutation.variables?.slot : undefined}
+            />
           )}
         </motion.div>
       )}
@@ -1942,7 +2059,7 @@ export function ResultsDisplay({ data }: { data: Calculation }) {
   );
 }
 
-function DailyMealView({ plan }: { plan: any }) {
+function DailyMealView({ plan, onReplace, replacingSlot }: { plan: any; onReplace?: (slot: string, mealName: string, idx: number) => void; replacingSlot?: string }) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
 
   return (
@@ -1966,29 +2083,45 @@ function DailyMealView({ plan }: { plan: any }) {
         </div>
       </div>
 
-      {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(mealType => (
-        <div key={mealType} className="mb-6">
-          <h4 className="text-lg font-semibold text-zinc-900 capitalize mb-3">{mealType}</h4>
-          <div className="space-y-2">
-            {plan[mealType]?.map((meal: Meal, idx: number) => (
-              <button
-                key={idx}
-                onClick={() => setSelectedMeal(meal)}
-                className="w-full flex justify-between p-3 bg-zinc-50 rounded-lg hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
-              >
-                <div className="flex-1">
-                  <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+      {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(mealType => {
+        const slotKey = mealType === 'snacks' ? 'snack' : mealType;
+        return (
+          <div key={mealType} className="mb-6">
+            <h4 className="text-lg font-semibold text-zinc-900 capitalize mb-3">{mealType}</h4>
+            <div className="space-y-2">
+              {plan[mealType]?.map((meal: Meal, idx: number) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedMeal(meal)}
+                    className="flex-1 flex justify-between p-3 bg-zinc-50 rounded-lg hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
+                    data-testid={`meal-card-${slotKey}-${idx}`}
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
+                      <p className="text-xs text-zinc-500">kcal</p>
+                    </div>
+                  </button>
+                  {onReplace && (
+                    <button
+                      onClick={() => onReplace(slotKey, meal.meal, idx)}
+                      disabled={replacingSlot === slotKey}
+                      className="p-2 bg-zinc-100 hover:bg-amber-50 text-zinc-500 hover:text-amber-600 rounded-lg transition-colors border border-transparent hover:border-amber-200 shrink-0"
+                      title="Replace meal"
+                      data-testid={`button-replace-${slotKey}-${idx}`}
+                    >
+                      {replacingSlot === slotKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                    </button>
+                  )}
                 </div>
-                <div className="text-right ml-4">
-                  <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
-                  <p className="text-xs text-zinc-500">kcal</p>
-                </div>
-              </button>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {selectedMeal && (
         <RecipeModal meal={selectedMeal} onClose={() => setSelectedMeal(null)} />
@@ -1997,7 +2130,7 @@ function DailyMealView({ plan }: { plan: any }) {
   );
 }
 
-function WeeklyMealView({ plan }: { plan: any }) {
+function WeeklyMealView({ plan, onReplace, replacingSlot }: { plan: any; onReplace?: (day: string, slot: string, mealName: string, idx: number) => void; replacingSlot?: string }) {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   
@@ -2048,29 +2181,45 @@ function WeeklyMealView({ plan }: { plan: any }) {
               </div>
             </div>
 
-            {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(mealType => (
-              <div key={mealType} className="mb-3">
-                <h5 className="text-sm font-semibold text-zinc-700 capitalize mb-2">{mealType}</h5>
-                <div className="space-y-1">
-                  {dayPlan[mealType]?.map((meal: Meal, idx: number) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedMeal(meal)}
-                      className="w-full flex justify-between p-2 bg-white rounded hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
-                        <p className="text-xs text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+            {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(mealType => {
+              const slotKey = mealType === 'snacks' ? 'snack' : mealType;
+              return (
+                <div key={mealType} className="mb-3">
+                  <h5 className="text-sm font-semibold text-zinc-700 capitalize mb-2">{mealType}</h5>
+                  <div className="space-y-1">
+                    {dayPlan[mealType]?.map((meal: Meal, idx: number) => (
+                      <div key={idx} className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setSelectedMeal(meal)}
+                          className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-blue-50 transition-colors text-left cursor-pointer border border-transparent hover:border-blue-200"
+                          data-testid={`meal-card-${day}-${slotKey}-${idx}`}
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
+                            <p className="text-xs text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+                          </div>
+                          <div className="text-right ml-4">
+                            <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
+                            <p className="text-xs text-zinc-500">kcal</p>
+                          </div>
+                        </button>
+                        {onReplace && (
+                          <button
+                            onClick={() => onReplace(day, slotKey, meal.meal, idx)}
+                            disabled={replacingSlot === slotKey}
+                            className="p-1.5 bg-zinc-100 hover:bg-amber-50 text-zinc-400 hover:text-amber-600 rounded transition-colors shrink-0"
+                            title="Replace meal"
+                            data-testid={`button-replace-${day}-${slotKey}-${idx}`}
+                          >
+                            {replacingSlot === slotKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
                       </div>
-                      <div className="text-right ml-4">
-                        <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
-                        <p className="text-xs text-zinc-500">kcal</p>
-                      </div>
-                    </button>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         );
       })}
