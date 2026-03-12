@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { SavedMealPlan } from "@shared/schema";
+import type { SavedMealPlan, UserPreferences } from "@shared/schema";
 import { Calendar, Trash2, Pencil, Check, X, UtensilsCrossed, ChefHat, Loader2, ChevronDown, ChevronUp, Download, ShoppingCart, ThumbsDown, ClipboardList, Mail } from "lucide-react";
 import { RECIPES, exportMealPlanToPDF, exportShoppingListToPDF, buildShoppingList, CATEGORY_ORDER, type Meal } from "./results-display";
 import type { Calculation } from "@shared/schema";
@@ -393,16 +393,28 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
 
 function SavedDailyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: PrefillEntry) => void }) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [localDisliked, setLocalDisliked] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { data: prefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
+  const serverDisliked = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
+
+  const isDisliked = (name: string) => localDisliked.has(name.toLowerCase()) || serverDisliked.has(name.toLowerCase());
+
   const dislikeMutation = useMutation({
-    mutationFn: (mealName: string) => apiRequest("POST", "/api/preferences/disliked-meals", { mealName }),
+    mutationFn: (mealName: string) => {
+      setLocalDisliked(prev => new Set([...prev, mealName.toLowerCase()]));
+      return apiRequest("POST", "/api/preferences/disliked-meals", { mealName });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
       toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
     },
-    onError: () => toast({ title: "Sign in to dislike meals", variant: "destructive" }),
+    onError: (_err, mealName) => {
+      setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
+      toast({ title: "Sign in to dislike meals", variant: "destructive" });
+    },
   });
 
   return (
@@ -455,9 +467,9 @@ function SavedDailyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pre
                   </button>
                 )}
                 <button
-                  onClick={() => dislikeMutation.mutate(meal.meal)}
-                  className="p-2 bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-lg transition-colors shrink-0"
-                  title="Dislike this meal"
+                  onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
+                  className={`p-2 rounded-lg transition-colors shrink-0 ${isDisliked(meal.meal) ? 'bg-red-50 text-red-500 cursor-default' : 'bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500'}`}
+                  title={isDisliked(meal.meal) ? "Disliked" : "Dislike this meal"}
                 >
                   <ThumbsDown className="w-3.5 h-3.5" />
                 </button>
@@ -477,16 +489,28 @@ function SavedDailyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pre
 function SavedWeeklyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: PrefillEntry) => void }) {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [localDisliked, setLocalDisliked] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { data: prefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
+  const serverDisliked = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
+
+  const isDisliked = (name: string) => localDisliked.has(name.toLowerCase()) || serverDisliked.has(name.toLowerCase());
+
   const dislikeMutation = useMutation({
-    mutationFn: (mealName: string) => apiRequest("POST", "/api/preferences/disliked-meals", { mealName }),
+    mutationFn: (mealName: string) => {
+      setLocalDisliked(prev => new Set([...prev, mealName.toLowerCase()]));
+      return apiRequest("POST", "/api/preferences/disliked-meals", { mealName });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
       toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
     },
-    onError: () => toast({ title: "Sign in to dislike meals", variant: "destructive" }),
+    onError: (_err, mealName) => {
+      setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
+      toast({ title: "Sign in to dislike meals", variant: "destructive" });
+    },
   });
 
   return (
@@ -546,9 +570,9 @@ function SavedWeeklyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pr
                         </button>
                       )}
                       <button
-                        onClick={() => dislikeMutation.mutate(meal.meal)}
-                        className="p-1.5 bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded transition-colors shrink-0"
-                        title="Dislike this meal"
+                        onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
+                        className={`p-1.5 rounded transition-colors shrink-0 ${isDisliked(meal.meal) ? 'bg-red-50 text-red-500 cursor-default' : 'bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500'}`}
+                        title={isDisliked(meal.meal) ? "Disliked" : "Dislike this meal"}
                       >
                         <ThumbsDown className="w-3 h-3" />
                       </button>

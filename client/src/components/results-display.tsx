@@ -2,7 +2,8 @@ import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Flame, Calendar, UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList } from "lucide-react";
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { UserPreferences } from "@shared/schema";
 import type { Calculation } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -2090,16 +2091,28 @@ export function ResultsDisplay({ data, onLogMeal }: { data: Calculation; onLogMe
 
 function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: any; onReplace?: (slot: string, mealName: string, idx: number) => void; replacingSlot?: string; onLogMeal?: (meal: Meal) => void }) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [localDisliked, setLocalDisliked] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { data: prefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
+  const serverDisliked = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
+
+  const isDisliked = (name: string) => localDisliked.has(name.toLowerCase()) || serverDisliked.has(name.toLowerCase());
+
   const dislikeMutation = useMutation({
-    mutationFn: (mealName: string) => apiRequest("POST", "/api/preferences/disliked-meals", { mealName }),
+    mutationFn: (mealName: string) => {
+      setLocalDisliked(prev => new Set([...prev, mealName.toLowerCase()]));
+      return apiRequest("POST", "/api/preferences/disliked-meals", { mealName });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
       toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
     },
-    onError: () => toast({ title: "Sign in to dislike meals", variant: "destructive" }),
+    onError: (_err, mealName) => {
+      setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
+      toast({ title: "Sign in to dislike meals", variant: "destructive" });
+    },
   });
 
   return (
@@ -2156,9 +2169,9 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: an
                     </button>
                   )}
                   <button
-                    onClick={() => dislikeMutation.mutate(meal.meal)}
-                    className="p-2 bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-lg transition-colors shrink-0"
-                    title="Dislike this meal"
+                    onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
+                    className={`p-2 rounded-lg transition-colors shrink-0 ${isDisliked(meal.meal) ? 'bg-red-50 text-red-500 cursor-default' : 'bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500'}`}
+                    title={isDisliked(meal.meal) ? "Disliked" : "Dislike this meal"}
                     data-testid={`button-dislike-${slotKey}-${idx}`}
                   >
                     <ThumbsDown className="w-4 h-4" />
@@ -2191,16 +2204,28 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: an
 function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: any; onReplace?: (day: string, slot: string, mealName: string, idx: number) => void; replacingSlot?: string; onLogMeal?: (meal: Meal) => void }) {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [localDisliked, setLocalDisliked] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { data: prefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
+  const serverDisliked = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
+
+  const isDisliked = (name: string) => localDisliked.has(name.toLowerCase()) || serverDisliked.has(name.toLowerCase());
+
   const dislikeMutation = useMutation({
-    mutationFn: (mealName: string) => apiRequest("POST", "/api/preferences/disliked-meals", { mealName }),
+    mutationFn: (mealName: string) => {
+      setLocalDisliked(prev => new Set([...prev, mealName.toLowerCase()]));
+      return apiRequest("POST", "/api/preferences/disliked-meals", { mealName });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
       toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
     },
-    onError: () => toast({ title: "Sign in to dislike meals", variant: "destructive" }),
+    onError: (_err, mealName) => {
+      setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
+      toast({ title: "Sign in to dislike meals", variant: "destructive" });
+    },
   });
 
   return (
@@ -2283,9 +2308,9 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: a
                           </button>
                         )}
                         <button
-                          onClick={() => dislikeMutation.mutate(meal.meal)}
-                          className="p-1.5 bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded transition-colors shrink-0"
-                          title="Dislike this meal"
+                          onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
+                          className={`p-1.5 rounded transition-colors shrink-0 ${isDisliked(meal.meal) ? 'bg-red-50 text-red-500 cursor-default' : 'bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500'}`}
+                          title={isDisliked(meal.meal) ? "Disliked" : "Dislike this meal"}
                           data-testid={`button-dislike-${day}-${slotKey}-${idx}`}
                         >
                           <ThumbsDown className="w-3.5 h-3.5" />

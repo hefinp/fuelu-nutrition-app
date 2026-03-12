@@ -147,6 +147,7 @@ export function PreferencesForm() {
       excludedFoods,
       preferredFoods,
       micronutrientOptimize,
+      dislikedMeals: data?.dislikedMeals ?? [],
     });
   };
 
