@@ -4,10 +4,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { SavedMealPlan, UserPreferences } from "@shared/schema";
-import { Calendar, Trash2, Pencil, Check, X, UtensilsCrossed, ChefHat, Loader2, ChevronDown, ChevronUp, Download, ShoppingCart, ThumbsDown, ClipboardList, Mail } from "lucide-react";
+import { Calendar, Trash2, Pencil, Check, X, UtensilsCrossed, ChefHat, Loader2, ChevronDown, ChevronUp, Download, ShoppingCart, ThumbsDown, ClipboardList, Mail, Circle } from "lucide-react";
 import { RECIPES, exportMealPlanToPDF, exportShoppingListToPDF, buildShoppingList, CATEGORY_ORDER, type Meal } from "./results-display";
 import type { Calculation } from "@shared/schema";
 import type { PrefillEntry } from "./food-log";
+
+const PHASE_STYLES: Record<string, { bg: string; text: string; border: string; label: string }> = {
+  menstrual: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200", label: "Menstrual" },
+  follicular: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", label: "Follicular" },
+  ovulatory: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", label: "Ovulatory" },
+  luteal: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200", label: "Luteal" },
+};
 
 function buildCalcStub(plan: SavedMealPlan): Calculation {
   const d = plan.planData as any;
@@ -46,6 +53,9 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
       return res.json();
     },
   });
+
+  const { data: userPrefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
+  const showCycleBanner = !!(userPrefs?.cycleTrackingEnabled && userPrefs?.lastPeriodDate);
 
   const renameMutation = useMutation({
     mutationFn: async ({ id, name }: { id: number; name: string }) => {
@@ -207,7 +217,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
                   <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${plan.planType === 'weekly' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
                     <Calendar className="w-3 h-3" />
                     {plan.planType === 'weekly' ? 'Weekly' : 'Daily'}
@@ -216,6 +226,23 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                     <ChefHat className="w-3 h-3" />
                     {plan.mealStyle === 'michelin' ? 'Michelin' : plan.mealStyle === 'gourmet' ? 'Gourmet' : 'Simple'}
                   </span>
+                  {showCycleBanner && (() => {
+                    const pd = planData as any;
+                    const phase = pd?.cyclePhase || pd?.cyclePhaseByDay
+                      ? (pd.cyclePhase || (() => {
+                          const phases = pd.cyclePhaseByDay ? Object.values(pd.cyclePhaseByDay).filter(Boolean) : [];
+                          return phases.length > 0 ? phases[0] : null;
+                        })())
+                      : null;
+                    if (!phase || !PHASE_STYLES[phase as string]) return null;
+                    const ps = PHASE_STYLES[phase as string];
+                    return (
+                      <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${ps.bg} ${ps.text} ${ps.border}`} data-testid={`badge-cycle-phase-${plan.id}`}>
+                        <Circle className="w-2.5 h-2.5" />
+                        {ps.label}
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 {(totalCal || totalProtein) && (

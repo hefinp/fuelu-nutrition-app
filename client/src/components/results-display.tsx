@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, Salad, ChefHat, Star, Pill, Circle } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Pill, Circle, CalendarDays } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences } from "@shared/schema";
@@ -1874,12 +1874,40 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
   );
 }
 
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function addDays(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return toDateStr(dt);
+}
+
+function getMonday(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const dow = dt.getDay();
+  dt.setDate(dt.getDate() - ((dow + 6) % 7));
+  return toDateStr(dt);
+}
+
+function formatShort(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
 export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLogMeal?: (meal: Meal) => void }) {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [mealStyle, setMealStyle] = useState<'simple' | 'gourmet' | 'michelin'>('simple');
   const [shoppingDaysOpen, setShoppingDaysOpen] = useState(false);
   const [shoppingDaysInput, setShoppingDaysInput] = useState("7");
   const [planSaved, setPlanSaved] = useState(false);
+  const [selectedDates, setSelectedDates] = useState<string[]>([toDateStr(new Date())]);
+  const [weekStart, setWeekStart] = useState<string>(getMonday(toDateStr(new Date())));
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -1899,6 +1927,7 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
         planType,
         mealStyle,
         calculationId: data.id,
+        ...(planType === 'daily' ? { targetDates: selectedDates } : { weekStartDate: weekStart }),
       });
       return await res.json();
     },
@@ -1911,19 +1940,26 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
   const savePlanMutation = useMutation({
     mutationFn: async () => {
       if (!mealPlan) throw new Error("No plan to save");
+      const planTypeLabel = mealPlan.planType === 'weekly' ? 'Weekly' : 'Daily';
+      const dateLabel = mealPlan.planType === 'weekly'
+        ? ` (${formatShort(weekStart)})`
+        : selectedDates.length === 1
+          ? ` (${formatShort(selectedDates[0])})`
+          : ` (${selectedDates.length} days)`;
       const res = await apiRequest('POST', '/api/saved-meal-plans', {
         planData: mealPlan,
-        planType: mealPlan.planType,
+        planType: mealPlan.planType === 'multi-daily' ? 'daily' : mealPlan.planType,
         mealStyle,
         calculationId: data.id,
-        name: `${mealPlan.planType === 'weekly' ? 'Weekly' : 'Daily'} Plan`,
+        name: `${planTypeLabel} Plan${dateLabel}`,
       });
       return await res.json();
     },
     onSuccess: () => {
       setPlanSaved(true);
       queryClient.invalidateQueries({ queryKey: ["/api/saved-meal-plans"] });
-      toast({ title: "Plan saved", description: "Your meal plan has been saved to My Plans." });
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
+      toast({ title: "Plan saved", description: "Meals added to your food log as planned entries." });
     },
     onError: () => {
       toast({ title: "Failed to save", description: "Please try again.", variant: "destructive" });
@@ -2010,6 +2046,67 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
           </p>
         </div>
       )}
+
+      {/* Date selection */}
+      <div className="mb-4">
+        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Schedule</p>
+
+        {/* Daily date chips */}
+        <div className="mb-2">
+          <p className="text-[11px] text-zinc-400 mb-1.5">Pick days for daily plan</p>
+          <div className="flex gap-1.5 flex-wrap">
+            {DAY_LABELS.map((label, i) => {
+              const dateStr = addDays(getMonday(toDateStr(new Date())), i);
+              const isSelected = selectedDates.includes(dateStr);
+              return (
+                <button
+                  key={dateStr}
+                  type="button"
+                  data-testid={`chip-day-${label.toLowerCase()}`}
+                  onClick={() => {
+                    setSelectedDates(prev =>
+                      isSelected
+                        ? prev.filter(d => d !== dateStr).length > 0 ? prev.filter(d => d !== dateStr) : prev
+                        : [...prev, dateStr].sort()
+                    );
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                    isSelected
+                      ? "bg-zinc-900 text-white"
+                      : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Weekly date picker */}
+        <div>
+          <p className="text-[11px] text-zinc-400 mb-1.5">Week for weekly plan</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setWeekStart(prev => addDays(prev, -7))}
+              className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-500"
+              data-testid="button-week-prev"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-medium text-zinc-700 min-w-[120px] text-center" data-testid="text-week-label">
+              {formatShort(weekStart)} – {formatShort(addDays(weekStart, 6))}
+            </span>
+            <button
+              onClick={() => setWeekStart(prev => addDays(prev, 7))}
+              className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-500"
+              data-testid="button-week-next"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Generate buttons */}
       <div className="flex gap-3">

@@ -272,13 +272,14 @@ const CYCLE_PHASE_KEYWORDS: Record<string, string[]> = {
   luteal:     ['turkey', 'sweet potato', 'banana', 'dark chocolate', 'cashew', 'almond', 'walnut', 'pumpkin', 'oat', 'chickpea'],
 };
 
-function computeCyclePhase(lastPeriodDate: string, cycleLength: number = 28): string | null {
+function computeCyclePhase(lastPeriodDate: string, cycleLength: number = 28, referenceDate?: string): string | null {
   const start = new Date(lastPeriodDate);
   if (isNaN(start.getTime())) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const ref = referenceDate ? new Date(referenceDate) : new Date();
+  if (isNaN(ref.getTime())) return null;
+  ref.setHours(0, 0, 0, 0);
   start.setHours(0, 0, 0, 0);
-  const diffMs = today.getTime() - start.getTime();
+  const diffMs = ref.getTime() - start.getTime();
   if (diffMs < 0) return null;
   const day = (Math.floor(diffMs / (1000 * 60 * 60 * 24)) % Math.max(cycleLength, 21)) + 1;
   if (day <= 5) return 'menstrual';
@@ -399,10 +400,21 @@ function generateDayPlan(dailyCalories: number, proteinGoal: number, carbsGoal: 
   return buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences, cyclePhase);
 }
 
-function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, isWeekly: boolean, db: MealDb, preferences?: UserPreferences | null, cyclePhase?: string | null) {
+function addDaysToDate(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+function generateMealPlan(
+  dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number,
+  isWeekly: boolean, db: MealDb, preferences?: UserPreferences | null,
+  cyclePhase?: string | null,
+  perDayPhases?: Record<string, string | null>,
+) {
   const lunchTarget = Math.round(dailyCalories * 0.30);
 
-  // Target macro ratios — used when scaling the lunch override
   const totalMacroCals = proteinGoal * 4 + carbsGoal * 4 + fatGoal * 9;
   const tProtein = (proteinGoal * 4) / totalMacroCals;
   const tCarbs   = (carbsGoal   * 4) / totalMacroCals;
@@ -416,21 +428,19 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
     let weekTotalCarbs = 0;
     let weekTotalFat = 0;
 
-    // Stores the raw (unscaled) dinner base so the next day can scale it to lunchTarget
     let previousDinnerBase: MealEntry | undefined = undefined;
-
     const dinnerTarget = Math.round(dailyCalories * 0.35);
 
     days.forEach((day, index) => {
+      const dayPhase = perDayPhases?.[day] ?? cyclePhase ?? null;
       let dayPlan: ReturnType<typeof buildDayPlan>;
 
       if (index === 0) {
-        // Monday: pick one dinner base, use it for BOTH lunch (at lunchTarget) and dinner (at dinnerTarget)
-        const mondayDinnerBase = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences, cyclePhase);
+        const mondayDinnerBase = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences, dayPhase);
         const mondayLunch  = scaleMeal(mondayDinnerBase, lunchTarget);
         const mondayDinner = scaleMeal(mondayDinnerBase, dinnerTarget);
 
-        const dayPlanBase = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, mondayLunch, preferences, cyclePhase);
+        const dayPlanBase = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, mondayLunch, preferences, dayPhase);
         const allMeals = [dayPlanBase.breakfast[0], mondayLunch, mondayDinner, ...dayPlanBase.snacks];
         dayPlan = {
           breakfast:       dayPlanBase.breakfast,
@@ -442,12 +452,10 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
           dayTotalCarbs:    allMeals.reduce((s, m) => s + m.carbs,    0),
           dayTotalFat:      allMeals.reduce((s, m) => s + m.fat,      0),
         };
-        previousDinnerBase = mondayDinnerBase; // raw base so Tuesday scales it to lunchTarget
+        previousDinnerBase = mondayDinnerBase;
       } else {
-        // Tue–Sun: scale the raw dinner base from the previous day to lunchTarget
         const lunchOverride = scaleMeal(previousDinnerBase!, lunchTarget);
-        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, lunchOverride, preferences, cyclePhase);
-        // Store raw (unscaled) dinner base for the next day
+        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, lunchOverride, preferences, dayPhase);
         const dinnerBase = db.dinner.find(m => m.meal === dayPlan.dinner[0].meal) ?? dayPlan.dinner[0];
         previousDinnerBase = dinnerBase;
       }
@@ -466,12 +474,14 @@ function generateMealPlan(dailyCalories: number, proteinGoal: number, carbsGoal:
       weekTotalProtein,
       weekTotalCarbs,
       weekTotalFat,
+      cyclePhaseByDay: perDayPhases ?? null,
     };
   } else {
     const dayPlan = generateDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, preferences, cyclePhase);
     return {
       planType: 'daily' as const,
       ...dayPlan,
+      cyclePhase: cyclePhase ?? null,
     };
   }
 }
@@ -838,13 +848,41 @@ export async function registerRoutes(
         }
       }
 
-      const cyclePhase = (prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate)
-        ? computeCyclePhase(prefs.lastPeriodDate, prefs.cycleLength ?? 28)
-        : null;
+      const hasCycle = !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate);
 
-      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, input.planType === 'weekly', baseDb, prefs, cyclePhase);
-
-      res.status(201).json(mealPlan);
+      if (input.planType === 'weekly') {
+        let perDayPhases: Record<string, string | null> | undefined = undefined;
+        if (hasCycle && input.weekStartDate) {
+          const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+          perDayPhases = {};
+          dayNames.forEach((dayName, i) => {
+            const dateStr = addDaysToDate(input.weekStartDate!, i);
+            perDayPhases![dayName] = computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, dateStr);
+          });
+        }
+        const fallbackPhase = hasCycle ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28) : null;
+        const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, true, baseDb, prefs, fallbackPhase, perDayPhases);
+        if (input.weekStartDate) (mealPlan as any).weekStartDate = input.weekStartDate;
+        res.status(201).json(mealPlan);
+      } else if (input.targetDates && input.targetDates.length > 1) {
+        const plans: Record<string, any> = {};
+        const cyclePhaseByDate: Record<string, string | null> = {};
+        for (const dateStr of input.targetDates) {
+          const phase = hasCycle ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, dateStr) : null;
+          cyclePhaseByDate[dateStr] = phase;
+          const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, phase);
+          plans[dateStr] = { ...dayPlan, cyclePhase: phase };
+        }
+        res.status(201).json({ planType: 'multi-daily', days: plans, targetDates: input.targetDates, cyclePhaseByDate });
+      } else {
+        const targetDate = input.targetDates?.[0];
+        const cyclePhase = hasCycle
+          ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, targetDate)
+          : null;
+        const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, false, baseDb, prefs, cyclePhase);
+        if (targetDate) (mealPlan as any).targetDate = targetDate;
+        res.status(201).json(mealPlan);
+      }
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({
@@ -960,6 +998,57 @@ export async function registerRoutes(
         planData: body.planData,
         name: body.name,
       });
+
+      try {
+        const foodLogRows: Array<{ userId: number; date: string; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot: string; confirmed: boolean }> = [];
+        const planData = body.planData as any;
+
+        const extractMeals = (dayData: any, dateStr: string) => {
+          const slots = ['breakfast', 'lunch', 'dinner', 'snacks'] as const;
+          for (const slot of slots) {
+            const meals = dayData?.[slot];
+            if (!Array.isArray(meals)) continue;
+            for (const m of meals) {
+              if (m?.meal && typeof m.calories === 'number') {
+                foodLogRows.push({
+                  userId: req.session.userId!,
+                  date: dateStr,
+                  mealName: m.meal,
+                  calories: Math.round(m.calories),
+                  protein: Math.round(m.protein ?? 0),
+                  carbs: Math.round(m.carbs ?? 0),
+                  fat: Math.round(m.fat ?? 0),
+                  mealSlot: slot === 'snacks' ? 'snack' : slot,
+                  confirmed: false,
+                });
+              }
+            }
+          }
+        };
+
+        if (body.planType === 'daily') {
+          const targetDate = planData.targetDate || new Date().toISOString().split('T')[0];
+          extractMeals(planData, targetDate);
+        } else if (planData.planType === 'multi-daily' && planData.days) {
+          for (const dateStr of Object.keys(planData.days)) {
+            extractMeals(planData.days[dateStr], dateStr);
+          }
+        } else {
+          const weekStart = planData.weekStartDate || new Date().toISOString().split('T')[0];
+          const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+          dayNames.forEach((dayName, i) => {
+            if (planData[dayName]) {
+              extractMeals(planData[dayName], addDaysToDate(weekStart, i));
+            }
+          });
+        }
+
+        if (foodLogRows.length > 0) {
+          await storage.bulkCreateFoodLogEntries(foodLogRows);
+        }
+      } catch (logErr) {
+        console.error('Failed to pre-populate food log from saved plan:', logErr);
+      }
 
       res.status(201).json(saved);
     } catch (err) {
@@ -1501,6 +1590,14 @@ export async function registerRoutes(
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       throw err;
     }
+  });
+
+  app.patch("/api/food-log/:id/confirm", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const id = parseInt(req.params.id);
+    const updated = await storage.confirmFoodLogEntry(id, req.session.userId);
+    if (!updated) return res.status(404).json({ message: "Entry not found" });
+    res.json(updated);
   });
 
   app.delete("/api/food-log/:id", async (req, res) => {

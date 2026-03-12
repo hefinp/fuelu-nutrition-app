@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, numeric, timestamp, text, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, numeric, timestamp, text, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -143,6 +143,7 @@ export const foodLogEntries = pgTable("food_log_entries", {
   carbs: integer("carbs").notNull(),
   fat: integer("fat").notNull(),
   mealSlot: text("meal_slot"),
+  confirmed: boolean("confirmed").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

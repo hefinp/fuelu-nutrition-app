@@ -199,6 +199,19 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(foodLogEntries.id, id), eq(foodLogEntries.userId, userId)));
   }
 
+  async confirmFoodLogEntry(id: number, userId: number): Promise<FoodLogEntry | undefined> {
+    const [updated] = await db.update(foodLogEntries)
+      .set({ confirmed: true })
+      .where(and(eq(foodLogEntries.id, id), eq(foodLogEntries.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async bulkCreateFoodLogEntries(entries: Array<InsertFoodLogEntry & { userId: number }>): Promise<FoodLogEntry[]> {
+    if (entries.length === 0) return [];
+    return await db.insert(foodLogEntries).values(entries).returning();
+  }
+
   async createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void> {
     await db.insert(passwordResetTokens).values({ userId, token, expiresAt });
   }

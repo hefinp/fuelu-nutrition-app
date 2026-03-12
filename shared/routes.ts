@@ -48,6 +48,8 @@ export const mealPlanSchema = z.object({
   planType: z.enum(['daily', 'weekly']),
   mealStyle: z.enum(['simple', 'gourmet', 'michelin']).optional().default('simple'),
   calculationId: z.number().optional(),
+  targetDates: z.array(z.string()).optional(),
+  weekStartDate: z.string().optional(),
 });
 
 export const mealPlanResponseSchema = z.union([

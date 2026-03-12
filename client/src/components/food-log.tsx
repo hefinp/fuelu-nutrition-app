@@ -42,6 +42,7 @@ interface FoodLogEntry {
   carbs: number;
   fat: number;
   mealSlot: MealSlot | null;
+  confirmed: boolean;
   createdAt: string;
 }
 
@@ -579,6 +580,19 @@ export function FoodLog({
     onError: () => toast({ title: "Failed to delete entry", variant: "destructive" }),
   });
 
+  const confirmMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("PATCH", `/api/food-log/${id}/confirm`, undefined);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log", selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log-week"] });
+      toast({ title: "Meal confirmed" });
+    },
+    onError: () => toast({ title: "Failed to confirm", variant: "destructive" }),
+  });
+
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   async function handleSubmit(e: React.FormEvent) {
@@ -742,15 +756,19 @@ export function FoodLog({
 
   const isToday = selectedDate === today;
 
-  const totalCal = dailyEntries.reduce((s, e) => s + e.calories, 0);
-  const totalProt = dailyEntries.reduce((s, e) => s + e.protein, 0);
-  const totalCarbs = dailyEntries.reduce((s, e) => s + e.carbs, 0);
-  const totalFat = dailyEntries.reduce((s, e) => s + e.fat, 0);
+  const confirmedDaily = dailyEntries.filter(e => e.confirmed !== false);
+  const plannedDaily = dailyEntries.filter(e => e.confirmed === false);
+  const totalCal = confirmedDaily.reduce((s, e) => s + e.calories, 0);
+  const totalProt = confirmedDaily.reduce((s, e) => s + e.protein, 0);
+  const totalCarbs = confirmedDaily.reduce((s, e) => s + e.carbs, 0);
+  const totalFat = confirmedDaily.reduce((s, e) => s + e.fat, 0);
+  const plannedCal = plannedDaily.reduce((s, e) => s + e.calories, 0);
 
-  const weekTotalCal = weeklyEntries.reduce((s, e) => s + e.calories, 0);
-  const weekTotalProt = weeklyEntries.reduce((s, e) => s + e.protein, 0);
-  const weekTotalCarbs = weeklyEntries.reduce((s, e) => s + e.carbs, 0);
-  const weekTotalFat = weeklyEntries.reduce((s, e) => s + e.fat, 0);
+  const confirmedWeekly = weeklyEntries.filter(e => e.confirmed !== false);
+  const weekTotalCal = confirmedWeekly.reduce((s, e) => s + e.calories, 0);
+  const weekTotalProt = confirmedWeekly.reduce((s, e) => s + e.protein, 0);
+  const weekTotalCarbs = confirmedWeekly.reduce((s, e) => s + e.carbs, 0);
+  const weekTotalFat = confirmedWeekly.reduce((s, e) => s + e.fat, 0);
 
   const entriesByDay = weekRange.days.reduce<Record<string, FoodLogEntry[]>>((acc, d) => {
     acc[d] = weeklyEntries.filter(e => e.date === d);
@@ -1464,6 +1482,13 @@ export function FoodLog({
             carbsTarget={dailyCarbsTarget} fatTarget={dailyFatTarget}
           />
 
+          {plannedDaily.length > 0 && (
+            <p className="text-xs text-zinc-400 mb-3 flex items-center gap-1" data-testid="text-planned-summary">
+              <span className="inline-block w-2 h-2 rounded-full bg-zinc-300" />
+              {plannedDaily.length} planned meal{plannedDaily.length !== 1 ? 's' : ''} ({plannedCal} kcal) awaiting confirmation
+            </p>
+          )}
+
           {dailyLoading ? (
             <div className="flex justify-center py-6">
               <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
@@ -1479,10 +1504,15 @@ export function FoodLog({
                 const slot = entry.mealSlot as MealSlot | null;
                 const SlotIcon = slot ? SLOT_ICONS[slot] : null;
                 const slotColor = slot ? SLOT_COLORS[slot] : null;
+                const isPlanned = entry.confirmed === false;
                 return (
                   <div
                     key={entry.id}
-                    className="flex items-center gap-2 bg-zinc-50 rounded-xl border border-transparent hover:border-zinc-200 transition-colors"
+                    className={`flex items-center gap-2 rounded-xl transition-colors ${
+                      isPlanned
+                        ? "bg-zinc-50/60 border border-dashed border-zinc-200 opacity-70"
+                        : "bg-zinc-50 border border-transparent hover:border-zinc-200"
+                    }`}
                     data-testid={`log-entry-${entry.id}`}
                   >
                     <button
@@ -1496,12 +1526,26 @@ export function FoodLog({
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-zinc-900 truncate">{entry.mealName}</p>
+                        <p className={`text-sm font-medium truncate ${isPlanned ? "text-zinc-500" : "text-zinc-900"}`}>
+                          {entry.mealName}
+                          {isPlanned && <span className="ml-1.5 text-[10px] font-normal text-zinc-400">(Planned)</span>}
+                        </p>
                         <p className="text-xs text-zinc-500 mt-0.5">
                           {entry.calories} kcal · P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
                         </p>
                       </div>
                     </button>
+                    {isPlanned && (
+                      <button
+                        onClick={() => confirmMutation.mutate(entry.id)}
+                        disabled={confirmMutation.isPending}
+                        className="p-1.5 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors shrink-0"
+                        data-testid={`button-confirm-log-${entry.id}`}
+                        title="Confirm this meal"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button
                       onClick={() => deleteMutation.mutate(entry.id)}
                       disabled={deleteMutation.isPending}
