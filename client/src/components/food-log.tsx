@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Plus, Trash2, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, BookOpen, UtensilsCrossed,
-  Coffee, Salad, Moon, Apple, Search, X, Check,
+  Coffee, Salad, Moon, Apple, Search, X, Check, Barcode,
 } from "lucide-react";
 import type { SavedMealPlan } from "@shared/schema";
 
@@ -228,7 +228,7 @@ export function FoodLog({
 
   // Form state
   const [showForm, setShowForm] = useState(false);
-  const [formTab, setFormTab] = useState<"manual" | "plan" | "search">("manual");
+  const [formTab, setFormTab] = useState<"manual" | "plan" | "search" | "scan">("manual");
   const [form, setForm] = useState({
     mealName: "", calories: "", protein: "", carbs: "", fat: "",
     mealSlot: null as MealSlot | null,
@@ -248,10 +248,86 @@ export function FoodLog({
   const [selectedFood, setSelectedFood] = useState<FoodResult | null>(null);
   const [servingGrams, setServingGrams] = useState("100");
 
+  // Barcode scanner state
+  const [scannerError, setScannerError] = useState(false);
+  const [scanLookingUp, setScanLookingUp] = useState(false);
+  const [scanResult, setScanResult] = useState<{ type: "found" | "not_found"; barcode: string; name?: string } | null>(null);
+  const [saveAsCustomFood, setSaveAsCustomFood] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const scanControlsRef = useRef<{ stop: () => void } | null>(null);
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 400);
     return () => clearTimeout(t);
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (formTab !== "scan") {
+      scanControlsRef.current?.stop();
+      scanControlsRef.current = null;
+      return;
+    }
+    let cancelled = false;
+    setScannerError(false);
+    setScanLookingUp(false);
+
+    (async () => {
+      try {
+        const { BrowserMultiFormatReader } = await import("@zxing/browser");
+        if (cancelled || !videoRef.current) return;
+
+        const reader = new BrowserMultiFormatReader();
+        const controls = await reader.decodeFromVideoDevice(
+          undefined,
+          videoRef.current,
+          async (result) => {
+            if (!result || cancelled) return;
+            cancelled = true;
+            controls.stop();
+            scanControlsRef.current = null;
+
+            const barcode = result.getText();
+            setScanLookingUp(true);
+
+            try {
+              const res = await fetch(`/api/barcode/${encodeURIComponent(barcode)}`);
+              if (res.ok) {
+                const food = await res.json();
+                const factor = (food.servingGrams || 100) / 100;
+                setForm(f => ({
+                  ...f,
+                  mealName: food.name,
+                  calories: String(Math.round(food.calories100g * factor)),
+                  protein: String(Math.round(food.protein100g * factor)),
+                  carbs: String(Math.round(food.carbs100g * factor)),
+                  fat: String(Math.round(food.fat100g * factor)),
+                }));
+                setScanResult({ type: "found", barcode, name: food.name });
+                setSaveAsCustomFood(false);
+              } else {
+                setScanResult({ type: "not_found", barcode });
+                setSaveAsCustomFood(true);
+              }
+            } catch {
+              setScanResult({ type: "not_found", barcode });
+              setSaveAsCustomFood(true);
+            }
+            setScanLookingUp(false);
+            setFormTab("manual");
+          }
+        );
+        if (!cancelled) scanControlsRef.current = controls;
+      } catch {
+        if (!cancelled) setScannerError(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      scanControlsRef.current?.stop();
+      scanControlsRef.current = null;
+    };
+  }, [formTab]);
 
   const weekRange = getWeekRange(weekOffset);
 
@@ -349,9 +425,24 @@ export function FoodLog({
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.mealName.trim()) return;
+
+    if (saveAsCustomFood && scanResult?.type === "not_found" && scanResult.barcode) {
+      try {
+        await apiRequest("POST", "/api/custom-foods", {
+          barcode: scanResult.barcode,
+          name: form.mealName.trim(),
+          calories100g: parseInt(form.calories) || 0,
+          protein100g: parseFloat(form.protein) || 0,
+          carbs100g: parseFloat(form.carbs) || 0,
+          fat100g: parseFloat(form.fat) || 0,
+          servingGrams: 100,
+        });
+      } catch {}
+    }
+
     addMutation.mutate({
       date: selectedDate,
       mealName: form.mealName.trim(),
@@ -440,6 +531,8 @@ export function FoodLog({
     if (!showForm) {
       setFormTab("manual");
       setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", mealSlot: null });
+      setScanResult(null);
+      setSaveAsCustomFood(false);
     }
   }
 
@@ -553,7 +646,16 @@ export function FoodLog({
               data-testid="button-form-tab-search"
             >
               <Search className="w-3.5 h-3.5" />
-              Search food
+              Search
+            </button>
+            <button
+              type="button"
+              onClick={() => { setScanResult(null); setSaveAsCustomFood(false); setScannerError(false); setFormTab("scan"); }}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "scan" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+              data-testid="button-form-tab-scan"
+            >
+              <Barcode className="w-3.5 h-3.5" />
+              Scan
             </button>
             <button
               type="button"
@@ -562,7 +664,7 @@ export function FoodLog({
               data-testid="button-form-tab-plan"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              From plan
+              Plan
             </button>
           </div>
 
@@ -573,6 +675,20 @@ export function FoodLog({
                 <p className="text-[11px] text-zinc-500 font-medium bg-zinc-100 rounded-lg px-2.5 py-1.5">
                   Logging to {formatDateLabel(selectedDate)}
                 </p>
+              )}
+
+              {/* Scan result banners */}
+              {scanResult?.type === "found" && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl text-xs text-green-700">
+                  <Check className="w-3.5 h-3.5 shrink-0" />
+                  <span>Product found: <strong>{scanResult.name}</strong></span>
+                </div>
+              )}
+              {scanResult?.type === "not_found" && (
+                <div className="px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
+                  <p className="text-xs font-medium text-amber-700">Product not found in any database</p>
+                  <p className="text-[10px] text-amber-600 mt-0.5">Fill in the details and we'll save it for future scans.</p>
+                </div>
               )}
 
               {/* Meal slot selector */}
@@ -625,6 +741,19 @@ export function FoodLog({
                   </div>
                 ))}
               </div>
+              {scanResult?.type === "not_found" && (
+                <label className="flex items-center gap-2 cursor-pointer py-1" data-testid="label-save-custom-food">
+                  <input
+                    type="checkbox"
+                    checked={saveAsCustomFood}
+                    onChange={e => setSaveAsCustomFood(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-zinc-900"
+                    data-testid="checkbox-save-custom-food"
+                  />
+                  <span className="text-xs text-zinc-600">Save this food for future barcode scans</span>
+                </label>
+              )}
+
               <div className="flex gap-2">
                 <button
                   type="submit"
@@ -785,6 +914,66 @@ export function FoodLog({
               >
                 Cancel
               </button>
+            </div>
+          )}
+
+          {/* Barcode scan tab */}
+          {formTab === "scan" && (
+            <div className="p-4">
+              {scannerError ? (
+                <div className="text-center py-8">
+                  <Barcode className="w-10 h-10 mx-auto mb-3 text-zinc-300" />
+                  <p className="text-sm font-medium text-zinc-600">Camera not available</p>
+                  <p className="text-xs text-zinc-400 mt-1">Allow camera access or try a different browser.</p>
+                  <button
+                    type="button"
+                    onClick={() => { setScanResult({ type: "not_found", barcode: "" }); setSaveAsCustomFood(true); setFormTab("manual"); }}
+                    className="mt-4 px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-medium"
+                    data-testid="button-scan-enter-manually"
+                  >
+                    Enter manually instead
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="relative overflow-hidden rounded-2xl bg-zinc-900 aspect-[4/3]">
+                    <video
+                      ref={videoRef}
+                      className="w-full h-full object-cover"
+                      playsInline
+                      muted
+                      data-testid="video-barcode-scanner"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="absolute inset-0 bg-black/30" />
+                      <div className="relative w-56 h-28 z-10">
+                        <div className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-white rounded-tl" />
+                        <div className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-white rounded-tr" />
+                        <div className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-white rounded-bl" />
+                        <div className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-white rounded-br" />
+                        {!scanLookingUp && (
+                          <div className="absolute inset-x-2 h-0.5 bg-white/70 top-1/2 -translate-y-1/2 animate-pulse" />
+                        )}
+                      </div>
+                    </div>
+                    {scanLookingUp && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20">
+                        <Loader2 className="w-8 h-8 text-white animate-spin mb-2" />
+                        <p className="text-white text-xs font-medium">Looking up product…</p>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-400 text-center mt-2.5">Point camera at a barcode — it will scan automatically</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="mt-3 w-full py-2 bg-zinc-100 text-zinc-600 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-colors"
+                    data-testid="button-log-cancel-scan"
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
             </div>
           )}
 

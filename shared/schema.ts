@@ -141,6 +141,27 @@ export const insertFoodLogEntrySchema = createInsertSchema(foodLogEntries).omit(
 export type InsertFoodLogEntry = z.infer<typeof insertFoodLogEntrySchema>;
 export type FoodLogEntry = typeof foodLogEntries.$inferSelect;
 
+export const customFoods = pgTable("custom_foods", {
+  id: serial("id").primaryKey(),
+  barcode: text("barcode").notNull(),
+  name: text("name").notNull(),
+  calories100g: integer("calories_100g").notNull(),
+  protein100g: numeric("protein_100g").notNull(),
+  carbs100g: numeric("carbs_100g").notNull(),
+  fat100g: numeric("fat_100g").notNull(),
+  servingGrams: integer("serving_grams").notNull().default(100),
+  contributedByUserId: integer("contributed_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCustomFoodSchema = createInsertSchema(customFoods).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCustomFood = z.infer<typeof insertCustomFoodSchema>;
+export type CustomFood = typeof customFoods.$inferSelect;
+
 export const passwordResetTokens = pgTable("password_reset_tokens", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),

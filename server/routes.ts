@@ -1074,6 +1074,128 @@ export async function registerRoutes(
     }
   });
 
+  // ── Barcode lookup ────────────────────────────────────────────────────────
+
+  app.get("/api/barcode/:barcode", async (req, res) => {
+    const barcode = req.params.barcode;
+
+    // 1. Check app's custom foods database first
+    const custom = await storage.getCustomFoodByBarcode(barcode);
+    if (custom) {
+      return res.json({
+        id: `custom-${custom.id}`,
+        name: custom.name,
+        calories100g: custom.calories100g,
+        protein100g: parseFloat(String(custom.protein100g)),
+        carbs100g: parseFloat(String(custom.carbs100g)),
+        fat100g: parseFloat(String(custom.fat100g)),
+        servingSize: `${custom.servingGrams}g`,
+        servingGrams: custom.servingGrams,
+        source: "community",
+      });
+    }
+
+    // 2. Try Open Food Facts
+    try {
+      const offUrl = `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`;
+      const offRes = await fetch(offUrl, { signal: AbortSignal.timeout(7000) });
+      if (offRes.ok) {
+        const offData = await offRes.json() as any;
+        if (offData.status === 1 && offData.product) {
+          const p = offData.product;
+          const n = p.nutriments || {};
+          const kcal100g = n["energy-kcal_100g"] ?? (n["energy_100g"] ? Math.round(n["energy_100g"] / 4.184) : 0);
+          const name = (p.product_name_en || p.product_name || "").trim();
+          if (kcal100g > 0 && name) {
+            const servingGrams = Math.round(parseFloat(p.serving_quantity) || 100);
+            return res.json({
+              id: `off-${barcode}`,
+              name: name.charAt(0).toUpperCase() + name.slice(1),
+              calories100g: Math.round(kcal100g),
+              protein100g: Math.round((n.proteins_100g || 0) * 10) / 10,
+              carbs100g: Math.round((n.carbohydrates_100g || 0) * 10) / 10,
+              fat100g: Math.round((n.fat_100g || 0) * 10) / 10,
+              servingSize: p.serving_size || `${servingGrams}g`,
+              servingGrams: servingGrams || 100,
+              source: "open_food_facts",
+            });
+          }
+        }
+      }
+    } catch {}
+
+    // 3. Try USDA (barcode as UPC search)
+    try {
+      const apiKey = process.env.USDA_API_KEY || "DEMO_KEY";
+      const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(barcode)}&pageSize=10&dataType=Branded&api_key=${apiKey}`;
+      const upstream = await fetch(url, { signal: AbortSignal.timeout(7000) });
+      if (upstream.ok) {
+        const data = await upstream.json() as any;
+        const foods = (data.foods ?? []) as any[];
+        const match = foods.find((f: any) => f.gtinUpc === barcode);
+        if (match) {
+          const n = match.foodNutrients ?? [];
+          const getNutrient = (id: number) => n.find((x: any) => x.nutrientId === id)?.value ?? 0;
+          const getEnergy = () => getNutrient(1008) || getNutrient(2047) || getNutrient(2048);
+          const calories100g = Math.round(getEnergy());
+          if (calories100g > 0) {
+            const servingGrams = (match.servingSizeUnit === "g" || match.servingSizeUnit === "G")
+              ? Math.round(parseFloat(match.servingSize) || 100) : 100;
+            return res.json({
+              id: String(match.fdcId),
+              name: match.description.charAt(0).toUpperCase() + match.description.slice(1).toLowerCase(),
+              calories100g,
+              protein100g: Math.round(getNutrient(1003) * 10) / 10,
+              carbs100g: Math.round(getNutrient(1005) * 10) / 10,
+              fat100g: Math.round(getNutrient(1004) * 10) / 10,
+              servingSize: servingGrams > 0 ? `${servingGrams}g` : "100g",
+              servingGrams: servingGrams || 100,
+              source: "usda",
+            });
+          }
+        }
+      }
+    } catch {}
+
+    return res.status(404).json({ message: "Product not found" });
+  });
+
+  // ── Custom foods ──────────────────────────────────────────────────────────
+
+  app.get("/api/custom-foods", async (req, res) => {
+    const foods = await storage.getCustomFoods();
+    res.json(foods);
+  });
+
+  app.post("/api/custom-foods", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const body = z.object({
+        barcode: z.string().min(1),
+        name: z.string().min(1),
+        calories100g: z.number().int().min(0),
+        protein100g: z.number().min(0),
+        carbs100g: z.number().min(0),
+        fat100g: z.number().min(0),
+        servingGrams: z.number().int().min(1).default(100),
+      }).parse(req.body);
+      const existing = await storage.getCustomFoodByBarcode(body.barcode);
+      if (existing) return res.status(200).json(existing);
+      const food = await storage.createCustomFood({ ...body, contributedByUserId: req.session.userId });
+      res.status(201).json(food);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  });
+
+  app.delete("/api/custom-foods/:id", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const id = parseInt(req.params.id);
+    await storage.deleteCustomFood(id, req.session.userId);
+    res.json({ message: "Deleted" });
+  });
+
   // ── Food log ──────────────────────────────────────────────────────────────
 
   app.get("/api/food-log", async (req, res) => {

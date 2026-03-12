@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte } from "drizzle-orm";
 
@@ -39,6 +39,12 @@ export interface IStorage {
   createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void>;
   getPasswordResetToken(token: string): Promise<{ id: number; userId: number; expiresAt: Date; usedAt: Date | null } | undefined>;
   markPasswordResetTokenUsed(id: number): Promise<void>;
+
+  // Custom foods
+  getCustomFoodByBarcode(barcode: string): Promise<CustomFood | undefined>;
+  createCustomFood(food: InsertCustomFood): Promise<CustomFood>;
+  getCustomFoods(): Promise<CustomFood[]>;
+  deleteCustomFood(id: number, userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -178,6 +184,25 @@ export class DatabaseStorage implements IStorage {
 
   async markPasswordResetTokenUsed(id: number): Promise<void> {
     await db.update(passwordResetTokens).set({ usedAt: new Date() }).where(eq(passwordResetTokens.id, id));
+  }
+
+  async getCustomFoodByBarcode(barcode: string): Promise<CustomFood | undefined> {
+    const [food] = await db.select().from(customFoods).where(eq(customFoods.barcode, barcode));
+    return food;
+  }
+
+  async createCustomFood(food: InsertCustomFood): Promise<CustomFood> {
+    const [created] = await db.insert(customFoods).values(food).returning();
+    return created;
+  }
+
+  async getCustomFoods(): Promise<CustomFood[]> {
+    return await db.select().from(customFoods).orderBy(desc(customFoods.createdAt));
+  }
+
+  async deleteCustomFood(id: number, userId: number): Promise<void> {
+    await db.delete(customFoods)
+      .where(and(eq(customFoods.id, id), eq(customFoods.contributedByUserId, userId)));
   }
 }
 
