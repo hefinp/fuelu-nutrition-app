@@ -1,6 +1,6 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, favouriteMeals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type FavouriteMeal } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, favouriteMeals, communityMeals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type FavouriteMeal, type CommunityMeal } from "@shared/schema";
 import { db } from "./db";
-import { desc, eq, and, gte, lte, ilike } from "drizzle-orm";
+import { desc, eq, and, gte, lte, ilike, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Auth
@@ -86,6 +86,16 @@ export interface IStorage {
   getFavouriteMeals(userId: number): Promise<FavouriteMeal[]>;
   addFavouriteMeal(entry: { userId: number; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null }): Promise<FavouriteMeal>;
   removeFavouriteMeal(id: number, userId: number): Promise<void>;
+
+  // Community meals
+  getCommunityMeals(filters?: { slot?: string; style?: string }): Promise<CommunityMeal[]>;
+  getCommunityMealsByUser(userId: number): Promise<CommunityMeal[]>;
+  getCommunityMealById(id: number): Promise<CommunityMeal | undefined>;
+  createCommunityMeal(data: { sourceRecipeId?: number | null; sourceUserId?: number | null; name: string; slot: string; style: string; caloriesPerServing: number; proteinPerServing: number; carbsPerServing: number; fatPerServing: number; microScore?: number; source?: string }): Promise<CommunityMeal>;
+  deactivateCommunityMeal(id: number, userId: number): Promise<void>;
+  incrementCommunityMealFavourite(id: number): Promise<void>;
+  getCommunityMealBalance(): Promise<{ style: string; slot: string; total: number; userContributed: number; aiGenerated: number }[]>;
+  getCommunityMealByRecipeId(recipeId: number): Promise<CommunityMeal | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -419,6 +429,82 @@ export class DatabaseStorage implements IStorage {
   async removeFavouriteMeal(id: number, userId: number): Promise<void> {
     await db.delete(favouriteMeals)
       .where(and(eq(favouriteMeals.id, id), eq(favouriteMeals.userId, userId)));
+  }
+
+  async getCommunityMeals(filters?: { slot?: string; style?: string }): Promise<CommunityMeal[]> {
+    let query = db.select().from(communityMeals).where(eq(communityMeals.active, true));
+    if (filters?.slot) {
+      query = db.select().from(communityMeals).where(and(eq(communityMeals.active, true), eq(communityMeals.slot, filters.slot)));
+    }
+    if (filters?.slot && filters?.style) {
+      query = db.select().from(communityMeals).where(and(eq(communityMeals.active, true), eq(communityMeals.slot, filters.slot), eq(communityMeals.style, filters.style)));
+    }
+    if (!filters?.slot && filters?.style) {
+      query = db.select().from(communityMeals).where(and(eq(communityMeals.active, true), eq(communityMeals.style, filters.style)));
+    }
+    return await query.orderBy(desc(communityMeals.favouriteCount));
+  }
+
+  async getCommunityMealsByUser(userId: number): Promise<CommunityMeal[]> {
+    return await db.select().from(communityMeals)
+      .where(eq(communityMeals.sourceUserId, userId))
+      .orderBy(desc(communityMeals.createdAt));
+  }
+
+  async getCommunityMealById(id: number): Promise<CommunityMeal | undefined> {
+    const [row] = await db.select().from(communityMeals).where(eq(communityMeals.id, id));
+    return row;
+  }
+
+  async getCommunityMealByRecipeId(recipeId: number): Promise<CommunityMeal | undefined> {
+    const [row] = await db.select().from(communityMeals)
+      .where(and(eq(communityMeals.sourceRecipeId, recipeId), eq(communityMeals.active, true)));
+    return row;
+  }
+
+  async createCommunityMeal(data: { sourceRecipeId?: number | null; sourceUserId?: number | null; name: string; slot: string; style: string; caloriesPerServing: number; proteinPerServing: number; carbsPerServing: number; fatPerServing: number; microScore?: number; source?: string }): Promise<CommunityMeal> {
+    const [created] = await db.insert(communityMeals).values({
+      sourceRecipeId: data.sourceRecipeId ?? null,
+      sourceUserId: data.sourceUserId ?? null,
+      name: data.name,
+      slot: data.slot,
+      style: data.style,
+      caloriesPerServing: data.caloriesPerServing,
+      proteinPerServing: data.proteinPerServing,
+      carbsPerServing: data.carbsPerServing,
+      fatPerServing: data.fatPerServing,
+      microScore: data.microScore ?? 3,
+      source: data.source ?? "user",
+    }).returning();
+    return created;
+  }
+
+  async deactivateCommunityMeal(id: number, userId: number): Promise<void> {
+    await db.update(communityMeals)
+      .set({ active: false })
+      .where(and(eq(communityMeals.id, id), eq(communityMeals.sourceUserId, userId)));
+  }
+
+  async incrementCommunityMealFavourite(id: number): Promise<void> {
+    await db.update(communityMeals)
+      .set({ favouriteCount: sql`${communityMeals.favouriteCount} + 1` })
+      .where(eq(communityMeals.id, id));
+  }
+
+  async getCommunityMealBalance(): Promise<{ style: string; slot: string; total: number; userContributed: number; aiGenerated: number }[]> {
+    const styles = ["simple", "gourmet", "michelin"];
+    const slots = ["breakfast", "lunch", "dinner", "snack"];
+    const result: { style: string; slot: string; total: number; userContributed: number; aiGenerated: number }[] = [];
+    for (const style of styles) {
+      for (const slot of slots) {
+        const rows = await db.select().from(communityMeals)
+          .where(and(eq(communityMeals.active, true), eq(communityMeals.style, style), eq(communityMeals.slot, slot)));
+        const total = rows.length;
+        const aiGenerated = rows.filter(r => r.source === "ai_generated").length;
+        result.push({ style, slot, total, userContributed: total - aiGenerated, aiGenerated });
+      }
+    }
+    return result;
   }
 }
 

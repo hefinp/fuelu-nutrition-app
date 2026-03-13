@@ -61,6 +61,7 @@ export const userPreferencesSchema = z.object({
   cycleLength: z.number().int().min(21).max(35).optional(),
   periodLength: z.number().int().min(2).max(8).optional(),
   onboardingComplete: z.boolean().optional(),
+  includeCommunityMeals: z.boolean().optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;
@@ -135,6 +136,33 @@ export const insertWeightEntrySchema = createInsertSchema(weightEntries).pick({
 export type InsertWeightEntry = z.infer<typeof insertWeightEntrySchema>;
 export type WeightEntry = typeof weightEntries.$inferSelect;
 
+export const communityMeals = pgTable("community_meals", {
+  id: serial("id").primaryKey(),
+  sourceRecipeId: integer("source_recipe_id"),
+  sourceUserId: integer("source_user_id").references(() => users.id),
+  name: text("name").notNull(),
+  slot: text("slot").notNull(),
+  style: text("style").notNull().default("simple"),
+  caloriesPerServing: integer("calories_per_serving").notNull(),
+  proteinPerServing: integer("protein_per_serving").notNull(),
+  carbsPerServing: integer("carbs_per_serving").notNull(),
+  fatPerServing: integer("fat_per_serving").notNull(),
+  microScore: integer("micro_score").notNull().default(3),
+  favouriteCount: integer("favourite_count").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  source: text("source").notNull().default("user"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCommunityMealSchema = createInsertSchema(communityMeals).omit({
+  id: true,
+  createdAt: true,
+  favouriteCount: true,
+});
+
+export type InsertCommunityMeal = z.infer<typeof insertCommunityMealSchema>;
+export type CommunityMeal = typeof communityMeals.$inferSelect;
+
 export const foodLogEntries = pgTable("food_log_entries", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -146,6 +174,7 @@ export const foodLogEntries = pgTable("food_log_entries", {
   fat: integer("fat").notNull(),
   mealSlot: text("meal_slot"),
   confirmed: boolean("confirmed").notNull().default(true),
+  communityMealId: integer("community_meal_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

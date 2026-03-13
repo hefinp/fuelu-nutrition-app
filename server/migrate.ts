@@ -77,6 +77,31 @@ export async function runMigrations(): Promise<void> {
       )
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS community_meals (
+        id                   SERIAL PRIMARY KEY,
+        source_recipe_id     INTEGER,
+        source_user_id       INTEGER REFERENCES users(id),
+        name                 TEXT NOT NULL,
+        slot                 TEXT NOT NULL,
+        style                TEXT NOT NULL DEFAULT 'simple',
+        calories_per_serving INTEGER NOT NULL,
+        protein_per_serving  INTEGER NOT NULL,
+        carbs_per_serving    INTEGER NOT NULL,
+        fat_per_serving      INTEGER NOT NULL,
+        micro_score          INTEGER NOT NULL DEFAULT 3,
+        favourite_count      INTEGER NOT NULL DEFAULT 0,
+        active               BOOLEAN NOT NULL DEFAULT TRUE,
+        source               TEXT NOT NULL DEFAULT 'user',
+        created_at           TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      ALTER TABLE food_log_entries
+      ADD COLUMN IF NOT EXISTS community_meal_id INTEGER REFERENCES community_meals(id)
+    `);
+
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
   } finally {
     client.release();

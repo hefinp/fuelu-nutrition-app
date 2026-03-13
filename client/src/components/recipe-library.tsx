@@ -2,11 +2,11 @@ import { useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { type UserRecipe, type UserPreferences } from "@shared/schema";
+import { type UserRecipe, type UserPreferences, type CommunityMeal } from "@shared/schema";
 import {
   BookOpen, Plus, X, Loader2, ExternalLink, Trash2, ChefHat,
   UtensilsCrossed, Globe, AlertCircle, Check, AlertTriangle,
-  Camera, ArrowLeft, ImagePlus, Sparkles,
+  Camera, ArrowLeft, ImagePlus, Sparkles, Share2, Heart,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -89,6 +89,10 @@ export function RecipeLibrary() {
     queryKey: ["/api/user/preferences"],
   });
 
+  const { data: sharedMeals = [] } = useQuery<CommunityMeal[]>({
+    queryKey: ["/api/community-meals/my"],
+  });
+
   const savedSites: string[] = prefs?.recipeWebsites ?? [];
 
   return (
@@ -130,7 +134,11 @@ export function RecipeLibrary() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {recipes.map(recipe => (
-            <RecipeCard key={recipe.id} recipe={recipe} />
+            <RecipeCard
+              key={recipe.id}
+              recipe={recipe}
+              sharedMeal={sharedMeals.find(s => s.sourceRecipeId === recipe.id) ?? null}
+            />
           ))}
         </div>
       )}
@@ -147,18 +155,47 @@ export function RecipeLibrary() {
   );
 }
 
-function RecipeCard({ recipe }: { recipe: UserRecipe }) {
+function RecipeCard({ recipe, sharedMeal }: { recipe: UserRecipe; sharedMeal: CommunityMeal | null }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const complete = isMacrosComplete(recipe);
+  const isShared = !!sharedMeal;
 
   const deleteMutation = useMutation({
     mutationFn: () => apiRequest("DELETE", `/api/recipes/${recipe.id}`, undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/community-meals/my"] });
       toast({ title: "Recipe removed" });
     },
     onError: () => toast({ title: "Failed to remove recipe", variant: "destructive" }),
+  });
+
+  const shareMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/community-meals", {
+      recipeId: recipe.id,
+      name: recipe.name,
+      slot: recipe.mealSlot,
+      style: recipe.mealStyle,
+      caloriesPerServing: recipe.caloriesPerServing,
+      proteinPerServing: recipe.proteinPerServing,
+      carbsPerServing: recipe.carbsPerServing,
+      fatPerServing: recipe.fatPerServing,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/community-meals/my"] });
+      toast({ title: "Shared with community", description: "Your recipe is now in the community meal pool." });
+    },
+    onError: () => toast({ title: "Failed to share", variant: "destructive" }),
+  });
+
+  const unshareMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/community-meals/${sharedMeal!.id}/unshare`, undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/community-meals/my"] });
+      toast({ title: "Unshared", description: "Recipe removed from the community pool." });
+    },
+    onError: () => toast({ title: "Failed to unshare", variant: "destructive" }),
   });
 
   return (
@@ -174,16 +211,31 @@ function RecipeCard({ recipe }: { recipe: UserRecipe }) {
       <div className="p-3 flex flex-col gap-2 flex-1">
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-semibold text-zinc-900 leading-tight line-clamp-2">{recipe.name}</p>
-          <button
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
-            data-testid={`button-delete-recipe-${recipe.id}`}
-            className="flex-shrink-0 p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            {deleteMutation.isPending
-              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              : <Trash2 className="w-3.5 h-3.5" />}
-          </button>
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            {complete && (
+              <button
+                onClick={() => isShared ? unshareMutation.mutate() : shareMutation.mutate()}
+                disabled={shareMutation.isPending || unshareMutation.isPending}
+                data-testid={`button-share-recipe-${recipe.id}`}
+                title={isShared ? "Unshare from community" : "Share with community"}
+                className={`p-1.5 rounded-lg transition-colors ${isShared ? "text-emerald-600 bg-emerald-50 hover:bg-emerald-100" : "text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50"}`}
+              >
+                {shareMutation.isPending || unshareMutation.isPending
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Share2 className="w-3.5 h-3.5" />}
+              </button>
+            )}
+            <button
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+              data-testid={`button-delete-recipe-${recipe.id}`}
+              className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              {deleteMutation.isPending
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Trash2 className="w-3.5 h-3.5" />}
+            </button>
+          </div>
         </div>
 
         {!complete && (
@@ -200,6 +252,12 @@ function RecipeCard({ recipe }: { recipe: UserRecipe }) {
           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STYLE_COLOURS[recipe.mealStyle as MealStyle] ?? "bg-zinc-100 text-zinc-600"}`}>
             {recipe.mealStyle}
           </span>
+          {isShared && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+              <Heart className="w-2.5 h-2.5 fill-current" />
+              {sharedMeal!.favouriteCount > 0 ? `${sharedMeal!.favouriteCount} favourited` : "Shared"}
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-4 gap-1">

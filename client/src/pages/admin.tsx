@@ -3,8 +3,22 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import { CheckCircle2, Circle, Plus, ShieldAlert, RefreshCw } from "lucide-react";
+import { CheckCircle2, Circle, Plus, ShieldAlert, RefreshCw, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+interface CommunityMealBucket {
+  style: string;
+  slot: string;
+  total: number;
+  userContributed: number;
+  aiGenerated: number;
+}
+
+interface CommunityMealBalance {
+  buckets: CommunityMealBucket[];
+  gapsFound: number;
+  mealsGenerated: number;
+}
 
 const ADMIN_EMAIL = "hefin.price@gmail.com";
 
@@ -25,6 +39,21 @@ export default function AdminPage() {
   const { data: codes = [], isLoading: codesLoading, refetch } = useQuery<InviteCode[]>({
     queryKey: ["/api/admin/invite-codes"],
     enabled: isAdmin,
+  });
+
+  const { data: balance, isLoading: balanceLoading, refetch: refetchBalance } = useQuery<CommunityMealBalance>({
+    queryKey: ["/api/admin/community-meal-balance"],
+    enabled: isAdmin,
+  });
+
+  const refillMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/community-meal-balance/refill", {}),
+    onSuccess: async (res) => {
+      const data: CommunityMealBalance = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/community-meal-balance"] });
+      toast({ title: "Gap-fill complete", description: data.mealsGenerated > 0 ? `Generated ${data.mealsGenerated} new meals` : "All buckets are healthy" });
+    },
+    onError: () => toast({ title: "Refill failed", variant: "destructive" }),
   });
 
   const addMutation = useMutation({
@@ -123,6 +152,76 @@ export default function AdminPage() {
             <Plus className="w-4 h-4" />
             {addMutation.isPending ? "Adding…" : "Add codes"}
           </button>
+        </div>
+
+        {/* Community Meal Database */}
+        <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-900">Meal database</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">Community + AI-curated meals by style and slot. Floor: 8 per bucket.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => refetchBalance()}
+                className="p-1 text-zinc-400 hover:text-zinc-700 transition-colors"
+                title="Refresh"
+                data-testid="button-refresh-balance"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${balanceLoading ? "animate-spin" : ""}`} />
+              </button>
+              <button
+                onClick={() => refillMutation.mutate()}
+                disabled={refillMutation.isPending}
+                data-testid="button-refill-balance"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-white text-xs font-medium rounded-xl hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {refillMutation.isPending ? "Generating…" : "Refresh & top up"}
+              </button>
+            </div>
+          </div>
+
+          {balanceLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <RefreshCw className="w-5 h-5 animate-spin text-zinc-300" />
+            </div>
+          ) : !balance ? (
+            <div className="text-center py-10 text-sm text-zinc-400">No data available.</div>
+          ) : (
+            <div className="p-5">
+              {balance.gapsFound > 0 && (
+                <div className="mb-4 flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+                  <span className="font-semibold">{balance.gapsFound} bucket{balance.gapsFound !== 1 ? "s" : ""} below floor.</span>
+                  <span>Click "Refresh & top up" to auto-fill with AI.</span>
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-4">
+                {["simple", "gourmet", "michelin"].map(style => (
+                  <div key={style}>
+                    <p className="text-xs font-semibold text-zinc-700 capitalize mb-2 text-center">{style}</p>
+                    <div className="space-y-1.5">
+                      {["breakfast", "lunch", "dinner", "snack"].map(slot => {
+                        const bucket = balance.buckets.find(b => b.style === style && b.slot === slot);
+                        const total = bucket?.total ?? 0;
+                        const color = total >= 8 ? "text-emerald-600 bg-emerald-50 border-emerald-100" : total >= 4 ? "text-amber-600 bg-amber-50 border-amber-100" : "text-red-600 bg-red-50 border-red-100";
+                        return (
+                          <div
+                            key={slot}
+                            data-testid={`bucket-${style}-${slot}`}
+                            className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl border text-xs ${color}`}
+                          >
+                            <span className="capitalize font-medium">{slot}</span>
+                            <span className="font-bold">{total}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Code list */}

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type UserPreferences } from "@shared/schema";
-import { Check, Loader2, X, Sparkles, ThumbsDown, Leaf, Sprout, Fish, Moon, Star, Globe, Droplets } from "lucide-react";
+import { Check, Loader2, X, Sparkles, ThumbsDown, Leaf, Sprout, Fish, Moon, Star, Globe, Droplets, Users2 } from "lucide-react";
 
 type Diet = NonNullable<UserPreferences["diet"]>;
 type Allergy = NonNullable<UserPreferences["allergies"]>[number];
@@ -126,6 +126,7 @@ export function PreferencesForm() {
   const [recipeWeeklyLimit, setRecipeWeeklyLimit] = useState(5);
   const [hydrationGoalMl, setHydrationGoalMl] = useState(2000);
   const [hydrationUnit, setHydrationUnit] = useState<"ml" | "glasses">("ml");
+  const [includeCommunityMeals, setIncludeCommunityMeals] = useState(true);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -142,6 +143,7 @@ export function PreferencesForm() {
     setRecipeWeeklyLimit(data.recipeWeeklyLimit ?? 5);
     setHydrationGoalMl(data.hydrationGoalMl ?? 2000);
     setHydrationUnit((data.hydrationUnit as "ml" | "glasses" | undefined) ?? "ml");
+    setIncludeCommunityMeals((data as any).includeCommunityMeals !== false);
   }, [data]);
 
   const mutation = useMutation({
@@ -186,7 +188,8 @@ export function PreferencesForm() {
       recipeWeeklyLimit,
       hydrationGoalMl,
       hydrationUnit,
-    });
+      ...(({ includeCommunityMeals }) => ({ includeCommunityMeals }))({ includeCommunityMeals }),
+    } as any);
   };
 
   const hasChanges =
@@ -200,7 +203,8 @@ export function PreferencesForm() {
     JSON.stringify([...recipeEnabledSlots].sort()) !== JSON.stringify([...(data?.recipeEnabledSlots ?? [...ALL_SLOTS])].sort()) ||
     recipeWeeklyLimit !== (data?.recipeWeeklyLimit ?? 5) ||
     hydrationGoalMl !== (data?.hydrationGoalMl ?? 2000) ||
-    hydrationUnit !== (data?.hydrationUnit ?? "ml");
+    hydrationUnit !== (data?.hydrationUnit ?? "ml") ||
+    includeCommunityMeals !== ((data as any)?.includeCommunityMeals !== false);
 
   if (isLoading) {
     return (
@@ -419,6 +423,37 @@ export function PreferencesForm() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Community Meals */}
+      <div className="mb-6">
+        <button
+          type="button"
+          onClick={() => setIncludeCommunityMeals(prev => !prev)}
+          data-testid="toggle-community-meals"
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
+            includeCommunityMeals
+              ? "bg-zinc-100 border-zinc-300"
+              : "bg-white border-zinc-200 hover:border-zinc-400"
+          }`}
+        >
+          <div className={`w-10 h-5 rounded-full relative transition-colors ${
+            includeCommunityMeals ? "bg-zinc-900" : "bg-zinc-300"
+          }`}>
+            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+              includeCommunityMeals ? "left-5" : "left-0.5"
+            }`} />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5">
+              <Users2 className={`w-3.5 h-3.5 ${includeCommunityMeals ? "text-zinc-600" : "text-zinc-400"}`} />
+              <span className={`text-xs font-medium ${includeCommunityMeals ? "text-zinc-900" : "text-zinc-600"}`}>
+                Community meal suggestions
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 mt-0.5">Include community-shared and AI-curated meals in your plan suggestions</p>
+          </div>
+        </button>
       </div>
 
       {/* Hydration goal */}

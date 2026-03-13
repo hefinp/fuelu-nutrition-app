@@ -973,6 +973,16 @@ export async function registerRoutes(
           }
         }
 
+        if ((prefs as any)?.includeCommunityMeals !== false) {
+          const communityList = await storage.getCommunityMeals({ style: input.mealStyle ?? 'simple' });
+          for (const cm of communityList) {
+            const slot = cm.slot as keyof MealDb;
+            if (baseDb[slot]) {
+              baseDb[slot].push({ meal: cm.name, calories: cm.caloriesPerServing, protein: cm.proteinPerServing, carbs: cm.carbsPerServing, fat: cm.fatPerServing, microScore: cm.microScore });
+            }
+          }
+        }
+
         // Task #53: de-prioritise meals the user has eaten in the last 14 days
         const now = new Date();
         const from14 = new Date(now); from14.setDate(now.getDate() - 14);
@@ -1074,6 +1084,16 @@ export async function registerRoutes(
               fat: r.fatPerServing,
               microScore: 3,
             });
+          }
+        }
+
+        if ((prefs as any)?.includeCommunityMeals !== false) {
+          const communityList = await storage.getCommunityMeals({ style: input.mealStyle ?? 'simple' });
+          for (const cm of communityList) {
+            const slot = cm.slot as keyof MealDb;
+            if (baseDb[slot]) {
+              baseDb[slot].push({ meal: cm.name, calories: cm.caloriesPerServing, protein: cm.proteinPerServing, carbs: cm.carbsPerServing, fat: cm.fatPerServing, microScore: cm.microScore });
+            }
           }
         }
       }
@@ -2927,7 +2947,7 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
   app.post("/api/favourites", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
     try {
-      const { mealName, calories, protein, carbs, fat, mealSlot } = req.body;
+      const { mealName, calories, protein, carbs, fat, mealSlot, communityMealId } = req.body;
       if (!mealName || calories == null || protein == null || carbs == null || fat == null) {
         return res.status(400).json({ message: "Missing required fields" });
       }
@@ -2940,6 +2960,9 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
         fat: Number(fat),
         mealSlot: mealSlot ?? null,
       });
+      if (communityMealId) {
+        await storage.incrementCommunityMealFavourite(Number(communityMealId)).catch(() => {});
+      }
       res.json(created);
     } catch (err) {
       res.status(500).json({ message: "Failed to save favourite" });
@@ -2955,6 +2978,152 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
       res.status(500).json({ message: "Failed to remove favourite" });
     }
   });
+
+  // ── Community meals ────────────────────────────────────────────────────────
+
+  app.post("/api/community-meals", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const { recipeId, name, slot, style, caloriesPerServing, proteinPerServing, carbsPerServing, fatPerServing, microScore } = req.body;
+      if (!name || !slot || !style || caloriesPerServing == null || proteinPerServing == null || carbsPerServing == null || fatPerServing == null) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      if (recipeId) {
+        const existing = await storage.getCommunityMealByRecipeId(Number(recipeId));
+        if (existing) return res.status(409).json({ message: "Already shared", communityMeal: existing });
+      }
+      const meal = await storage.createCommunityMeal({
+        sourceRecipeId: recipeId ? Number(recipeId) : null,
+        sourceUserId: req.session.userId,
+        name,
+        slot,
+        style,
+        caloriesPerServing: Number(caloriesPerServing),
+        proteinPerServing: Number(proteinPerServing),
+        carbsPerServing: Number(carbsPerServing),
+        fatPerServing: Number(fatPerServing),
+        microScore: microScore ? Number(microScore) : 3,
+        source: "user",
+      });
+      res.status(201).json(meal);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to share meal" });
+    }
+  });
+
+  app.delete("/api/community-meals/:id/unshare", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      await storage.deactivateCommunityMeal(Number(req.params.id), req.session.userId);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to unshare meal" });
+    }
+  });
+
+  app.get("/api/community-meals/my", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const meals = await storage.getCommunityMealsByUser(req.session.userId);
+      res.json(meals);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch shared meals" });
+    }
+  });
+
+  // ── Admin: community meal balance ─────────────────────────────────────────
+
+  const ADMIN_EMAIL = "hefin.price@gmail.com";
+  const BUCKET_FLOOR = 8;
+
+  async function checkAndRefillCommunityMealBalance(autoFill = true): Promise<{ buckets: any[]; gapsFound: number; mealsGenerated: number }> {
+    const balance = await storage.getCommunityMealBalance();
+    const gaps = balance.filter(b => b.total < BUCKET_FLOOR);
+    let mealsGenerated = 0;
+
+    if (autoFill && gaps.length > 0) {
+      const toGenerate = gaps.slice(0, Math.ceil(20 / Math.max(gaps.length, 1)));
+      for (const gap of toGenerate) {
+        const needed = BUCKET_FLOOR - gap.total;
+        try {
+          const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+          const resp = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+              {
+                role: "system",
+                content: "You are a nutrition expert. Generate meal ideas as a JSON array. Each object must have: name (string), calories (number 200-900), protein (number >0), carbs (number >0), fat (number >0), microScore (integer 1-5). Return ONLY a valid JSON array, no markdown.",
+              },
+              {
+                role: "user",
+                content: `Generate ${needed} ${gap.style} ${gap.slot} meal ideas. Macros should be realistic and appropriate for a ${gap.slot}. Return a JSON array of ${needed} objects.`,
+              },
+            ],
+            temperature: 0.9,
+          });
+          const raw = resp.choices[0]?.message?.content?.trim() ?? "[]";
+          const cleaned = raw.replace(/^```json\n?/, "").replace(/^```\n?/, "").replace(/\n?```$/, "");
+          const generated: any[] = JSON.parse(cleaned);
+          for (const m of generated) {
+            if (!m.name || !m.calories || !m.protein || m.calories < 100 || m.calories > 1200) continue;
+            await storage.createCommunityMeal({
+              sourceRecipeId: null,
+              sourceUserId: null,
+              name: m.name,
+              slot: gap.slot,
+              style: gap.style,
+              caloriesPerServing: Math.round(m.calories),
+              proteinPerServing: Math.round(m.protein),
+              carbsPerServing: Math.round(m.carbs ?? 0),
+              fatPerServing: Math.round(m.fat ?? 0),
+              microScore: Math.min(5, Math.max(1, Math.round(m.microScore ?? 3))),
+              source: "ai_generated",
+            });
+            mealsGenerated++;
+          }
+        } catch (e) {
+          console.error(`[community-meals] AI gap-fill failed for ${gap.style}/${gap.slot}:`, e);
+        }
+      }
+    }
+
+    const updatedBalance = await storage.getCommunityMealBalance();
+    return { buckets: updatedBalance, gapsFound: gaps.length, mealsGenerated };
+  }
+
+  app.get("/api/admin/community-meal-balance", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (user?.email !== ADMIN_EMAIL) return res.status(403).json({ message: "Forbidden" });
+    try {
+      const balance = await storage.getCommunityMealBalance();
+      const gaps = balance.filter(b => b.total < BUCKET_FLOOR);
+      res.json({ buckets: balance, gapsFound: gaps.length, mealsGenerated: 0 });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch balance" });
+    }
+  });
+
+  app.post("/api/admin/community-meal-balance/refill", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    const user = await storage.getUserById(req.session.userId);
+    if (user?.email !== ADMIN_EMAIL) return res.status(403).json({ message: "Forbidden" });
+    try {
+      const result = await checkAndRefillCommunityMealBalance(true);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to refill balance" });
+    }
+  });
+
+  // Run balance check on startup (non-blocking)
+  setTimeout(() => {
+    checkAndRefillCommunityMealBalance(true).then(r => {
+      if (r.mealsGenerated > 0) {
+        console.log(`[community-meals] Startup gap-fill: generated ${r.mealsGenerated} meals`);
+      }
+    }).catch(() => {});
+  }, 5000);
 
   return httpServer;
 }
