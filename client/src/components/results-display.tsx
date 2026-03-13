@@ -1916,6 +1916,7 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
 
 export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLogMeal?: (meal: Meal) => void }) {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
+  const [planMode, setPlanMode] = useState<'daily' | 'weekly'>('daily');
   const [mealStyle, setMealStyle] = useState<'simple' | 'gourmet' | 'michelin'>('simple');
   const [shoppingDaysOpen, setShoppingDaysOpen] = useState(false);
   const [shoppingDaysInput, setShoppingDaysInput] = useState("7");
@@ -2019,7 +2020,34 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
         <h2 className="text-lg font-display font-bold text-zinc-900">Meal Planning</h2>
       </div>
 
-      {/* Meal style selector */}
+      {/* 1. Plan type selector */}
+      <div className="mb-4">
+        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Plan Type</p>
+        <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="plan-type-toggle">
+          <div
+            className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
+            style={{ width: `calc((100% - 8px) / 2)`, left: planMode === 'daily' ? '4px' : `calc(4px + (100% - 8px) / 2)` }}
+          />
+          {([
+            { key: 'daily' as const, label: 'Daily' },
+            { key: 'weekly' as const, label: 'Weekly' },
+          ]).map(opt => (
+            <button
+              key={opt.key}
+              type="button"
+              data-testid={`toggle-plan-type-${opt.key}`}
+              onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
+              className={`relative z-10 flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-200 ${
+                planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 2. Meal style selector */}
       <div className="mb-4">
         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Meal Style</p>
         {(() => {
@@ -2062,6 +2090,64 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
         })()}
       </div>
 
+      {/* 3. Date range picker (always visible) */}
+      <div className="mb-4">
+        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Schedule</p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setWeekStart(prev => addDays(prev, -7))}
+            className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-500"
+            data-testid="button-week-prev"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-xs font-medium text-zinc-700 min-w-[120px] text-center" data-testid="text-week-label">
+            {formatShort(weekStart)} – {formatShort(addDays(weekStart, 6))}
+          </span>
+          <button
+            onClick={() => setWeekStart(prev => addDays(prev, 7))}
+            className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-500"
+            data-testid="button-week-next"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* 4. Day chips (daily mode only) */}
+      {planMode === 'daily' && (
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Days</p>
+          <div className="flex gap-1.5 flex-wrap">
+            {DAY_LABELS.map((label, i) => {
+              const dateStr = addDays(getMonday(toDateStr(new Date())), i);
+              const isSelected = selectedDates.includes(dateStr);
+              return (
+                <button
+                  key={dateStr}
+                  type="button"
+                  data-testid={`chip-day-${label.toLowerCase()}`}
+                  onClick={() => {
+                    setSelectedDates(prev =>
+                      isSelected
+                        ? prev.filter(d => d !== dateStr).length > 0 ? prev.filter(d => d !== dateStr) : prev
+                        : [...prev, dateStr].sort()
+                    );
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                    isSelected
+                      ? "bg-zinc-900 text-white"
+                      : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Cycle data missing callout */}
       {cycleEnabledButMissing && !ignoreCycle && (
         <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 mb-4" data-testid="callout-cycle-missing">
@@ -2096,106 +2182,34 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
         </div>
       )}
 
-      {/* Cycle phase banner — daily */}
-      {cycleInfo && (
+      {/* Cycle phase banners */}
+      {planMode === 'daily' && cycleInfo && (
         <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border mb-4 ${cycleInfo.bgClass} ${cycleInfo.borderClass}`}>
           <Circle className={`w-3.5 h-3.5 flex-shrink-0 ${cycleInfo.colorClass}`} />
           <p className={`text-xs font-medium ${cycleInfo.textClass}`}>
-            Daily: {cycleInfo.name} phase · Day {cycleInfo.day} · {cycleInfo.shortTip}
+            {cycleInfo.name} phase · Day {cycleInfo.day} · {cycleInfo.shortTip}
           </p>
         </div>
       )}
-      {weekCycleInfo && weekCycleInfo.phase !== cycleInfo?.phase && (
+      {planMode === 'weekly' && weekCycleInfo && (
         <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border mb-4 ${weekCycleInfo.bgClass} ${weekCycleInfo.borderClass}`}>
           <Circle className={`w-3 h-3 flex-shrink-0 ${weekCycleInfo.colorClass}`} />
           <p className={`text-xs ${weekCycleInfo.textClass}`}>
-            Weekly: {weekCycleInfo.name} phase from {formatShort(weekStart)} · {weekCycleInfo.shortTip}
+            {weekCycleInfo.name} phase from {formatShort(weekStart)} · {weekCycleInfo.shortTip}
           </p>
         </div>
       )}
 
-      {/* Date selection */}
-      <div className="mb-4">
-        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Schedule</p>
-
-        {/* Daily date chips */}
-        <div className="mb-2">
-          <p className="text-[11px] text-zinc-400 mb-1.5">Pick days for daily plan</p>
-          <div className="flex gap-1.5 flex-wrap">
-            {DAY_LABELS.map((label, i) => {
-              const dateStr = addDays(getMonday(toDateStr(new Date())), i);
-              const isSelected = selectedDates.includes(dateStr);
-              return (
-                <button
-                  key={dateStr}
-                  type="button"
-                  data-testid={`chip-day-${label.toLowerCase()}`}
-                  onClick={() => {
-                    setSelectedDates(prev =>
-                      isSelected
-                        ? prev.filter(d => d !== dateStr).length > 0 ? prev.filter(d => d !== dateStr) : prev
-                        : [...prev, dateStr].sort()
-                    );
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                    isSelected
-                      ? "bg-zinc-900 text-white"
-                      : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Weekly date picker */}
-        <div>
-          <p className="text-[11px] text-zinc-400 mb-1.5">Week for weekly plan</p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setWeekStart(prev => addDays(prev, -7))}
-              className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-500"
-              data-testid="button-week-prev"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-medium text-zinc-700 min-w-[120px] text-center" data-testid="text-week-label">
-              {formatShort(weekStart)} – {formatShort(addDays(weekStart, 6))}
-            </span>
-            <button
-              onClick={() => setWeekStart(prev => addDays(prev, 7))}
-              className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-500"
-              data-testid="button-week-next"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Generate buttons */}
-      <div className="flex gap-3">
-        <button
-          onClick={() => generateMealPlan.mutate('daily')}
-          disabled={generateMealPlan.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium text-sm transition-colors"
-          data-testid="button-generate-daily"
-        >
-          {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
-          Daily Meal Plan
-        </button>
-        <button
-          onClick={() => generateMealPlan.mutate('weekly')}
-          disabled={generateMealPlan.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium text-sm transition-colors"
-          data-testid="button-generate-weekly"
-        >
-          {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
-          Weekly Plan
-        </button>
-      </div>
+      {/* Create Plan button */}
+      <button
+        onClick={() => generateMealPlan.mutate(planMode)}
+        disabled={generateMealPlan.isPending}
+        className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold text-sm transition-colors"
+        data-testid="button-create-plan"
+      >
+        {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
+        Create Plan
+      </button>
 
       {/* Generated meal plan */}
       {mealPlan && (
