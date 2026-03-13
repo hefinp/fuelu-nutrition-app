@@ -634,9 +634,23 @@ export async function registerRoutes(
 
   // ── Auth routes ────────────────────────────────────────────────────────────
 
+  app.get("/api/auth/invite-required", (_req, res) => {
+    res.json({ required: !!process.env.INVITE_CODES });
+  });
+
   app.post("/api/auth/register", async (req, res) => {
     try {
       const input = registerSchema.parse(req.body);
+
+      const inviteCodes = process.env.INVITE_CODES;
+      if (inviteCodes) {
+        const validCodes = inviteCodes.split(",").map(c => c.trim().toLowerCase()).filter(Boolean);
+        const submitted = (input.inviteCode ?? "").trim().toLowerCase();
+        if (!submitted || !validCodes.includes(submitted)) {
+          return res.status(400).json({ message: "Invalid invite code" });
+        }
+      }
+
       const existing = await storage.getUserByEmail(input.email);
       if (existing) {
         return res.status(409).json({ message: "An account with this email already exists" });
@@ -713,6 +727,9 @@ export async function registerRoutes(
     if (!process.env.GOOGLE_CLIENT_ID) {
       return res.status(503).json({ message: "Google sign-in is not configured" });
     }
+    if (process.env.INVITE_CODES) {
+      return res.status(403).json({ message: "OAuth registration is disabled during beta. Please use an invite code to register." });
+    }
     passport.authenticate("google", { scope: ["profile", "email"], session: false })(req, res, next);
   });
 
@@ -733,6 +750,9 @@ export async function registerRoutes(
   app.get("/api/auth/apple", (req, res, next) => {
     if (!process.env.APPLE_CLIENT_ID) {
       return res.status(503).json({ message: "Apple sign-in is not configured" });
+    }
+    if (process.env.INVITE_CODES) {
+      return res.status(403).json({ message: "OAuth registration is disabled during beta. Please use an invite code to register." });
     }
     passport.authenticate("apple", { session: false })(req, res, next);
   });

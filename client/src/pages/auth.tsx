@@ -34,8 +34,13 @@ export default function AuthPage() {
   const [regName, setRegName] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
+  const [regInviteCode, setRegInviteCode] = useState("");
   const [regError, setRegError] = useState("");
   const [showRegPw, setShowRegPw] = useState(false);
+
+  const { data: inviteConfig } = useQuery<{ required: boolean }>({
+    queryKey: ["/api/auth/invite-required"],
+  });
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -52,14 +57,14 @@ export default function AuthPage() {
     e.preventDefault();
     setRegError("");
     try {
-      await register({ email: regEmail, name: regName, password: regPassword });
+      await register({ email: regEmail, name: regName, password: regPassword, inviteCode: regInviteCode || undefined });
       setLocation("/dashboard");
     } catch (err: any) {
       setRegError(err.message || "Registration failed");
     }
   }
 
-  const hasOAuth = providers?.google || providers?.apple;
+  const hasOAuth = !inviteConfig?.required && (providers?.google || providers?.apple);
 
   const oauthErrorMessage =
     oauthError === "google_failed" ? "Google sign-in failed. Please try again." :
@@ -291,6 +296,20 @@ export default function AuthPage() {
                   </button>
                 </div>
               </div>
+
+              {inviteConfig?.required && (
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1.5">Invite Code</label>
+                  <input
+                    type="text"
+                    value={regInviteCode}
+                    onChange={e => setRegInviteCode(e.target.value)}
+                    placeholder="Enter your invite code"
+                    className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                    data-testid="input-register-invite-code"
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"
