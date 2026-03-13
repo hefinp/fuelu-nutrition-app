@@ -92,7 +92,8 @@ export class DatabaseStorage implements IStorage {
       return updated;
     }
 
-    const [created] = await db.insert(users).values({ email, name, provider, providerId }).returning();
+    const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
+    const [created] = await db.insert(users).values({ email, name, provider, providerId, preferences: initialPrefs }).returning();
     return created;
   }
 
