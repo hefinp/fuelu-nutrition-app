@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, ilike } from "drizzle-orm";
 
@@ -62,6 +62,11 @@ export interface IStorage {
 
   // Feedback
   insertFeedback(entry: { userId: number; category: string; message: string }): Promise<FeedbackEntry>;
+
+  // Invite codes
+  getInviteCode(code: string): Promise<InviteCode | undefined>;
+  markInviteCodeUsed(code: string, email: string): Promise<void>;
+  listInviteCodes(): Promise<InviteCode[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -305,6 +310,21 @@ export class DatabaseStorage implements IStorage {
   async insertFeedback(entry: { userId: number; category: string; message: string }): Promise<FeedbackEntry> {
     const [created] = await db.insert(feedbackEntries).values(entry).returning();
     return created;
+  }
+
+  async getInviteCode(code: string): Promise<InviteCode | undefined> {
+    const [record] = await db.select().from(inviteCodes).where(eq(inviteCodes.code, code));
+    return record;
+  }
+
+  async markInviteCodeUsed(code: string, email: string): Promise<void> {
+    await db.update(inviteCodes)
+      .set({ usedAt: new Date(), usedByEmail: email })
+      .where(eq(inviteCodes.code, code));
+  }
+
+  async listInviteCodes(): Promise<InviteCode[]> {
+    return await db.select().from(inviteCodes).orderBy(inviteCodes.code);
   }
 }
 

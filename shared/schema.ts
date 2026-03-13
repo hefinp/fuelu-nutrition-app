@@ -229,6 +229,14 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   usedAt: timestamp("used_at"),
 });
 
+export const inviteCodes = pgTable("invite_codes", {
+  code: text("code").primaryKey(),
+  usedAt: timestamp("used_at"),
+  usedByEmail: text("used_by_email"),
+});
+
+export type InviteCode = typeof inviteCodes.$inferSelect;
+
 export const feedbackEntries = pgTable("feedback_entries", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),

@@ -671,20 +671,20 @@ export async function registerRoutes(
   // ── Auth routes ────────────────────────────────────────────────────────────
 
   app.get("/api/auth/invite-required", (_req, res) => {
-    res.json({ required: !!process.env.INVITE_CODES });
+    res.json({ required: true });
   });
 
   app.post("/api/auth/register", authRateLimiter, async (req, res) => {
     try {
       const input = registerSchema.parse(req.body);
 
-      const inviteCodes = process.env.INVITE_CODES;
-      if (inviteCodes) {
-        const validCodes = inviteCodes.split(",").map(c => c.trim().toLowerCase()).filter(Boolean);
-        const submitted = (input.inviteCode ?? "").trim().toLowerCase();
-        if (!submitted || !validCodes.includes(submitted)) {
-          return res.status(400).json({ message: "Invalid invite code" });
-        }
+      const submitted = (input.inviteCode ?? "").trim().toUpperCase();
+      if (!submitted) {
+        return res.status(400).json({ message: "An invite code is required to register." });
+      }
+      const inviteRecord = await storage.getInviteCode(submitted);
+      if (!inviteRecord || inviteRecord.usedAt !== null) {
+        return res.status(400).json({ message: "Invalid or already-used invite code." });
       }
 
       const existing = await storage.getUserByEmail(input.email);
@@ -695,6 +695,7 @@ export async function registerRoutes(
       const user = await storage.createUser({ email: input.email, name: input.name, passwordHash });
       const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
       await storage.updateUserPreferences(user.id, initialPrefs);
+      await storage.markInviteCodeUsed(submitted, input.email);
       req.session.userId = user.id;
       const { passwordHash: _, ...publicUser } = user;
       req.session.save(() => res.status(201).json(publicUser));
@@ -801,19 +802,20 @@ export async function registerRoutes(
       return res.status(400).json({ message: "No pending sign-in found. Please try signing in with Google again." });
     }
 
-    const inviteCodes = process.env.INVITE_CODES;
-    if (inviteCodes) {
-      const validCodes = inviteCodes.split(",").map(c => c.trim().toLowerCase()).filter(Boolean);
-      const submitted = ((req.body.inviteCode as string) ?? "").trim().toLowerCase();
-      if (!submitted || !validCodes.includes(submitted)) {
-        return res.status(400).json({ message: "Invalid invite code" });
-      }
+    const submittedOAuth = ((req.body.inviteCode as string) ?? "").trim().toUpperCase();
+    if (!submittedOAuth) {
+      return res.status(400).json({ message: "An invite code is required to register." });
+    }
+    const inviteRecordOAuth = await storage.getInviteCode(submittedOAuth);
+    if (!inviteRecordOAuth || inviteRecordOAuth.usedAt !== null) {
+      return res.status(400).json({ message: "Invalid or already-used invite code." });
     }
 
     try {
       const user = await storage.findOrCreateOAuthUser(pending);
       const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
       await storage.updateUserPreferences(user.id, initialPrefs);
+      await storage.markInviteCodeUsed(submittedOAuth, pending.email);
       delete req.session.pendingOAuth;
       req.session.userId = user.id;
       req.session.save(() => res.json({ ok: true }));
