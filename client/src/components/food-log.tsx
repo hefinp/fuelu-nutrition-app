@@ -396,6 +396,7 @@ export function FoodLog({
   const [aiAssistPhotoFile, setAiAssistPhotoFile] = useState<File | null>(null);
   const aiAssistPhotoRef = useRef<HTMLInputElement>(null);
 
+  const [aiTabMode, setAiTabMode] = useState<"describe" | "label">("describe");
   const [aiTabDescription, setAiTabDescription] = useState("");
   const [aiTabPhotoFile, setAiTabPhotoFile] = useState<File | null>(null);
   const [aiTabResult, setAiTabResult] = useState<ExtendedFoodResult | null>(null);
@@ -403,6 +404,9 @@ export function FoodLog({
   const [aiTabServingGrams, setAiTabServingGrams] = useState("100");
   const [aiTabMealSlot, setAiTabMealSlot] = useState<MealSlot | null>(null);
   const aiTabPhotoRef = useRef<HTMLInputElement>(null);
+  const [aiTabProductName, setAiTabProductName] = useState("");
+  const [aiTabLabelPhotoFile, setAiTabLabelPhotoFile] = useState<File | null>(null);
+  const aiTabLabelPhotoRef = useRef<HTMLInputElement>(null);
   const zxingModuleRef = useRef<typeof import("@zxing/browser") | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scanControlsRef = useRef<{ stop: () => void } | null>(null);
@@ -890,6 +894,29 @@ export function FoodLog({
     }
   }
 
+  async function handleAiLabelScan() {
+    if (!aiTabLabelPhotoFile) return;
+    setAiTabLoading(true);
+    try {
+      const b64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(aiTabLabelPhotoFile);
+      });
+      const res = await apiRequest("POST", "/api/food-log/extract-label", { imageBase64: b64 });
+      const food: ExtendedFoodResult = await res.json();
+      if (aiTabProductName.trim()) food.name = aiTabProductName.trim();
+      setAiTabResult(food);
+      setAiTabServingGrams(String(food.servingGrams || 100));
+      setAiTabMealSlot(null);
+    } catch {
+      toast({ title: "Could not read label", description: "Try a clearer, well-lit photo of the nutrition information panel.", variant: "destructive" });
+    } finally {
+      setAiTabLoading(false);
+    }
+  }
+
   function logAiTabFood() {
     if (!aiTabResult) return;
     const grams = parseFloat(aiTabServingGrams) || 100;
@@ -1116,7 +1143,7 @@ export function FoodLog({
             {labelScanAvailable && (
               <button
                 type="button"
-                onClick={() => { setAiTabResult(null); setAiTabDescription(""); setAiTabPhotoFile(null); setFormTab("ai"); }}
+                onClick={() => { setAiTabResult(null); setAiTabDescription(""); setAiTabPhotoFile(null); setAiTabMode("describe"); setAiTabProductName(""); setAiTabLabelPhotoFile(null); setFormTab("ai"); }}
                 className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "ai" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
                 data-testid="button-form-tab-ai"
               >
@@ -1439,7 +1466,7 @@ export function FoodLog({
                       {labelScanAvailable ? (
                         <button
                           type="button"
-                          onClick={() => { setAiTabResult(null); setAiTabDescription(debouncedQuery); setAiTabPhotoFile(null); setFormTab("ai"); }}
+                          onClick={() => { setAiTabResult(null); setAiTabDescription(debouncedQuery); setAiTabPhotoFile(null); setAiTabMode("describe"); setAiTabProductName(""); setAiTabLabelPhotoFile(null); setFormTab("ai"); }}
                           className="mt-2 inline-flex items-center gap-1 text-xs text-violet-600 font-medium hover:text-violet-800 transition-colors"
                           data-testid="button-search-try-ai"
                         >
@@ -1934,55 +1961,126 @@ export function FoodLog({
             <div className="p-4 space-y-3">
               {!aiTabResult ? (
                 <>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
-                      <Sparkles className="w-3.5 h-3.5 text-violet-600" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-zinc-900">Describe what you ate</p>
-                      <p className="text-[10px] text-zinc-400">AI will estimate the calories and macros</p>
-                    </div>
-                  </div>
-                  <textarea
-                    placeholder="e.g. large bowl of homemade lentil soup with two slices of brown bread and butter"
-                    value={aiTabDescription}
-                    onChange={e => setAiTabDescription(e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2.5 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white resize-none"
-                    data-testid="input-ai-tab-description"
-                  />
-                  <div className="flex gap-2">
+                  {/* Mode toggle */}
+                  <div className="flex bg-zinc-100 p-0.5 rounded-xl">
                     <button
                       type="button"
-                      onClick={() => aiTabPhotoRef.current?.click()}
-                      className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-medium transition-colors ${aiTabPhotoFile ? "bg-violet-100 text-violet-700 border-violet-300" : "bg-white text-zinc-500 border-zinc-200 hover:border-violet-300 hover:text-violet-600"}`}
-                      title="Add a photo instead"
-                      data-testid="button-ai-tab-photo"
+                      onClick={() => setAiTabMode("describe")}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${aiTabMode === "describe" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+                      data-testid="button-ai-mode-describe"
                     >
-                      <Camera className="w-3.5 h-3.5" />
-                      {aiTabPhotoFile ? aiTabPhotoFile.name.slice(0, 16) + "…" : "Add photo"}
+                      <Sparkles className="w-3 h-3" />
+                      Describe
                     </button>
                     <button
                       type="button"
-                      onClick={handleAiTabEstimate}
-                      disabled={aiTabLoading || (!aiTabDescription.trim() && !aiTabPhotoFile)}
-                      className="flex-1 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                      data-testid="button-ai-tab-estimate"
+                      onClick={() => setAiTabMode("label")}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${aiTabMode === "label" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+                      data-testid="button-ai-mode-label"
                     >
-                      {aiTabLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                      {aiTabLoading ? "Estimating…" : "Estimate macros"}
+                      <Camera className="w-3 h-3" />
+                      Packaged
                     </button>
                   </div>
-                  <input
-                    ref={aiTabPhotoRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    data-testid="input-ai-tab-photo-file"
-                    onChange={e => { const f = e.target.files?.[0]; if (f) setAiTabPhotoFile(f); e.target.value = ""; }}
-                  />
-                  <p className="text-[10px] text-zinc-400 text-center">Estimates are saved to the food database to improve results over time</p>
+
+                  {aiTabMode === "describe" ? (
+                    <>
+                      <p className="text-[10px] text-zinc-400">Describe your meal — AI will estimate the calories and macros</p>
+                      <textarea
+                        placeholder="e.g. large bowl of homemade lentil soup with two slices of brown bread and butter"
+                        value={aiTabDescription}
+                        onChange={e => setAiTabDescription(e.target.value)}
+                        rows={3}
+                        className="w-full px-3 py-2.5 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white resize-none"
+                        data-testid="input-ai-tab-description"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => aiTabPhotoRef.current?.click()}
+                          className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-medium transition-colors ${aiTabPhotoFile ? "bg-violet-100 text-violet-700 border-violet-300" : "bg-white text-zinc-500 border-zinc-200 hover:border-violet-300 hover:text-violet-600"}`}
+                          data-testid="button-ai-tab-photo"
+                        >
+                          <Camera className="w-3.5 h-3.5" />
+                          {aiTabPhotoFile ? aiTabPhotoFile.name.slice(0, 14) + "…" : "Add photo"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleAiTabEstimate}
+                          disabled={aiTabLoading || (!aiTabDescription.trim() && !aiTabPhotoFile)}
+                          className="flex-1 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          data-testid="button-ai-tab-estimate"
+                        >
+                          {aiTabLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                          {aiTabLoading ? "Estimating…" : "Estimate macros"}
+                        </button>
+                      </div>
+                      <input
+                        ref={aiTabPhotoRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        data-testid="input-ai-tab-photo-file"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) setAiTabPhotoFile(f); e.target.value = ""; }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[10px] text-zinc-400">Enter the product name, then photograph the nutrition information panel on the packaging</p>
+                      <input
+                        type="text"
+                        placeholder="Product name (e.g. Tesco Greek Yoghurt 0% Fat)"
+                        value={aiTabProductName}
+                        onChange={e => setAiTabProductName(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                        data-testid="input-ai-tab-product-name"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => aiTabLabelPhotoRef.current?.click()}
+                        className={`w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed rounded-xl text-sm font-medium transition-colors ${aiTabLabelPhotoFile ? "border-violet-300 bg-violet-50 text-violet-700" : "border-zinc-200 text-zinc-400 hover:border-violet-300 hover:text-violet-500 hover:bg-violet-50/50"}`}
+                        data-testid="button-ai-tab-label-photo"
+                      >
+                        <Camera className="w-4 h-4" />
+                        {aiTabLabelPhotoFile ? (
+                          <span className="truncate max-w-[180px]">{aiTabLabelPhotoFile.name}</span>
+                        ) : (
+                          "Photograph nutrition label"
+                        )}
+                      </button>
+                      {aiTabLabelPhotoFile && (
+                        <button
+                          type="button"
+                          onClick={() => setAiTabLabelPhotoFile(null)}
+                          className="text-[10px] text-zinc-400 hover:text-zinc-600 text-center w-full"
+                          data-testid="button-ai-tab-label-clear"
+                        >
+                          Remove photo
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleAiLabelScan}
+                        disabled={aiTabLoading || !aiTabLabelPhotoFile}
+                        className="w-full py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        data-testid="button-ai-tab-read-label"
+                      >
+                        {aiTabLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                        {aiTabLoading ? "Reading label…" : "Read nutrition label"}
+                      </button>
+                      <input
+                        ref={aiTabLabelPhotoRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        data-testid="input-ai-tab-label-photo-file"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) setAiTabLabelPhotoFile(f); e.target.value = ""; }}
+                      />
+                    </>
+                  )}
+                  <p className="text-[10px] text-zinc-400 text-center">Results are saved to the food database to improve future searches</p>
                 </>
               ) : (
                 /* ── AI result confirmation card ── */
@@ -2000,14 +2098,21 @@ export function FoodLog({
                       <div className="flex items-start gap-2">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-zinc-900 leading-snug" data-testid="text-ai-tab-food-name">{aiTabResult.name}</p>
-                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-violet-50 border border-violet-200 rounded-full text-[9px] font-medium text-violet-700">
-                            <Sparkles className="w-2.5 h-2.5" />
-                            AI-estimated — verify before logging
-                          </span>
+                          {aiTabResult.sourceType === "label" ? (
+                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-green-50 border border-green-200 rounded-full text-[9px] font-medium text-green-700">
+                              <Camera className="w-2.5 h-2.5" />
+                              Read from nutrition label
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-violet-50 border border-violet-200 rounded-full text-[9px] font-medium text-violet-700">
+                              <Sparkles className="w-2.5 h-2.5" />
+                              AI-estimated — verify before logging
+                            </span>
+                          )}
                         </div>
                         <button
                           type="button"
-                          onClick={() => { setAiTabResult(null); setAiTabDescription(""); setAiTabPhotoFile(null); }}
+                          onClick={() => { setAiTabResult(null); setAiTabDescription(""); setAiTabPhotoFile(null); setAiTabLabelPhotoFile(null); }}
                           className="p-1 hover:bg-zinc-100 rounded-lg transition-colors shrink-0"
                           data-testid="button-ai-tab-reset"
                         >
