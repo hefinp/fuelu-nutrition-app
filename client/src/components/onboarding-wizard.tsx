@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -31,19 +31,12 @@ const DIET_TO_PREF: Record<string, { diet?: string; allergy?: string }> = {
   Kosher: { diet: "kosher" },
 };
 
-function calculateMacrosLocal(weight: number, height: number, age: number, gender: string, goal: string) {
-  let bmr = (10 * weight) + (6.25 * height) - (5 * age);
-  bmr += gender === "male" ? 5 : -161;
-  let daily = Math.round(bmr * 1.55);
-  if (goal === "lose") daily -= 500;
-  else if (goal === "muscle") daily += 300;
-  return {
-    dailyCalories: daily,
-    weeklyCalories: daily * 7,
-    proteinGoal: Math.round((daily * 0.3) / 4),
-    carbsGoal: Math.round((daily * 0.4) / 4),
-    fatGoal: Math.round((daily * 0.3) / 9),
-  };
+interface MacroPreview {
+  dailyCalories: number;
+  weeklyCalories: number;
+  proteinGoal: number;
+  carbsGoal: number;
+  fatGoal: number;
 }
 
 interface Props {
@@ -64,6 +57,8 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [macros, setMacros] = useState<MacroPreview | null>(null);
+  const [macrosLoading, setMacrosLoading] = useState(false);
 
   const createCalc = useCreateCalculation();
   const queryClient = useQueryClient();
@@ -76,9 +71,21 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
     Number.isFinite(parsedHeight) && parsedHeight >= 100 && parsedHeight <= 250 &&
     Number.isFinite(parsedWeight) && parsedWeight >= 30 && parsedWeight <= 300;
 
-  const macros = (goal && biometricsValid)
-    ? calculateMacrosLocal(parsedWeight, parsedHeight, parsedAge, sex, goal)
-    : null;
+  useEffect(() => {
+    if (!goal || !biometricsValid) { setMacros(null); return; }
+    let cancelled = false;
+    setMacrosLoading(true);
+    fetch("/api/calculations/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ weight: weightKg, height: heightCm, age: parsedAge, gender: sex, goal }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (!cancelled) setMacros(data ?? null); })
+      .finally(() => { if (!cancelled) setMacrosLoading(false); });
+    return () => { cancelled = true; };
+  }, [goal, weightKg, heightCm, parsedAge, sex, biometricsValid]);
 
   const canAdvance = [
     goal !== null,
@@ -146,7 +153,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
     <StepGoal key="goal" goal={goal} setGoal={setGoal} />,
     <StepAboutYou key="about" age={age} setAge={setAge} sex={sex} setSex={setSex} heightCm={heightCm} setHeightCm={setHeightCm} weightKg={weightKg} setWeightKg={setWeightKg} />,
     <StepDiet key="diet" selectedChips={selectedChips} toggleChip={toggleChip} />,
-    <StepSummary key="summary" macros={macros} goal={goal} />,
+    <StepSummary key="summary" macros={macros} goal={goal} loading={macrosLoading} />,
   ];
 
   return (
@@ -391,7 +398,15 @@ function StepDiet({ selectedChips, toggleChip }: { selectedChips: string[]; togg
   );
 }
 
-function StepSummary({ macros, goal }: { macros: ReturnType<typeof calculateMacrosLocal> | null; goal: Goal | null }) {
+function StepSummary({ macros, goal, loading }: { macros: MacroPreview | null; goal: Goal | null; loading?: boolean }) {
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-400 mb-2" />
+        <p className="text-sm text-zinc-400">Calculating your targets...</p>
+      </div>
+    );
+  }
   if (!macros) {
     return (
       <div className="text-center py-8">

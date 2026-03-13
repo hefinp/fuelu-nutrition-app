@@ -657,6 +657,8 @@ export async function registerRoutes(
       }
       const passwordHash = await bcrypt.hash(input.password, 12);
       const user = await storage.createUser({ email: input.email, name: input.name, passwordHash });
+      const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
+      await storage.updateUserPreferences(user.id, initialPrefs);
       req.session.userId = user.id;
       const { passwordHash: _, ...publicUser } = user;
       res.status(201).json(publicUser);
@@ -765,6 +767,24 @@ export async function registerRoutes(
 
   // ── Calculation routes ────────────────────────────────────────────────────
 
+  app.post("/api/calculations/preview", async (req, res) => {
+    try {
+      const { weight, height, age, gender, goal } = req.body;
+      const w = parseFloat(weight);
+      const h = parseFloat(height);
+      const a = parseInt(age) || 30;
+      const g = gender || "male";
+      const gl = goal || "maintain";
+      if (!Number.isFinite(w) || !Number.isFinite(h)) {
+        return res.status(400).json({ message: "Invalid biometrics" });
+      }
+      const macros = calculateMacros(w, h, a, g, "moderate", gl);
+      res.json(macros);
+    } catch {
+      res.status(400).json({ message: "Invalid input" });
+    }
+  });
+
   app.post(api.calculations.create.path, async (req, res) => {
     try {
       const bodySchema = api.calculations.create.input.extend({
@@ -821,8 +841,7 @@ export async function registerRoutes(
     const defaults: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false };
     const prefs = (user?.preferences as UserPreferences | null) ?? defaults;
     if (prefs.onboardingComplete === undefined) {
-      const calcs = await storage.getCalculations(req.session.userId);
-      prefs.onboardingComplete = calcs.length > 0;
+      prefs.onboardingComplete = true;
     }
     res.json(prefs);
   });
@@ -1643,8 +1662,8 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
       }
 
       res.json(result);
-    } catch (err: any) {
-      console.error("Label scan error:", err?.message);
+    } catch (err) {
+      console.error("Label scan error:", err instanceof Error ? err.message : err);
       res.status(500).json({ error: "Label scan failed" });
     }
   });
@@ -1732,8 +1751,8 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
       }
 
       res.json(result);
-    } catch (err: any) {
-      console.error("Food recognition error:", err?.message);
+    } catch (err) {
+      console.error("Food recognition error:", err instanceof Error ? err.message : err);
       res.status(500).json({ error: "Food recognition failed" });
     }
   });
