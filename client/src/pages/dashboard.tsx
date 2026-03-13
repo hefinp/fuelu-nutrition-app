@@ -12,6 +12,7 @@ import { RecipeLibrary } from "@/components/recipe-library";
 import { HydrationTracker } from "@/components/hydration-tracker";
 import { CycleTracker } from "@/components/cycle-tracker";
 import { OnboardingTour } from "@/components/onboarding-tour";
+import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
 import { useDashboardLayout, WIDE_WIDGETS } from "@/hooks/use-dashboard-layout";
@@ -98,6 +99,12 @@ export default function Dashboard() {
     apiRequest("PUT", "/api/user/preferences", { ...userPrefs, onboardingComplete: true })
       .then(() => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }));
   }, [userPrefs, queryClient]);
+
+  const handleWizardComplete = useCallback((calculation: Calculation) => {
+    setOnboardingDismissed(true);
+    setActiveResult(calculation);
+    queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+  }, [queryClient]);
 
   function toggleWidget(id: string) {
     const next = hiddenWidgets.includes(id)
@@ -797,7 +804,13 @@ export default function Dashboard() {
       </footer>
 
       <AnimatePresence>
-        {showOnboarding && <OnboardingTour onDismiss={dismissOnboarding} />}
+        {showOnboarding && (
+          <OnboardingWizard
+            userPrefs={userPrefs}
+            onComplete={handleWizardComplete}
+            onSkip={dismissOnboarding}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
