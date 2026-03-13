@@ -1,7 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, ChevronUp, ChevronDown } from "lucide-react";
-import type { ReactNode } from "react";
+import { GripVertical, ChevronUp, ChevronDown, HelpCircle, X } from "lucide-react";
+import { type ReactNode, useState } from "react";
 
 interface SortableWidgetProps {
   id: string;
@@ -14,6 +14,74 @@ interface SortableWidgetProps {
   children: ReactNode;
 }
 
+const WIDGET_HELP: Record<string, { title: string; description: string; tips?: string[] }> = {
+  nutrition: {
+    title: "Nutrition Targets",
+    description: "Displays your personalised daily calorie goal and macro breakdown — protein, carbohydrates, and fat — calculated from your age, weight, height, activity level, and goal.",
+    tips: [
+      "Targets update automatically whenever you run a new calculation.",
+      "Use the calculator at the top of the page to adjust your goal or activity level.",
+      "Macros are split using evidence-based ratios for your selected goal (fat loss, maintenance, or muscle gain).",
+    ],
+  },
+  "food-log": {
+    title: "Food Log",
+    description: "Track everything you eat throughout the day. Log meals manually by searching for foods, scan a barcode with your camera, or take a photo and let AI identify the food for you.",
+    tips: [
+      "Tap the '+' button to add a food entry for any meal slot.",
+      "Barcode scanning uses the Open Food Facts database — it works best on packaged goods.",
+      "The AI photo feature can identify whole foods, restaurant dishes, and home-cooked meals.",
+      "Your daily totals are shown at the top and update in real time as you log.",
+    ],
+  },
+  "meal-plan": {
+    title: "Meal Plan",
+    description: "Generates a personalised weekly meal plan using AI, tailored to your calorie target, dietary preferences, allergies, and goal. Each plan includes breakfast, lunch, dinner, and snacks.",
+    tips: [
+      "Hit 'Generate plan' to create a new week of meals at any time.",
+      "You can save favourite plans and reload them later from the saved plans list.",
+      "Click any meal to log it directly to your food diary.",
+      "Dietary preferences and allergies set in your settings are automatically respected.",
+    ],
+  },
+  "recipe-library": {
+    title: "Recipe Library",
+    description: "Save and browse recipes from anywhere on the web. Paste a URL from any recipe website and Fuelr will fetch the ingredients and calculate full nutritional information per serving automatically.",
+    tips: [
+      "Works with most major recipe websites (BBC Good Food, AllRecipes, Serious Eats, and more).",
+      "Nutritional info is estimated per serving based on the ingredient list.",
+      "Saved recipes can be added straight to your meal plan or food log.",
+    ],
+  },
+  hydration: {
+    title: "Hydration Tracker",
+    description: "Log your daily water intake and track progress toward your hydration goal. A general guideline is 2–3 litres per day, though your needs vary based on activity level, climate, and body weight.",
+    tips: [
+      "Tap a quick-add button (250 ml, 500 ml, 1 L) to log a drink in one tap.",
+      "Your intake resets automatically at midnight each day.",
+      "Staying well-hydrated supports metabolism, focus, and exercise performance.",
+    ],
+  },
+  cycle: {
+    title: "Cycle Tracker",
+    description: "Adjusts your nutrition targets and recommendations across the four phases of your menstrual cycle — menstrual, follicular, ovulatory, and luteal. Each phase has different energy and nutrient demands.",
+    tips: [
+      "Log the start of your period to keep phase predictions accurate.",
+      "Calorie and carbohydrate targets increase slightly during the luteal phase to match your body's higher energy use.",
+      "You can enable or disable cycle tracking at any time in Settings.",
+    ],
+  },
+  weight: {
+    title: "Weight Tracker",
+    description: "Log your weight over time and visualise your progress on a chart. Compare your trend against your goal weight and see how your rate of change aligns with your calorie target.",
+    tips: [
+      "Weigh yourself at a consistent time (e.g. first thing in the morning) for the most reliable trend.",
+      "Day-to-day fluctuations of 1–2 kg are normal — focus on the weekly trend, not individual readings.",
+      "The chart shows a rolling average to smooth out natural variation.",
+    ],
+  },
+};
+
 export function SortableWidget({
   id,
   isEditing,
@@ -24,6 +92,8 @@ export function SortableWidget({
   onMoveDown,
   children,
 }: SortableWidgetProps) {
+  const [helpOpen, setHelpOpen] = useState(false);
+
   const {
     attributes,
     listeners,
@@ -41,12 +111,13 @@ export function SortableWidget({
     zIndex: isDragging ? 50 : "auto",
   };
 
+  const help = WIDGET_HELP[id];
+
   return (
     <div ref={setNodeRef} style={style}>
-      {isEditing && (
+      {isEditing ? (
         <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
           {isMobile ? (
-            // Mobile: up/down arrows — much better than drag on iOS
             <>
               <button
                 onClick={onMoveUp}
@@ -68,7 +139,6 @@ export function SortableWidget({
               </button>
             </>
           ) : (
-            // Desktop: drag handle
             <div
               {...attributes}
               {...listeners}
@@ -80,7 +150,19 @@ export function SortableWidget({
             </div>
           )}
         </div>
-      )}
+      ) : help ? (
+        <div className="absolute top-3 right-3 z-10">
+          <button
+            onClick={() => setHelpOpen(true)}
+            data-testid={`button-help-${id}`}
+            className="p-1 rounded-full text-zinc-300 hover:text-zinc-500 transition-colors"
+            title={`About ${help.title}`}
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+        </div>
+      ) : null}
+
       <div
         className={
           isEditing
@@ -90,6 +172,50 @@ export function SortableWidget({
       >
         {children}
       </div>
+
+      {helpOpen && help && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={() => setHelpOpen(false)}
+          data-testid={`help-overlay-${id}`}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 relative"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setHelpOpen(false)}
+              className="absolute top-4 right-4 p-1 text-zinc-400 hover:text-zinc-700 transition-colors"
+              data-testid={`button-help-close-${id}`}
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-lg bg-zinc-100 flex items-center justify-center">
+                <HelpCircle className="w-4 h-4 text-zinc-500" />
+              </div>
+              <h3 className="text-base font-semibold text-zinc-900">{help.title}</h3>
+            </div>
+
+            <p className="text-sm text-zinc-600 leading-relaxed mb-4">{help.description}</p>
+
+            {help.tips && help.tips.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Tips</p>
+                <ul className="space-y-1.5">
+                  {help.tips.map((tip, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-zinc-600">
+                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-zinc-300 shrink-0" />
+                      {tip}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
