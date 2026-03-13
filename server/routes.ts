@@ -767,20 +767,23 @@ export async function registerRoutes(
 
   // ── Calculation routes ────────────────────────────────────────────────────
 
+  const previewSchema = z.object({
+    weight: z.coerce.number().min(30).max(300),
+    height: z.coerce.number().min(100).max(250),
+    age: z.coerce.number().int().min(13).max(99),
+    gender: z.enum(["male", "female"]).default("male"),
+    goal: z.enum(["lose", "maintain", "muscle"]).default("maintain"),
+  });
+
   app.post("/api/calculations/preview", async (req, res) => {
     try {
-      const { weight, height, age, gender, goal } = req.body;
-      const w = parseFloat(weight);
-      const h = parseFloat(height);
-      const a = parseInt(age) || 30;
-      const g = gender || "male";
-      const gl = goal || "maintain";
-      if (!Number.isFinite(w) || !Number.isFinite(h)) {
-        return res.status(400).json({ message: "Invalid biometrics" });
-      }
-      const macros = calculateMacros(w, h, a, g, "moderate", gl);
+      const { weight, height, age, gender, goal } = previewSchema.parse(req.body);
+      const macros = calculateMacros(weight, height, age, gender, "moderate", goal);
       res.json(macros);
-    } catch {
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
       res.status(400).json({ message: "Invalid input" });
     }
   });
@@ -842,6 +845,7 @@ export async function registerRoutes(
     const prefs = (user?.preferences as UserPreferences | null) ?? defaults;
     if (prefs.onboardingComplete === undefined) {
       prefs.onboardingComplete = true;
+      storage.updateUserPreferences(req.session.userId, prefs);
     }
     res.json(prefs);
   });
