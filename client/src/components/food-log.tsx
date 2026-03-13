@@ -793,7 +793,6 @@ export function FoodLog({
         reader.readAsDataURL(file);
       });
       const res = await apiRequest("POST", "/api/food-log/recognize-food", { imageBase64: base64 });
-      if (!res.ok) throw new Error("recognition failed");
       const food: ExtendedFoodResult = await res.json();
       setScannedFood(food);
       setScanServingGrams(String(food.servingGrams || 100));
@@ -824,7 +823,6 @@ export function FoodLog({
         body.description = aiDescription.trim();
       }
       const res = await apiRequest("POST", "/api/food-log/recognize-food", body);
-      if (!res.ok) throw new Error("recognition failed");
       const food: ExtendedFoodResult = await res.json();
       const serving = food.servingGrams || 100;
       const f = serving / 100;
