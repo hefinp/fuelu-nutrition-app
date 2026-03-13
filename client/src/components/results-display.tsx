@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Pill, Circle, CalendarDays, AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences } from "@shared/schema";
 import { getCyclePhase } from "@/lib/cycle";
@@ -1927,6 +1927,14 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  const prevWeekRef = useRef(weekStart);
+  useEffect(() => {
+    if (prevWeekRef.current !== weekStart) {
+      prevWeekRef.current = weekStart;
+      setSelectedDates([weekStart]);
+    }
+  }, [weekStart]);
+
   const { data: mealPlanPrefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
   const hasCycleData = !!(mealPlanPrefs?.cycleTrackingEnabled && mealPlanPrefs?.lastPeriodDate && data.gender === "female");
   const cycleEnabledButMissing = !!(mealPlanPrefs?.cycleTrackingEnabled && !mealPlanPrefs?.lastPeriodDate && data.gender === "female");
@@ -2120,7 +2128,7 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
           <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Days</p>
           <div className="flex gap-1.5 flex-wrap">
             {DAY_LABELS.map((label, i) => {
-              const dateStr = addDays(getMonday(toDateStr(new Date())), i);
+              const dateStr = addDays(weekStart, i);
               const isSelected = selectedDates.includes(dateStr);
               return (
                 <button
