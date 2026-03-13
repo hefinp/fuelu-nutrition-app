@@ -386,7 +386,7 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto pb-safe">
                 <CalculatorForm
                   onResult={handleMetricsResult}
                   defaultValues={lastCalculation}
