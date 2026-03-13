@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, ilike } from "drizzle-orm";
 
@@ -71,6 +71,16 @@ export interface IStorage {
   // Cycle symptoms
   getCycleSymptoms(userId: number, from: string, to: string): Promise<CycleSymptom[]>;
   upsertCycleSymptom(entry: { userId: number; date: string; energy?: string | null; bloating?: string | null; cravings?: string | null; mood?: string | null; appetite?: string | null }): Promise<CycleSymptom>;
+
+  // Cycle period logs
+  getCyclePeriodLogs(userId: number): Promise<CyclePeriodLog[]>;
+  createCyclePeriodLog(entry: { userId: number; periodStartDate: string; periodEndDate?: string | null; computedCycleLength?: number | null; notes?: string | null }): Promise<CyclePeriodLog>;
+  updateCyclePeriodLog(id: number, userId: number, updates: { periodEndDate?: string | null; notes?: string | null }): Promise<CyclePeriodLog | undefined>;
+  deleteCyclePeriodLog(id: number, userId: number): Promise<void>;
+
+  // AI insights cache
+  getAiInsightsCache(userId: number, cacheKey: string): Promise<AiInsightsCache | undefined>;
+  upsertAiInsightsCache(userId: number, cacheKey: string, narrativeJson: object, expiresAt: Date): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -349,6 +359,45 @@ export class DatabaseStorage implements IStorage {
     }
     const [created] = await db.insert(cycleSymptoms).values(entry).returning();
     return created;
+  }
+
+  async getCyclePeriodLogs(userId: number): Promise<CyclePeriodLog[]> {
+    return await db.select().from(cyclePeriodLogs)
+      .where(eq(cyclePeriodLogs.userId, userId))
+      .orderBy(desc(cyclePeriodLogs.periodStartDate));
+  }
+
+  async createCyclePeriodLog(entry: { userId: number; periodStartDate: string; periodEndDate?: string | null; computedCycleLength?: number | null; notes?: string | null }): Promise<CyclePeriodLog> {
+    const [created] = await db.insert(cyclePeriodLogs).values(entry).returning();
+    return created;
+  }
+
+  async updateCyclePeriodLog(id: number, userId: number, updates: { periodEndDate?: string | null; notes?: string | null }): Promise<CyclePeriodLog | undefined> {
+    const [updated] = await db.update(cyclePeriodLogs)
+      .set(updates)
+      .where(and(eq(cyclePeriodLogs.id, id), eq(cyclePeriodLogs.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteCyclePeriodLog(id: number, userId: number): Promise<void> {
+    await db.delete(cyclePeriodLogs)
+      .where(and(eq(cyclePeriodLogs.id, id), eq(cyclePeriodLogs.userId, userId)));
+  }
+
+  async getAiInsightsCache(userId: number, cacheKey: string): Promise<AiInsightsCache | undefined> {
+    const [record] = await db.select().from(aiInsightsCache)
+      .where(and(eq(aiInsightsCache.userId, userId), eq(aiInsightsCache.cacheKey, cacheKey)));
+    return record;
+  }
+
+  async upsertAiInsightsCache(userId: number, cacheKey: string, narrativeJson: object, expiresAt: Date): Promise<void> {
+    await db.insert(aiInsightsCache)
+      .values({ userId, cacheKey, narrativeJson, expiresAt })
+      .onConflictDoUpdate({
+        target: [aiInsightsCache.userId, aiInsightsCache.cacheKey],
+        set: { narrativeJson, expiresAt, createdAt: new Date() },
+      });
   }
 }
 

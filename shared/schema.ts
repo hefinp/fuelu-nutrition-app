@@ -238,6 +238,25 @@ export const inviteCodes = pgTable("invite_codes", {
 
 export type InviteCode = typeof inviteCodes.$inferSelect;
 
+export const cyclePeriodLogs = pgTable("cycle_period_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  periodStartDate: text("period_start_date").notNull(),
+  periodEndDate: text("period_end_date"),
+  computedCycleLength: integer("computed_cycle_length"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCyclePeriodLogSchema = createInsertSchema(cyclePeriodLogs).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
+export type InsertCyclePeriodLog = z.infer<typeof insertCyclePeriodLogSchema>;
+export type CyclePeriodLog = typeof cyclePeriodLogs.$inferSelect;
+
 export const cycleSymptoms = pgTable("cycle_symptoms", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -258,6 +277,17 @@ export const insertCycleSymptomSchema = createInsertSchema(cycleSymptoms).omit({
 
 export type InsertCycleSymptom = z.infer<typeof insertCycleSymptomSchema>;
 export type CycleSymptom = typeof cycleSymptoms.$inferSelect;
+
+export const aiInsightsCache = pgTable("ai_insights_cache", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  cacheKey: text("cache_key").notNull(),
+  narrativeJson: jsonb("narrative_json").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type AiInsightsCache = typeof aiInsightsCache.$inferSelect;
 
 export const feedbackEntries = pgTable("feedback_entries", {
   id: serial("id").primaryKey(),

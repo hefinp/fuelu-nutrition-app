@@ -42,7 +42,7 @@ import {
 import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2,
-  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, Home,
+  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, Home, TrendingUp,
 } from "lucide-react";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
 
@@ -858,6 +858,13 @@ export default function Dashboard() {
                 label: "My Plans",
                 active: showSavedPlans,
                 action: () => setShowSavedPlans(v => !v),
+              },
+              {
+                id: "insights",
+                icon: TrendingUp,
+                label: "Insights",
+                active: false,
+                action: () => setLocation("/insights"),
               },
               {
                 id: "settings",

@@ -25,6 +25,30 @@ export async function runMigrations(): Promise<void> {
     }
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS cycle_period_logs (
+        id                    SERIAL PRIMARY KEY,
+        user_id               INTEGER NOT NULL REFERENCES users(id),
+        period_start_date     TEXT NOT NULL,
+        period_end_date       TEXT,
+        computed_cycle_length INTEGER,
+        notes                 TEXT,
+        created_at            TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ai_insights_cache (
+        id              SERIAL PRIMARY KEY,
+        user_id         INTEGER NOT NULL REFERENCES users(id),
+        cache_key       TEXT NOT NULL,
+        narrative_json  JSONB NOT NULL,
+        expires_at      TIMESTAMP NOT NULL,
+        created_at      TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, cache_key)
+      )
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS cycle_symptoms (
         id          SERIAL PRIMARY KEY,
         user_id     INTEGER NOT NULL REFERENCES users(id),

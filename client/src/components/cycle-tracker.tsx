@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Circle, CalendarDays, Info, Lightbulb, Loader2, ChevronDown, ChevronUp,
-  Sparkles, Heart, CheckCircle2,
+  Sparkles, Heart, CheckCircle2, ExternalLink, Plus, X, Droplet, TrendingUp,
 } from "lucide-react";
-import type { UserPreferences, CycleSymptom } from "@shared/schema";
+import { Link } from "wouter";
+import type { UserPreferences, CycleSymptom, CyclePeriodLog } from "@shared/schema";
 import {
   getCyclePhase, getCyclePredictions, getUpcomingPhases,
   PHASE_NUTRITION_CALLOUTS, formatShortDate, type CyclePhase,
@@ -130,12 +131,52 @@ export function CycleTracker() {
     ? getUpcomingPhases(lastPeriodDate, cycleLength, periodLength, 21)
     : [];
 
-  const { data: tipData, isLoading: tipLoading } = useQuery<{ tip: string }>({
+  const { data: tipData, isLoading: tipLoading } = useQuery<{ tip: string; source: { title: string; url: string } | null }>({
     queryKey: ["/api/cycle/daily-tip", cycleInfo?.phase, today],
     queryFn: () => fetch(`/api/cycle/daily-tip?phase=${cycleInfo!.phase}`).then(r => r.json()),
     enabled: !!cycleInfo?.phase && tipExpanded,
     staleTime: 1000 * 60 * 60 * 12,
   });
+
+  const { data: periodLogs } = useQuery<CyclePeriodLog[]>({
+    queryKey: ["/api/cycle/periods"],
+    queryFn: () => apiRequest("GET", "/api/cycle/periods").then(r => r.json()),
+    enabled: !!cycleInfo,
+  });
+
+  const [periodExpanded, setPeriodExpanded] = useState(false);
+  const [logStartDate, setLogStartDate] = useState(today);
+  const [showStartForm, setShowStartForm] = useState(false);
+
+  const createPeriodMutation = useMutation({
+    mutationFn: (body: { periodStartDate: string }) =>
+      apiRequest("POST", "/api/cycle/periods", body).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cycle/periods"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+      setShowStartForm(false);
+    },
+  });
+
+  const endPeriodMutation = useMutation({
+    mutationFn: ({ id, periodEndDate }: { id: number; periodEndDate: string }) =>
+      apiRequest("PATCH", `/api/cycle/periods/${id}`, { periodEndDate }).then(r => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/cycle/periods"] }),
+  });
+
+  const deletePeriodMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest("DELETE", `/api/cycle/periods/${id}`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cycle/periods"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+    },
+  });
+
+  const openPeriod = periodLogs?.find(l => !l.periodEndDate) ?? null;
+  const openPeriodDays = openPeriod
+    ? Math.floor((new Date(today + "T00:00:00").getTime() - new Date(openPeriod.periodStartDate + "T00:00:00").getTime()) / 86400000)
+    : null;
 
   const { data: symptomsData } = useQuery<CycleSymptom[]>({
     queryKey: ["/api/cycle/symptoms", sevenDaysAgo, today],
@@ -393,12 +434,28 @@ export function CycleTracker() {
                       {tipLoading ? (
                         <div className="flex items-center gap-2 text-xs text-zinc-400">
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          Generating tip…
+                          Searching research for a tip…
                         </div>
                       ) : tipData?.tip ? (
-                        <p className="text-xs text-zinc-600 leading-relaxed" data-testid="text-cycle-tip">
-                          {tipData.tip}
-                        </p>
+                        <div className="space-y-2">
+                          <p className="text-xs text-zinc-600 leading-relaxed" data-testid="text-cycle-tip">
+                            {tipData.tip}
+                          </p>
+                          {tipData.source && (
+                            <a
+                              href={tipData.source.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 group"
+                              data-testid="link-tip-source"
+                            >
+                              <ExternalLink className="w-2.5 h-2.5 text-zinc-400 group-hover:text-zinc-600 transition-colors flex-shrink-0" />
+                              <span className="text-[10px] text-zinc-400 group-hover:text-zinc-600 transition-colors truncate max-w-[220px]">
+                                {tipData.source.title}
+                              </span>
+                            </a>
+                          )}
+                        </div>
                       ) : (
                         <p className="text-xs text-zinc-400">Tip unavailable. Please try again later.</p>
                       )}
@@ -498,6 +555,159 @@ export function CycleTracker() {
                 </div>
               </div>
             )}
+
+            {/* Period log */}
+            <div className="border border-zinc-100 rounded-2xl overflow-hidden">
+              <button
+                onClick={() => setPeriodExpanded(e => !e)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 transition-colors"
+                data-testid="button-period-log-toggle"
+              >
+                <div className="flex items-center gap-2">
+                  <Droplet className="w-4 h-4 text-rose-400" />
+                  <span className="text-xs font-medium text-zinc-700">Period log</span>
+                  {openPeriod && (
+                    <span className="text-[10px] text-rose-500 font-medium">
+                      · Day {(openPeriodDays ?? 0) + 1}
+                    </span>
+                  )}
+                </div>
+                {periodExpanded ? (
+                  <ChevronUp className="w-3.5 h-3.5 text-zinc-400" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                )}
+              </button>
+
+              <AnimatePresence>
+                {periodExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 pt-1 space-y-3">
+                      {/* Active period or log start button */}
+                      {openPeriod ? (
+                        <div className="bg-rose-50 border border-rose-100 rounded-xl p-3 flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-medium text-rose-700">
+                              Period started {formatHistoryDate(openPeriod.periodStartDate)}
+                            </p>
+                            <p className="text-[10px] text-rose-400 mt-0.5">
+                              Day {(openPeriodDays ?? 0) + 1}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => endPeriodMutation.mutate({ id: openPeriod.id, periodEndDate: today })}
+                            disabled={endPeriodMutation.isPending}
+                            className="text-[10px] font-medium text-rose-600 px-2.5 py-1.5 rounded-lg bg-rose-100 hover:bg-rose-200 transition-colors disabled:opacity-50 whitespace-nowrap"
+                            data-testid="button-end-period"
+                          >
+                            {endPeriodMutation.isPending ? "…" : "Mark as ended"}
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          {!showStartForm ? (
+                            <button
+                              onClick={() => setShowStartForm(true)}
+                              className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-rose-200 text-rose-500 text-xs font-medium hover:bg-rose-50 transition-colors"
+                              data-testid="button-log-period-start"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Log period start
+                            </button>
+                          ) : (
+                            <div className="space-y-2">
+                              <label className="text-xs text-zinc-500 font-medium">Period start date</label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  max={today}
+                                  value={logStartDate}
+                                  onChange={e => setLogStartDate(e.target.value)}
+                                  className="flex-1 px-2.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                                  data-testid="input-period-start-date"
+                                />
+                                <button
+                                  onClick={() => createPeriodMutation.mutate({ periodStartDate: logStartDate })}
+                                  disabled={createPeriodMutation.isPending || !logStartDate}
+                                  className="px-3 py-2 rounded-xl bg-rose-500 text-white text-xs font-medium hover:bg-rose-600 transition-colors disabled:opacity-50"
+                                  data-testid="button-confirm-period-start"
+                                >
+                                  {createPeriodMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+                                </button>
+                                <button
+                                  onClick={() => setShowStartForm(false)}
+                                  className="p-2 rounded-xl hover:bg-zinc-100 transition-colors"
+                                  data-testid="button-cancel-period-start"
+                                >
+                                  <X className="w-3.5 h-3.5 text-zinc-400" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Period history */}
+                      {periodLogs && periodLogs.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] text-zinc-400 uppercase tracking-wide font-medium">History</p>
+                          {periodLogs.slice(0, 5).map(log => (
+                            <div
+                              key={log.id}
+                              className="flex items-center gap-2 px-3 py-2 bg-zinc-50 rounded-xl border border-zinc-100"
+                              data-testid={`period-log-${log.id}`}
+                            >
+                              <Droplet className="w-3 h-3 text-rose-300 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-zinc-700">
+                                  {formatHistoryDate(log.periodStartDate)}
+                                  {log.periodEndDate && ` – ${formatHistoryDate(log.periodEndDate)}`}
+                                </p>
+                                {log.computedCycleLength && (
+                                  <p className="text-[10px] text-zinc-400">
+                                    Cycle: {log.computedCycleLength} days
+                                  </p>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => deletePeriodMutation.mutate(log.id)}
+                                disabled={deletePeriodMutation.isPending}
+                                className="p-1 rounded-lg hover:bg-zinc-200 transition-colors text-zinc-300 hover:text-zinc-500 flex-shrink-0"
+                                data-testid={`button-delete-period-${log.id}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                          {periodLogs.filter(l => l.computedCycleLength).length >= 2 && (
+                            <p className="text-[10px] text-zinc-400 text-center pt-1">
+                              Avg cycle: {Math.round(periodLogs.filter(l => l.computedCycleLength).reduce((s, l) => s + l.computedCycleLength!, 0) / periodLogs.filter(l => l.computedCycleLength).length)} days
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Insights link */}
+            <Link href="/insights">
+              <button
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-zinc-100 text-zinc-500 text-xs font-medium hover:bg-zinc-50 transition-colors"
+                data-testid="button-view-insights"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-violet-500" />
+                View wellbeing insights
+              </button>
+            </Link>
           </>
         ) : (
           <div className="flex flex-col items-center text-center py-4 gap-2">
