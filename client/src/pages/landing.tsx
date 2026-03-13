@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowRight, Zap, BarChart3, CalendarDays, ShoppingCart, ChefHat, Filter, FileDown, Check, Salad, Star, ScanLine, Brain, HeartPulse, Mail } from "lucide-react";
+import { ArrowRight, ChefHat, Filter, FileDown, Check, ScanLine, Brain, HeartPulse } from "lucide-react";
 
 const features = [
   {

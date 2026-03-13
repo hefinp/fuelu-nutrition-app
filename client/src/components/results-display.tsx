@@ -1766,14 +1766,6 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
       animate="visible"
       className="space-y-6"
     >
-      {/* Health Disclaimer */}
-      <motion.div variants={itemVariants} className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-start gap-3">
-        <span className="text-amber-500 mt-0.5 text-sm shrink-0">&#9888;</span>
-        <p className="text-xs text-amber-800 leading-relaxed" data-testid="text-health-disclaimer">
-          Results are estimates based on the Mifflin-St Jeor equation. Consult a qualified healthcare professional before making significant dietary changes.
-        </p>
-      </motion.div>
-
       {/* Nutrition Distribution */}
       <motion.div variants={itemVariants} className="bg-zinc-900 text-white p-8 rounded-3xl shadow-2xl relative overflow-hidden">
         {/* Abstract background flair */}
@@ -1839,6 +1831,11 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
           </div>
         </div>
       </motion.div>
+
+      {/* Health Disclaimer */}
+      <motion.p variants={itemVariants} className="text-xs text-zinc-400 leading-relaxed px-1" data-testid="text-health-disclaimer">
+        Results are estimates. Consult a qualified healthcare professional before making dietary changes.
+      </motion.p>
 
       {/* Micronutrient Recommendations accordion */}
       <motion.div variants={itemVariants} className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
