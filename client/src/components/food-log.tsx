@@ -393,6 +393,7 @@ export function FoodLog({
   const [showAiAssist, setShowAiAssist] = useState(false);
   const [aiDescription, setAiDescription] = useState("");
   const [aiAssistLoading, setAiAssistLoading] = useState(false);
+  const [aiAssistPhotoFile, setAiAssistPhotoFile] = useState<File | null>(null);
   const aiAssistPhotoRef = useRef<HTMLInputElement>(null);
   const zxingModuleRef = useRef<typeof import("@zxing/browser") | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -804,20 +805,22 @@ export function FoodLog({
     }
   }
 
-  async function handleAiAssist(file?: File) {
-    if (!file && !aiDescription.trim()) return;
+  async function handleAiAssist() {
+    const photoFile = aiAssistPhotoFile;
+    if (!photoFile && !aiDescription.trim()) return;
     setAiAssistLoading(true);
     try {
-      const body: any = {};
-      if (file) {
+      const body: { imageBase64?: string; description?: string } = {};
+      if (photoFile) {
         const b64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve((reader.result as string).split(",")[1]);
           reader.onerror = reject;
-          reader.readAsDataURL(file);
+          reader.readAsDataURL(photoFile);
         });
         body.imageBase64 = b64;
-      } else {
+      }
+      if (aiDescription.trim()) {
         body.description = aiDescription.trim();
       }
       const res = await apiRequest("POST", "/api/food-log/recognize-food", body);
@@ -835,6 +838,7 @@ export function FoodLog({
       }));
       setShowAiAssist(false);
       setAiDescription("");
+      setAiAssistPhotoFile(null);
       toast({ title: "AI filled in macros", description: `${food.name} — estimated values per ${serving}g serving.` });
     } catch {
       toast({ title: "Could not identify food", description: "Try a different description or photo.", variant: "destructive" });
@@ -1025,69 +1029,6 @@ export function FoodLog({
                 </div>
               </div>
 
-              {/* AI Assist panel */}
-              {labelScanAvailable && (
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setShowAiAssist(v => !v)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${showAiAssist ? "bg-violet-50 text-violet-700 border border-violet-200" : "bg-zinc-50 text-zinc-500 hover:bg-zinc-100 border border-zinc-200"}`}
-                    data-testid="button-toggle-ai-assist"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    AI Fill
-                  </button>
-                  {showAiAssist && (
-                    <div className="mt-2 p-3 bg-gradient-to-br from-violet-50/50 to-amber-50/50 border border-violet-100 rounded-xl space-y-2">
-                      <p className="text-[10px] text-violet-600 font-medium">Describe your meal or take a photo</p>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="e.g. chicken salad, 250g"
-                          value={aiDescription}
-                          onChange={e => setAiDescription(e.target.value)}
-                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAiAssist(); } }}
-                          className="flex-1 px-3 py-2 text-sm border border-violet-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
-                          data-testid="input-ai-description"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => aiAssistPhotoRef.current?.click()}
-                          className="px-3 py-2 bg-white border border-violet-200 rounded-lg text-violet-600 hover:bg-violet-50 transition-colors"
-                          title="Take a photo instead"
-                          data-testid="button-ai-assist-photo"
-                        >
-                          <Camera className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleAiAssist()}
-                        disabled={aiAssistLoading || !aiDescription.trim()}
-                        className="w-full py-2 bg-zinc-900 text-white rounded-lg text-xs font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                        data-testid="button-ai-fill-macros"
-                      >
-                        {aiAssistLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                        {aiAssistLoading ? "Identifying…" : "Fill in macros"}
-                      </button>
-                      <input
-                        ref={aiAssistPhotoRef}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                        data-testid="input-ai-assist-photo-file"
-                        onChange={e => {
-                          const file = e.target.files?.[0];
-                          if (file) handleAiAssist(file);
-                          e.target.value = "";
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Recent foods quick-add — shown when meal name is empty */}
               {!form.mealName && recentFoods.length > 0 && (
                 <div>
@@ -1117,15 +1058,85 @@ export function FoodLog({
                 </div>
               )}
 
-              <input
-                type="text"
-                required
-                placeholder="Meal name"
-                value={form.mealName}
-                onChange={e => setForm(f => ({ ...f, mealName: e.target.value }))}
-                className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-                data-testid="input-log-meal-name"
-              />
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  required
+                  placeholder="Meal name"
+                  value={form.mealName}
+                  onChange={e => setForm(f => ({ ...f, mealName: e.target.value }))}
+                  className="flex-1 px-3 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
+                  data-testid="input-log-meal-name"
+                />
+                {labelScanAvailable && (
+                  <button
+                    type="button"
+                    onClick={() => { setShowAiAssist(v => !v); setAiAssistPhotoFile(null); }}
+                    className={`px-2.5 rounded-xl transition-colors shrink-0 ${showAiAssist ? "bg-violet-100 text-violet-700 border border-violet-200" : "bg-zinc-50 text-zinc-400 border border-zinc-200 hover:text-violet-600 hover:bg-violet-50"}`}
+                    title="AI Fill"
+                    data-testid="button-toggle-ai-assist"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {showAiAssist && labelScanAvailable && (
+                <div className="p-3 bg-gradient-to-br from-violet-50/50 to-amber-50/50 border border-violet-100 rounded-xl space-y-2">
+                  <p className="text-[10px] text-violet-600 font-medium">Describe your meal or take a photo</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. chicken salad, 250g"
+                      value={aiDescription}
+                      onChange={e => setAiDescription(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAiAssist(); } }}
+                      className="flex-1 px-3 py-2 text-sm border border-violet-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                      data-testid="input-ai-description"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => aiAssistPhotoRef.current?.click()}
+                      className={`px-3 py-2 border rounded-lg transition-colors ${aiAssistPhotoFile ? "bg-violet-100 text-violet-700 border-violet-300" : "bg-white text-violet-600 border-violet-200 hover:bg-violet-50"}`}
+                      title="Take a photo"
+                      data-testid="button-ai-assist-photo"
+                    >
+                      <Camera className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {aiAssistPhotoFile && (
+                    <div className="flex items-center gap-2 px-2.5 py-1.5 bg-violet-50 border border-violet-200 rounded-lg text-xs text-violet-700">
+                      <Camera className="w-3 h-3 shrink-0" />
+                      <span className="truncate flex-1">{aiAssistPhotoFile.name}</span>
+                      <button type="button" onClick={() => setAiAssistPhotoFile(null)} className="text-violet-400 hover:text-violet-600">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleAiAssist()}
+                    disabled={aiAssistLoading || (!aiDescription.trim() && !aiAssistPhotoFile)}
+                    className="w-full py-2 bg-zinc-900 text-white rounded-lg text-xs font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    data-testid="button-ai-fill-macros"
+                  >
+                    {aiAssistLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    {aiAssistLoading ? "Identifying…" : "Fill in macros"}
+                  </button>
+                  <input
+                    ref={aiAssistPhotoRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    data-testid="input-ai-assist-photo-file"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) setAiAssistPhotoFile(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+              )}
               <div className="grid grid-cols-4 gap-2">
                 {(["calories", "protein", "carbs", "fat"] as const).map(field => (
                   <div key={field}>
