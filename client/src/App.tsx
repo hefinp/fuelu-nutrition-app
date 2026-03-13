@@ -11,6 +11,7 @@ import TermsPage from "@/pages/terms";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
+import AdminPage from "@/pages/admin";
 import { useAuth } from "@/hooks/use-auth";
 
 function RootRedirect() {
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/terms" component={TermsPage} />
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
+      <Route path="/admin" component={AdminPage} />
       <Route component={NotFound} />
     </Switch>
   );
