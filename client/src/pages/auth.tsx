@@ -2,18 +2,23 @@ import { useState, useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Eye, EyeOff, KeyRound } from "lucide-react";
 import { SiGoogle, SiApple } from "react-icons/si";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function AuthPage() {
   const search = useSearch();
-  const initialTab = new URLSearchParams(search).get("tab") === "register" ? "register" : "login";
+  const params = new URLSearchParams(search);
+  const initialTab = params.get("tab") === "register" ? "register" : "login";
   const [tab, setTab] = useState<"login" | "register">(initialTab);
   const [, setLocation] = useLocation();
   const { login, register, isLoggingIn, isRegistering } = useAuth();
+  const queryClient = useQueryClient();
 
-  const oauthError = new URLSearchParams(search).get("error");
+  const oauthError = params.get("error");
+  const oauthPending = params.get("oauth_pending"); // e.g. "google"
+  const oauthEmail = params.get("email") ?? "";
 
   useEffect(() => {
     const t = new URLSearchParams(search).get("tab");
@@ -38,6 +43,11 @@ export default function AuthPage() {
   const [regError, setRegError] = useState("");
   const [inviteCodeError, setInviteCodeError] = useState("");
   const [showRegPw, setShowRegPw] = useState(false);
+
+  // OAuth invite form state
+  const [oauthInviteCode, setOauthInviteCode] = useState("");
+  const [oauthInviteError, setOauthInviteError] = useState("");
+  const [isSubmittingOauthInvite, setIsSubmittingOauthInvite] = useState(false);
 
   const { data: inviteConfig } = useQuery<{ required: boolean }>({
     queryKey: ["/api/auth/invite-required"],
@@ -71,6 +81,21 @@ export default function AuthPage() {
     }
   }
 
+  async function handleOAuthInvite(e: React.FormEvent) {
+    e.preventDefault();
+    setOauthInviteError("");
+    setIsSubmittingOauthInvite(true);
+    try {
+      await apiRequest("POST", "/api/auth/oauth-invite", { inviteCode: oauthInviteCode });
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setLocation("/dashboard");
+    } catch (err: any) {
+      setOauthInviteError(err.message || "Invalid invite code");
+    } finally {
+      setIsSubmittingOauthInvite(false);
+    }
+  }
+
   const hasOAuth = providers?.google || providers?.apple;
 
   const oauthErrorMessage =
@@ -78,6 +103,78 @@ export default function AuthPage() {
     oauthError === "apple_failed" ? "Apple sign-in failed. Please try again." :
     null;
 
+  // ── OAuth invite gate mode ─────────────────────────────────────────────────
+  if (oauthPending) {
+    return (
+      <div className="min-h-screen bg-zinc-50/50 flex flex-col items-center justify-center px-4">
+        <div className="mb-8 flex items-center gap-2">
+          <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
+            <div className="w-3 h-3 bg-white rounded-full" />
+          </div>
+          <span className="font-display font-bold text-xl tracking-tight text-zinc-900">NutriSync</span>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-3xl border border-zinc-100 shadow-lg w-full max-w-md p-8"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center">
+              <KeyRound className="w-5 h-5 text-zinc-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-zinc-900">One more step</h2>
+              <p className="text-sm text-zinc-500">NutriSync is in private beta</p>
+            </div>
+          </div>
+
+          <p className="text-sm text-zinc-600 mb-6">
+            You're signing in as <span className="font-medium text-zinc-900">{oauthEmail}</span>. Enter your invite code to complete registration.
+          </p>
+
+          <form onSubmit={handleOAuthInvite} className="space-y-4">
+            {oauthInviteError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700" data-testid="error-oauth-invite">
+                {oauthInviteError}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1.5">Invite Code</label>
+              <input
+                type="text"
+                required
+                autoFocus
+                value={oauthInviteCode}
+                onChange={e => { setOauthInviteCode(e.target.value); setOauthInviteError(""); }}
+                placeholder="Enter your invite code"
+                className={`w-full px-4 py-2.5 border rounded-xl text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent ${oauthInviteError ? "border-red-400" : "border-zinc-200"}`}
+                data-testid="input-oauth-invite-code"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmittingOauthInvite}
+              className="w-full py-2.5 bg-zinc-900 text-white rounded-xl font-medium text-sm hover:bg-zinc-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              data-testid="button-oauth-invite-submit"
+            >
+              {isSubmittingOauthInvite && <Loader2 className="w-4 h-4 animate-spin" />}
+              Complete Sign In
+            </button>
+
+            <p className="text-center text-sm text-zinc-500">
+              Don't have a code?{" "}
+              <a href="/auth" className="text-zinc-900 font-medium hover:underline">Go back</a>
+            </p>
+          </form>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── Normal login / register ────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-zinc-50/50 flex flex-col items-center justify-center px-4">
       <div className="mb-8 flex items-center gap-2">

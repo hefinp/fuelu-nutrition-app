@@ -9,6 +9,16 @@ import { registerSchema, loginSchema, userPreferencesSchema, insertUserRecipeSch
 import passport from "passport";
 import { sendEmail, buildPasswordResetEmailHtml, buildMealPlanEmailHtml, buildFeedbackEmailHtml } from "./email";
 import OpenAI from "openai";
+import rateLimit from "express-rate-limit";
+
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many attempts. Please wait 15 minutes before trying again." },
+  skipSuccessfulRequests: true,
+});
 
 const MEAL_DATABASE: MealDb = {
   breakfast: [
@@ -579,6 +589,16 @@ function setupPassportStrategies() {
           const email = profile.emails?.[0]?.value;
           const name = profile.displayName || profile.emails?.[0]?.value || "Google User";
           if (!email) return done(new Error("No email returned from Google"));
+
+          // If invite gate is active, check whether this is a new user before creating them
+          if (process.env.INVITE_CODES) {
+            const existing = await storage.getUserByEmail(email);
+            if (!existing) {
+              // New user + invite gate: return a pending profile (not a real user)
+              return done(null, { pendingOAuth: true, email, name, provider: "google", providerId: profile.id });
+            }
+          }
+
           const user = await storage.findOrCreateOAuthUser({
             email,
             name,
@@ -654,7 +674,7 @@ export async function registerRoutes(
     res.json({ required: !!process.env.INVITE_CODES });
   });
 
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", authRateLimiter, async (req, res) => {
     try {
       const input = registerSchema.parse(req.body);
 
@@ -686,7 +706,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authRateLimiter, async (req, res) => {
     try {
       const input = loginSchema.parse(req.body);
       const user = await storage.getUserByEmail(input.email);
@@ -755,10 +775,52 @@ export async function registerRoutes(
     (req: Request, res: Response) => {
       const user = req.user as any;
       if (!user) return res.redirect("/auth?error=google_failed");
+
+      // New user hit the invite gate — store pending OAuth in session and redirect to invite form
+      if (user.pendingOAuth) {
+        req.session.pendingOAuth = {
+          email: user.email,
+          name: user.name,
+          provider: user.provider,
+          providerId: user.providerId,
+        };
+        return req.session.save(() =>
+          res.redirect(`/auth?oauth_pending=google&email=${encodeURIComponent(user.email)}`)
+        );
+      }
+
       req.session.userId = user.id;
       req.session.save(() => res.redirect("/dashboard"));
     }
   );
+
+  // Complete OAuth registration after invite code is verified
+  app.post("/api/auth/oauth-invite", authRateLimiter, async (req, res) => {
+    const pending = req.session.pendingOAuth;
+    if (!pending) {
+      return res.status(400).json({ message: "No pending sign-in found. Please try signing in with Google again." });
+    }
+
+    const inviteCodes = process.env.INVITE_CODES;
+    if (inviteCodes) {
+      const validCodes = inviteCodes.split(",").map(c => c.trim().toLowerCase()).filter(Boolean);
+      const submitted = ((req.body.inviteCode as string) ?? "").trim().toLowerCase();
+      if (!submitted || !validCodes.includes(submitted)) {
+        return res.status(400).json({ message: "Invalid invite code" });
+      }
+    }
+
+    try {
+      const user = await storage.findOrCreateOAuthUser(pending);
+      const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
+      await storage.updateUserPreferences(user.id, initialPrefs);
+      delete req.session.pendingOAuth;
+      req.session.userId = user.id;
+      req.session.save(() => res.json({ ok: true }));
+    } catch (err) {
+      throw err;
+    }
+  });
 
   // ── Apple OAuth ───────────────────────────────────────────────────────────
 

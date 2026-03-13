@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import helmet from "helmet";
 import { registerRoutes, passport } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -20,8 +21,40 @@ declare module "http" {
 declare module "express-session" {
   interface SessionData {
     userId?: number;
+    pendingOAuth?: {
+      email: string;
+      name: string;
+      provider: string;
+      providerId: string;
+    };
   }
 }
+
+const sessionSecret = process.env.SESSION_SECRET || "nutrisync-fallback-secret";
+if (!process.env.SESSION_SECRET) {
+  console.warn("[security] SESSION_SECRET env var is not set — using insecure fallback. Set this before deploying.");
+}
+
+// Security headers — permissive CSP in dev so Vite HMR and Google Fonts work
+app.use(
+  helmet({
+    contentSecurityPolicy:
+      process.env.NODE_ENV === "production"
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'", "'unsafe-inline'"],
+              styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+              fontSrc: ["'self'", "https://fonts.gstatic.com"],
+              imgSrc: ["'self'", "data:", "https:"],
+              connectSrc: ["'self'"],
+              frameSrc: ["'none'"],
+            },
+          }
+        : false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 app.use(
   express.json({
@@ -37,12 +70,13 @@ app.use(express.urlencoded({ extended: false }));
 app.use(
   session({
     store: new PgSession({ pool, tableName: "session" }),
-    secret: process.env.SESSION_SECRET || "nutrisync-fallback-secret",
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       httpOnly: true,
+      sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
     },
   })
