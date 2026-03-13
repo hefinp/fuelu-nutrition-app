@@ -714,57 +714,12 @@ export function CycleTracker() {
             <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mb-1">
               <CalendarDays className="w-5 h-5 text-zinc-400" />
             </div>
-            <p className="text-sm font-medium text-zinc-700">Enter your last period start date</p>
+            <p className="text-sm font-medium text-zinc-700">Cycle setup incomplete</p>
             <p className="text-xs text-zinc-400">
-              Fuelr will calculate your current phase and tailor meal suggestions accordingly.
+              Open <span className="font-medium text-zinc-600">Settings → Metrics</span> to enter your last period date and cycle details.
             </p>
           </div>
         )}
-
-        {/* Inputs */}
-        <div className="grid grid-cols-3 gap-3 pt-1">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-500">Last period</label>
-            <input
-              type="date"
-              max={today}
-              defaultValue={lastPeriodDate}
-              key={lastPeriodDate}
-              onBlur={e => handleDateBlur(e.target.value)}
-              data-testid="input-last-period-date"
-              className="w-full px-2.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-900
-                         focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-500">Cycle length</label>
-            <input
-              type="number"
-              min={21}
-              max={35}
-              defaultValue={cycleLength}
-              key={cycleLength}
-              onBlur={e => handleLengthBlur(e.target.value)}
-              data-testid="input-cycle-length"
-              className="w-full px-2.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-900
-                         focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-500">Period length</label>
-            <input
-              type="number"
-              min={2}
-              max={8}
-              defaultValue={periodLength}
-              key={periodLength}
-              onBlur={e => handlePeriodLengthBlur(e.target.value)}
-              data-testid="input-period-length"
-              className="w-full px-2.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-900
-                         focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
-            />
-          </div>
-        </div>
       </div>
     </div>
   );

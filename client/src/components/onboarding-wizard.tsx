@@ -53,6 +53,9 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
   const [age, setAge] = useState("");
   const [sex, setSex] = useState<"male" | "female">("male");
   const [cycleTracking, setCycleTracking] = useState(false);
+  const [lastPeriodDate, setLastPeriodDate] = useState("");
+  const [wizardCycleLength, setWizardCycleLength] = useState("28");
+  const [wizardPeriodLength, setWizardPeriodLength] = useState("5");
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
@@ -135,12 +138,18 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
       const allergies = selectedChips.map(c => DIET_TO_PREF[c]?.allergy).filter(Boolean) as string[];
       const dietValue = diets[0] ?? null;
 
+      const cycleEnabled = sex === "female" ? cycleTracking : false;
       await apiRequest("PUT", "/api/user/preferences", {
         ...userPrefs,
         diet: dietValue,
         allergies,
         onboardingComplete: true,
-        cycleTrackingEnabled: sex === "female" ? cycleTracking : false,
+        cycleTrackingEnabled: cycleEnabled,
+        ...(cycleEnabled && lastPeriodDate ? { lastPeriodDate } : {}),
+        ...(cycleEnabled ? {
+          cycleLength: parseInt(wizardCycleLength) || 28,
+          periodLength: parseInt(wizardPeriodLength) || 5,
+        } : {}),
       });
 
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
@@ -153,7 +162,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
 
   const stepContent = [
     <StepGoal key="goal" goal={goal} setGoal={setGoal} />,
-    <StepAboutYou key="about" age={age} setAge={setAge} sex={sex} setSex={(v) => { setSex(v); if (v === "male") setCycleTracking(false); }} cycleTracking={cycleTracking} setCycleTracking={setCycleTracking} heightCm={heightCm} setHeightCm={setHeightCm} weightKg={weightKg} setWeightKg={setWeightKg} />,
+    <StepAboutYou key="about" age={age} setAge={setAge} sex={sex} setSex={(v) => { setSex(v); if (v === "male") setCycleTracking(false); }} cycleTracking={cycleTracking} setCycleTracking={setCycleTracking} lastPeriodDate={lastPeriodDate} setLastPeriodDate={setLastPeriodDate} wizardCycleLength={wizardCycleLength} setWizardCycleLength={setWizardCycleLength} wizardPeriodLength={wizardPeriodLength} setWizardPeriodLength={setWizardPeriodLength} heightCm={heightCm} setHeightCm={setHeightCm} weightKg={weightKg} setWeightKg={setWeightKg} />,
     <StepDiet key="diet" selectedChips={selectedChips} toggleChip={toggleChip} />,
     <StepSummary key="summary" macros={macros} goal={goal} loading={macrosLoading} />,
   ];
@@ -291,11 +300,17 @@ function StepGoal({ goal, setGoal }: { goal: Goal | null; setGoal: (g: Goal) => 
 }
 
 function StepAboutYou({
-  age, setAge, sex, setSex, cycleTracking, setCycleTracking, heightCm, setHeightCm, weightKg, setWeightKg,
+  age, setAge, sex, setSex, cycleTracking, setCycleTracking,
+  lastPeriodDate, setLastPeriodDate, wizardCycleLength, setWizardCycleLength,
+  wizardPeriodLength, setWizardPeriodLength,
+  heightCm, setHeightCm, weightKg, setWeightKg,
 }: {
   age: string; setAge: (v: string) => void;
   sex: "male" | "female"; setSex: (v: "male" | "female") => void;
   cycleTracking: boolean; setCycleTracking: (v: boolean) => void;
+  lastPeriodDate: string; setLastPeriodDate: (v: string) => void;
+  wizardCycleLength: string; setWizardCycleLength: (v: string) => void;
+  wizardPeriodLength: string; setWizardPeriodLength: (v: string) => void;
   heightCm: string; setHeightCm: (v: string) => void;
   weightKg: string; setWeightKg: (v: string) => void;
 }) {
@@ -370,22 +385,63 @@ function StepAboutYou({
           </div>
         </div>
         {sex === "female" && (
-          <button
-            type="button"
-            onClick={() => setCycleTracking(!cycleTracking)}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all ${
-              cycleTracking ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 hover:border-zinc-300"
-            }`}
-            data-testid="wizard-toggle-cycle-tracking"
-          >
-            <div className="text-left">
-              <p className="text-sm font-medium text-zinc-900">Cycle-aware nutrition</p>
-              <p className="text-xs text-zinc-400">Adjust targets based on your menstrual cycle</p>
-            </div>
-            <div className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${cycleTracking ? "bg-zinc-900" : "bg-zinc-200"}`}>
-              <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${cycleTracking ? "translate-x-5" : "translate-x-1"}`} />
-            </div>
-          </button>
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setCycleTracking(!cycleTracking)}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all ${
+                cycleTracking ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 hover:border-zinc-300"
+              }`}
+              data-testid="wizard-toggle-cycle-tracking"
+            >
+              <div className="text-left">
+                <p className="text-sm font-medium text-zinc-900">Cycle-aware nutrition</p>
+                <p className="text-xs text-zinc-400">Adjust targets based on your menstrual cycle</p>
+              </div>
+              <div className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${cycleTracking ? "bg-zinc-900" : "bg-zinc-200"}`}>
+                <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${cycleTracking ? "translate-x-5" : "translate-x-1"}`} />
+              </div>
+            </button>
+            {cycleTracking && (
+              <div className="grid grid-cols-3 gap-2 px-1">
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-zinc-500">Last period</label>
+                  <input
+                    type="date"
+                    max={new Date().toISOString().slice(0, 10)}
+                    value={lastPeriodDate}
+                    onChange={e => setLastPeriodDate(e.target.value)}
+                    data-testid="wizard-input-last-period"
+                    className="w-full px-2.5 py-2 border border-zinc-200 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-zinc-500">Cycle (days)</label>
+                  <input
+                    type="number"
+                    min={21}
+                    max={35}
+                    value={wizardCycleLength}
+                    onChange={e => setWizardCycleLength(e.target.value)}
+                    data-testid="wizard-input-cycle-length"
+                    className="w-full px-2.5 py-2 border border-zinc-200 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-zinc-500">Period (days)</label>
+                  <input
+                    type="number"
+                    min={2}
+                    max={8}
+                    value={wizardPeriodLength}
+                    onChange={e => setWizardPeriodLength(e.target.value)}
+                    data-testid="wizard-input-period-length"
+                    className="w-full px-2.5 py-2 border border-zinc-200 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

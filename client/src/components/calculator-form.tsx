@@ -233,22 +233,66 @@ export function CalculatorForm({
                 transition={{ duration: 0.2, ease: "easeInOut" }}
                 className="overflow-hidden"
               >
-                <div className="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-zinc-50 border border-zinc-200">
-                  <div className="flex items-start gap-2.5">
-                    <Circle className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-semibold text-zinc-800">Cycle Tracking</p>
-                      <p className="text-xs text-zinc-500 leading-relaxed mt-0.5">
-                        Optimises meal plans based on your menstrual cycle phase, including iron needs during menstruation and energy adjustments in the luteal phase.
-                      </p>
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-zinc-50 border border-zinc-200">
+                    <div className="flex items-start gap-2.5">
+                      <Circle className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-semibold text-zinc-800">Cycle Tracking</p>
+                        <p className="text-xs text-zinc-500 leading-relaxed mt-0.5">
+                          Optimises meal plans based on your menstrual cycle phase, including iron needs during menstruation and energy adjustments in the luteal phase.
+                        </p>
+                      </div>
                     </div>
+                    <Switch
+                      checked={cycleTrackingEnabled}
+                      onCheckedChange={v => updatePrefsMutation.mutate({ cycleTrackingEnabled: v })}
+                      data-testid="toggle-cycle-tracking"
+                      className="flex-shrink-0 mt-0.5"
+                    />
                   </div>
-                  <Switch
-                    checked={cycleTrackingEnabled}
-                    onCheckedChange={v => updatePrefsMutation.mutate({ cycleTrackingEnabled: v })}
-                    data-testid="toggle-cycle-tracking"
-                    className="flex-shrink-0 mt-0.5"
-                  />
+                  {cycleTrackingEnabled && (
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-zinc-500">Last period</label>
+                        <input
+                          type="date"
+                          max={new Date().toISOString().slice(0, 10)}
+                          defaultValue={prefs?.lastPeriodDate ?? ""}
+                          key={prefs?.lastPeriodDate}
+                          onBlur={e => e.target.value && updatePrefsMutation.mutate({ lastPeriodDate: e.target.value })}
+                          data-testid="settings-input-last-period"
+                          className="w-full px-2 py-1.5 rounded-lg bg-zinc-50 border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-zinc-500">Cycle (days)</label>
+                        <input
+                          type="number"
+                          min={21}
+                          max={35}
+                          defaultValue={prefs?.cycleLength ?? 28}
+                          key={prefs?.cycleLength}
+                          onBlur={e => updatePrefsMutation.mutate({ cycleLength: parseInt(e.target.value) || 28 })}
+                          data-testid="settings-input-cycle-length"
+                          className="w-full px-2 py-1.5 rounded-lg bg-zinc-50 border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-zinc-500">Period (days)</label>
+                        <input
+                          type="number"
+                          min={2}
+                          max={8}
+                          defaultValue={prefs?.periodLength ?? 5}
+                          key={prefs?.periodLength}
+                          onBlur={e => updatePrefsMutation.mutate({ periodLength: parseInt(e.target.value) || 5 })}
+                          data-testid="settings-input-period-length"
+                          className="w-full px-2 py-1.5 rounded-lg bg-zinc-50 border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -400,22 +444,66 @@ export function CalculatorForm({
               transition={{ duration: 0.2, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="flex items-start justify-between gap-4 p-4 rounded-xl bg-zinc-50 border border-zinc-200">
-                <div className="flex items-start gap-3">
-                  <Circle className="w-4 h-4 text-zinc-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-800">Cycle Tracking</p>
-                    <p className="text-sm text-zinc-500 leading-relaxed mt-0.5">
-                      Optimises meal plans based on your menstrual cycle phase, including iron needs during menstruation and energy adjustments in the luteal phase.
-                    </p>
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-4 p-4 rounded-xl bg-zinc-50 border border-zinc-200">
+                  <div className="flex items-start gap-3">
+                    <Circle className="w-4 h-4 text-zinc-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-800">Cycle Tracking</p>
+                      <p className="text-sm text-zinc-500 leading-relaxed mt-0.5">
+                        Optimises meal plans based on your menstrual cycle phase, including iron needs during menstruation and energy adjustments in the luteal phase.
+                      </p>
+                    </div>
                   </div>
+                  <Switch
+                    checked={cycleTrackingEnabled}
+                    onCheckedChange={v => updatePrefsMutation.mutate({ cycleTrackingEnabled: v })}
+                    data-testid="toggle-cycle-tracking"
+                    className="flex-shrink-0 mt-0.5"
+                  />
                 </div>
-                <Switch
-                  checked={cycleTrackingEnabled}
-                  onCheckedChange={v => updatePrefsMutation.mutate({ cycleTrackingEnabled: v })}
-                  data-testid="toggle-cycle-tracking"
-                  className="flex-shrink-0 mt-0.5"
-                />
+                {cycleTrackingEnabled && (
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-zinc-500">Last period</label>
+                      <input
+                        type="date"
+                        max={new Date().toISOString().slice(0, 10)}
+                        defaultValue={prefs?.lastPeriodDate ?? ""}
+                        key={prefs?.lastPeriodDate}
+                        onBlur={e => e.target.value && updatePrefsMutation.mutate({ lastPeriodDate: e.target.value })}
+                        data-testid="settings-input-last-period-full"
+                        className="w-full px-2.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-zinc-500">Cycle (days)</label>
+                      <input
+                        type="number"
+                        min={21}
+                        max={35}
+                        defaultValue={prefs?.cycleLength ?? 28}
+                        key={prefs?.cycleLength}
+                        onBlur={e => updatePrefsMutation.mutate({ cycleLength: parseInt(e.target.value) || 28 })}
+                        data-testid="settings-input-cycle-length-full"
+                        className="w-full px-2.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-zinc-500">Period (days)</label>
+                      <input
+                        type="number"
+                        min={2}
+                        max={8}
+                        defaultValue={prefs?.periodLength ?? 5}
+                        key={prefs?.periodLength}
+                        onBlur={e => updatePrefsMutation.mutate({ periodLength: parseInt(e.target.value) || 5 })}
+                        data-testid="settings-input-period-length-full"
+                        className="w-full px-2.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
