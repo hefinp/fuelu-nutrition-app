@@ -58,11 +58,11 @@ function drawPDFLogo(doc: jsPDF, pageW: number) {
   doc.setFillColor(24, 24, 27); // zinc-900
   doc.circle(sqX + sqSize / 2, sqY + sqSize / 2, 1.8, "F");
 
-  // "NutriSync" wordmark
+  // "Fuelr" wordmark
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("NutriSync", sqX + sqSize + 2.5, sqY + 6);
+  doc.text("Fuelr", sqX + sqSize + 2.5, sqY + 6);
 }
 
 export function exportMealPlanToPDF(mealPlan: any, data: Calculation) {

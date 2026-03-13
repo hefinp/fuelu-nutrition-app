@@ -30,7 +30,7 @@ declare module "express-session" {
   }
 }
 
-const sessionSecret = process.env.SESSION_SECRET || "nutrisync-fallback-secret";
+const sessionSecret = process.env.SESSION_SECRET || "fuelr-fallback-secret";
 if (!process.env.SESSION_SECRET) {
   console.warn("[security] SESSION_SECRET env var is not set — using insecure fallback. Set this before deploying.");
 }

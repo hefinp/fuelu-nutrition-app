@@ -111,7 +111,7 @@ export default function AuthPage() {
           <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
             <div className="w-3 h-3 bg-white rounded-full" />
           </div>
-          <span className="font-display font-bold text-xl tracking-tight text-zinc-900">NutriSync</span>
+          <span className="font-display font-bold text-xl tracking-tight text-zinc-900">Fuelr</span>
         </div>
 
         <motion.div
@@ -125,7 +125,7 @@ export default function AuthPage() {
             </div>
             <div>
               <h2 className="text-lg font-bold text-zinc-900">One more step</h2>
-              <p className="text-sm text-zinc-500">NutriSync is in private beta</p>
+              <p className="text-sm text-zinc-500">Fuelr is in private beta</p>
             </div>
           </div>
 
@@ -181,7 +181,7 @@ export default function AuthPage() {
         <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
           <div className="w-3 h-3 bg-white rounded-full" />
         </div>
-        <span className="font-display font-bold text-xl tracking-tight text-zinc-900">NutriSync</span>
+        <span className="font-display font-bold text-xl tracking-tight text-zinc-900">Fuelr</span>
       </div>
 
       <motion.div

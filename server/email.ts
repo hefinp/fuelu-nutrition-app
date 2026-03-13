@@ -6,7 +6,7 @@ function esc(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-const FROM_ADDRESS = "NutriSync <onboarding@resend.dev>";
+const FROM_ADDRESS = "Fuelr <onboarding@resend.dev>";
 
 export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }): Promise<void> {
   if (!resend) {
@@ -22,13 +22,13 @@ export async function sendEmail({ to, subject, html }: { to: string; subject: st
 export function buildPasswordResetEmailHtml(resetUrl: string, name: string): string {
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>Reset your NutriSync password</title></head>
+<head><meta charset="utf-8"><title>Reset your Fuelr password</title></head>
 <body style="font-family:sans-serif;max-width:520px;margin:40px auto;padding:0 20px;color:#1a1a1a">
   <div style="margin-bottom:24px">
-    <span style="font-weight:700;font-size:18px">NutriSync</span>
+    <span style="font-weight:700;font-size:18px">Fuelr</span>
   </div>
   <h2 style="font-size:22px;font-weight:700;margin-bottom:8px">Reset your password</h2>
-  <p style="color:#555;margin-bottom:24px">Hi ${esc(name)}, we received a request to reset your NutriSync password. Click the button below to choose a new one. This link expires in 1 hour.</p>
+  <p style="color:#555;margin-bottom:24px">Hi ${esc(name)}, we received a request to reset your Fuelr password. Click the button below to choose a new one. This link expires in 1 hour.</p>
   <a href="${resetUrl}" style="display:inline-block;padding:12px 28px;background:#18181b;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px">Reset Password</a>
   <p style="margin-top:24px;color:#888;font-size:12px">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
   <p style="color:#888;font-size:12px">Or copy this link: <a href="${resetUrl}" style="color:#555">${resetUrl}</a></p>
@@ -92,7 +92,7 @@ export function buildMealPlanEmailHtml(planName: string, userName: string, planD
 <head><meta charset="utf-8"><title>${esc(planName)}</title></head>
 <body style="font-family:sans-serif;max-width:560px;margin:40px auto;padding:0 20px;color:#1a1a1a">
   <div style="background:#18181b;border-radius:12px;padding:16px 20px;margin-bottom:24px">
-    <span style="color:#fff;font-weight:700;font-size:18px">NutriSync</span>
+    <span style="color:#fff;font-weight:700;font-size:18px">Fuelr</span>
     <span style="color:#a1a1aa;font-size:13px;margin-left:12px">Meal Plan</span>
   </div>
   <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">${esc(planName)}</h2>
@@ -116,10 +116,10 @@ export function buildFeedbackEmailHtml(opts: {
   const categoryLabel = opts.category === "bug" ? "Bug Report" : opts.category === "feature" ? "Feature Request" : "General Feedback";
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>NutriSync Beta Feedback</title></head>
+<head><meta charset="utf-8"><title>Fuelr Beta Feedback</title></head>
 <body style="font-family:sans-serif;max-width:560px;margin:40px auto;padding:0 20px;color:#1a1a1a">
   <div style="margin-bottom:24px">
-    <span style="font-weight:700;font-size:18px">NutriSync</span>
+    <span style="font-weight:700;font-size:18px">Fuelr</span>
     <span style="margin-left:8px;font-size:13px;color:#71717a">Beta Feedback</span>
   </div>
   <div style="background:#f4f4f5;border-radius:10px;padding:20px 24px;margin-bottom:20px">

@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
         <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
           <div className="w-3 h-3 bg-white rounded-full" />
         </div>
-        <span className="font-display font-bold text-xl tracking-tight text-zinc-900">NutriSync</span>
+        <span className="font-display font-bold text-xl tracking-tight text-zinc-900">Fuelr</span>
       </div>
 
       <motion.div

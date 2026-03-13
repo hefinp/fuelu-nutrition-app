@@ -49,7 +49,7 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
             <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
               <div className="w-3 h-3 bg-white rounded-full" />
             </div>
-            <span className="font-display font-bold text-xl tracking-tight text-zinc-900">NutriSync</span>
+            <span className="font-display font-bold text-xl tracking-tight text-zinc-900">Fuelr</span>
           </div>
           <div className="flex items-center gap-3">
             {loggedIn ? (
@@ -101,7 +101,7 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
           </h1>
 
           <p className="text-lg text-zinc-500 max-w-xl mx-auto mb-6 leading-relaxed">
-            Pick a cooking tier, set your calorie targets, and NutriSync builds personalised meal plans that actually fit how you eat — with AI scanning, cycle-aware nutrition, and one-click exports.
+            Pick a cooking tier, set your calorie targets, and Fuelr builds personalised meal plans that actually fit how you eat — with AI scanning, cycle-aware nutrition, and one-click exports.
           </p>
 
           <ul className="inline-flex flex-col gap-2 text-sm text-zinc-600 text-left mb-10 mx-auto">
@@ -238,13 +238,13 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
             <div className="w-6 h-6 bg-zinc-900 rounded-md flex items-center justify-center">
               <div className="w-2 h-2 bg-white rounded-full" />
             </div>
-            <span className="font-display font-semibold text-sm text-zinc-900">NutriSync</span>
+            <span className="font-display font-semibold text-sm text-zinc-900">Fuelr</span>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors" data-testid="link-footer-privacy">Privacy Policy</Link>
             <Link href="/terms" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors" data-testid="link-footer-terms">Terms of Service</Link>
           </div>
-          <p className="text-xs text-zinc-400">&copy; 2026 NutriSync. All rights reserved.</p>
+          <p className="text-xs text-zinc-400">&copy; 2026 Fuelr. All rights reserved.</p>
         </div>
       </footer>
     </div>

@@ -181,7 +181,7 @@ export function CycleTracker() {
             </div>
             <p className="text-sm font-medium text-zinc-700">Enter your last period start date</p>
             <p className="text-xs text-zinc-400">
-              NutriSync will calculate your current phase and tailor meal suggestions accordingly.
+              Fuelr will calculate your current phase and tailor meal suggestions accordingly.
             </p>
           </div>
         )}

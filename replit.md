@@ -1,8 +1,8 @@
-# NutriSync — Replit.md
+# Fuelr — Replit.md
 
 ## Overview
 
-NutriSync is a full-stack nutrition calculator web app. Users enter their biometrics to receive personalized daily/weekly calorie targets and macronutrient breakdowns. The app generates meal plans (Simple, Gourmet, Michelin) filtered by food preferences, allergies, and disliked meals. Features include: meal plan save/export (PDF), shopping lists, individual meal replace buttons, food log (daily tracking with macro progress bars), weight tracking (chart + log), hydration tracking (daily goal, quick-log widget, behind-schedule alerts), password reset via email (Resend), email meal plan to inbox, a meal dislike system that excludes disliked meals from future generated plans, web recipe import → personal recipe library, and recipe-to-meal-plan integration with slot controls and weekly limits.
+Fuelr is a full-stack nutrition calculator web app. Users enter their biometrics to receive personalized daily/weekly calorie targets and macronutrient breakdowns. The app generates meal plans (Simple, Gourmet, Michelin) filtered by food preferences, allergies, and disliked meals. Features include: meal plan save/export (PDF), shopping lists, individual meal replace buttons, food log (daily tracking with macro progress bars), weight tracking (chart + log), hydration tracking (daily goal, quick-log widget, behind-schedule alerts), password reset via email (Resend), email meal plan to inbox, a meal dislike system that excludes disliked meals from future generated plans, web recipe import → personal recipe library, and recipe-to-meal-plan integration with slot controls and weekly limits.
 
 ---
 
@@ -23,7 +23,7 @@ Preferred communication style: Simple, everyday language.
 - **Styling:** Tailwind CSS with custom CSS variables for theming; fonts are DM Sans (body) and Outfit (display), loaded from Google Fonts
 - **Animations:** Framer Motion for entry animations and transitions
 - **Charts:** Recharts (PieChart for macro breakdown)
-- **PDF export:** jsPDF (client-side PDF generation of meal plans and shopping lists with NutriSync branding)
+- **PDF export:** jsPDF (client-side PDF generation of meal plans and shopping lists with Fuelr branding)
 - **Path aliases:** `@/` → `client/src/`, `@shared/` → `shared/`
 
 **Key frontend components:**

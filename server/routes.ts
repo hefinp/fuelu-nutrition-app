@@ -1617,7 +1617,7 @@ Write 1-2 sentences analysing their trend: rate of change, whether they're on tr
       const resetUrl = `${appUrl}/reset-password?token=${token}`;
       await sendEmail({
         to: user.email,
-        subject: "Reset your NutriSync password",
+        subject: "Reset your Fuelr password",
         html: buildPasswordResetEmailHtml(resetUrl, user.name),
       });
       res.json({ message: "If that email is registered you will receive a reset link." });
@@ -2160,7 +2160,7 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
     try {
       const response = await fetch(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; NutriSync/1.0; +https://nutrisync.app)",
+          "User-Agent": "Mozilla/5.0 (compatible; Fuelr/1.0; +https://fuelr.app)",
           "Accept": "text/html,application/xhtml+xml",
         },
         signal: AbortSignal.timeout(12000),
@@ -2339,7 +2339,7 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
       if (Object.keys(validated).length > 0) shoppingList = validated;
     }
     const html = buildMealPlanEmailHtml(plan.name, user.name, plan.planData as any, plan.planType, shoppingList);
-    await sendEmail({ to: user.email, subject: `Your NutriSync plan: ${plan.name}`, html });
+    await sendEmail({ to: user.email, subject: `Your Fuelr plan: ${plan.name}`, html });
     res.json({ message: "Plan sent to your email." });
   });
 
@@ -2360,7 +2360,7 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
           message: input.message,
           submittedAt: new Date(entry.createdAt ?? Date.now()).toUTCString(),
         });
-        sendEmail({ to: developerEmail, subject: `[NutriSync Beta] ${input.category === "bug" ? "Bug Report" : input.category === "feature" ? "Feature Request" : "Feedback"} from ${user.name}`, html }).catch(() => {});
+        sendEmail({ to: developerEmail, subject: `[Fuelr Beta] ${input.category === "bug" ? "Bug Report" : input.category === "feature" ? "Feature Request" : "Feedback"} from ${user.name}`, html }).catch(() => {});
       }
       res.status(201).json({ message: "Thank you for your feedback!" });
     } catch (err) {
