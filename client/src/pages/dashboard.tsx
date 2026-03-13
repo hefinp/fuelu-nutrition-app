@@ -11,6 +11,7 @@ import { FoodLog } from "@/components/food-log";
 import { RecipeLibrary } from "@/components/recipe-library";
 import { HydrationTracker } from "@/components/hydration-tracker";
 import { CycleTracker } from "@/components/cycle-tracker";
+import { FavouritesWidget } from "@/components/favourites-widget";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
@@ -42,7 +43,7 @@ import {
 import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2,
-  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, Home, TrendingUp,
+  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, Home, TrendingUp, Star,
 } from "lucide-react";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
 
@@ -235,6 +236,8 @@ export default function Dashboard() {
         return user ? <HydrationTracker /> : null;
       case "cycle":
         return (user && userPrefs?.cycleTrackingEnabled && lastCalculation?.gender === "female") ? <CycleTracker /> : null;
+      case "favourites":
+        return user ? <FavouritesWidget /> : null;
       case "weight":
         return user ? (
           <WeightTracker
@@ -398,6 +401,7 @@ export default function Dashboard() {
                 {user && (() => {
                   const WIDGET_CONFIG: { id: string; label: string; Icon: React.ElementType }[] = [
                     { id: "food-log",       label: "Food Log",         Icon: ClipboardList },
+                    { id: "favourites",     label: "Favourites",       Icon: Star },
                     { id: "hydration",      label: "Hydration",        Icon: Droplets },
                     { id: "meal-plan",      label: "Meal Planner",     Icon: UtensilsCrossed },
                     { id: "nutrition",      label: "Nutrition",        Icon: SlidersHorizontal },

@@ -289,6 +289,27 @@ export const aiInsightsCache = pgTable("ai_insights_cache", {
 
 export type AiInsightsCache = typeof aiInsightsCache.$inferSelect;
 
+export const favouriteMeals = pgTable("favourite_meals", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  mealName: text("meal_name").notNull(),
+  calories: integer("calories").notNull(),
+  protein: integer("protein").notNull(),
+  carbs: integer("carbs").notNull(),
+  fat: integer("fat").notNull(),
+  mealSlot: text("meal_slot"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertFavouriteMealSchema = createInsertSchema(favouriteMeals).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
+export type InsertFavouriteMeal = z.infer<typeof insertFavouriteMealSchema>;
+export type FavouriteMeal = typeof favouriteMeals.$inferSelect;
+
 export const feedbackEntries = pgTable("feedback_entries", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),

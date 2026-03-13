@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, favouriteMeals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type FavouriteMeal } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, ilike } from "drizzle-orm";
 
@@ -81,6 +81,11 @@ export interface IStorage {
   // AI insights cache
   getAiInsightsCache(userId: number, cacheKey: string): Promise<AiInsightsCache | undefined>;
   upsertAiInsightsCache(userId: number, cacheKey: string, narrativeJson: object, expiresAt: Date): Promise<void>;
+
+  // Favourite meals
+  getFavouriteMeals(userId: number): Promise<FavouriteMeal[]>;
+  addFavouriteMeal(entry: { userId: number; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null }): Promise<FavouriteMeal>;
+  removeFavouriteMeal(id: number, userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -398,6 +403,22 @@ export class DatabaseStorage implements IStorage {
         target: [aiInsightsCache.userId, aiInsightsCache.cacheKey],
         set: { narrativeJson, expiresAt, createdAt: new Date() },
       });
+  }
+
+  async getFavouriteMeals(userId: number): Promise<FavouriteMeal[]> {
+    return await db.select().from(favouriteMeals)
+      .where(eq(favouriteMeals.userId, userId))
+      .orderBy(desc(favouriteMeals.createdAt));
+  }
+
+  async addFavouriteMeal(entry: { userId: number; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null }): Promise<FavouriteMeal> {
+    const [created] = await db.insert(favouriteMeals).values(entry).returning();
+    return created;
+  }
+
+  async removeFavouriteMeal(id: number, userId: number): Promise<void> {
+    await db.delete(favouriteMeals)
+      .where(and(eq(favouriteMeals.id, id), eq(favouriteMeals.userId, userId)));
   }
 }
 

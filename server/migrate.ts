@@ -63,6 +63,20 @@ export async function runMigrations(): Promise<void> {
       )
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS favourite_meals (
+        id         SERIAL PRIMARY KEY,
+        user_id    INTEGER NOT NULL REFERENCES users(id),
+        meal_name  TEXT NOT NULL,
+        calories   INTEGER NOT NULL,
+        protein    INTEGER NOT NULL,
+        carbs      INTEGER NOT NULL,
+        fat        INTEGER NOT NULL,
+        meal_slot  TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
   } finally {
     client.release();

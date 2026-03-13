@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Plus, Trash2, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, BookOpen, UtensilsCrossed,
-  Coffee, Salad, Moon, Apple, Search, X, Check, Barcode, ExternalLink, Camera, Sparkles, Send,
+  Coffee, Salad, Moon, Apple, Search, X, Check, Barcode, ExternalLink, Camera, Sparkles, Send, Star,
 } from "lucide-react";
 import type { SavedMealPlan, UserRecipe } from "@shared/schema";
 import { RECIPES } from "@/components/results-display";
@@ -588,6 +588,11 @@ export function FoodLog({
   });
   const labelScanAvailable = labelScanAvailability?.available ?? false;
 
+  const { data: favourites = [] } = useQuery<{ id: number; mealName: string }[]>({
+    queryKey: ["/api/favourites"],
+  });
+  const favouriteNames = new Set(favourites.map(f => f.mealName));
+
   // ── Mutations ─────────────────────────────────────────────────────────────
 
   const addMutation = useMutation({
@@ -632,6 +637,16 @@ export function FoodLog({
       toast({ title: "Meal confirmed" });
     },
     onError: () => toast({ title: "Failed to confirm", variant: "destructive" }),
+  });
+
+  const starMutation = useMutation({
+    mutationFn: (entry: { mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null }) =>
+      apiRequest("POST", "/api/favourites", entry).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/favourites"] });
+      toast({ title: "Saved to favourites" });
+    },
+    onError: () => toast({ title: "Failed to save favourite", variant: "destructive" }),
   });
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -2297,6 +2312,24 @@ export function FoodLog({
                         title="Confirm this meal"
                       >
                         <Check className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {!isPlanned && !favouriteNames.has(entry.mealName) && (
+                      <button
+                        onClick={() => starMutation.mutate({
+                          mealName: entry.mealName,
+                          calories: entry.calories,
+                          protein: entry.protein,
+                          carbs: entry.carbs,
+                          fat: entry.fat,
+                          mealSlot: entry.mealSlot ?? null,
+                        })}
+                        disabled={starMutation.isPending}
+                        className="p-1.5 text-zinc-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors shrink-0"
+                        data-testid={`button-star-log-${entry.id}`}
+                        title="Save to favourites"
+                      >
+                        <Star className="w-3.5 h-3.5" />
                       </button>
                     )}
                     <button
