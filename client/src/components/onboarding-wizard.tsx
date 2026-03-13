@@ -6,7 +6,7 @@ import { useCreateCalculation } from "@/hooks/use-calculations";
 import type { UserPreferences } from "@shared/schema";
 import {
   X, ChevronRight, ChevronLeft, Loader2,
-  Target, TrendingDown, Dumbbell, Flame,
+  Target, TrendingDown, Dumbbell, Flame, Moon,
 } from "lucide-react";
 
 type Goal = "lose" | "maintain" | "muscle";
@@ -60,6 +60,10 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
   const [macros, setMacros] = useState<MacroPreview | null>(null);
   const [macrosLoading, setMacrosLoading] = useState(false);
 
+  const [cycleOptIn, setCycleOptIn] = useState<boolean | null>(null);
+  const [lastPeriodDate, setLastPeriodDate] = useState("");
+  const [cycleLength, setCycleLength] = useState(28);
+
   const createCalc = useCreateCalculation();
   const queryClient = useQueryClient();
 
@@ -87,15 +91,29 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
     return () => { cancelled = true; };
   }, [goal, weightKg, heightCm, parsedAge, sex, biometricsValid]);
 
+  useEffect(() => {
+    if (sex === "male") {
+      setCycleOptIn(null);
+      setLastPeriodDate("");
+      setCycleLength(28);
+      setStep(s => s === 4 ? 3 : s);
+    }
+  }, [sex]);
+
+  const isFemale = sex === "female";
+  const totalSteps = isFemale ? 5 : 4;
+  const lastStep = totalSteps - 1;
+
   const canAdvance = [
     goal !== null,
     biometricsValid,
     true,
     macros !== null,
+    cycleOptIn === null ? false : !cycleOptIn || lastPeriodDate !== "",
   ];
 
   function goNext() {
-    if (step < 3) {
+    if (step < lastStep) {
       setDirection(1);
       setStep(s => s + 1);
     }
@@ -134,11 +152,19 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
       const allergies = selectedChips.map(c => DIET_TO_PREF[c]?.allergy).filter(Boolean) as string[];
       const dietValue = diets[0] ?? null;
 
+      const cyclePrefs = isFemale
+        ? {
+            cycleTrackingEnabled: cycleOptIn === true,
+            ...(cycleOptIn && lastPeriodDate ? { lastPeriodDate, cycleLength } : {}),
+          }
+        : {};
+
       await apiRequest("PUT", "/api/user/preferences", {
         ...userPrefs,
         diet: dietValue,
         allergies,
         onboardingComplete: true,
+        ...cyclePrefs,
       });
 
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
@@ -147,14 +173,29 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
       setSaving(false);
       setSaveError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     }
-  }, [macros, goal, selectedChips, userPrefs, weightKg, heightCm, parsedAge, sex, createCalc, queryClient, onComplete]);
+  }, [macros, goal, selectedChips, userPrefs, weightKg, heightCm, parsedAge, sex, isFemale, cycleOptIn, lastPeriodDate, cycleLength, createCalc, queryClient, onComplete]);
 
-  const stepContent = [
+  const baseSteps = [
     <StepGoal key="goal" goal={goal} setGoal={setGoal} />,
     <StepAboutYou key="about" age={age} setAge={setAge} sex={sex} setSex={setSex} heightCm={heightCm} setHeightCm={setHeightCm} weightKg={weightKg} setWeightKg={setWeightKg} />,
     <StepDiet key="diet" selectedChips={selectedChips} toggleChip={toggleChip} />,
     <StepSummary key="summary" macros={macros} goal={goal} loading={macrosLoading} />,
   ];
+
+  const stepContent = isFemale
+    ? [
+        ...baseSteps,
+        <StepCycle
+          key="cycle"
+          optIn={cycleOptIn}
+          setOptIn={setCycleOptIn}
+          lastPeriodDate={lastPeriodDate}
+          setLastPeriodDate={setLastPeriodDate}
+          cycleLength={cycleLength}
+          setCycleLength={setCycleLength}
+        />,
+      ]
+    : baseSteps;
 
   return (
     <motion.div
@@ -194,7 +235,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
 
         <div className="p-8 pt-6">
           <div className="flex items-center justify-center gap-1.5 mb-5">
-            {[0, 1, 2, 3].map(i => (
+            {Array.from({ length: totalSteps }).map((_, i) => (
               <div
                 key={i}
                 className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -215,7 +256,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
                 Back
               </button>
             )}
-            {step < 3 ? (
+            {step < lastStep ? (
               <button
                 onClick={goNext}
                 disabled={!canAdvance[step]}
@@ -449,6 +490,102 @@ function StepSummary({ macros, goal, loading }: { macros: MacroPreview | null; g
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StepCycle({
+  optIn, setOptIn, lastPeriodDate, setLastPeriodDate, cycleLength, setCycleLength,
+}: {
+  optIn: boolean | null;
+  setOptIn: (v: boolean) => void;
+  lastPeriodDate: string;
+  setLastPeriodDate: (v: string) => void;
+  cycleLength: number;
+  setCycleLength: (v: number) => void;
+}) {
+  const today = new Date().toISOString().split("T")[0];
+
+  return (
+    <div className="text-center">
+      <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <Moon className="w-6 h-6 text-purple-600" />
+      </div>
+      <h2 className="text-xl font-display font-bold text-zinc-900 mb-1" data-testid="wizard-step-title">
+        Cycle-aware nutrition
+      </h2>
+      <p className="text-sm text-zinc-400 mb-6">
+        We can tailor your daily meal suggestions and tips to your cycle phase — follicular, ovulatory, luteal, and menstrual.
+      </p>
+
+      <div className="flex gap-3 mb-5">
+        <button
+          onClick={() => setOptIn(true)}
+          data-testid="wizard-cycle-yes"
+          className={`flex-1 py-3 rounded-2xl text-sm font-medium border-2 transition-all ${
+            optIn === true
+              ? "border-purple-600 bg-purple-50 text-purple-700"
+              : "border-zinc-200 text-zinc-600 hover:border-zinc-300"
+          }`}
+        >
+          Yes, enable it
+        </button>
+        <button
+          onClick={() => setOptIn(false)}
+          data-testid="wizard-cycle-no"
+          className={`flex-1 py-3 rounded-2xl text-sm font-medium border-2 transition-all ${
+            optIn === false
+              ? "border-zinc-900 bg-zinc-50 text-zinc-900"
+              : "border-zinc-200 text-zinc-600 hover:border-zinc-300"
+          }`}
+        >
+          Maybe later
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {optIn === true && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden space-y-4 text-left"
+          >
+            <div>
+              <label className="block text-xs font-medium text-zinc-500 mb-1">
+                When did your last period start?
+              </label>
+              <input
+                type="date"
+                max={today}
+                value={lastPeriodDate}
+                onChange={e => setLastPeriodDate(e.target.value)}
+                className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                data-testid="wizard-cycle-period-date"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-500 mb-1">
+                Average cycle length: <span className="text-zinc-900 font-semibold">{cycleLength} days</span>
+              </label>
+              <input
+                type="range"
+                min={21}
+                max={35}
+                value={cycleLength}
+                onChange={e => setCycleLength(parseInt(e.target.value))}
+                className="w-full accent-purple-600"
+                data-testid="wizard-cycle-length"
+              />
+              <div className="flex justify-between text-xs text-zinc-400 mt-1">
+                <span>21 days</span>
+                <span>35 days</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
