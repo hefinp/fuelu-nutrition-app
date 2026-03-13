@@ -697,7 +697,7 @@ export async function registerRoutes(
       await storage.updateUserPreferences(user.id, initialPrefs);
       req.session.userId = user.id;
       const { passwordHash: _, ...publicUser } = user;
-      res.status(201).json(publicUser);
+      req.session.save(() => res.status(201).json(publicUser));
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
@@ -723,7 +723,7 @@ export async function registerRoutes(
       }
       req.session.userId = user.id;
       const { passwordHash: _, ...publicUser } = user;
-      res.status(200).json(publicUser);
+      req.session.save(() => res.status(200).json(publicUser));
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
