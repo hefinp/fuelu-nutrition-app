@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { ArrowRight, Zap, BarChart3, CalendarDays, ShoppingCart, ChefHat, Filter, FileDown, Check, Salad, Star } from "lucide-react";
+import { ArrowRight, Zap, BarChart3, CalendarDays, ShoppingCart, ChefHat, Filter, FileDown, Check, Salad, Star, ScanLine, Brain, HeartPulse, Mail } from "lucide-react";
 
 const features = [
   {
@@ -11,24 +11,24 @@ const features = [
   {
     icon: Filter,
     title: "Allergy & Preference Filtering",
-    description: "Exclude allergens, flag disliked foods, and highlight your favourites — every meal respects your choices.",
-  },
-  {
-    icon: CalendarDays,
-    title: "Daily & Weekly Plans",
-    description: "Generate complete meal plans with full macro breakdowns, recipes, and micronutrient scoring.",
+    description: "Exclude allergens, flag disliked foods, and highlight your favourites — every meal respects your dietary choices.",
   },
   {
     icon: FileDown,
-    title: "PDF Export & Shopping Lists",
-    description: "Download your plan or shopping list as a print-ready PDF, scaled to however many days you're prepping.",
+    title: "PDF Export & Email Delivery",
+    description: "Download your plan or shopping list as a print-ready PDF, or email the full breakdown straight to your inbox.",
+  },
+  {
+    icon: ScanLine,
+    title: "Barcode & AI Food Scanning",
+    description: "Scan barcodes or snap a photo — our AI reads nutrition labels and recognises foods to log macros instantly.",
   },
 ];
 
 const highlights = [
-  { icon: Salad, label: "Simple", desc: "Quick & wholesome" },
-  { icon: ChefHat, label: "Gourmet", desc: "Restaurant-quality" },
-  { icon: Star, label: "Michelin", desc: "Chef-level dining" },
+  { icon: Brain, label: "AI Meal Plans", desc: "Three tiers of personalised plans" },
+  { icon: ScanLine, label: "Smart Scanning", desc: "Barcode + AI food recognition" },
+  { icon: HeartPulse, label: "Cycle-Aware", desc: "Nutrition adapts to your cycle" },
 ];
 
 const goals = [
@@ -95,13 +95,13 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
           </div>
 
           <h1 className="font-display font-bold text-5xl sm:text-6xl tracking-tight text-zinc-900 leading-tight mb-6">
-            Meal plans that match
+            Simple. Gourmet. Michelin.
             <br />
-            <span className="text-zinc-400">how you eat.</span>
+            <span className="text-zinc-400">Your macros, your style.</span>
           </h1>
 
           <p className="text-lg text-zinc-500 max-w-xl mx-auto mb-6 leading-relaxed">
-            NutriSync builds personalised daily and weekly meal plans around your exact calorie targets — then gets out of your way.
+            Pick a cooking tier, set your calorie targets, and NutriSync builds personalised meal plans that actually fit how you eat — with AI scanning, cycle-aware nutrition, and one-click exports.
           </p>
 
           <ul className="inline-flex flex-col gap-2 text-sm text-zinc-600 text-left mb-10 mx-auto">
@@ -115,13 +115,13 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
               <span className="w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center flex-shrink-0">
                 <Check className="w-3 h-3 text-white" strokeWidth={3} />
               </span>
-              Allergy &amp; preference filtering — diets, exclusions, disliked meals
+              Barcode scanning &amp; AI food recognition — log meals in seconds
             </li>
             <li className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center flex-shrink-0">
                 <Check className="w-3 h-3 text-white" strokeWidth={3} />
               </span>
-              PDF export &amp; shopping lists — print-ready in one click
+              PDF export, email delivery &amp; smart shopping lists
             </li>
           </ul>
 
@@ -156,10 +156,10 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
             )}
           </div>
 
-          {/* Meal-tier highlights */}
-          <div className="grid grid-cols-3 gap-3 max-w-md mx-auto mt-12">
+          {/* Feature highlights */}
+          <div className="grid grid-cols-3 gap-3 max-w-lg mx-auto mt-12">
             {highlights.map(h => (
-              <div key={h.label} className="bg-zinc-50 border border-zinc-100 rounded-2xl p-4 text-center">
+              <div key={h.label} className="bg-zinc-50 border border-zinc-100 rounded-2xl p-4 text-center" data-testid={`highlight-${h.label.toLowerCase().replace(/\s+/g, "-")}`}>
                 <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center mx-auto mb-2">
                   <h.icon className="w-5 h-5 text-white" />
                 </div>
