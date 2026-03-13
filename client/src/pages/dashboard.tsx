@@ -362,7 +362,7 @@ export default function Dashboard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/30 z-40"
+              className="fixed inset-0 bg-black/30 z-[55]"
               onClick={() => setShowMetricsPanel(false)}
             />
             <motion.div
@@ -370,7 +370,7 @@ export default function Dashboard() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="fixed right-0 top-0 h-full w-full max-w-lg bg-white z-50 shadow-2xl flex flex-col"
+              className="fixed right-0 top-0 h-full w-full max-w-lg bg-white z-[60] shadow-2xl flex flex-col"
             >
               <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-zinc-100">
                 <div className="flex items-center gap-2">
