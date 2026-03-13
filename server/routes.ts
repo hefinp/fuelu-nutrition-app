@@ -845,7 +845,7 @@ export async function registerRoutes(
     const prefs = (user?.preferences as UserPreferences | null) ?? defaults;
     if (prefs.onboardingComplete === undefined) {
       prefs.onboardingComplete = true;
-      storage.updateUserPreferences(req.session.userId, prefs);
+      await storage.updateUserPreferences(req.session.userId, prefs);
     }
     res.json(prefs);
   });
