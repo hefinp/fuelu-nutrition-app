@@ -984,7 +984,7 @@ export function FoodLog({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-6">
+    <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
 
       {/* ── Header row 1 ──────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 mb-3">

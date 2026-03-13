@@ -163,7 +163,7 @@ export function WeightTracker({
   const weekAvg = daysLogged > 0 ? Math.round(weekTotal / daysLogged) : 0;
 
   return (
-    <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-6">
+    <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">

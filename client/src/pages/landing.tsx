@@ -94,7 +94,7 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
             Free nutrition planning — no credit card needed
           </div>
 
-          <h1 className="font-display font-bold text-5xl sm:text-6xl tracking-tight text-zinc-900 leading-tight mb-6">
+          <h1 className="font-display font-bold text-4xl sm:text-5xl md:text-6xl tracking-tight text-zinc-900 leading-tight mb-6">
             Simple. Gourmet. Michelin.
             <br />
             <span className="text-zinc-400">Your macros, your style.</span>
@@ -157,9 +157,9 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
           </div>
 
           {/* Feature highlights */}
-          <div className="grid grid-cols-3 gap-3 max-w-lg mx-auto mt-12">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 max-w-lg mx-auto mt-12">
             {highlights.map(h => (
-              <div key={h.label} className="bg-zinc-50 border border-zinc-100 rounded-2xl p-4 text-center" data-testid={`highlight-${h.label.toLowerCase().replace(/\s+/g, "-")}`}>
+              <div key={h.label} className="bg-zinc-50 border border-zinc-100 rounded-2xl p-3 sm:p-4 text-center" data-testid={`highlight-${h.label.toLowerCase().replace(/\s+/g, "-")}`}>
                 <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center mx-auto mb-2">
                   <h.icon className="w-5 h-5 text-white" />
                 </div>

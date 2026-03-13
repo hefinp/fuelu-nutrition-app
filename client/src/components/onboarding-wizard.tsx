@@ -178,7 +178,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
           <X className="w-4 h-4" />
         </button>
 
-        <div className="p-8 pb-0 min-h-[280px]">
+        <div className="p-5 sm:p-8 pb-0 min-h-[280px]">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={step}
@@ -192,7 +192,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
           </AnimatePresence>
         </div>
 
-        <div className="p-8 pt-6">
+        <div className="p-5 sm:p-8 pt-5 sm:pt-6">
           <div className="flex items-center justify-center gap-1.5 mb-5">
             {[0, 1, 2, 3].map(i => (
               <div

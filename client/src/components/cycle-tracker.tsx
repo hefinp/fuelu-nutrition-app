@@ -63,7 +63,7 @@ export function CycleTracker() {
   return (
     <div id="cycle-tracker-widget" className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="px-6 pt-6 pb-4 border-b border-zinc-50">
+      <div className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4 border-b border-zinc-50">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-zinc-100 rounded-xl flex items-center justify-center">
             <Circle className="w-4 h-4 text-zinc-500" />
@@ -75,7 +75,7 @@ export function CycleTracker() {
         </div>
       </div>
 
-      <div className="p-6 space-y-5">
+      <div className="p-4 sm:p-6 space-y-5">
         {cycleInfo ? (
           <>
             {/* Phase display */}

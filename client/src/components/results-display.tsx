@@ -1767,7 +1767,7 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
       className="space-y-6"
     >
       {/* Nutrition Distribution */}
-      <motion.div variants={itemVariants} className="bg-zinc-900 text-white p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+      <motion.div variants={itemVariants} className="bg-zinc-900 text-white p-5 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
         {/* Abstract background flair */}
         <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl" />
 
@@ -2016,7 +2016,7 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
   });
 
   return (
-    <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-6">
+    <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
       {/* Card header */}
       <div className="flex items-center gap-2 mb-6">
         <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">

@@ -42,7 +42,7 @@ import {
 import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2,
-  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked,
+  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, Home,
 } from "lucide-react";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
 
@@ -217,14 +217,16 @@ export default function Dashboard() {
         return user ? <RecipeLibrary /> : null;
       case "food-log":
         return user ? (
-          <FoodLog
-            dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
-            dailyProteinTarget={activeResult?.proteinGoal ?? undefined}
-            dailyCarbsTarget={activeResult?.carbsGoal ?? undefined}
-            dailyFatTarget={activeResult?.fatGoal ?? undefined}
-            prefill={logPrefill}
-            onPrefillConsumed={handlePrefillConsumed}
-          />
+          <div id="food-log-section">
+            <FoodLog
+              dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
+              dailyProteinTarget={activeResult?.proteinGoal ?? undefined}
+              dailyCarbsTarget={activeResult?.carbsGoal ?? undefined}
+              dailyFatTarget={activeResult?.fatGoal ?? undefined}
+              prefill={logPrefill}
+              onPrefillConsumed={handlePrefillConsumed}
+            />
+          </div>
         ) : null;
       case "meal-plan":
         return <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} />;
@@ -259,7 +261,7 @@ export default function Dashboard() {
   const visibleMobileOrder = widgetOrder.filter(id => renderWidget(id) !== null);
 
   return (
-    <div className="min-h-screen bg-zinc-50/50 pb-20">
+    <div className="min-h-screen bg-zinc-50/50 pb-36 sm:pb-20">
       {/* Header */}
       <header className="bg-white border-b border-zinc-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -581,7 +583,7 @@ export default function Dashboard() {
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden mb-8"
             >
-              <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-6">
+              <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
                 <div className="flex items-center gap-2 mb-5">
                   <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
                     <BookOpen className="w-5 h-5" />
@@ -614,7 +616,7 @@ export default function Dashboard() {
               exit={{ opacity: 0 }}
               className="flex flex-col items-center justify-center min-h-[500px] text-center"
             >
-              <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-12 max-w-md w-full">
+              <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 sm:p-12 max-w-md w-full">
                 <div className="w-16 h-16 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
                   <SlidersHorizontal className="w-7 h-7 text-zinc-400" />
                 </div>
@@ -808,7 +810,7 @@ export default function Dashboard() {
         )}
       </main>
 
-      <footer className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 mt-4 border-t border-zinc-100">
+      <footer className="hidden sm:block max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 mt-4 border-t border-zinc-100">
         <div className="flex items-center justify-between">
           <span className="text-xs text-zinc-400">&copy; 2026 NutriSync</span>
           <div className="flex items-center gap-4">
@@ -817,6 +819,71 @@ export default function Dashboard() {
           </div>
         </div>
       </footer>
+
+      {/* ── Mobile bottom navigation bar ─────────────────────────────────── */}
+      {user && (
+        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-zinc-100 safe-area-inset-bottom" data-testid="mobile-bottom-nav">
+          <div className="flex items-stretch h-16">
+            {[
+              {
+                id: "home",
+                icon: Home,
+                label: "Home",
+                active: !showSavedPlans && !showMetricsPanel,
+                action: () => {
+                  setShowSavedPlans(false);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                },
+              },
+              {
+                id: "food-log",
+                icon: ClipboardList,
+                label: "Food Log",
+                active: false,
+                action: () => {
+                  setShowSavedPlans(false);
+                  setTimeout(() => {
+                    const el = document.getElementById("food-log-section");
+                    if (el) {
+                      const top = el.getBoundingClientRect().top + window.scrollY - 80;
+                      window.scrollTo({ top, behavior: "smooth" });
+                    }
+                  }, 50);
+                },
+              },
+              {
+                id: "plans",
+                icon: BookOpen,
+                label: "My Plans",
+                active: showSavedPlans,
+                action: () => setShowSavedPlans(v => !v),
+              },
+              {
+                id: "settings",
+                icon: Settings,
+                label: "Settings",
+                active: showMetricsPanel,
+                action: handleOpenMetrics,
+              },
+            ].map(item => (
+              <button
+                key={item.id}
+                onClick={item.action}
+                data-testid={`mobile-nav-${item.id}`}
+                className={`relative flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${item.active ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"}`}
+              >
+                <item.icon className={`w-5 h-5 ${item.active ? "stroke-[2.5]" : "stroke-[1.75]"}`} />
+                <span className={`text-[10px] font-medium ${item.active ? "text-zinc-900" : "text-zinc-400"}`}>
+                  {item.label}
+                </span>
+                {item.active && (
+                  <span className="absolute bottom-1.5 w-1 h-1 rounded-full bg-zinc-900" />
+                )}
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
 
       <FeedbackWidget />
 
