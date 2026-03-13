@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type UserPreferences, type HydrationLog } from "@shared/schema";
+import { getCyclePhase } from "@/lib/cycle";
 import { Droplets, Trash2, Loader2, X } from "lucide-react";
 
 const GLASS_ML = 250;
@@ -57,8 +58,15 @@ export function HydrationTracker() {
     queryKey: ["/api/user/preferences"],
   });
 
-  const goalMl = prefs?.hydrationGoalMl ?? 2000;
+  const baseGoalMl = prefs?.hydrationGoalMl ?? 2000;
   const unit: "ml" | "glasses" = prefs?.hydrationUnit ?? "ml";
+
+  const cyclePhaseInfo = (prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate)
+    ? getCyclePhase(prefs.lastPeriodDate, prefs.cycleLength ?? 28)
+    : null;
+  const cycleHydrationBoost = (cyclePhaseInfo?.phase === "menstrual" || cyclePhaseInfo?.phase === "luteal") ? 250 : 0;
+  const goalMl = baseGoalMl + cycleHydrationBoost;
+
   const goalDisplay = unit === "glasses"
     ? `${Math.round(goalMl / GLASS_ML)} glasses`
     : toDisplayAmount(goalMl, "ml");
@@ -123,7 +131,14 @@ export function HydrationTracker() {
           </div>
           <div>
             <h2 className="text-lg font-bold text-zinc-900">Hydration</h2>
-            <p className="text-xs text-zinc-500">Goal: {goalDisplay} per day</p>
+            <p className="text-xs text-zinc-500">
+              Goal: {goalDisplay} per day
+              {cycleHydrationBoost > 0 && (
+                <span className="ml-1.5 text-rose-500 font-medium">
+                  (+250ml for your cycle phase)
+                </span>
+              )}
+            </p>
           </div>
         </div>
         <span className="text-xs font-medium text-zinc-400">

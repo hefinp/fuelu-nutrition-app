@@ -1604,6 +1604,41 @@ Write 1-2 sentences analysing their trend: rate of change, whether they're on tr
     res.status(204).send();
   });
 
+  // ── Cycle symptoms ─────────────────────────────────────────────────────────
+  app.get("/api/cycle/symptoms", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const { from, to } = z.object({
+        from: z.string().min(1),
+        to: z.string().min(1),
+      }).parse(req.query);
+      const symptoms = await storage.getCycleSymptoms(req.session.userId, from, to);
+      res.json(symptoms);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  });
+
+  app.post("/api/cycle/symptoms", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const body = z.object({
+        date: z.string().min(1),
+        energy: z.enum(["low", "medium", "high"]).nullable().optional(),
+        bloating: z.enum(["none", "mild", "severe"]).nullable().optional(),
+        cravings: z.enum(["none", "sweet", "salty", "both"]).nullable().optional(),
+        mood: z.enum(["balanced", "anxious", "low"]).nullable().optional(),
+        appetite: z.enum(["low", "normal", "high"]).nullable().optional(),
+      }).parse(req.body);
+      const symptom = await storage.upsertCycleSymptom({ ...body, userId: req.session.userId });
+      res.status(201).json(symptom);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  });
+
   // ── Password reset ────────────────────────────────────────────────────────
 
   app.post("/api/auth/forgot-password", async (req, res) => {

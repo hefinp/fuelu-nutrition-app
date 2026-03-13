@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Circle, CalendarDays, Info, Lightbulb, Loader2, ChevronDown, ChevronUp } from "lucide-react";
-import type { UserPreferences } from "@shared/schema";
-import { getCyclePhase } from "@/lib/cycle";
+import {
+  Circle, CalendarDays, Info, Lightbulb, Loader2, ChevronDown, ChevronUp,
+  Sparkles, Heart, CheckCircle2,
+} from "lucide-react";
+import type { UserPreferences, CycleSymptom } from "@shared/schema";
+import {
+  getCyclePhase, getCyclePredictions, getUpcomingPhases,
+  PHASE_NUTRITION_CALLOUTS, formatShortDate, type CyclePhase,
+} from "@/lib/cycle";
 import { apiRequest } from "@/lib/queryClient";
 
 const PHASE_EMOJI: Record<string, string> = {
@@ -13,16 +19,146 @@ const PHASE_EMOJI: Record<string, string> = {
   luteal: "🌖",
 };
 
+const PHASE_STRIP_COLORS: Record<CyclePhase, { bg: string; text: string; activeBg: string }> = {
+  menstrual: { bg: "bg-rose-100", text: "text-rose-600", activeBg: "bg-rose-500" },
+  follicular: { bg: "bg-emerald-100", text: "text-emerald-600", activeBg: "bg-emerald-500" },
+  ovulatory: { bg: "bg-amber-100", text: "text-amber-600", activeBg: "bg-amber-500" },
+  luteal: { bg: "bg-violet-100", text: "text-violet-600", activeBg: "bg-violet-500" },
+};
+
+const SYMPTOM_OPTIONS = {
+  energy: [
+    { value: "low", label: "Low" },
+    { value: "medium", label: "Med" },
+    { value: "high", label: "High" },
+  ],
+  bloating: [
+    { value: "none", label: "None" },
+    { value: "mild", label: "Mild" },
+    { value: "severe", label: "Severe" },
+  ],
+  cravings: [
+    { value: "none", label: "None" },
+    { value: "sweet", label: "Sweet" },
+    { value: "salty", label: "Salty" },
+    { value: "both", label: "Both" },
+  ],
+  mood: [
+    { value: "balanced", label: "Balanced" },
+    { value: "anxious", label: "Anxious" },
+    { value: "low", label: "Low" },
+  ],
+  appetite: [
+    { value: "low", label: "Low" },
+    { value: "normal", label: "Normal" },
+    { value: "high", label: "High" },
+  ],
+} as const;
+
+const SYMPTOM_LABELS: Record<string, string> = {
+  energy: "Energy",
+  bloating: "Bloating",
+  cravings: "Cravings",
+  mood: "Mood",
+  appetite: "Appetite",
+};
+
+type SymptomField = keyof typeof SYMPTOM_OPTIONS;
+type SymptomRecord = { [K in SymptomField]: string | null };
+
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function nDaysAgoStr(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function formatHistoryDate(dateStr: string): string {
+  const today = todayStr();
+  const yesterday = nDaysAgoStr(1);
+  if (dateStr === today) return "Today";
+  if (dateStr === yesterday) return "Yesterday";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+function symptomSummary(s: SymptomRecord | CycleSymptom): string {
+  const parts: string[] = [];
+  if (s.energy) parts.push(`Energy: ${s.energy}`);
+  if (s.bloating && s.bloating !== "none") parts.push(`Bloating: ${s.bloating}`);
+  if (s.cravings && s.cravings !== "none") {
+    parts.push(s.cravings === "both" ? "Sweet & salty cravings" : `${s.cravings} cravings`);
+  }
+  if (s.mood && s.mood !== "balanced") parts.push(`Mood: ${s.mood}`);
+  if (s.appetite && s.appetite !== "normal") parts.push(`Appetite: ${s.appetite}`);
+  return parts.join(" · ");
+}
+
+function hasAnySymptom(s: CycleSymptom): boolean {
+  return !!(s.energy || s.bloating || s.cravings || s.mood || s.appetite);
+}
+
 export function CycleTracker() {
   const queryClient = useQueryClient();
+
+  const today = todayStr();
+  const sevenDaysAgo = nDaysAgoStr(6);
 
   const { data: prefs } = useQuery<UserPreferences>({
     queryKey: ["/api/user/preferences"],
   });
 
-  const [localDate, setLocalDate] = useState<string>("");
-  const [localLength, setLocalLength] = useState<string>("");
   const [tipExpanded, setTipExpanded] = useState(false);
+  const [nutritionExpanded, setNutritionExpanded] = useState(false);
+  const [symptomExpanded, setSymptomExpanded] = useState(false);
+  const [localSymptoms, setLocalSymptoms] = useState<SymptomRecord>({
+    energy: null, bloating: null, cravings: null, mood: null, appetite: null,
+  });
+  const [symptomsInitialized, setSymptomsInitialized] = useState(false);
+
+  const lastPeriodDate = prefs?.lastPeriodDate ?? "";
+  const cycleLength = prefs?.cycleLength ?? 28;
+  const periodLength = prefs?.periodLength ?? 5;
+
+  const cycleInfo = lastPeriodDate ? getCyclePhase(lastPeriodDate, cycleLength) : null;
+  const predictions = lastPeriodDate ? getCyclePredictions(lastPeriodDate, cycleLength) : null;
+  const upcomingPhases = lastPeriodDate
+    ? getUpcomingPhases(lastPeriodDate, cycleLength, periodLength, 21)
+    : [];
+
+  const { data: tipData, isLoading: tipLoading } = useQuery<{ tip: string }>({
+    queryKey: ["/api/cycle/daily-tip", cycleInfo?.phase, today],
+    queryFn: () => fetch(`/api/cycle/daily-tip?phase=${cycleInfo!.phase}`).then(r => r.json()),
+    enabled: !!cycleInfo?.phase && tipExpanded,
+    staleTime: 1000 * 60 * 60 * 12,
+  });
+
+  const { data: symptomsData } = useQuery<CycleSymptom[]>({
+    queryKey: ["/api/cycle/symptoms", sevenDaysAgo, today],
+    queryFn: () =>
+      apiRequest("GET", `/api/cycle/symptoms?from=${sevenDaysAgo}&to=${today}`)
+        .then(r => r.json()) as Promise<CycleSymptom[]>,
+    enabled: !!cycleInfo,
+  });
+
+  useEffect(() => {
+    if (!symptomsData || symptomsInitialized) return;
+    const todayEntry = symptomsData.find(s => s.date === today);
+    if (todayEntry) {
+      setLocalSymptoms({
+        energy: todayEntry.energy ?? null,
+        bloating: todayEntry.bloating ?? null,
+        cravings: todayEntry.cravings ?? null,
+        mood: todayEntry.mood ?? null,
+        appetite: todayEntry.appetite ?? null,
+      });
+    }
+    setSymptomsInitialized(true);
+  }, [symptomsData, symptomsInitialized, today]);
 
   const updatePrefsMutation = useMutation({
     mutationFn: (updates: Partial<UserPreferences>) =>
@@ -30,23 +166,16 @@ export function CycleTracker() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }),
   });
 
-  const lastPeriodDate = prefs?.lastPeriodDate ?? "";
-  const cycleLength = prefs?.cycleLength ?? 28;
-
-  const cycleInfo = lastPeriodDate ? getCyclePhase(lastPeriodDate, cycleLength) : null;
-
-  const today = new Date().toISOString().split("T")[0];
-  const { data: tipData, isLoading: tipLoading } = useQuery<{ tip: string }>({
-    queryKey: ["/api/cycle/daily-tip", cycleInfo?.phase, today],
-    queryFn: () =>
-      fetch(`/api/cycle/daily-tip?phase=${cycleInfo!.phase}`)
-        .then(r => r.json()),
-    enabled: !!cycleInfo?.phase && tipExpanded,
-    staleTime: 1000 * 60 * 60 * 12,
+  const symptomMutation = useMutation({
+    mutationFn: (body: SymptomRecord & { date: string }) =>
+      apiRequest("POST", "/api/cycle/symptoms", body).then(r => r.json()),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["/api/cycle/symptoms", sevenDaysAgo, today] }),
   });
 
   function handleDateBlur(value: string) {
     if (value && value !== lastPeriodDate) {
+      setSymptomsInitialized(false);
       updatePrefsMutation.mutate({ lastPeriodDate: value });
     }
   }
@@ -58,7 +187,23 @@ export function CycleTracker() {
     }
   }
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  function handlePeriodLengthBlur(value: string) {
+    const n = parseInt(value, 10);
+    if (!isNaN(n) && n >= 2 && n <= 8 && n !== periodLength) {
+      updatePrefsMutation.mutate({ periodLength: n });
+    }
+  }
+
+  function handleSymptomChange(field: SymptomField, value: string | null) {
+    const updated = { ...localSymptoms, [field]: value };
+    setLocalSymptoms(updated);
+    symptomMutation.mutate({ date: today, ...updated });
+  }
+
+  const todaySummary = symptomSummary(localSymptoms);
+  const historyEntries = (symptomsData ?? [])
+    .filter(s => s.date !== today && hasAnySymptom(s))
+    .slice(0, 6);
 
   return (
     <div id="cycle-tracker-widget" className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
@@ -78,7 +223,7 @@ export function CycleTracker() {
       <div className="p-4 sm:p-6 space-y-5">
         {cycleInfo ? (
           <>
-            {/* Phase display */}
+            {/* Phase display card */}
             <motion.div
               key={cycleInfo.phase}
               initial={{ opacity: 0, y: 4 }}
@@ -99,39 +244,126 @@ export function CycleTracker() {
                   {cycleInfo.shortTip}
                 </span>
               </div>
-
               <div className={`mt-3 pt-3 border-t ${cycleInfo.borderClass} flex items-start gap-2`}>
                 <Info className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${cycleInfo.colorClass}`} />
                 <p className="text-xs text-zinc-600 leading-relaxed">{cycleInfo.tip}</p>
               </div>
             </motion.div>
 
-            {/* Cycle progress bar */}
-            <div>
-              <div className="flex justify-between text-xs text-zinc-400 mb-1.5">
-                <span>Day 1</span>
-                <span>Day {cycleLength}</span>
+            {/* Predictions row */}
+            {predictions && (
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-zinc-50 rounded-xl p-2.5 text-center">
+                  <p className="text-[10px] text-zinc-400 uppercase tracking-wide font-medium">Next period</p>
+                  <p className="text-sm font-semibold text-zinc-900 mt-1">
+                    {formatShortDate(predictions.nextPeriodDate)}
+                  </p>
+                  <p className="text-[10px] text-zinc-500 mt-0.5">
+                    {predictions.daysUntilNextPeriod === 0
+                      ? "today"
+                      : `in ${predictions.daysUntilNextPeriod}d`}
+                  </p>
+                </div>
+                <div className="bg-zinc-50 rounded-xl p-2.5 text-center">
+                  <p className="text-[10px] text-zinc-400 uppercase tracking-wide font-medium">Ovulation</p>
+                  <p className="text-sm font-semibold text-zinc-900 mt-1">
+                    {formatShortDate(predictions.ovulationDate)}
+                  </p>
+                  <p className="text-[10px] text-zinc-500 mt-0.5">cycle day {cycleLength - 14}</p>
+                </div>
+                <div className="bg-zinc-50 rounded-xl p-2.5 text-center">
+                  <p className="text-[10px] text-zinc-400 uppercase tracking-wide font-medium">Fertile</p>
+                  <p className="text-sm font-semibold text-zinc-900 mt-1">
+                    {predictions.fertileWindowStart.getDate()}–{formatShortDate(predictions.fertileWindowEnd)}
+                  </p>
+                  <p className="text-[10px] text-zinc-500 mt-0.5">6-day window</p>
+                </div>
               </div>
-              <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    cycleInfo.phase === "menstrual" ? "bg-rose-400" :
-                    cycleInfo.phase === "follicular" ? "bg-emerald-400" :
-                    cycleInfo.phase === "ovulatory" ? "bg-amber-400" :
-                    "bg-violet-400"
-                  }`}
-                  style={{ width: `${Math.min((cycleInfo.day / cycleLength) * 100, 100)}%` }}
-                />
+            )}
+
+            {/* Phase timeline strip */}
+            {upcomingPhases.length > 0 && (
+              <div>
+                <p className="text-[10px] text-zinc-400 uppercase tracking-wide font-medium mb-2">Next 21 days</p>
+                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                  {upcomingPhases.map((dayInfo, i) => {
+                    const colors = PHASE_STRIP_COLORS[dayInfo.phase];
+                    const d = dayInfo.date;
+                    return (
+                      <div
+                        key={i}
+                        className={`flex-shrink-0 w-8 h-9 rounded-lg flex flex-col items-center justify-center transition-all ${
+                          dayInfo.isToday
+                            ? `${colors.activeBg} text-white ring-2 ring-offset-1 ring-${dayInfo.phase === "menstrual" ? "rose" : dayInfo.phase === "follicular" ? "emerald" : dayInfo.phase === "ovulatory" ? "amber" : "violet"}-400`
+                            : `${colors.bg} ${colors.text}`
+                        }`}
+                        title={`${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} — ${dayInfo.phase}`}
+                        data-testid={`phase-strip-day-${i}`}
+                      >
+                        <span className={`text-[11px] font-semibold leading-none`}>
+                          {d.getDate()}
+                        </span>
+                        {i === 0 && (
+                          <span className={`text-[8px] leading-none mt-0.5 font-medium opacity-80`}>
+                            today
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Phase legend */}
+                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                  {(["menstrual", "follicular", "ovulatory", "luteal"] as CyclePhase[]).map(phase => (
+                    <div key={phase} className="flex items-center gap-1">
+                      <div className={`w-2 h-2 rounded-sm ${PHASE_STRIP_COLORS[phase].bg} border border-zinc-200`} />
+                      <span className="text-[10px] text-zinc-400 capitalize">{phase}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex justify-between mt-1 text-xs text-zinc-300">
-                <span>Menstrual</span>
-                <span>Follicular</span>
-                <span>Ovulatory</span>
-                <span>Luteal</span>
-              </div>
+            )}
+
+            {/* Phase nutrition callout */}
+            <div className="border border-zinc-100 rounded-2xl overflow-hidden">
+              <button
+                onClick={() => setNutritionExpanded(e => !e)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 transition-colors"
+                data-testid="button-cycle-nutrition-toggle"
+              >
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-violet-500" />
+                  <span className="text-xs font-medium text-zinc-700">This phase & your nutrition</span>
+                </div>
+                {nutritionExpanded ? (
+                  <ChevronUp className="w-3.5 h-3.5 text-zinc-400" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                )}
+              </button>
+              <AnimatePresence>
+                {nutritionExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 pt-1 space-y-2">
+                      {PHASE_NUTRITION_CALLOUTS[cycleInfo.phase].map((bullet, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <CheckCircle2 className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${cycleInfo.colorClass}`} />
+                          <p className="text-xs text-zinc-600 leading-relaxed">{bullet}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
-            {/* AI daily tip card */}
+            {/* AI daily tip */}
             <div className="border border-zinc-100 rounded-2xl overflow-hidden">
               <button
                 onClick={() => setTipExpanded(e => !e)}
@@ -164,7 +396,9 @@ export function CycleTracker() {
                           Generating tip…
                         </div>
                       ) : tipData?.tip ? (
-                        <p className="text-xs text-zinc-600 leading-relaxed" data-testid="text-cycle-tip">{tipData.tip}</p>
+                        <p className="text-xs text-zinc-600 leading-relaxed" data-testid="text-cycle-tip">
+                          {tipData.tip}
+                        </p>
                       ) : (
                         <p className="text-xs text-zinc-400">Tip unavailable. Please try again later.</p>
                       )}
@@ -173,6 +407,97 @@ export function CycleTracker() {
                 )}
               </AnimatePresence>
             </div>
+
+            {/* Symptom check-in */}
+            <div className="border border-zinc-100 rounded-2xl overflow-hidden">
+              <button
+                onClick={() => setSymptomExpanded(e => !e)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 transition-colors"
+                data-testid="button-symptom-toggle"
+              >
+                <div className="flex items-center gap-2">
+                  <Heart className="w-4 h-4 text-rose-400" />
+                  <span className="text-xs font-medium text-zinc-700">How are you feeling today?</span>
+                </div>
+                {symptomExpanded ? (
+                  <ChevronUp className="w-3.5 h-3.5 text-zinc-400" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                )}
+              </button>
+
+              {!symptomExpanded && todaySummary && (
+                <div className="px-4 pb-3">
+                  <p className="text-xs text-zinc-500">{todaySummary}</p>
+                </div>
+              )}
+
+              <AnimatePresence>
+                {symptomExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 pt-1 space-y-2.5">
+                      {(Object.keys(SYMPTOM_OPTIONS) as SymptomField[]).map(field => (
+                        <div key={field} className="flex items-center gap-2">
+                          <span className="text-xs text-zinc-400 w-14 flex-shrink-0">
+                            {SYMPTOM_LABELS[field]}
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {SYMPTOM_OPTIONS[field].map(opt => {
+                              const active = localSymptoms[field] === opt.value;
+                              return (
+                                <button
+                                  key={opt.value}
+                                  onClick={() => handleSymptomChange(field, active ? null : opt.value)}
+                                  disabled={symptomMutation.isPending}
+                                  data-testid={`button-symptom-${field}-${opt.value}`}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all disabled:opacity-60 ${
+                                    active
+                                      ? "bg-zinc-900 text-white"
+                                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                                  }`}
+                                >
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                      <p className="text-[10px] text-zinc-400 pt-1">Saved automatically</p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* 7-day symptom history */}
+            {historyEntries.length > 0 && (
+              <div>
+                <p className="text-[10px] text-zinc-400 uppercase tracking-wide font-medium mb-2">
+                  Recent symptom log
+                </p>
+                <div className="space-y-1.5">
+                  {historyEntries.map(entry => (
+                    <div
+                      key={entry.id}
+                      className="flex items-start gap-2 px-3 py-2 bg-zinc-50 rounded-xl border border-zinc-100"
+                      data-testid={`symptom-history-${entry.date}`}
+                    >
+                      <span className="text-xs text-zinc-400 w-16 flex-shrink-0 pt-0.5">
+                        {formatHistoryDate(entry.date)}
+                      </span>
+                      <span className="text-xs text-zinc-600">{symptomSummary(entry)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="flex flex-col items-center text-center py-4 gap-2">
@@ -187,33 +512,45 @@ export function CycleTracker() {
         )}
 
         {/* Inputs */}
-        <div className="grid grid-cols-2 gap-3 pt-1">
+        <div className="grid grid-cols-3 gap-3 pt-1">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-zinc-500">Last period</label>
             <input
               type="date"
-              max={todayStr}
+              max={today}
               defaultValue={lastPeriodDate}
               key={lastPeriodDate}
-              onChange={e => setLocalDate(e.target.value)}
               onBlur={e => handleDateBlur(e.target.value)}
               data-testid="input-last-period-date"
-              className="w-full px-3 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-900
+              className="w-full px-2.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-900
                          focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-500">Cycle length (days)</label>
+            <label className="text-xs font-medium text-zinc-500">Cycle length</label>
             <input
               type="number"
               min={21}
               max={35}
               defaultValue={cycleLength}
               key={cycleLength}
-              onChange={e => setLocalLength(e.target.value)}
               onBlur={e => handleLengthBlur(e.target.value)}
               data-testid="input-cycle-length"
-              className="w-full px-3 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-900
+              className="w-full px-2.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-900
+                         focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-500">Period length</label>
+            <input
+              type="number"
+              min={2}
+              max={8}
+              defaultValue={periodLength}
+              key={periodLength}
+              onBlur={e => handlePeriodLengthBlur(e.target.value)}
+              data-testid="input-period-length"
+              className="w-full px-2.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-900
                          focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-400 transition-all"
             />
           </div>

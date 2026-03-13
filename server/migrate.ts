@@ -24,6 +24,21 @@ export async function runMigrations(): Promise<void> {
       );
     }
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS cycle_symptoms (
+        id          SERIAL PRIMARY KEY,
+        user_id     INTEGER NOT NULL REFERENCES users(id),
+        date        TEXT NOT NULL,
+        energy      TEXT,
+        bloating    TEXT,
+        cravings    TEXT,
+        mood        TEXT,
+        appetite    TEXT,
+        created_at  TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, date)
+      )
+    `);
+
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
   } finally {
     client.release();

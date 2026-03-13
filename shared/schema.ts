@@ -59,6 +59,7 @@ export const userPreferencesSchema = z.object({
   cycleTrackingEnabled: z.boolean().optional(),
   lastPeriodDate: z.string().optional(),
   cycleLength: z.number().int().min(21).max(35).optional(),
+  periodLength: z.number().int().min(2).max(8).optional(),
   onboardingComplete: z.boolean().optional(),
 });
 
@@ -236,6 +237,27 @@ export const inviteCodes = pgTable("invite_codes", {
 });
 
 export type InviteCode = typeof inviteCodes.$inferSelect;
+
+export const cycleSymptoms = pgTable("cycle_symptoms", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  date: text("date").notNull(),
+  energy: text("energy"),
+  bloating: text("bloating"),
+  cravings: text("cravings"),
+  mood: text("mood"),
+  appetite: text("appetite"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCycleSymptomSchema = createInsertSchema(cycleSymptoms).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
+export type InsertCycleSymptom = z.infer<typeof insertCycleSymptomSchema>;
+export type CycleSymptom = typeof cycleSymptoms.$inferSelect;
 
 export const feedbackEntries = pgTable("feedback_entries", {
   id: serial("id").primaryKey(),

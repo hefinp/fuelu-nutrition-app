@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, ilike } from "drizzle-orm";
 
@@ -67,6 +67,10 @@ export interface IStorage {
   getInviteCode(code: string): Promise<InviteCode | undefined>;
   markInviteCodeUsed(code: string, email: string): Promise<void>;
   listInviteCodes(): Promise<InviteCode[]>;
+
+  // Cycle symptoms
+  getCycleSymptoms(userId: number, from: string, to: string): Promise<CycleSymptom[]>;
+  upsertCycleSymptom(entry: { userId: number; date: string; energy?: string | null; bloating?: string | null; cravings?: string | null; mood?: string | null; appetite?: string | null }): Promise<CycleSymptom>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -325,6 +329,26 @@ export class DatabaseStorage implements IStorage {
 
   async listInviteCodes(): Promise<InviteCode[]> {
     return await db.select().from(inviteCodes).orderBy(inviteCodes.code);
+  }
+
+  async getCycleSymptoms(userId: number, from: string, to: string): Promise<CycleSymptom[]> {
+    return await db.select().from(cycleSymptoms)
+      .where(and(eq(cycleSymptoms.userId, userId), gte(cycleSymptoms.date, from), lte(cycleSymptoms.date, to)))
+      .orderBy(desc(cycleSymptoms.date));
+  }
+
+  async upsertCycleSymptom(entry: { userId: number; date: string; energy?: string | null; bloating?: string | null; cravings?: string | null; mood?: string | null; appetite?: string | null }): Promise<CycleSymptom> {
+    const [existing] = await db.select().from(cycleSymptoms)
+      .where(and(eq(cycleSymptoms.userId, entry.userId), eq(cycleSymptoms.date, entry.date)));
+    if (existing) {
+      const [updated] = await db.update(cycleSymptoms)
+        .set({ energy: entry.energy, bloating: entry.bloating, cravings: entry.cravings, mood: entry.mood, appetite: entry.appetite })
+        .where(eq(cycleSymptoms.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(cycleSymptoms).values(entry).returning();
+    return created;
   }
 }
 
