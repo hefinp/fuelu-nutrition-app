@@ -399,6 +399,16 @@ export function FoodLog({
   const videoRef = useRef<HTMLVideoElement>(null);
   const scanControlsRef = useRef<{ stop: () => void } | null>(null);
 
+  // AI nudge state (Task #54)
+  const [nudgeSuggestion, setNudgeSuggestion] = useState<string | null>(null);
+  const [nudgeLoading, setNudgeLoading] = useState(false);
+  const [nudgeVisible, setNudgeVisible] = useState(false);
+
+  // Weekly insights state (Task #51)
+  const [weeklyInsight, setWeeklyInsight] = useState<string | null>(null);
+  const [weeklyInsightLoading, setWeeklyInsightLoading] = useState(false);
+  const [weeklyInsightKey, setWeeklyInsightKey] = useState<string | null>(null);
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 400);
     return () => clearTimeout(t);
@@ -887,6 +897,89 @@ export function FoodLog({
     acc[d] = weeklyEntries.filter(e => e.date === d);
     return acc;
   }, {});
+
+  // ── AI Nudge helper (Task #54) ────────────────────────────────────────────
+  const isOffTarget = dailyCaloriesTarget && confirmedDaily.length >= 2 && (() => {
+    const pctOff = (actual: number, target: number) =>
+      target > 0 ? Math.abs(actual - target) / target : 0;
+    return pctOff(totalCal, dailyCaloriesTarget!) > 0.2 ||
+      pctOff(totalProt, dailyProteinTarget ?? 0) > 0.2 ||
+      pctOff(totalCarbs, dailyCarbsTarget ?? 0) > 0.2 ||
+      pctOff(totalFat, dailyFatTarget ?? 0) > 0.2;
+  })();
+
+  async function handleFetchNudge() {
+    if (nudgeLoading || !dailyCaloriesTarget) return;
+    setNudgeLoading(true);
+    setNudgeSuggestion(null);
+    setNudgeVisible(true);
+    try {
+      const resp = await fetch("/api/food-log/daily-nudge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          logged: { calories: totalCal, protein: totalProt, carbs: totalCarbs, fat: totalFat },
+          targets: {
+            calories: dailyCaloriesTarget,
+            protein: dailyProteinTarget ?? 0,
+            carbs: dailyCarbsTarget ?? 0,
+            fat: dailyFatTarget ?? 0,
+          },
+        }),
+        credentials: "include",
+      });
+      const data = await resp.json();
+      setNudgeSuggestion(data.suggestion ?? null);
+    } catch {
+      setNudgeSuggestion("Unable to generate suggestion right now.");
+    } finally {
+      setNudgeLoading(false);
+    }
+  }
+
+  // ── Weekly Insights helper (Task #51) ────────────────────────────────────
+  async function handleFetchWeeklyInsights() {
+    if (weeklyInsightLoading) return;
+    const key = weekRange.from;
+    setWeeklyInsightLoading(true);
+    if (weeklyInsightKey !== key) setWeeklyInsight(null);
+    setWeeklyInsightKey(key);
+    try {
+      const dayEntries = weekRange.days.map(d => {
+        const es = entriesByDay[d] ?? [];
+        const conf = es.filter(e => e.confirmed !== false);
+        return {
+          date: d,
+          calories: conf.reduce((s, e) => s + e.calories, 0),
+          protein: conf.reduce((s, e) => s + e.protein, 0),
+          carbs: conf.reduce((s, e) => s + e.carbs, 0),
+          fat: conf.reduce((s, e) => s + e.fat, 0),
+        };
+      }).filter(d => d.calories > 0);
+
+      const resp = await fetch("/api/food-log/weekly-insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entries: dayEntries,
+          targets: {
+            calories: dailyCaloriesTarget ?? 2000,
+            protein: dailyProteinTarget ?? 150,
+            carbs: dailyCarbsTarget ?? 200,
+            fat: dailyFatTarget ?? 65,
+          },
+          weekLabel: weekOffset === 0 ? "this week" : `${weekRange.from} to ${weekRange.to}`,
+        }),
+        credentials: "include",
+      });
+      const data = await resp.json();
+      setWeeklyInsight(data.summary ?? null);
+    } catch {
+      setWeeklyInsight("Unable to generate insights right now.");
+    } finally {
+      setWeeklyInsightLoading(false);
+    }
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -1885,6 +1978,44 @@ export function FoodLog({
               })}
             </div>
           )}
+
+          {/* AI nudge chip (Task #54) */}
+          {isOffTarget && isToday && (
+            <div className="mt-4">
+              {!nudgeVisible ? (
+                <button
+                  onClick={handleFetchNudge}
+                  className="flex items-center gap-1.5 text-xs font-medium text-amber-600 bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors px-3 py-2 rounded-full"
+                  data-testid="button-ai-nudge"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Get a meal suggestion
+                </button>
+              ) : (
+                <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="text-xs font-semibold text-amber-700">Suggestion</span>
+                    <button
+                      onClick={() => { setNudgeVisible(false); setNudgeSuggestion(null); }}
+                      className="ml-auto text-amber-400 hover:text-amber-600 transition-colors"
+                      data-testid="button-dismiss-nudge"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {nudgeLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-amber-500">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Thinking…
+                    </div>
+                  ) : (
+                    <p className="text-xs text-amber-800 leading-relaxed" data-testid="text-nudge-suggestion">{nudgeSuggestion}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
@@ -1936,6 +2067,49 @@ export function FoodLog({
             carbsTarget={dailyCarbsTarget ? dailyCarbsTarget * 7 : undefined}
             fatTarget={dailyFatTarget ? dailyFatTarget * 7 : undefined}
           />
+
+          {/* Weekly AI Insights card (Task #51) */}
+          {weekTotalCal > 0 && (
+            <div className="mb-4">
+              {!weeklyInsight ? (
+                <button
+                  onClick={handleFetchWeeklyInsights}
+                  disabled={weeklyInsightLoading}
+                  className="flex items-center gap-1.5 text-xs font-medium text-violet-600 bg-violet-50 border border-violet-100 hover:bg-violet-100 transition-colors px-3 py-2 rounded-full disabled:opacity-50"
+                  data-testid="button-weekly-insights"
+                >
+                  {weeklyInsightLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  {weeklyInsightLoading ? "Generating insights…" : "Get weekly insights"}
+                </button>
+              ) : (
+                <div className="bg-violet-50 border border-violet-100 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+                      <span className="text-xs font-semibold text-violet-700">Weekly Insights</span>
+                    </div>
+                    <button
+                      onClick={handleFetchWeeklyInsights}
+                      disabled={weeklyInsightLoading}
+                      className="text-[10px] text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50"
+                      data-testid="button-refresh-insights"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                  <div className="space-y-1" data-testid="text-weekly-insights">
+                    {weeklyInsight.split("\n").filter(l => l.trim()).map((line, i) => (
+                      <p key={i} className="text-xs text-violet-900 leading-relaxed">{line}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {weeklyLoading ? (
             <div className="flex justify-center py-6">

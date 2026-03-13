@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { Circle, CalendarDays, Info } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Circle, CalendarDays, Info, Lightbulb, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import type { UserPreferences } from "@shared/schema";
 import { getCyclePhase } from "@/lib/cycle";
 import { apiRequest } from "@/lib/queryClient";
@@ -22,6 +22,7 @@ export function CycleTracker() {
 
   const [localDate, setLocalDate] = useState<string>("");
   const [localLength, setLocalLength] = useState<string>("");
+  const [tipExpanded, setTipExpanded] = useState(false);
 
   const updatePrefsMutation = useMutation({
     mutationFn: (updates: Partial<UserPreferences>) =>
@@ -33,6 +34,16 @@ export function CycleTracker() {
   const cycleLength = prefs?.cycleLength ?? 28;
 
   const cycleInfo = lastPeriodDate ? getCyclePhase(lastPeriodDate, cycleLength) : null;
+
+  const today = new Date().toISOString().split("T")[0];
+  const { data: tipData, isLoading: tipLoading } = useQuery<{ tip: string }>({
+    queryKey: ["/api/cycle/daily-tip", cycleInfo?.phase, today],
+    queryFn: () =>
+      fetch(`/api/cycle/daily-tip?phase=${cycleInfo!.phase}`)
+        .then(r => r.json()),
+    enabled: !!cycleInfo?.phase && tipExpanded,
+    staleTime: 1000 * 60 * 60 * 12,
+  });
 
   function handleDateBlur(value: string) {
     if (value && value !== lastPeriodDate) {
@@ -118,6 +129,49 @@ export function CycleTracker() {
                 <span>Ovulatory</span>
                 <span>Luteal</span>
               </div>
+            </div>
+
+            {/* AI daily tip card */}
+            <div className="border border-zinc-100 rounded-2xl overflow-hidden">
+              <button
+                onClick={() => setTipExpanded(e => !e)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 transition-colors"
+                data-testid="button-cycle-tip-toggle"
+              >
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="w-4 h-4 text-amber-500" />
+                  <span className="text-xs font-medium text-zinc-700">Today's nutrition tip</span>
+                </div>
+                {tipExpanded ? (
+                  <ChevronUp className="w-3.5 h-3.5 text-zinc-400" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                )}
+              </button>
+              <AnimatePresence>
+                {tipExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 pt-1">
+                      {tipLoading ? (
+                        <div className="flex items-center gap-2 text-xs text-zinc-400">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Generating tip…
+                        </div>
+                      ) : tipData?.tip ? (
+                        <p className="text-xs text-zinc-600 leading-relaxed" data-testid="text-cycle-tip">{tipData.tip}</p>
+                      ) : (
+                        <p className="text-xs text-zinc-400">Tip unavailable. Please try again later.</p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </>
         ) : (

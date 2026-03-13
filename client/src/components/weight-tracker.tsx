@@ -15,7 +15,7 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
-import { Scale, Plus, Trash2, TrendingDown, TrendingUp, Minus, Flame } from "lucide-react";
+import { Scale, Plus, Trash2, TrendingDown, TrendingUp, Minus, Flame, Sparkles, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { WeightEntry, FoodLogEntry } from "@shared/schema";
 
@@ -57,6 +57,8 @@ export function WeightTracker({
   const [weightInput, setWeightInput] = useState("");
   const [dateInput, setDateInput] = useState(format(new Date(), "yyyy-MM-dd"));
   const [showForm, setShowForm] = useState(false);
+  const [weightInsight, setWeightInsight] = useState<string | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const weekFrom = format(subDays(new Date(), 6), "yyyy-MM-dd");
@@ -88,6 +90,30 @@ export function WeightTracker({
     e.preventDefault();
     if (!weightInput) return;
     addEntry.mutate({ weight: weightInput, recordedAt: new Date(dateInput).toISOString() });
+  }
+
+  async function handleGetInsight() {
+    if (entries.length < 3 || insightLoading) return;
+    setInsightLoading(true);
+    setWeightInsight(null);
+    try {
+      const payload = {
+        entries: chartData.map(d => ({ date: d.date, weightKg: d.weight })),
+        targetWeight,
+      };
+      const resp = await fetch("/api/weight/insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      });
+      const data = await resp.json();
+      setWeightInsight(data.insight ?? null);
+    } catch {
+      setWeightInsight("Unable to generate insight. Please try again later.");
+    } finally {
+      setInsightLoading(false);
+    }
   }
 
   const chartData = entries.map((e) => ({
@@ -312,6 +338,37 @@ export function WeightTracker({
                     activeDot={{ fill: "#18181b", r: 5, strokeWidth: 0 }} />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* AI insight */}
+          {entries.length >= 3 && (
+            <div className="mt-4">
+              <button
+                onClick={handleGetInsight}
+                disabled={insightLoading}
+                className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors disabled:opacity-50"
+                data-testid="button-weight-insight"
+              >
+                {insightLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+                )}
+                {insightLoading ? "Analysing…" : "Get AI insight"}
+              </button>
+              <AnimatePresence>
+                {weightInsight && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="mt-2 bg-violet-50 border border-violet-100 rounded-2xl px-4 py-3"
+                  >
+                    <p className="text-xs text-violet-900 leading-relaxed" data-testid="text-weight-insight">{weightInsight}</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
 

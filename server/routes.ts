@@ -252,6 +252,22 @@ function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPreferences 
   };
 }
 
+// Filter meal db to avoid recently-logged meals (Task #53: smarter personalisation)
+function filterMealDbByRecentLog(mealDb: MealDb, recentMealNames: string[]): MealDb {
+  if (!recentMealNames.length) return mealDb;
+  const recent = recentMealNames.map(n => n.toLowerCase());
+  const dedup = (pool: MealEntry[]): MealEntry[] => {
+    const filtered = pool.filter(m => !recent.includes(m.meal.toLowerCase()));
+    return filtered.length > 0 ? filtered : pool;
+  };
+  return {
+    breakfast: dedup(mealDb.breakfast),
+    lunch:     dedup(mealDb.lunch),
+    dinner:    dedup(mealDb.dinner),
+    snack:     dedup(mealDb.snack),
+  };
+}
+
 // Scale a meal's portions to exactly hit a calorie target, preserving macro ratios
 function scaleMeal(meal: MealEntry, targetCalories: number): MealEntry {
   const scale = targetCalories / meal.calories;
@@ -890,6 +906,17 @@ export async function registerRoutes(
             });
           }
         }
+
+        // Task #53: de-prioritise meals the user has eaten in the last 14 days
+        const now = new Date();
+        const from14 = new Date(now); from14.setDate(now.getDate() - 14);
+        const recentEntries = await storage.getFoodLogEntriesRange(
+          req.session.userId,
+          from14.toISOString().split("T")[0],
+          now.toISOString().split("T")[0],
+        );
+        const recentMealNames = [...new Set(recentEntries.map(e => e.mealName))];
+        baseDb = filterMealDbByRecentLog(baseDb, recentMealNames);
       }
 
       const hasCycle = !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate);
@@ -1407,6 +1434,78 @@ export async function registerRoutes(
     res.status(204).send();
   });
 
+  // ── Weight trend AI insights ───────────────────────────────────────────────
+
+  app.post("/api/weight/insights", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI unavailable" });
+
+    const { entries, goal, targetWeight } = req.body as {
+      entries: { date: string; weightKg: number }[];
+      goal?: string;
+      targetWeight?: number;
+    };
+    if (!entries || entries.length < 3) return res.status(400).json({ error: "Need at least 3 entries" });
+
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const entrySummary = entries.map(e => `${e.date}: ${e.weightKg}kg`).join(", ");
+      const prompt = `The user's weight log (oldest to newest): ${entrySummary}.${targetWeight ? ` Their goal weight is ${targetWeight}kg.` : ""}${goal ? ` Their goal is to ${goal}.` : ""}
+Write 1-2 sentences analysing their trend: rate of change, whether they're on track, and one concrete actionable suggestion. Keep it encouraging and practical. Plain text, no markdown.`;
+
+      const resp = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 120,
+        temperature: 0.7,
+      });
+      const insight = resp.choices[0]?.message?.content?.trim() ?? "";
+      res.json({ insight });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to generate insight" });
+    }
+  });
+
+  // ── Cycle phase daily tip ─────────────────────────────────────────────────
+
+  const cycleTipCache = new Map<string, string>();
+
+  app.get("/api/cycle/daily-tip", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI unavailable" });
+
+    const phase = z.enum(["menstrual", "follicular", "ovulatory", "luteal"]).parse(req.query.phase);
+    const today = new Date().toISOString().split("T")[0];
+    const cacheKey = `${phase}:${today}`;
+
+    if (cycleTipCache.has(cacheKey)) {
+      return res.json({ tip: cycleTipCache.get(cacheKey), cached: true });
+    }
+
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const phaseNames: Record<string, string> = {
+        menstrual: "menstrual (days 1–5)",
+        follicular: "follicular (days 6–13)",
+        ovulatory: "ovulatory (days 14–16)",
+        luteal: "luteal (days 17–28)",
+      };
+      const prompt = `Give a practical 1-2 sentence nutrition tip for a woman in the ${phaseNames[phase]} phase of her menstrual cycle. Include a specific food or nutrient. Be warm, actionable, and concise. Plain text, no markdown.`;
+
+      const resp = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 80,
+        temperature: 0.8,
+      });
+      const tip = resp.choices[0]?.message?.content?.trim() ?? "";
+      cycleTipCache.set(cacheKey, tip);
+      res.json({ tip, cached: false });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to generate tip" });
+    }
+  });
+
   // ── Hydration tracking ────────────────────────────────────────────────────
 
   app.get("/api/hydration", async (req, res) => {
@@ -1758,6 +1857,74 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
     } catch (err) {
       console.error("Food recognition error:", err instanceof Error ? err.message : err);
       res.status(500).json({ error: "Food recognition failed" });
+    }
+  });
+
+  // ── Weekly nutrition coaching insights ────────────────────────────────────
+
+  app.post("/api/food-log/weekly-insights", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI unavailable" });
+
+    const { entries, targets, weekLabel } = req.body as {
+      entries: { date: string; calories: number; protein: number; carbs: number; fat: number }[];
+      targets: { calories: number; protein: number; carbs: number; fat: number };
+      weekLabel?: string;
+    };
+    if (!entries?.length) return res.status(400).json({ error: "No entries provided" });
+
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const logSummary = entries.map(e =>
+        `${e.date}: ${e.calories}kcal, ${e.protein}g protein, ${e.carbs}g carbs, ${e.fat}g fat`
+      ).join("\n");
+      const prompt = `Here are a user's food log totals by day${weekLabel ? ` for ${weekLabel}` : ""}:\n${logSummary}\n\nDaily targets: ${targets.calories}kcal, ${targets.protein}g protein, ${targets.carbs}g carbs, ${targets.fat}g fat.\n\nWrite 2-4 short bullet points (use • character) that: summarise macro targets hit or missed, highlight the best and weakest days, and give one practical tip for the coming week. Keep it encouraging, specific, and concise. Plain text only.`;
+
+      const resp = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 200,
+        temperature: 0.7,
+      });
+      const summary = resp.choices[0]?.message?.content?.trim() ?? "";
+      res.json({ summary });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to generate insights" });
+    }
+  });
+
+  // ── Daily macro nudge ─────────────────────────────────────────────────────
+
+  app.post("/api/food-log/daily-nudge", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI unavailable" });
+
+    const { logged, targets } = req.body as {
+      logged: { calories: number; protein: number; carbs: number; fat: number };
+      targets: { calories: number; protein: number; carbs: number; fat: number };
+    };
+    if (!logged || !targets) return res.status(400).json({ error: "logged and targets required" });
+
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const remaining = {
+        calories: targets.calories - logged.calories,
+        protein: targets.protein - logged.protein,
+        carbs: targets.carbs - logged.carbs,
+        fat: targets.fat - logged.fat,
+      };
+      const prompt = `A user has logged ${logged.calories}kcal, ${logged.protein}g protein, ${logged.carbs}g carbs, ${logged.fat}g fat today. Their targets are ${targets.calories}kcal, ${targets.protein}g protein, ${targets.carbs}g carbs, ${targets.fat}g fat. Remaining: ${remaining.calories}kcal, ${remaining.protein}g protein, ${remaining.carbs}g carbs, ${remaining.fat}g fat. Write exactly one friendly sentence suggesting a specific food or meal that would help them balance the rest of their day. Be concrete (mention a real food). Plain text, no markdown.`;
+
+      const resp = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 80,
+        temperature: 0.8,
+      });
+      const suggestion = resp.choices[0]?.message?.content?.trim() ?? "";
+      res.json({ suggestion });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to generate nudge" });
     }
   });
 
