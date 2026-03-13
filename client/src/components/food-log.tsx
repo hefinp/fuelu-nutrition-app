@@ -1452,6 +1452,29 @@ export function FoodLog({
                     );
                   })()}
 
+                  {/* Meal slot selector */}
+                  <div className="mb-2.5">
+                    <p className="text-[10px] text-zinc-500 font-medium mb-1.5">Meal type</p>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {ALL_SLOTS.map(slot => {
+                        const Icon = SLOT_ICONS[slot];
+                        const active = form.mealSlot === slot;
+                        return (
+                          <button
+                            key={slot}
+                            type="button"
+                            onClick={() => setForm(f => ({ ...f, mealSlot: active ? null : slot }))}
+                            className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-medium transition-colors ${active ? "bg-zinc-900 text-white" : "bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-400"}`}
+                            data-testid={`button-search-slot-${slot}`}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            {SLOT_LABELS[slot]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <button
                     type="button"
                     onClick={useSelectedFood}
@@ -1598,11 +1621,13 @@ export function FoodLog({
                 (() => {
                   const grams = parseFloat(scanServingGrams) || 100;
                   const f = grams / 100;
-                  const cells = [
+                  const mainCells = [
                     { label: "Calories", value: Math.round(scannedFood.calories100g * f), unit: "kcal", color: "bg-violet-50 text-violet-700" },
                     { label: "Protein", value: Math.round(scannedFood.protein100g * f * 10) / 10, unit: "g", color: "bg-red-50 text-red-700" },
                     { label: "Carbs", value: Math.round(scannedFood.carbs100g * f * 10) / 10, unit: "g", color: "bg-blue-50 text-blue-700" },
                     { label: "Fat", value: Math.round(scannedFood.fat100g * f * 10) / 10, unit: "g", color: "bg-yellow-50 text-yellow-700" },
+                  ];
+                  const secondaryCells = [
                     { label: "Fibre", value: Math.round((scannedFood.fibre100g ?? 0) * f * 10) / 10, unit: "g", color: "bg-green-50 text-green-700" },
                     { label: "Sodium", value: Math.round((scannedFood.sodium100g ?? 0) * f * 10) / 10, unit: "mg", color: "bg-orange-50 text-orange-700" },
                   ];
@@ -1613,7 +1638,7 @@ export function FoodLog({
                     { slot: "snack", label: "Snack", icon: Apple },
                   ];
                   return (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {/* Header */}
                       <div className="flex items-start gap-2">
                         <div className="flex-1 min-w-0">
@@ -1636,7 +1661,7 @@ export function FoodLog({
                       </div>
 
                       {/* Serving adjuster */}
-                      <div className="flex items-center gap-2 bg-zinc-50 rounded-xl p-3">
+                      <div className="flex items-center gap-2 bg-zinc-50 rounded-xl p-2.5">
                         <label className="text-[10px] text-zinc-500 font-medium shrink-0">Serving size</label>
                         <input
                           type="number"
@@ -1649,12 +1674,22 @@ export function FoodLog({
                         <span className="text-xs text-zinc-400">g</span>
                       </div>
 
-                      {/* Macro grid */}
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {cells.map(c => (
-                          <div key={c.label} className={`rounded-xl p-2.5 ${c.color}`}>
+                      {/* Macro grid — 4 main macros */}
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {mainCells.map(c => (
+                          <div key={c.label} className={`rounded-xl p-2 ${c.color}`}>
                             <p className="text-[9px] font-medium opacity-70 mb-0.5">{c.label}</p>
-                            <p className="text-sm font-bold">{c.value}<span className="text-[9px] font-normal ml-0.5">{c.unit}</span></p>
+                            <p className="text-sm font-bold leading-none">{c.value}<span className="text-[9px] font-normal ml-0.5">{c.unit}</span></p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Secondary: fibre + sodium */}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {secondaryCells.map(c => (
+                          <div key={c.label} className={`rounded-lg p-1.5 flex items-center justify-between ${c.color}`}>
+                            <p className="text-[9px] font-medium opacity-70">{c.label}</p>
+                            <p className="text-xs font-semibold">{c.value}<span className="text-[9px] font-normal ml-0.5">{c.unit}</span></p>
                           </div>
                         ))}
                       </div>
