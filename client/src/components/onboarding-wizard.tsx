@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useCreateCalculation } from "@/hooks/use-calculations";
-import type { Calculation, UserPreferences } from "@shared/schema";
+import type { UserPreferences } from "@shared/schema";
 import {
   X, ChevronRight, ChevronLeft, Loader2,
   Target, TrendingDown, Dumbbell, Flame,
@@ -48,7 +48,7 @@ function calculateMacrosLocal(weight: number, height: number, age: number, gende
 
 interface Props {
   userPrefs: UserPreferences | undefined;
-  onComplete: (calculation: Calculation) => void;
+  onComplete: (calculation: Record<string, unknown>) => void;
   onSkip: () => void;
 }
 
@@ -135,10 +135,10 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
       });
 
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
-      onComplete(result as unknown as Calculation);
-    } catch (err: any) {
+      onComplete(result as Record<string, unknown>);
+    } catch (e) {
       setSaving(false);
-      setSaveError(err?.message || "Something went wrong. Please try again.");
+      setSaveError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     }
   }, [macros, goal, selectedChips, userPrefs, weightKg, heightCm, parsedAge, sex, createCalc, queryClient, onComplete]);
 

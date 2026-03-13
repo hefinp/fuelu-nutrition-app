@@ -92,6 +92,7 @@ export default function Dashboard() {
   });
 
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const showOnboarding = !!user && userPrefs !== undefined && userPrefs?.onboardingComplete !== true && !onboardingDismissed;
 
   const dismissOnboarding = useCallback(() => {
@@ -100,9 +101,9 @@ export default function Dashboard() {
       .then(() => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }));
   }, [userPrefs, queryClient]);
 
-  const handleWizardComplete = useCallback((calculation: Calculation) => {
+  const handleWizardComplete = useCallback((calculation: Record<string, unknown>) => {
     setOnboardingDismissed(true);
-    setActiveResult(calculation);
+    setActiveResult(calculation as Calculation);
     queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
   }, [queryClient]);
 
@@ -308,6 +309,14 @@ export default function Dashboard() {
                           >
                             <SlidersHorizontal className="w-4 h-4 text-zinc-400" />
                             My Metrics
+                          </button>
+                          <button
+                            onClick={() => { setShowTour(true); setShowUserMenu(false); }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                            data-testid="button-take-tour"
+                          >
+                            <BookOpen className="w-4 h-4 text-zinc-400" />
+                            Take the Tour
                           </button>
                           <button
                             onClick={handleLogout}
@@ -810,6 +819,9 @@ export default function Dashboard() {
             onComplete={handleWizardComplete}
             onSkip={dismissOnboarding}
           />
+        )}
+        {showTour && (
+          <OnboardingTour onDismiss={() => setShowTour(false)} />
         )}
       </AnimatePresence>
     </div>

@@ -818,7 +818,13 @@ export async function registerRoutes(
   app.get("/api/user/preferences", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
     const user = await storage.getUserById(req.session.userId);
-    res.json((user?.preferences as UserPreferences | null) ?? { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false });
+    const defaults: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false };
+    const prefs = (user?.preferences as UserPreferences | null) ?? defaults;
+    if (prefs.onboardingComplete === undefined) {
+      const calcs = await storage.getCalculations(req.session.userId);
+      prefs.onboardingComplete = calcs.length > 0;
+    }
+    res.json(prefs);
   });
 
   app.put("/api/user/preferences", async (req, res) => {
