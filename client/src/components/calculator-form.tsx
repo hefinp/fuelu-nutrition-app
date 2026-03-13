@@ -122,10 +122,14 @@ export function CalculatorForm({
   }
 
   async function handleCycleStartFresh() {
-    await apiRequest("DELETE", "/api/user/cycle-data");
-    updatePrefsMutation.mutate({ cycleTrackingEnabled: true });
-    queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
-    setCycleReenableDialog(false);
+    try {
+      await apiRequest("DELETE", "/api/user/cycle-data");
+      updatePrefsMutation.mutate({ cycleTrackingEnabled: true });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+      setCycleReenableDialog(false);
+    } catch {
+      toast({ title: "Failed to clear cycle data", description: "Please try again.", variant: "destructive" });
+    }
   }
 
   const form = useForm<FormValues>({
@@ -195,6 +199,7 @@ export function CalculatorForm({
     ].filter(Boolean).join(" · ");
 
     return (
+      <>
       <form id="calculator-form" onSubmit={form.handleSubmit(onSubmit)}>
         {/* ── Section 1: Metrics ── */}
         <AccordionSection
@@ -400,6 +405,48 @@ export function CalculatorForm({
           </div>
         </AccordionSection>
       </form>
+
+      {cycleReenableDialog && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={() => setCycleReenableDialog(false)}
+          data-testid="cycle-reenable-overlay"
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold text-zinc-900 mb-2">Resume cycle tracking?</h3>
+            <p className="text-sm text-zinc-500 leading-relaxed mb-5">
+              You have previous cycle data. Would you like to continue where you left off, or start fresh?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleCycleContinue}
+                className="w-full px-4 py-2.5 text-sm font-medium text-white bg-zinc-900 rounded-xl hover:bg-zinc-700 transition-colors"
+                data-testid="button-cycle-continue"
+              >
+                Continue with existing data
+              </button>
+              <button
+                onClick={handleCycleStartFresh}
+                className="w-full px-4 py-2.5 text-sm font-medium text-zinc-700 bg-zinc-100 rounded-xl hover:bg-zinc-200 transition-colors"
+                data-testid="button-cycle-start-fresh"
+              >
+                Start fresh
+              </button>
+              <button
+                onClick={() => setCycleReenableDialog(false)}
+                className="w-full px-4 py-2 text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
+                data-testid="button-cycle-reenable-cancel"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
     );
   }
 
@@ -617,6 +664,47 @@ export function CalculatorForm({
           ) : "Generate Nutrition Plan"}
         </button>
       </form>
+
+      {cycleReenableDialog && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={() => setCycleReenableDialog(false)}
+          data-testid="cycle-reenable-overlay"
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold text-zinc-900 mb-2">Resume cycle tracking?</h3>
+            <p className="text-sm text-zinc-500 leading-relaxed mb-5">
+              You have previous cycle data. Would you like to continue where you left off, or start fresh?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleCycleContinue}
+                className="w-full px-4 py-2.5 text-sm font-medium text-white bg-zinc-900 rounded-xl hover:bg-zinc-700 transition-colors"
+                data-testid="button-cycle-continue"
+              >
+                Continue with existing data
+              </button>
+              <button
+                onClick={handleCycleStartFresh}
+                className="w-full px-4 py-2.5 text-sm font-medium text-zinc-700 bg-zinc-100 rounded-xl hover:bg-zinc-200 transition-colors"
+                data-testid="button-cycle-start-fresh"
+              >
+                Start fresh
+              </button>
+              <button
+                onClick={() => setCycleReenableDialog(false)}
+                className="w-full px-4 py-2 text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
+                data-testid="button-cycle-reenable-cancel"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
