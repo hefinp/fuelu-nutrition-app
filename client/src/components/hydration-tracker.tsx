@@ -118,7 +118,7 @@ export function HydrationTracker() {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <div className="p-2 bg-blue-50 text-blue-500 rounded-lg">
+          <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
             <Droplets className="w-5 h-5" />
           </div>
           <div>

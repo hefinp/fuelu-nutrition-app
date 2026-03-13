@@ -95,7 +95,7 @@ export function RecipeLibrary() {
     <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
-          <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+          <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
             <BookOpen className="w-5 h-5" />
           </div>
           <div>
@@ -446,7 +446,7 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
                 data-testid="button-method-web"
                 className="w-full flex items-center gap-4 p-4 border-2 border-zinc-100 hover:border-zinc-300 rounded-2xl text-left transition-all group"
               >
-                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition-colors">
+                <div className="w-10 h-10 bg-zinc-100 text-zinc-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-zinc-200 transition-colors">
                   <Globe className="w-5 h-5" />
                 </div>
                 <div>
@@ -460,7 +460,7 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
                 data-testid="button-method-photo"
                 className="w-full flex items-center gap-4 p-4 border-2 border-zinc-100 hover:border-zinc-300 rounded-2xl text-left transition-all group"
               >
-                <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-100 transition-colors">
+                <div className="w-10 h-10 bg-zinc-100 text-zinc-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-zinc-200 transition-colors">
                   <Camera className="w-5 h-5" />
                 </div>
                 <div>
