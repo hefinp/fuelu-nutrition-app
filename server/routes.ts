@@ -2981,6 +2981,18 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
 
   // ── Community meals ────────────────────────────────────────────────────────
 
+  app.get("/api/community-meals", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const slot = req.query.slot as string | undefined;
+      const style = req.query.style as string | undefined;
+      const meals = await storage.getCommunityMeals({ slot, style });
+      res.json(meals);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch community meals" });
+    }
+  });
+
   app.post("/api/community-meals", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
     try {

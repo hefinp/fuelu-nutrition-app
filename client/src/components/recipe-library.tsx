@@ -6,7 +6,7 @@ import { type UserRecipe, type UserPreferences, type CommunityMeal } from "@shar
 import {
   BookOpen, Plus, X, Loader2, ExternalLink, Trash2, ChefHat,
   UtensilsCrossed, Globe, AlertCircle, Check, AlertTriangle,
-  Camera, ArrowLeft, ImagePlus, Sparkles, Share2, Heart,
+  Camera, ArrowLeft, ImagePlus, Sparkles, Share2, Heart, Users2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -80,6 +80,7 @@ export function RecipeLibrary() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
+  const [showCommunityBrowser, setShowCommunityBrowser] = useState(false);
 
   const { data: recipes = [], isLoading } = useQuery<UserRecipe[]>({
     queryKey: ["/api/recipes"],
@@ -143,6 +144,15 @@ export function RecipeLibrary() {
         </div>
       )}
 
+      <button
+        onClick={() => setShowCommunityBrowser(true)}
+        data-testid="button-browse-community"
+        className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-50 border border-zinc-200 text-zinc-600 text-sm font-medium rounded-xl hover:bg-zinc-100 hover:border-zinc-300 transition-colors"
+      >
+        <Users2 className="w-4 h-4" />
+        Browse community meals
+      </button>
+
       <AnimatePresence>
         {showModal && (
           <ImportModal
@@ -150,8 +160,158 @@ export function RecipeLibrary() {
             onClose={() => setShowModal(false)}
           />
         )}
+        {showCommunityBrowser && (
+          <CommunityBrowserModal onClose={() => setShowCommunityBrowser(false)} />
+        )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
+  const [selectedStyle, setSelectedStyle] = useState<MealStyle>("simple");
+  const [selectedSlot, setSelectedSlot] = useState<MealSlot>("breakfast");
+
+  const { data: meals = [], isLoading } = useQuery<CommunityMeal[]>({
+    queryKey: ["/api/community-meals", selectedStyle, selectedSlot],
+    queryFn: async () => {
+      const res = await fetch(`/api/community-meals?style=${selectedStyle}&slot=${selectedSlot}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 40, opacity: 0 }}
+        transition={{ type: "spring", damping: 25, stiffness: 350 }}
+        className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col overflow-hidden"
+        data-testid="modal-community-browser"
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+          <div className="flex items-center gap-2">
+            <Users2 className="w-5 h-5 text-zinc-600" />
+            <h2 className="text-base font-bold text-zinc-900">Community Meals</h2>
+          </div>
+          <button
+            onClick={onClose}
+            data-testid="button-close-community-browser"
+            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-3 border-b border-zinc-100 space-y-3">
+          <div className="flex gap-1.5">
+            {MEAL_STYLE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setSelectedStyle(opt.value)}
+                data-testid={`community-style-${opt.value}`}
+                className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  selectedStyle === opt.value
+                    ? "bg-zinc-900 text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-1.5">
+            {MEAL_SLOT_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setSelectedSlot(opt.value)}
+                data-testid={`community-slot-${opt.value}`}
+                className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                  selectedSlot === opt.value
+                    ? SLOT_COLOURS[opt.value]
+                    : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-3">
+          {isLoading ? (
+            <div className="flex flex-col gap-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="animate-pulse flex items-center gap-3 p-3 rounded-xl bg-zinc-50">
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3.5 bg-zinc-200 rounded w-3/4" />
+                    <div className="h-3 bg-zinc-100 rounded w-1/2" />
+                  </div>
+                  <div className="h-6 w-10 bg-zinc-100 rounded-full" />
+                </div>
+              ))}
+            </div>
+          ) : meals.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mb-3">
+                <UtensilsCrossed className="w-5 h-5 text-zinc-400" />
+              </div>
+              <p className="text-sm font-medium text-zinc-500">No meals yet</p>
+              <p className="text-xs text-zinc-400 mt-1 max-w-[200px]">
+                Be the first to share a {selectedStyle} {selectedSlot} recipe!
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {meals.map(meal => (
+                <div
+                  key={meal.id}
+                  data-testid={`community-meal-${meal.id}`}
+                  className="flex items-start gap-3 p-3 rounded-xl border border-zinc-100 bg-zinc-50 hover:bg-zinc-100 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-zinc-900 leading-tight line-clamp-2">{meal.name}</p>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {[
+                        { label: "Cal", value: meal.caloriesPerServing },
+                        { label: "P", value: `${meal.proteinPerServing}g` },
+                        { label: "C", value: `${meal.carbsPerServing}g` },
+                        { label: "F", value: `${meal.fatPerServing}g` },
+                      ].map(m => (
+                        <span key={m.label} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-white border border-zinc-100 rounded text-[10px] text-zinc-600">
+                          <span className="font-bold">{m.value}</span>
+                          <span className="text-zinc-400">{m.label}</span>
+                        </span>
+                      ))}
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        meal.source === "user"
+                          ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                          : "bg-violet-50 text-violet-600 border border-violet-100"
+                      }`}>
+                        {meal.source === "user" ? "community" : "AI-curated"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-zinc-400 shrink-0 pt-0.5">
+                    <Heart className={`w-3.5 h-3.5 ${meal.favouriteCount > 0 ? "fill-red-400 text-red-400" : ""}`} />
+                    <span className="text-xs font-medium">{meal.favouriteCount}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
