@@ -52,6 +52,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
   const [goal, setGoal] = useState<Goal | null>(null);
   const [age, setAge] = useState("");
   const [sex, setSex] = useState<"male" | "female">("male");
+  const [cycleTracking, setCycleTracking] = useState(false);
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
@@ -139,6 +140,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
         diet: dietValue,
         allergies,
         onboardingComplete: true,
+        cycleTrackingEnabled: sex === "female" ? cycleTracking : false,
       });
 
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
@@ -147,11 +149,11 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
       setSaving(false);
       setSaveError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     }
-  }, [macros, goal, selectedChips, userPrefs, weightKg, heightCm, parsedAge, sex, createCalc, queryClient, onComplete]);
+  }, [macros, goal, selectedChips, userPrefs, weightKg, heightCm, parsedAge, sex, cycleTracking, createCalc, queryClient, onComplete]);
 
   const stepContent = [
     <StepGoal key="goal" goal={goal} setGoal={setGoal} />,
-    <StepAboutYou key="about" age={age} setAge={setAge} sex={sex} setSex={setSex} heightCm={heightCm} setHeightCm={setHeightCm} weightKg={weightKg} setWeightKg={setWeightKg} />,
+    <StepAboutYou key="about" age={age} setAge={setAge} sex={sex} setSex={(v) => { setSex(v); if (v === "male") setCycleTracking(false); }} cycleTracking={cycleTracking} setCycleTracking={setCycleTracking} heightCm={heightCm} setHeightCm={setHeightCm} weightKg={weightKg} setWeightKg={setWeightKg} />,
     <StepDiet key="diet" selectedChips={selectedChips} toggleChip={toggleChip} />,
     <StepSummary key="summary" macros={macros} goal={goal} loading={macrosLoading} />,
   ];
@@ -289,10 +291,11 @@ function StepGoal({ goal, setGoal }: { goal: Goal | null; setGoal: (g: Goal) => 
 }
 
 function StepAboutYou({
-  age, setAge, sex, setSex, heightCm, setHeightCm, weightKg, setWeightKg,
+  age, setAge, sex, setSex, cycleTracking, setCycleTracking, heightCm, setHeightCm, weightKg, setWeightKg,
 }: {
   age: string; setAge: (v: string) => void;
   sex: "male" | "female"; setSex: (v: "male" | "female") => void;
+  cycleTracking: boolean; setCycleTracking: (v: boolean) => void;
   heightCm: string; setHeightCm: (v: string) => void;
   weightKg: string; setWeightKg: (v: string) => void;
 }) {
@@ -366,6 +369,24 @@ function StepAboutYou({
             />
           </div>
         </div>
+        {sex === "female" && (
+          <button
+            type="button"
+            onClick={() => setCycleTracking(!cycleTracking)}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all ${
+              cycleTracking ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 hover:border-zinc-300"
+            }`}
+            data-testid="wizard-toggle-cycle-tracking"
+          >
+            <div className="text-left">
+              <p className="text-sm font-medium text-zinc-900">Cycle-aware nutrition</p>
+              <p className="text-xs text-zinc-400">Adjust targets based on your menstrual cycle</p>
+            </div>
+            <div className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${cycleTracking ? "bg-zinc-900" : "bg-zinc-200"}`}>
+              <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${cycleTracking ? "translate-x-5" : "translate-x-1"}`} />
+            </div>
+          </button>
+        )}
       </div>
     </div>
   );
