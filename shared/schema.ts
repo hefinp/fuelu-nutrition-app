@@ -228,3 +228,23 @@ export const passwordResetTokens = pgTable("password_reset_tokens", {
   expiresAt: timestamp("expires_at").notNull(),
   usedAt: timestamp("used_at"),
 });
+
+export const feedbackEntries = pgTable("feedback_entries", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  category: text("category").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertFeedbackSchema = createInsertSchema(feedbackEntries).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+}).extend({
+  category: z.enum(["bug", "feature", "general"]),
+  message: z.string().min(10, "Please give us a bit more detail (min 10 characters)").max(2000),
+});
+
+export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
+export type FeedbackEntry = typeof feedbackEntries.$inferSelect;

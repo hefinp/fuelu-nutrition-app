@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, ilike } from "drizzle-orm";
 
@@ -59,6 +59,9 @@ export interface IStorage {
   getHydrationLogs(userId: number, date: string): Promise<HydrationLog[]>;
   createHydrationLog(entry: InsertHydrationLog & { userId: number }): Promise<HydrationLog>;
   deleteHydrationLog(id: number, userId: number): Promise<void>;
+
+  // Feedback
+  insertFeedback(entry: { userId: number; category: string; message: string }): Promise<FeedbackEntry>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -297,6 +300,11 @@ export class DatabaseStorage implements IStorage {
   async deleteHydrationLog(id: number, userId: number): Promise<void> {
     await db.delete(hydrationLogs)
       .where(and(eq(hydrationLogs.id, id), eq(hydrationLogs.userId, userId)));
+  }
+
+  async insertFeedback(entry: { userId: number; category: string; message: string }): Promise<FeedbackEntry> {
+    const [created] = await db.insert(feedbackEntries).values(entry).returning();
+    return created;
   }
 }
 

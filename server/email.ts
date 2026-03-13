@@ -105,3 +105,36 @@ export function buildMealPlanEmailHtml(planName: string, userName: string, planD
 </body>
 </html>`;
 }
+
+export function buildFeedbackEmailHtml(opts: {
+  userName: string;
+  userEmail: string;
+  category: string;
+  message: string;
+  submittedAt: string;
+}): string {
+  const categoryLabel = opts.category === "bug" ? "Bug Report" : opts.category === "feature" ? "Feature Request" : "General Feedback";
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>NutriSync Beta Feedback</title></head>
+<body style="font-family:sans-serif;max-width:560px;margin:40px auto;padding:0 20px;color:#1a1a1a">
+  <div style="margin-bottom:24px">
+    <span style="font-weight:700;font-size:18px">NutriSync</span>
+    <span style="margin-left:8px;font-size:13px;color:#71717a">Beta Feedback</span>
+  </div>
+  <div style="background:#f4f4f5;border-radius:10px;padding:20px 24px;margin-bottom:20px">
+    <p style="margin:0 0 4px 0;font-size:12px;color:#71717a;text-transform:uppercase;letter-spacing:.05em">Category</p>
+    <p style="margin:0;font-weight:600;font-size:15px">${esc(categoryLabel)}</p>
+  </div>
+  <div style="background:#f4f4f5;border-radius:10px;padding:20px 24px;margin-bottom:20px">
+    <p style="margin:0 0 4px 0;font-size:12px;color:#71717a;text-transform:uppercase;letter-spacing:.05em">Message</p>
+    <p style="margin:0;font-size:15px;line-height:1.6;white-space:pre-wrap">${esc(opts.message)}</p>
+  </div>
+  <div style="background:#f4f4f5;border-radius:10px;padding:16px 24px">
+    <p style="margin:0 0 6px 0;font-size:12px;color:#71717a;text-transform:uppercase;letter-spacing:.05em">Submitted by</p>
+    <p style="margin:0;font-size:14px"><strong>${esc(opts.userName)}</strong> &lt;${esc(opts.userEmail)}&gt;</p>
+    <p style="margin:4px 0 0 0;font-size:12px;color:#71717a">${esc(opts.submittedAt)}</p>
+  </div>
+</body>
+</html>`;
+}

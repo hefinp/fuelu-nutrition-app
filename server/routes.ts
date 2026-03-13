@@ -5,9 +5,9 @@ import { api, mealPlanSchema } from "@shared/routes";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { registerSchema, loginSchema, userPreferencesSchema, insertUserRecipeSchema, type UserPreferences } from "@shared/schema";
+import { registerSchema, loginSchema, userPreferencesSchema, insertUserRecipeSchema, insertFeedbackSchema, type UserPreferences } from "@shared/schema";
 import passport from "passport";
-import { sendEmail, buildPasswordResetEmailHtml, buildMealPlanEmailHtml } from "./email";
+import { sendEmail, buildPasswordResetEmailHtml, buildMealPlanEmailHtml, buildFeedbackEmailHtml } from "./email";
 import OpenAI from "openai";
 
 const MEAL_DATABASE: MealDb = {
@@ -2112,6 +2112,34 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
     const html = buildMealPlanEmailHtml(plan.name, user.name, plan.planData as any, plan.planType, shoppingList);
     await sendEmail({ to: user.email, subject: `Your NutriSync plan: ${plan.name}`, html });
     res.json({ message: "Plan sent to your email." });
+  });
+
+  // ── Beta feedback ─────────────────────────────────────────────────────────
+
+  app.post("/api/feedback", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const input = insertFeedbackSchema.parse(req.body);
+      const entry = await storage.insertFeedback({ userId: req.session.userId, ...input });
+      const user = await storage.getUserById(req.session.userId);
+      const developerEmail = process.env.FEEDBACK_EMAIL;
+      if (developerEmail && user) {
+        const html = buildFeedbackEmailHtml({
+          userName: user.name,
+          userEmail: user.email,
+          category: input.category,
+          message: input.message,
+          submittedAt: new Date(entry.createdAt ?? Date.now()).toUTCString(),
+        });
+        sendEmail({ to: developerEmail, subject: `[NutriSync Beta] ${input.category === "bug" ? "Bug Report" : input.category === "feature" ? "Feature Request" : "Feedback"} from ${user.name}`, html }).catch(() => {});
+      }
+      res.status(201).json({ message: "Thank you for your feedback!" });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
   });
 
   return httpServer;

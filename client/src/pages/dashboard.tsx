@@ -13,6 +13,7 @@ import { HydrationTracker } from "@/components/hydration-tracker";
 import { CycleTracker } from "@/components/cycle-tracker";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
+import { FeedbackWidget } from "@/components/feedback-widget";
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
 import { useDashboardLayout, WIDE_WIDGETS } from "@/hooks/use-dashboard-layout";
@@ -811,6 +812,8 @@ export default function Dashboard() {
           </div>
         </div>
       </footer>
+
+      <FeedbackWidget />
 
       <AnimatePresence>
         {showOnboarding && (
