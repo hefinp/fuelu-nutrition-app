@@ -2163,12 +2163,28 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
     try {
       const response = await fetch(url, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; Fuelr/1.0; +https://fuelr.app)",
-          "Accept": "text/html,application/xhtml+xml",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+          "Accept-Language": "en-GB,en;q=0.9",
+          "Accept-Encoding": "gzip, deflate, br",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Sec-Fetch-Dest": "document",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Site": "none",
+          "Sec-Fetch-User": "?1",
+          "Upgrade-Insecure-Requests": "1",
         },
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.timeout(15000),
       });
-      if (!response.ok) return res.status(400).json({ message: `Could not fetch that page (HTTP ${response.status})` });
+      if (!response.ok) {
+        const msg = response.status === 403 || response.status === 401
+          ? "That site blocked the import request. Try BBC Good Food, Serious Eats, Cookie and Kate, or another recipe site."
+          : response.status === 404
+          ? "That page wasn't found (404). Double-check the URL and try again."
+          : `Could not load that page (HTTP ${response.status}). Try a different URL.`;
+        return res.status(400).json({ message: msg });
+      }
       html = await response.text();
     } catch (e: any) {
       return res.status(400).json({ message: `Could not reach that URL: ${e?.message ?? 'timeout'}` });
