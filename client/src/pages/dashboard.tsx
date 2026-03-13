@@ -22,6 +22,7 @@ import type { PrefillEntry } from "@/components/food-log";
 import type { Meal } from "@/components/results-display";
 import { useCalculations } from "@/hooks/use-calculations";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Calculation, UserPreferences } from "@shared/schema";
 import {
@@ -74,6 +75,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const isDesktop = useIsDesktop();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: userPrefs } = useQuery<UserPreferences>({
     queryKey: ["/api/user/preferences"],
@@ -99,8 +101,11 @@ export default function Dashboard() {
   const dismissOnboarding = useCallback(() => {
     setOnboardingDismissed(true);
     apiRequest("PUT", "/api/user/preferences", { ...userPrefs, onboardingComplete: true })
-      .then(() => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }));
-  }, [userPrefs, queryClient]);
+      .then(() => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }))
+      .catch(() => {
+        toast({ title: "Couldn't save progress", description: "Your setup was skipped but the preference may not have saved. You can re-open the wizard from settings.", variant: "destructive" });
+      });
+  }, [userPrefs, queryClient, toast]);
 
   const handleWizardComplete = useCallback((calculation: Record<string, unknown>) => {
     setOnboardingDismissed(true);
