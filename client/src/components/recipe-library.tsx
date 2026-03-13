@@ -169,8 +169,13 @@ export function RecipeLibrary() {
 }
 
 function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [selectedStyle, setSelectedStyle] = useState<MealStyle>("simple");
   const [selectedSlot, setSelectedSlot] = useState<MealSlot>("breakfast");
+  const [expandedMealId, setExpandedMealId] = useState<number | null>(null);
+  const [savedMealIds, setSavedMealIds] = useState<Set<number>>(new Set());
+  const [savingId, setSavingId] = useState<number | null>(null);
 
   const { data: meals = [], isLoading } = useQuery<CommunityMeal[]>({
     queryKey: ["/api/community-meals", selectedStyle, selectedSlot],
@@ -180,6 +185,43 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
       return res.json();
     },
   });
+
+  const handleStyleChange = (style: MealStyle) => {
+    setSelectedStyle(style);
+    setExpandedMealId(null);
+  };
+
+  const handleSlotChange = (slot: MealSlot) => {
+    setSelectedSlot(slot);
+    setExpandedMealId(null);
+  };
+
+  const handleToggleExpand = (id: number) => {
+    setExpandedMealId(prev => prev === id ? null : id);
+  };
+
+  const handleSave = async (meal: CommunityMeal) => {
+    if (savedMealIds.has(meal.id) || savingId === meal.id) return;
+    setSavingId(meal.id);
+    try {
+      await apiRequest("POST", "/api/favourites", {
+        mealName: meal.name,
+        calories: meal.caloriesPerServing,
+        protein: meal.proteinPerServing,
+        carbs: meal.carbsPerServing,
+        fat: meal.fatPerServing,
+        mealSlot: meal.slot,
+        communityMealId: meal.id,
+      });
+      setSavedMealIds(prev => new Set(prev).add(meal.id));
+      queryClient.invalidateQueries({ queryKey: ["/api/favourites"] });
+      toast({ title: "Saved to my meals", description: `${meal.name} added to your favourites.` });
+    } catch {
+      toast({ title: "Failed to save", variant: "destructive" });
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   return (
     <motion.div
@@ -197,7 +239,8 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
         className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col overflow-hidden"
         data-testid="modal-community-browser"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0">
           <div className="flex items-center gap-2">
             <Users2 className="w-5 h-5 text-zinc-600" />
             <h2 className="text-base font-bold text-zinc-900">Community Meals</h2>
@@ -211,12 +254,13 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div className="px-5 py-3 border-b border-zinc-100 space-y-3">
+        {/* Filters */}
+        <div className="px-5 py-3 border-b border-zinc-100 space-y-3 shrink-0">
           <div className="flex gap-1.5">
             {MEAL_STYLE_OPTIONS.map(opt => (
               <button
                 key={opt.value}
-                onClick={() => setSelectedStyle(opt.value)}
+                onClick={() => handleStyleChange(opt.value)}
                 data-testid={`community-style-${opt.value}`}
                 className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                   selectedStyle === opt.value
@@ -233,7 +277,7 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
             {MEAL_SLOT_OPTIONS.map(opt => (
               <button
                 key={opt.value}
-                onClick={() => setSelectedSlot(opt.value)}
+                onClick={() => handleSlotChange(opt.value)}
                 data-testid={`community-slot-${opt.value}`}
                 className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                   selectedSlot === opt.value
@@ -247,6 +291,7 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        {/* Meal list */}
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {isLoading ? (
             <div className="flex flex-col gap-2">
@@ -272,41 +317,133 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
             </div>
           ) : (
             <div className="space-y-2">
-              {meals.map(meal => (
-                <div
-                  key={meal.id}
-                  data-testid={`community-meal-${meal.id}`}
-                  className="flex items-start gap-3 p-3 rounded-xl border border-zinc-100 bg-zinc-50 hover:bg-zinc-100 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-zinc-900 leading-tight line-clamp-2">{meal.name}</p>
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {[
-                        { label: "Cal", value: meal.caloriesPerServing },
-                        { label: "P", value: `${meal.proteinPerServing}g` },
-                        { label: "C", value: `${meal.carbsPerServing}g` },
-                        { label: "F", value: `${meal.fatPerServing}g` },
-                      ].map(m => (
-                        <span key={m.label} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-white border border-zinc-100 rounded text-[10px] text-zinc-600">
-                          <span className="font-bold">{m.value}</span>
-                          <span className="text-zinc-400">{m.label}</span>
-                        </span>
-                      ))}
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                        meal.source === "user"
-                          ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                          : "bg-violet-50 text-violet-600 border border-violet-100"
-                      }`}>
-                        {meal.source === "user" ? "community" : "AI-curated"}
-                      </span>
-                    </div>
+              {meals.map(meal => {
+                const isExpanded = expandedMealId === meal.id;
+                const isSaved = savedMealIds.has(meal.id);
+                const isSaving = savingId === meal.id;
+                const microDots = Math.min(5, Math.max(1, meal.microScore));
+
+                return (
+                  <div
+                    key={meal.id}
+                    data-testid={`community-meal-${meal.id}`}
+                    className={`rounded-xl border transition-colors overflow-hidden ${
+                      isExpanded ? "border-zinc-300 bg-white shadow-sm" : "border-zinc-100 bg-zinc-50"
+                    }`}
+                  >
+                    {/* Summary row — always visible, clickable */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleExpand(meal.id)}
+                      data-testid={`button-expand-meal-${meal.id}`}
+                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-zinc-100 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-zinc-900 leading-tight line-clamp-2">{meal.name}</p>
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {[
+                            { label: "Cal", value: String(meal.caloriesPerServing) },
+                            { label: "P", value: `${meal.proteinPerServing}g` },
+                            { label: "C", value: `${meal.carbsPerServing}g` },
+                            { label: "F", value: `${meal.fatPerServing}g` },
+                          ].map(m => (
+                            <span key={m.label} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-white border border-zinc-100 rounded text-[10px] text-zinc-600">
+                              <span className="font-bold">{m.value}</span>
+                              <span className="text-zinc-400">{m.label}</span>
+                            </span>
+                          ))}
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            meal.source === "user"
+                              ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                              : "bg-violet-50 text-violet-600 border border-violet-100"
+                          }`}>
+                            {meal.source === "user" ? "community" : "AI-curated"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-0.5 text-zinc-400">
+                          <Heart className={`w-3.5 h-3.5 ${meal.favouriteCount > 0 || isSaved ? "fill-red-400 text-red-400" : ""}`} />
+                          <span className="text-xs font-medium">{meal.favouriteCount + (isSaved && meal.favouriteCount === 0 ? 0 : 0)}</span>
+                        </div>
+                        <div className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>
+                          <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Expanded detail panel */}
+                    {isExpanded && (
+                      <div className="px-3 pb-3 border-t border-zinc-100">
+                        {/* Full macro grid */}
+                        <div className="grid grid-cols-4 gap-1.5 mt-3">
+                          {[
+                            { label: "Calories", value: meal.caloriesPerServing, unit: "kcal", colour: "bg-orange-50 text-orange-700" },
+                            { label: "Protein", value: meal.proteinPerServing, unit: "g", colour: "bg-blue-50 text-blue-700" },
+                            { label: "Carbs", value: meal.carbsPerServing, unit: "g", colour: "bg-amber-50 text-amber-700" },
+                            { label: "Fat", value: meal.fatPerServing, unit: "g", colour: "bg-rose-50 text-rose-700" },
+                          ].map(m => (
+                            <div key={m.label} className={`${m.colour} rounded-xl px-2 py-2.5 text-center`}>
+                              <p className="text-sm font-bold">{m.value}<span className="text-[10px] font-medium ml-0.5 opacity-70">{m.unit}</span></p>
+                              <p className="text-[10px] opacity-70 mt-0.5">{m.label}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Micro score + tags */}
+                        <div className="flex items-center gap-3 mt-3">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-zinc-400 uppercase tracking-wide font-medium">Micro score</span>
+                            <div className="flex gap-0.5 ml-1">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <div
+                                  key={i}
+                                  className={`w-2 h-2 rounded-full ${i < microDots ? "bg-emerald-500" : "bg-zinc-200"}`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${SLOT_COLOURS[meal.slot as MealSlot] ?? "bg-zinc-50 text-zinc-500 border-zinc-200"}`}>
+                            {meal.slot}
+                          </span>
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${STYLE_COLOURS[meal.style as MealStyle] ?? "bg-zinc-100 text-zinc-500"}`}>
+                            {meal.style}
+                          </span>
+                        </div>
+
+                        {/* Save button */}
+                        <button
+                          type="button"
+                          onClick={() => handleSave(meal)}
+                          disabled={isSaved || isSaving}
+                          data-testid={`button-save-community-meal-${meal.id}`}
+                          className={`mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                            isSaved
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default"
+                              : "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-[0.98]"
+                          }`}
+                        >
+                          {isSaving ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : isSaved ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              Saved to my meals
+                            </>
+                          ) : (
+                            <>
+                              <Heart className="w-4 h-4" />
+                              Save to my meals
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1 text-zinc-400 shrink-0 pt-0.5">
-                    <Heart className={`w-3.5 h-3.5 ${meal.favouriteCount > 0 ? "fill-red-400 text-red-400" : ""}`} />
-                    <span className="text-xs font-medium">{meal.favouriteCount}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
