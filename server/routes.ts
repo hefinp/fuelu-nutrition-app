@@ -1629,6 +1629,95 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
     }
   });
 
+  // ── AI Food Recognition ──────────────────────────────────────────────────
+
+  app.post("/api/food-log/recognize-food", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    const { imageBase64, description } = req.body as { imageBase64?: string; description?: string };
+    if (!imageBase64 && !description) return res.status(400).json({ error: "imageBase64 or description required" });
+    if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI service unavailable" });
+
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const systemPrompt = `You are a food identification and nutrition estimation expert.
+${imageBase64 ? "Identify the food shown in the image." : `Identify the food described as: "${description}".`}
+Return ONLY a JSON object with these exact fields (values per 100g):
+{
+  "name": "<concise food name>",
+  "calories100g": <number>,
+  "protein100g": <number>,
+  "carbs100g": <number>,
+  "fat100g": <number>,
+  "fibre100g": <number or null>,
+  "sugar100g": <number or null>,
+  "sodium100g": <number or null>,
+  "saturatedFat100g": <number or null>,
+  "servingGrams": <estimated typical serving size in grams>,
+  "sourceType": "estimated"
+}
+Be as accurate as possible. Use standard USDA-style nutritional values.
+Respond ONLY with the JSON — no markdown, no explanation.`;
+
+      const content: any[] = [{ type: "text", text: systemPrompt }];
+      if (imageBase64) {
+        content.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: "high" } });
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content }],
+        max_tokens: 512,
+      });
+
+      const text = response.choices[0]?.message?.content?.trim() ?? "";
+      let extracted: any;
+      try {
+        const match = text.match(/\{[\s\S]*\}/);
+        extracted = JSON.parse(match ? match[0] : text);
+      } catch {
+        return res.status(422).json({ error: "Could not identify food" });
+      }
+
+      const result = {
+        id: `ai-${Date.now()}`,
+        name: String(extracted.name ?? "Identified Food"),
+        calories100g: Number(extracted.calories100g) || 0,
+        protein100g: Number(extracted.protein100g) || 0,
+        carbs100g: Number(extracted.carbs100g) || 0,
+        fat100g: Number(extracted.fat100g) || 0,
+        fibre100g: extracted.fibre100g != null ? Number(extracted.fibre100g) : undefined,
+        sugar100g: extracted.sugar100g != null ? Number(extracted.sugar100g) : undefined,
+        sodium100g: extracted.sodium100g != null ? Number(extracted.sodium100g) : undefined,
+        saturatedFat100g: extracted.saturatedFat100g != null ? Number(extracted.saturatedFat100g) : undefined,
+        servingGrams: Math.max(1, Number(extracted.servingGrams) || 100),
+        servingSize: `${Math.max(1, Number(extracted.servingGrams) || 100)}g`,
+        sourceType: "estimated" as const,
+        source: "ai",
+      };
+
+      if (result.calories100g > 0) {
+        const exists = await storage.customFoodExistsByName(result.name);
+        if (!exists) {
+          storage.createCustomFood({
+            barcode: null,
+            name: result.name,
+            calories100g: result.calories100g,
+            protein100g: result.protein100g,
+            carbs100g: result.carbs100g,
+            fat100g: result.fat100g,
+            servingGrams: result.servingGrams,
+            contributedByUserId: (req.user as any)?.id ?? null,
+          }).catch(() => {});
+        }
+      }
+
+      res.json(result);
+    } catch (err: any) {
+      console.error("Food recognition error:", err?.message);
+      res.status(500).json({ error: "Food recognition failed" });
+    }
+  });
+
   app.get("/api/barcode/:barcode", async (req, res) => {
     const barcode = req.params.barcode;
 

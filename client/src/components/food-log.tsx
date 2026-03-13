@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Plus, Trash2, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, BookOpen, UtensilsCrossed,
-  Coffee, Salad, Moon, Apple, Search, X, Check, Barcode, ExternalLink, Camera,
+  Coffee, Salad, Moon, Apple, Search, X, Check, Barcode, ExternalLink, Camera, Sparkles, Send,
 } from "lucide-react";
 import type { SavedMealPlan, UserRecipe } from "@shared/schema";
 import { RECIPES } from "@/components/results-display";
@@ -385,6 +385,15 @@ export function FoodLog({
   const [photoLabelLoading, setPhotoLabelLoading] = useState(false);
   const [labelScanBarcode, setLabelScanBarcode] = useState<string>("");
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const [scanMode, setScanMode] = useState<"barcode" | "ai">("barcode");
+  const [aiRecognitionLoading, setAiRecognitionLoading] = useState(false);
+  const aiPhotoInputRef = useRef<HTMLInputElement>(null);
+
+  const [showAiAssist, setShowAiAssist] = useState(false);
+  const [aiDescription, setAiDescription] = useState("");
+  const [aiAssistLoading, setAiAssistLoading] = useState(false);
+  const aiAssistPhotoRef = useRef<HTMLInputElement>(null);
   const zxingModuleRef = useRef<typeof import("@zxing/browser") | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scanControlsRef = useRef<{ stop: () => void } | null>(null);
@@ -404,7 +413,7 @@ export function FoodLog({
   }, [showForm]);
 
   useEffect(() => {
-    if (formTab !== "scan" || scannedFood || showScanAnother || showPhotoInterstitial) {
+    if (formTab !== "scan" || scannedFood || showScanAnother || showPhotoInterstitial || scanMode === "ai") {
       scanControlsRef.current?.stop();
       scanControlsRef.current = null;
       return;
@@ -464,7 +473,7 @@ export function FoodLog({
       scanControlsRef.current?.stop();
       scanControlsRef.current = null;
     };
-  }, [formTab, scanKey, scannedFood, showScanAnother, showPhotoInterstitial]);
+  }, [formTab, scanKey, scannedFood, showScanAnother, showPhotoInterstitial, scanMode]);
 
   const weekRange = getWeekRange(weekOffset);
 
@@ -746,8 +755,12 @@ export function FoodLog({
   async function handlePhotoCapture(file: File) {
     setPhotoLabelLoading(true);
     try {
-      const buffer = await file.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
       const res = await apiRequest("POST", "/api/food-log/extract-label", { imageBase64: base64 });
       if (!res.ok) throw new Error("scan failed");
       const food: ExtendedFoodResult = await res.json();
@@ -763,6 +776,70 @@ export function FoodLog({
       setShowPhotoInterstitial(false);
     } finally {
       setPhotoLabelLoading(false);
+    }
+  }
+
+  async function handleAiRecognitionPhoto(file: File) {
+    setAiRecognitionLoading(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await apiRequest("POST", "/api/food-log/recognize-food", { imageBase64: base64 });
+      if (!res.ok) throw new Error("recognition failed");
+      const food: ExtendedFoodResult = await res.json();
+      setScannedFood(food);
+      setScanServingGrams(String(food.servingGrams || 100));
+      setScanMealSlot(null);
+    } catch {
+      toast({ title: "Could not identify food", description: "Try taking a clearer photo or enter manually.", variant: "destructive" });
+    } finally {
+      setAiRecognitionLoading(false);
+    }
+  }
+
+  async function handleAiAssist(file?: File) {
+    if (!file && !aiDescription.trim()) return;
+    setAiAssistLoading(true);
+    try {
+      const body: any = {};
+      if (file) {
+        const b64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        body.imageBase64 = b64;
+      } else {
+        body.description = aiDescription.trim();
+      }
+      const res = await apiRequest("POST", "/api/food-log/recognize-food", body);
+      if (!res.ok) throw new Error("recognition failed");
+      const food: ExtendedFoodResult = await res.json();
+      const serving = food.servingGrams || 100;
+      const f = serving / 100;
+      setForm(prev => ({
+        ...prev,
+        mealName: food.name,
+        calories: String(Math.round(food.calories100g * f)),
+        protein: String(Math.round(food.protein100g * f)),
+        carbs: String(Math.round(food.carbs100g * f)),
+        fat: String(Math.round(food.fat100g * f)),
+      }));
+      setShowAiAssist(false);
+      setAiDescription("");
+      toast({ title: "AI filled in macros", description: `${food.name} — estimated values per ${serving}g serving.` });
+    } catch {
+      toast({ title: "Could not identify food", description: "Try a different description or photo.", variant: "destructive" });
+    } finally {
+      setAiAssistLoading(false);
     }
   }
 
@@ -947,6 +1024,69 @@ export function FoodLog({
                   })}
                 </div>
               </div>
+
+              {/* AI Assist panel */}
+              {labelScanAvailable && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAiAssist(v => !v)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${showAiAssist ? "bg-violet-50 text-violet-700 border border-violet-200" : "bg-zinc-50 text-zinc-500 hover:bg-zinc-100 border border-zinc-200"}`}
+                    data-testid="button-toggle-ai-assist"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    AI Fill
+                  </button>
+                  {showAiAssist && (
+                    <div className="mt-2 p-3 bg-gradient-to-br from-violet-50/50 to-amber-50/50 border border-violet-100 rounded-xl space-y-2">
+                      <p className="text-[10px] text-violet-600 font-medium">Describe your meal or take a photo</p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="e.g. chicken salad, 250g"
+                          value={aiDescription}
+                          onChange={e => setAiDescription(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAiAssist(); } }}
+                          className="flex-1 px-3 py-2 text-sm border border-violet-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                          data-testid="input-ai-description"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => aiAssistPhotoRef.current?.click()}
+                          className="px-3 py-2 bg-white border border-violet-200 rounded-lg text-violet-600 hover:bg-violet-50 transition-colors"
+                          title="Take a photo instead"
+                          data-testid="button-ai-assist-photo"
+                        >
+                          <Camera className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAiAssist()}
+                        disabled={aiAssistLoading || !aiDescription.trim()}
+                        className="w-full py-2 bg-zinc-900 text-white rounded-lg text-xs font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        data-testid="button-ai-fill-macros"
+                      >
+                        {aiAssistLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                        {aiAssistLoading ? "Identifying…" : "Fill in macros"}
+                      </button>
+                      <input
+                        ref={aiAssistPhotoRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        data-testid="input-ai-assist-photo-file"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) handleAiAssist(file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Recent foods quick-add — shown when meal name is empty */}
               {!form.mealName && recentFoods.length > 0 && (
@@ -1183,6 +1323,30 @@ export function FoodLog({
           {/* Barcode scan tab */}
           {formTab === "scan" && (
             <div className="p-4">
+              {/* Barcode / AI mode toggle */}
+              {!showScanAnother && !scannedFood && !showPhotoInterstitial && labelScanAvailable && (
+                <div className="flex bg-zinc-100 p-0.5 rounded-lg mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setScanMode("barcode")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-md transition-colors ${scanMode === "barcode" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+                    data-testid="button-scan-mode-barcode"
+                  >
+                    <Barcode className="w-3.5 h-3.5" />
+                    Barcode
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScanMode("ai")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-md transition-colors ${scanMode === "ai" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+                    data-testid="button-scan-mode-ai"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    AI Recognise
+                  </button>
+                </div>
+              )}
+
               {showScanAnother ? (
                 /* ── Logged successfully — scan another or done ── */
                 <div className="text-center py-8 space-y-4">
@@ -1376,7 +1540,7 @@ export function FoodLog({
                     }}
                   />
                 </div>
-              ) : scannerError ? (
+              ) : scannerError && scanMode === "barcode" ? (
                 <div className="text-center py-8">
                   <Barcode className="w-10 h-10 mx-auto mb-3 text-zinc-300" />
                   <p className="text-sm font-medium text-zinc-600">Camera not available</p>
@@ -1388,6 +1552,55 @@ export function FoodLog({
                     data-testid="button-scan-enter-manually"
                   >
                     Enter manually instead
+                  </button>
+                </div>
+              ) : scanMode === "ai" ? (
+                <div className="text-center py-6 space-y-4">
+                  {aiRecognitionLoading ? (
+                    <>
+                      <Loader2 className="w-10 h-10 animate-spin text-zinc-400 mx-auto" />
+                      <p className="text-sm font-medium text-zinc-600">Identifying food…</p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-50 to-amber-50 flex items-center justify-center mx-auto">
+                        <Sparkles className="w-8 h-8 text-violet-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-900">AI Food Recognition</p>
+                        <p className="text-xs text-zinc-400 mt-1">Take a photo of your food and AI will identify it and estimate the macros.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => aiPhotoInputRef.current?.click()}
+                        className="w-full py-3 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2"
+                        data-testid="button-ai-take-photo"
+                      >
+                        <Camera className="w-4 h-4" />
+                        Take a photo
+                      </button>
+                      <input
+                        ref={aiPhotoInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        data-testid="input-ai-photo"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) handleAiRecognitionPhoto(file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="w-full py-2 bg-zinc-100 text-zinc-600 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-colors"
+                    data-testid="button-log-cancel-ai-scan"
+                  >
+                    Cancel
                   </button>
                 </div>
               ) : (
