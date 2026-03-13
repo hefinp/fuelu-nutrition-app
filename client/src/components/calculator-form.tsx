@@ -106,6 +106,27 @@ export function CalculatorForm({
   });
 
   const cycleTrackingEnabled = prefs?.cycleTrackingEnabled ?? false;
+  const [cycleReenableDialog, setCycleReenableDialog] = useState(false);
+
+  function handleCycleToggle(enabled: boolean) {
+    if (enabled && prefs?.lastPeriodDate) {
+      setCycleReenableDialog(true);
+    } else {
+      updatePrefsMutation.mutate({ cycleTrackingEnabled: enabled });
+    }
+  }
+
+  function handleCycleContinue() {
+    updatePrefsMutation.mutate({ cycleTrackingEnabled: true });
+    setCycleReenableDialog(false);
+  }
+
+  async function handleCycleStartFresh() {
+    await apiRequest("DELETE", "/api/user/cycle-data");
+    updatePrefsMutation.mutate({ cycleTrackingEnabled: true });
+    queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+    setCycleReenableDialog(false);
+  }
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -246,7 +267,7 @@ export function CalculatorForm({
                     </div>
                     <Switch
                       checked={cycleTrackingEnabled}
-                      onCheckedChange={v => updatePrefsMutation.mutate({ cycleTrackingEnabled: v })}
+                      onCheckedChange={handleCycleToggle}
                       data-testid="toggle-cycle-tracking"
                       className="flex-shrink-0 mt-0.5"
                     />
@@ -457,7 +478,7 @@ export function CalculatorForm({
                   </div>
                   <Switch
                     checked={cycleTrackingEnabled}
-                    onCheckedChange={v => updatePrefsMutation.mutate({ cycleTrackingEnabled: v })}
+                    onCheckedChange={handleCycleToggle}
                     data-testid="toggle-cycle-tracking"
                     className="flex-shrink-0 mt-0.5"
                   />

@@ -95,6 +95,27 @@ export default function Dashboard() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }),
   });
 
+  const [cycleStopConfirm, setCycleStopConfirm] = useState(false);
+
+  const updatePrefsMutation = useMutation({
+    mutationFn: (updates: Partial<UserPreferences>) =>
+      apiRequest("PUT", "/api/user/preferences", { ...userPrefs, ...updates }).then(r => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] }),
+  });
+
+  function handleDismissWidget(id: string) {
+    if (id === "cycle") {
+      setCycleStopConfirm(true);
+    } else {
+      toggleWidget(id);
+    }
+  }
+
+  function confirmStopCycleTracking() {
+    updatePrefsMutation.mutate({ cycleTrackingEnabled: false });
+    setCycleStopConfirm(false);
+  }
+
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const showOnboarding = !!user && userPrefs !== undefined && userPrefs?.onboardingComplete !== true && !onboardingDismissed;
@@ -761,6 +782,7 @@ export default function Dashboard() {
                   canMoveDown={idx < visibleMobileOrder.length - 1}
                   onMoveUp={() => moveUp(id)}
                   onMoveDown={() => moveDown(id)}
+                  onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}
                 >
                   {renderWidget(id)!}
                 </SortableWidget>
@@ -781,7 +803,7 @@ export default function Dashboard() {
                       const content = renderWidget(id);
                       if (!content) return null;
                       return (
-                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false}>
+                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
                           {content}
                         </SortableWidget>
                       );
@@ -802,7 +824,7 @@ export default function Dashboard() {
                       const content = renderWidget(id);
                       if (!content) return null;
                       return (
-                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false}>
+                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
                           {content}
                         </SortableWidget>
                       );
@@ -911,6 +933,40 @@ export default function Dashboard() {
           <OnboardingTour onDismiss={() => setShowTour(false)} />
         )}
       </AnimatePresence>
+
+      {cycleStopConfirm && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          onClick={() => setCycleStopConfirm(false)}
+          data-testid="cycle-stop-overlay"
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold text-zinc-900 mb-2">Stop cycle tracking?</h3>
+            <p className="text-sm text-zinc-500 leading-relaxed mb-5">
+              Your cycle data will be kept. You can re-enable cycle tracking anytime in Settings &rarr; Metrics.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setCycleStopConfirm(false)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-zinc-700 bg-zinc-100 rounded-xl hover:bg-zinc-200 transition-colors"
+                data-testid="button-cycle-stop-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmStopCycleTracking}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-zinc-900 rounded-xl hover:bg-zinc-700 transition-colors"
+                data-testid="button-cycle-stop-confirm"
+              >
+                Stop tracking
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

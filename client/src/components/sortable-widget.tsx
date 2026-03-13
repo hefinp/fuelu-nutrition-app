@@ -11,6 +11,7 @@ interface SortableWidgetProps {
   canMoveDown?: boolean;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  onDismiss?: () => void;
   children: ReactNode;
 }
 
@@ -90,6 +91,7 @@ export function SortableWidget({
   canMoveDown,
   onMoveUp,
   onMoveDown,
+  onDismiss,
   children,
 }: SortableWidgetProps) {
   const [helpOpen, setHelpOpen] = useState(false);
@@ -150,16 +152,28 @@ export function SortableWidget({
             </div>
           )}
         </div>
-      ) : help ? (
-        <div className="absolute top-3 right-3 z-10">
-          <button
-            onClick={() => setHelpOpen(true)}
-            data-testid={`button-help-${id}`}
-            className="p-1 rounded-full text-zinc-300 hover:text-zinc-500 transition-colors"
-            title={`About ${help.title}`}
-          >
-            <HelpCircle className="w-4 h-4" />
-          </button>
+      ) : (help || onDismiss) ? (
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-0.5">
+          {help && (
+            <button
+              onClick={() => setHelpOpen(true)}
+              data-testid={`button-help-${id}`}
+              className="p-1 rounded-full text-zinc-300 hover:text-zinc-500 transition-colors"
+              title={`About ${help.title}`}
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+          )}
+          {onDismiss && (
+            <button
+              onClick={onDismiss}
+              data-testid={`button-dismiss-${id}`}
+              className="p-1 rounded-full text-zinc-300 hover:text-zinc-500 transition-colors"
+              title="Hide widget"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       ) : null}
 

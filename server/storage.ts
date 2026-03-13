@@ -77,6 +77,7 @@ export interface IStorage {
   createCyclePeriodLog(entry: { userId: number; periodStartDate: string; periodEndDate?: string | null; computedCycleLength?: number | null; notes?: string | null }): Promise<CyclePeriodLog>;
   updateCyclePeriodLog(id: number, userId: number, updates: { periodEndDate?: string | null; notes?: string | null }): Promise<CyclePeriodLog | undefined>;
   deleteCyclePeriodLog(id: number, userId: number): Promise<void>;
+  deleteAllCycleData(userId: number): Promise<void>;
 
   // AI insights cache
   getAiInsightsCache(userId: number, cacheKey: string): Promise<AiInsightsCache | undefined>;
@@ -399,6 +400,19 @@ export class DatabaseStorage implements IStorage {
   async deleteCyclePeriodLog(id: number, userId: number): Promise<void> {
     await db.delete(cyclePeriodLogs)
       .where(and(eq(cyclePeriodLogs.id, id), eq(cyclePeriodLogs.userId, userId)));
+  }
+
+  async deleteAllCycleData(userId: number): Promise<void> {
+    await db.delete(cyclePeriodLogs).where(eq(cyclePeriodLogs.userId, userId));
+    await db.delete(cycleSymptoms).where(eq(cycleSymptoms.userId, userId));
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (user?.preferences) {
+      const prefs = user.preferences as Record<string, unknown>;
+      delete prefs.lastPeriodDate;
+      delete prefs.cycleLength;
+      delete prefs.periodLength;
+      await db.update(users).set({ preferences: prefs }).where(eq(users.id, userId));
+    }
   }
 
   async getAiInsightsCache(userId: number, cacheKey: string): Promise<AiInsightsCache | undefined> {

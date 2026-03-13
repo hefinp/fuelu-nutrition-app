@@ -1671,6 +1671,12 @@ Write 1-2 sentences analysing their trend: rate of change, whether they're on tr
     res.json({ success: true });
   });
 
+  app.delete("/api/user/cycle-data", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    await storage.deleteAllCycleData(req.session.userId);
+    res.json({ ok: true });
+  });
+
   // ── Cycle insights (data analytics) ───────────────────────────────────────
 
   function nDaysAgo(n: number): string {
