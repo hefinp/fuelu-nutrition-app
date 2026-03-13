@@ -96,6 +96,7 @@ export interface IStorage {
   incrementCommunityMealFavourite(id: number): Promise<void>;
   getCommunityMealBalance(): Promise<{ style: string; slot: string; total: number; userContributed: number; aiGenerated: number }[]>;
   getCommunityMealByRecipeId(recipeId: number): Promise<CommunityMeal | undefined>;
+  updateCommunityMealIngredients(id: number, ingredients: string[], instructions: string): Promise<CommunityMeal>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -489,6 +490,14 @@ export class DatabaseStorage implements IStorage {
     await db.update(communityMeals)
       .set({ favouriteCount: sql`${communityMeals.favouriteCount} + 1` })
       .where(eq(communityMeals.id, id));
+  }
+
+  async updateCommunityMealIngredients(id: number, ingredients: string[], instructions: string): Promise<CommunityMeal> {
+    const [updated] = await db.update(communityMeals)
+      .set({ ingredients, instructions })
+      .where(eq(communityMeals.id, id))
+      .returning();
+    return updated;
   }
 
   async getCommunityMealBalance(): Promise<{ style: string; slot: string; total: number; userContributed: number; aiGenerated: number }[]> {

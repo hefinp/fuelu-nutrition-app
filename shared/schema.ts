@@ -151,6 +151,8 @@ export const communityMeals = pgTable("community_meals", {
   favouriteCount: integer("favourite_count").notNull().default(0),
   active: boolean("active").notNull().default(true),
   source: text("source").notNull().default("user"),
+  ingredients: text("ingredients").array(),
+  instructions: text("instructions"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

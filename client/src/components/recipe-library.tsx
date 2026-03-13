@@ -6,7 +6,7 @@ import { type UserRecipe, type UserPreferences, type CommunityMeal } from "@shar
 import {
   BookOpen, Plus, X, Loader2, ExternalLink, Trash2, ChefHat,
   UtensilsCrossed, Globe, AlertCircle, Check, AlertTriangle,
-  Camera, ArrowLeft, ImagePlus, Sparkles, Share2, Heart, Users2,
+  Camera, ArrowLeft, ImagePlus, Sparkles, Share2, Heart, Users2, ShieldAlert,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -168,6 +168,29 @@ export function RecipeLibrary() {
   );
 }
 
+const ALLERGEN_KEYWORDS: Record<string, string[]> = {
+  gluten: ["wheat", "gluten", "flour", "bread", "barley", "rye", "oat", "pasta", "couscous", "semolina", "crouton", "cracker", "baguette", "sourdough", "brioche", "noodle"],
+  dairy: ["milk", "cream", "butter", "cheese", "yogurt", "yoghurt", "whey", "lactose", "ghee", "cheddar", "mozzarella", "parmesan", "brie", "feta", "ricotta", "crème fraîche", "hollandaise"],
+  eggs: ["egg", "yolk", "albumen", "mayonnaise"],
+  nuts: ["almond", "cashew", "walnut", "pistachio", "pecan", "hazelnut", "macadamia", "pine nut", "brazil nut", "chestnut", "praline"],
+  peanuts: ["peanut", "groundnut"],
+  shellfish: ["shrimp", "prawn", "crab", "lobster", "crayfish", "scallop", "oyster", "mussel", "clam", "squid", "octopus"],
+  fish: ["salmon", "tuna", "cod", "halibut", "trout", "anchovy", "tilapia", "haddock", "mackerel", "sardine", "bass", "snapper", "swordfish", "smoked salmon"],
+  soy: ["soy", "soya", "tofu", "tempeh", "miso", "edamame"],
+};
+
+function detectAllergyConflicts(ingredients: string[], allergies: string[]): string[] {
+  const conflicts: string[] = [];
+  const ingredientText = ingredients.join(" ").toLowerCase();
+  for (const allergy of allergies) {
+    const keywords = ALLERGEN_KEYWORDS[allergy] ?? [];
+    if (keywords.some(kw => ingredientText.includes(kw))) {
+      conflicts.push(allergy);
+    }
+  }
+  return conflicts;
+}
+
 function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -176,6 +199,8 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
   const [expandedMealId, setExpandedMealId] = useState<number | null>(null);
   const [savedMealIds, setSavedMealIds] = useState<Set<number>>(new Set());
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [mealDetails, setMealDetails] = useState<Record<number, CommunityMeal | "loading" | "error">>({});
+  const [allergyWarning, setAllergyWarning] = useState<{ meal: CommunityMeal; conflicts: string[] } | null>(null);
 
   const { data: meals = [], isLoading } = useQuery<CommunityMeal[]>({
     queryKey: ["/api/community-meals", selectedStyle, selectedSlot],
@@ -185,6 +210,12 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
       return res.json();
     },
   });
+
+  const { data: preferences } = useQuery<UserPreferences>({
+    queryKey: ["/api/user/preferences"],
+  });
+
+  const userAllergies: string[] = Array.isArray(preferences?.allergies) ? preferences.allergies : [];
 
   const handleStyleChange = (style: MealStyle) => {
     setSelectedStyle(style);
@@ -196,13 +227,28 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
     setExpandedMealId(null);
   };
 
-  const handleToggleExpand = (id: number) => {
-    setExpandedMealId(prev => prev === id ? null : id);
+  const handleToggleExpand = async (id: number) => {
+    if (expandedMealId === id) {
+      setExpandedMealId(null);
+      return;
+    }
+    setExpandedMealId(id);
+    if (mealDetails[id]) return;
+    setMealDetails(prev => ({ ...prev, [id]: "loading" }));
+    try {
+      const res = await fetch(`/api/community-meals/${id}/details`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      const detail: CommunityMeal = await res.json();
+      setMealDetails(prev => ({ ...prev, [id]: detail }));
+    } catch {
+      setMealDetails(prev => ({ ...prev, [id]: "error" }));
+    }
   };
 
-  const handleSave = async (meal: CommunityMeal) => {
+  const doSave = async (meal: CommunityMeal) => {
     if (savedMealIds.has(meal.id) || savingId === meal.id) return;
     setSavingId(meal.id);
+    setAllergyWarning(null);
     try {
       await apiRequest("POST", "/api/favourites", {
         mealName: meal.name,
@@ -221,6 +267,20 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
     } finally {
       setSavingId(null);
     }
+  };
+
+  const handleSave = (meal: CommunityMeal) => {
+    if (savedMealIds.has(meal.id) || savingId === meal.id) return;
+    const detail = mealDetails[meal.id];
+    const ingredients = (detail && detail !== "loading" && detail !== "error" && detail.ingredients) ? detail.ingredients : [];
+    if (userAllergies.length > 0 && ingredients.length > 0) {
+      const conflicts = detectAllergyConflicts(ingredients, userAllergies);
+      if (conflicts.length > 0) {
+        setAllergyWarning({ meal, conflicts });
+        return;
+      }
+    }
+    doSave(meal);
   };
 
   return (
@@ -322,6 +382,12 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                 const isSaved = savedMealIds.has(meal.id);
                 const isSaving = savingId === meal.id;
                 const microDots = Math.min(5, Math.max(1, meal.microScore));
+                const detail = mealDetails[meal.id];
+                const isLoadingDetails = detail === "loading";
+                const isDetailError = detail === "error";
+                const detailData = (detail && detail !== "loading" && detail !== "error") ? detail : null;
+                const hasIngredients = detailData?.ingredients && detailData.ingredients.length > 0;
+                const isAllergyWarningOpen = allergyWarning?.meal.id === meal.id;
 
                 return (
                   <div
@@ -364,7 +430,7 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                       <div className="flex items-center gap-1.5 shrink-0">
                         <div className="flex items-center gap-0.5 text-zinc-400">
                           <Heart className={`w-3.5 h-3.5 ${meal.favouriteCount > 0 || isSaved ? "fill-red-400 text-red-400" : ""}`} />
-                          <span className="text-xs font-medium">{meal.favouriteCount + (isSaved && meal.favouriteCount === 0 ? 0 : 0)}</span>
+                          <span className="text-xs font-medium">{meal.favouriteCount}</span>
                         </div>
                         <div className={`transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}>
                           <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -413,32 +479,105 @@ function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                           </span>
                         </div>
 
-                        {/* Save button */}
-                        <button
-                          type="button"
-                          onClick={() => handleSave(meal)}
-                          disabled={isSaved || isSaving}
-                          data-testid={`button-save-community-meal-${meal.id}`}
-                          className={`mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                            isSaved
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default"
-                              : "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-[0.98]"
-                          }`}
-                        >
-                          {isSaving ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : isSaved ? (
-                            <>
-                              <Check className="w-4 h-4" />
-                              Saved to my meals
-                            </>
-                          ) : (
-                            <>
-                              <Heart className="w-4 h-4" />
-                              Save to my meals
-                            </>
-                          )}
-                        </button>
+                        {/* Ingredients + Instructions */}
+                        {isLoadingDetails ? (
+                          <div className="mt-3 space-y-2">
+                            <div className="h-3 bg-zinc-100 animate-pulse rounded w-24" />
+                            {[1, 2, 3, 4].map(i => (
+                              <div key={i} className="h-2.5 bg-zinc-100 animate-pulse rounded" style={{ width: `${60 + i * 8}%` }} />
+                            ))}
+                            <div className="h-3 bg-zinc-100 animate-pulse rounded w-24 mt-3" />
+                            {[1, 2, 3].map(i => (
+                              <div key={i} className="h-2.5 bg-zinc-100 animate-pulse rounded w-full" />
+                            ))}
+                          </div>
+                        ) : isDetailError ? (
+                          <p className="mt-3 text-xs text-zinc-400 text-center">Could not load recipe details.</p>
+                        ) : hasIngredients ? (
+                          <div className="mt-3 space-y-3">
+                            <div>
+                              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Ingredients</p>
+                              <ul className="space-y-1">
+                                {detailData!.ingredients!.map((ing, i) => (
+                                  <li key={i} className="flex items-start gap-1.5 text-xs text-zinc-700">
+                                    <span className="mt-0.5 w-1 h-1 rounded-full bg-zinc-400 shrink-0" />
+                                    {ing}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            {detailData!.instructions && (
+                              <div>
+                                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Method</p>
+                                <div className="space-y-1">
+                                  {detailData!.instructions.split("\n").filter(Boolean).map((step, i) => (
+                                    <p key={i} className="text-xs text-zinc-700 leading-relaxed">{step}</p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+
+                        {/* Allergy warning panel */}
+                        {isAllergyWarningOpen && allergyWarning && (
+                          <div className="mt-3 rounded-xl bg-red-50 border border-red-200 p-3" data-testid={`allergy-warning-${meal.id}`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <ShieldAlert className="w-4 h-4 text-red-500 shrink-0" />
+                              <p className="text-xs font-semibold text-red-700">Allergen conflict detected</p>
+                            </div>
+                            <p className="text-xs text-red-600 mb-3">
+                              This meal may contain <span className="font-semibold">{allergyWarning.conflicts.join(", ")}</span>, which {allergyWarning.conflicts.length === 1 ? "is" : "are"} in your allergen list. Do you still want to save it?
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setAllergyWarning(null)}
+                                data-testid={`button-allergy-cancel-${meal.id}`}
+                                className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-200 text-red-600 hover:bg-red-100 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => doSave(allergyWarning.meal)}
+                                data-testid={`button-allergy-confirm-${meal.id}`}
+                                className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
+                              >
+                                Save anyway
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Save button — hidden if allergy warning is showing */}
+                        {!isAllergyWarningOpen && (
+                          <button
+                            type="button"
+                            onClick={() => handleSave(meal)}
+                            disabled={isSaved || isSaving}
+                            data-testid={`button-save-community-meal-${meal.id}`}
+                            className={`mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                              isSaved
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default"
+                                : "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-[0.98]"
+                            }`}
+                          >
+                            {isSaving ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : isSaved ? (
+                              <>
+                                <Check className="w-4 h-4" />
+                                Saved to my meals
+                              </>
+                            ) : (
+                              <>
+                                <Heart className="w-4 h-4" />
+                                Save to my meals
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

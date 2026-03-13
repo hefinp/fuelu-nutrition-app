@@ -3043,6 +3043,59 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
     }
   });
 
+  app.get("/api/community-meals/:id/details", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      let meal = await storage.getCommunityMealById(Number(req.params.id));
+      if (!meal) return res.status(404).json({ message: "Meal not found" });
+
+      if (!meal.ingredients || meal.ingredients.length === 0) {
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: `You are a nutritionist generating recipe details. Return a JSON object with exactly two keys:
+- "ingredients": array of ingredient strings (each item like "200g chicken breast" or "1 tbsp olive oil"), 6-12 items
+- "instructions": a concise step-by-step cooking method as a single string with numbered steps separated by newlines
+
+Tailor complexity to the meal style: simple = minimal steps, gourmet = refined technique, michelin = professional detail.
+Return ONLY valid JSON, no markdown.`,
+            },
+            {
+              role: "user",
+              content: `Meal: "${meal.name}"
+Style: ${meal.style}
+Slot: ${meal.slot}
+Macros: ${meal.caloriesPerServing} kcal, ${meal.proteinPerServing}g protein, ${meal.carbsPerServing}g carbs, ${meal.fatPerServing}g fat`,
+            },
+          ],
+          max_tokens: 600,
+          temperature: 0.5,
+          response_format: { type: "json_object" },
+        });
+
+        let parsed: { ingredients?: string[]; instructions?: string } = {};
+        try {
+          parsed = JSON.parse(completion.choices[0].message.content || "{}");
+        } catch {}
+
+        const ingredients = Array.isArray(parsed.ingredients) ? parsed.ingredients : [];
+        const instructions = typeof parsed.instructions === "string" ? parsed.instructions : "";
+
+        if (ingredients.length > 0) {
+          meal = await storage.updateCommunityMealIngredients(meal.id, ingredients, instructions);
+        }
+      }
+
+      res.json(meal);
+    } catch (err) {
+      console.error("[community-meals] details error:", err);
+      res.status(500).json({ message: "Failed to fetch meal details" });
+    }
+  });
+
   // ── Admin: community meal balance ─────────────────────────────────────────
 
   const ADMIN_EMAIL = "hefin.price@gmail.com";
