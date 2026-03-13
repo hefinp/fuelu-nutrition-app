@@ -347,7 +347,7 @@ export function FoodLog({
 
   // Form state
   const [showForm, setShowForm] = useState(false);
-  const [formTab, setFormTab] = useState<"manual" | "plan" | "search" | "scan">("manual");
+  const [formTab, setFormTab] = useState<"manual" | "plan" | "search" | "scan" | "ai">("manual");
   const [form, setForm] = useState({
     mealName: "", calories: "", protein: "", carbs: "", fat: "",
     mealSlot: null as MealSlot | null,
@@ -395,6 +395,14 @@ export function FoodLog({
   const [aiAssistLoading, setAiAssistLoading] = useState(false);
   const [aiAssistPhotoFile, setAiAssistPhotoFile] = useState<File | null>(null);
   const aiAssistPhotoRef = useRef<HTMLInputElement>(null);
+
+  const [aiTabDescription, setAiTabDescription] = useState("");
+  const [aiTabPhotoFile, setAiTabPhotoFile] = useState<File | null>(null);
+  const [aiTabResult, setAiTabResult] = useState<ExtendedFoodResult | null>(null);
+  const [aiTabLoading, setAiTabLoading] = useState(false);
+  const [aiTabServingGrams, setAiTabServingGrams] = useState("100");
+  const [aiTabMealSlot, setAiTabMealSlot] = useState<MealSlot | null>(null);
+  const aiTabPhotoRef = useRef<HTMLInputElement>(null);
   const zxingModuleRef = useRef<typeof import("@zxing/browser") | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scanControlsRef = useRef<{ stop: () => void } | null>(null);
@@ -855,6 +863,48 @@ export function FoodLog({
     }
   }
 
+  async function handleAiTabEstimate() {
+    if (!aiTabDescription.trim() && !aiTabPhotoFile) return;
+    setAiTabLoading(true);
+    try {
+      const body: { imageBase64?: string; description?: string } = {};
+      if (aiTabPhotoFile) {
+        const b64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(aiTabPhotoFile);
+        });
+        body.imageBase64 = b64;
+      }
+      if (aiTabDescription.trim()) body.description = aiTabDescription.trim();
+      const res = await apiRequest("POST", "/api/food-log/recognize-food", body);
+      const food: ExtendedFoodResult = await res.json();
+      setAiTabResult(food);
+      setAiTabServingGrams(String(food.servingGrams || 100));
+      setAiTabMealSlot(null);
+    } catch {
+      toast({ title: "Could not identify food", description: "Try a more detailed description.", variant: "destructive" });
+    } finally {
+      setAiTabLoading(false);
+    }
+  }
+
+  function logAiTabFood() {
+    if (!aiTabResult) return;
+    const grams = parseFloat(aiTabServingGrams) || 100;
+    const f = grams / 100;
+    addMutation.mutate({
+      date: selectedDate,
+      mealName: aiTabResult.name,
+      calories: Math.round(aiTabResult.calories100g * f),
+      protein: Math.round(aiTabResult.protein100g * f),
+      carbs: Math.round(aiTabResult.carbs100g * f),
+      fat: Math.round(aiTabResult.fat100g * f),
+      mealSlot: aiTabMealSlot,
+    });
+  }
+
   function toggleDay(date: string) {
     setExpandedDays(prev => {
       const next = new Set(prev);
@@ -1063,6 +1113,17 @@ export function FoodLog({
               <Barcode className="w-3.5 h-3.5" />
               Scan
             </button>
+            {labelScanAvailable && (
+              <button
+                type="button"
+                onClick={() => { setAiTabResult(null); setAiTabDescription(""); setAiTabPhotoFile(null); setFormTab("ai"); }}
+                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "ai" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+                data-testid="button-form-tab-ai"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                AI
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setFormTab("plan")}
@@ -1375,7 +1436,19 @@ export function FoodLog({
                     <div className="text-center py-6 text-zinc-400">
                       <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
                       <p className="text-sm">No results for "{debouncedQuery}"</p>
-                      <p className="text-xs mt-1">Try a different name or use Manual entry.</p>
+                      {labelScanAvailable ? (
+                        <button
+                          type="button"
+                          onClick={() => { setAiTabResult(null); setAiTabDescription(debouncedQuery); setAiTabPhotoFile(null); setFormTab("ai"); }}
+                          className="mt-2 inline-flex items-center gap-1 text-xs text-violet-600 font-medium hover:text-violet-800 transition-colors"
+                          data-testid="button-search-try-ai"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          Try AI estimate instead
+                        </button>
+                      ) : (
+                        <p className="text-xs mt-1">Try a different name or use Manual entry.</p>
+                      )}
                     </div>
                   )}
 
@@ -1850,6 +1923,162 @@ export function FoodLog({
                 onClick={() => setShowForm(false)}
                 className="mt-3 w-full py-2 bg-zinc-100 text-zinc-600 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-colors"
                 data-testid="button-log-cancel-plan"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {/* AI describe tab */}
+          {formTab === "ai" && (
+            <div className="p-4 space-y-3">
+              {!aiTabResult ? (
+                <>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
+                      <Sparkles className="w-3.5 h-3.5 text-violet-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-zinc-900">Describe what you ate</p>
+                      <p className="text-[10px] text-zinc-400">AI will estimate the calories and macros</p>
+                    </div>
+                  </div>
+                  <textarea
+                    placeholder="e.g. large bowl of homemade lentil soup with two slices of brown bread and butter"
+                    value={aiTabDescription}
+                    onChange={e => setAiTabDescription(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2.5 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white resize-none"
+                    data-testid="input-ai-tab-description"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => aiTabPhotoRef.current?.click()}
+                      className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-medium transition-colors ${aiTabPhotoFile ? "bg-violet-100 text-violet-700 border-violet-300" : "bg-white text-zinc-500 border-zinc-200 hover:border-violet-300 hover:text-violet-600"}`}
+                      title="Add a photo instead"
+                      data-testid="button-ai-tab-photo"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      {aiTabPhotoFile ? aiTabPhotoFile.name.slice(0, 16) + "…" : "Add photo"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAiTabEstimate}
+                      disabled={aiTabLoading || (!aiTabDescription.trim() && !aiTabPhotoFile)}
+                      className="flex-1 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      data-testid="button-ai-tab-estimate"
+                    >
+                      {aiTabLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      {aiTabLoading ? "Estimating…" : "Estimate macros"}
+                    </button>
+                  </div>
+                  <input
+                    ref={aiTabPhotoRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    data-testid="input-ai-tab-photo-file"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) setAiTabPhotoFile(f); e.target.value = ""; }}
+                  />
+                  <p className="text-[10px] text-zinc-400 text-center">Estimates are saved to the food database to improve results over time</p>
+                </>
+              ) : (
+                /* ── AI result confirmation card ── */
+                (() => {
+                  const grams = parseFloat(aiTabServingGrams) || 100;
+                  const f = grams / 100;
+                  const mealSlots: { slot: MealSlot; label: string; icon: typeof Coffee }[] = [
+                    { slot: "breakfast", label: "Breakfast", icon: Coffee },
+                    { slot: "lunch", label: "Lunch", icon: Salad },
+                    { slot: "dinner", label: "Dinner", icon: Moon },
+                    { slot: "snack", label: "Snack", icon: Apple },
+                  ];
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-zinc-900 leading-snug" data-testid="text-ai-tab-food-name">{aiTabResult.name}</p>
+                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-violet-50 border border-violet-200 rounded-full text-[9px] font-medium text-violet-700">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            AI-estimated — verify before logging
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setAiTabResult(null); setAiTabDescription(""); setAiTabPhotoFile(null); }}
+                          className="p-1 hover:bg-zinc-100 rounded-lg transition-colors shrink-0"
+                          data-testid="button-ai-tab-reset"
+                        >
+                          <X className="w-4 h-4 text-zinc-400" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2 bg-zinc-50 rounded-xl p-3">
+                        <label className="text-[10px] text-zinc-500 font-medium shrink-0">Serving size</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={aiTabServingGrams}
+                          onChange={e => setAiTabServingGrams(e.target.value)}
+                          className="w-20 text-sm font-semibold text-zinc-900 bg-transparent border-none outline-none text-right"
+                          data-testid="input-ai-tab-serving"
+                        />
+                        <span className="text-xs text-zinc-400">g</span>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {[
+                          { label: "Calories", value: Math.round(aiTabResult.calories100g * f), unit: "kcal", color: "bg-orange-50 text-orange-700" },
+                          { label: "Protein", value: Math.round(aiTabResult.protein100g * f * 10) / 10, unit: "g", color: "bg-red-50 text-red-700" },
+                          { label: "Carbs", value: Math.round(aiTabResult.carbs100g * f * 10) / 10, unit: "g", color: "bg-blue-50 text-blue-700" },
+                          { label: "Fat", value: Math.round(aiTabResult.fat100g * f * 10) / 10, unit: "g", color: "bg-yellow-50 text-yellow-700" },
+                        ].map(({ label, value, unit, color }) => (
+                          <div key={label} className={`${color} rounded-xl p-2 text-center`}>
+                            <p className="text-sm font-bold">{value}</p>
+                            <p className="text-[9px] font-medium uppercase tracking-wide opacity-70">{unit === "kcal" ? "kcal" : label}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {mealSlots.map(({ slot, label, icon: Icon }) => {
+                          const active = aiTabMealSlot === slot;
+                          return (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => setAiTabMealSlot(active ? null : slot)}
+                              className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-medium border transition-colors ${active ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"}`}
+                              data-testid={`button-ai-tab-slot-${slot}`}
+                            >
+                              <Icon className="w-3.5 h-3.5" />
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={logAiTabFood}
+                        disabled={addMutation.isPending}
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                        data-testid="button-ai-tab-log"
+                      >
+                        {addMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        Log this meal
+                      </button>
+                    </div>
+                  );
+                })()
+              )}
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="w-full py-2 bg-zinc-100 text-zinc-600 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-colors"
+                data-testid="button-log-cancel-ai"
               >
                 Cancel
               </button>
