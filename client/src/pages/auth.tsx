@@ -36,6 +36,7 @@ export default function AuthPage() {
   const [regPassword, setRegPassword] = useState("");
   const [regInviteCode, setRegInviteCode] = useState("");
   const [regError, setRegError] = useState("");
+  const [inviteCodeError, setInviteCodeError] = useState("");
   const [showRegPw, setShowRegPw] = useState(false);
 
   const { data: inviteConfig } = useQuery<{ required: boolean }>({
@@ -56,15 +57,21 @@ export default function AuthPage() {
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setRegError("");
+    setInviteCodeError("");
     try {
       await register({ email: regEmail, name: regName, password: regPassword, inviteCode: regInviteCode || undefined });
       setLocation("/dashboard");
     } catch (err: any) {
-      setRegError(err.message || "Registration failed");
+      const msg = err.message || "Registration failed";
+      if (msg.toLowerCase().includes("invite code")) {
+        setInviteCodeError(msg);
+      } else {
+        setRegError(msg);
+      }
     }
   }
 
-  const hasOAuth = !inviteConfig?.required && (providers?.google || providers?.apple);
+  const hasOAuth = providers?.google || providers?.apple;
 
   const oauthErrorMessage =
     oauthError === "google_failed" ? "Google sign-in failed. Please try again." :
@@ -303,11 +310,14 @@ export default function AuthPage() {
                   <input
                     type="text"
                     value={regInviteCode}
-                    onChange={e => setRegInviteCode(e.target.value)}
+                    onChange={e => { setRegInviteCode(e.target.value); setInviteCodeError(""); }}
                     placeholder="Enter your invite code"
-                    className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                    className={`w-full px-4 py-2.5 border rounded-xl text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent ${inviteCodeError ? "border-red-400" : "border-zinc-200"}`}
                     data-testid="input-register-invite-code"
                   />
+                  {inviteCodeError && (
+                    <p className="mt-1 text-xs text-red-600" data-testid="error-invite-code">{inviteCodeError}</p>
+                  )}
                 </div>
               )}
 

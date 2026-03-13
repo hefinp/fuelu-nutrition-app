@@ -727,9 +727,6 @@ export async function registerRoutes(
     if (!process.env.GOOGLE_CLIENT_ID) {
       return res.status(503).json({ message: "Google sign-in is not configured" });
     }
-    if (process.env.INVITE_CODES) {
-      return res.status(403).json({ message: "OAuth registration is disabled during beta. Please use an invite code to register." });
-    }
     passport.authenticate("google", { scope: ["profile", "email"], session: false })(req, res, next);
   });
 
@@ -750,9 +747,6 @@ export async function registerRoutes(
   app.get("/api/auth/apple", (req, res, next) => {
     if (!process.env.APPLE_CLIENT_ID) {
       return res.status(503).json({ message: "Apple sign-in is not configured" });
-    }
-    if (process.env.INVITE_CODES) {
-      return res.status(403).json({ message: "OAuth registration is disabled during beta. Please use an invite code to register." });
     }
     passport.authenticate("apple", { session: false })(req, res, next);
   });
