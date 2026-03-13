@@ -249,7 +249,14 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
       setStep("confirm");
     },
     onError: (e: any) => {
-      const msg = e?.message ?? "Could not import that recipe. Try a different URL.";
+      let msg = e?.message ?? "Could not import that recipe. Try a different URL.";
+      try {
+        const match = msg.match(/^\d+: (.+)$/s);
+        if (match) {
+          const parsed = JSON.parse(match[1]);
+          if (parsed.message) msg = parsed.message;
+        }
+      } catch {}
       setFetchError(msg);
     },
   });

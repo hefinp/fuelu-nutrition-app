@@ -2178,7 +2178,7 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) {
-        const msg = response.status === 403 || response.status === 401
+        const msg = [401, 402, 403].includes(response.status)
           ? "That site blocked the import request. Try BBC Good Food, Serious Eats, Cookie and Kate, or another recipe site."
           : response.status === 404
           ? "That page wasn't found (404). Double-check the URL and try again."
