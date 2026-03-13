@@ -111,6 +111,7 @@ export default function Dashboard() {
     setOnboardingDismissed(true);
     setActiveResult(calculation as Calculation);
     queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+    setTimeout(() => setShowTour(true), 400);
   }, [queryClient]);
 
   function toggleWidget(id: string) {
