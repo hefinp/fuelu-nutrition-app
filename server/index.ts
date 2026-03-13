@@ -6,6 +6,7 @@ import { registerRoutes, passport } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { pool } from "./db";
+import { runMigrations } from "./migrate";
 
 const PgSession = connectPgSimple(session);
 
@@ -123,6 +124,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await runMigrations();
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
