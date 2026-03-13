@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -6,11 +6,14 @@ import { type UserRecipe, type UserPreferences } from "@shared/schema";
 import {
   BookOpen, Plus, X, Loader2, ExternalLink, Trash2, ChefHat,
   UtensilsCrossed, Globe, AlertCircle, Check, AlertTriangle,
+  Camera, ArrowLeft, ImagePlus, Sparkles,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
 type MealStyle = "simple" | "gourmet" | "michelin";
+type ImportMethod = "web" | "photo";
+type Step = "method" | "url" | "photo" | "confirm";
 
 interface ParsedRecipe {
   name: string;
@@ -61,6 +64,18 @@ function isMacrosComplete(recipe: UserRecipe): boolean {
     recipe.carbsPerServing > 0 && recipe.fatPerServing > 0;
 }
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(",")[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export function RecipeLibrary() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -85,7 +100,7 @@ export function RecipeLibrary() {
           </div>
           <div>
             <h2 className="text-lg font-bold text-zinc-900">My Recipes</h2>
-            <p className="text-xs text-zinc-500">Import recipes from the web to use in meal plans</p>
+            <p className="text-xs text-zinc-500">Import recipes from the web or a photo</p>
           </div>
         </div>
         <button
@@ -109,7 +124,7 @@ export function RecipeLibrary() {
           </div>
           <p className="text-sm font-medium text-zinc-600 mb-1">No recipes yet</p>
           <p className="text-xs text-zinc-400 max-w-[220px]">
-            Paste any recipe URL to import it — it'll appear in your meal plan generation.
+            Import from a recipe website or photograph a page from a recipe book.
           </p>
         </div>
       ) : (
@@ -221,10 +236,16 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [url, setUrl] = useState("");
-  const [step, setStep] = useState<"input" | "confirm">("input");
+  const [step, setStep] = useState<Step>("method");
+  const [importMethod, setImportMethod] = useState<ImportMethod | null>(null);
   const [parsed, setParsed] = useState<ParsedRecipe | null>(null);
+
+  const [url, setUrl] = useState("");
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   const [mealSlot, setMealSlot] = useState<MealSlot>("dinner");
   const [mealStyle, setMealStyle] = useState<MealStyle>("simple");
@@ -233,21 +254,25 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
   const [carbs, setCarbs] = useState("");
   const [fat, setFat] = useState("");
 
+  const photo1Ref = useRef<HTMLInputElement>(null);
+  const photo2Ref = useRef<HTMLInputElement>(null);
+
+  function applyParsed(data: ParsedRecipe) {
+    setParsed(data);
+    setCalories(data.calories !== null ? String(data.calories) : "");
+    setProtein(data.protein !== null ? String(data.protein) : "");
+    setCarbs(data.carbs !== null ? String(data.carbs) : "");
+    setFat(data.fat !== null ? String(data.fat) : "");
+    if (data.suggestedSlot) setMealSlot(data.suggestedSlot as MealSlot);
+    setStep("confirm");
+  }
+
   const fetchMutation = useMutation({
     mutationFn: async (importUrl: string) => {
       const res = await apiRequest("POST", "/api/recipes/import", { url: importUrl });
       return res.json() as Promise<ParsedRecipe>;
     },
-    onSuccess: (data) => {
-      setParsed(data);
-      setCalories(data.calories !== null ? String(data.calories) : "");
-      setProtein(data.protein !== null ? String(data.protein) : "");
-      setCarbs(data.carbs !== null ? String(data.carbs) : "");
-      setFat(data.fat !== null ? String(data.fat) : "");
-      if (data.suggestedSlot) setMealSlot(data.suggestedSlot as MealSlot);
-      setFetchError(null);
-      setStep("confirm");
-    },
+    onSuccess: applyParsed,
     onError: (e: any) => {
       let msg = e?.message ?? "Could not import that recipe. Try a different URL.";
       try {
@@ -261,6 +286,28 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
     },
   });
 
+  const photoMutation = useMutation({
+    mutationFn: async (files: File[]) => {
+      const images = await Promise.all(
+        files.map(async f => ({ base64: await fileToBase64(f), mimeType: f.type || "image/jpeg" }))
+      );
+      const res = await apiRequest("POST", "/api/recipes/import-photo", { images });
+      return res.json() as Promise<ParsedRecipe>;
+    },
+    onSuccess: applyParsed,
+    onError: (e: any) => {
+      let msg = e?.message ?? "Could not read the recipe from that photo. Try again with a clearer image.";
+      try {
+        const match = msg.match(/^\d+: (.+)$/s);
+        if (match) {
+          const parsed = JSON.parse(match[1]);
+          if (parsed.message) msg = parsed.message;
+        }
+      } catch {}
+      setPhotoError(msg);
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: (body: object) => apiRequest("POST", "/api/recipes", body),
     onSuccess: () => {
@@ -271,14 +318,41 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
     onError: () => toast({ title: "Failed to save recipe", variant: "destructive" }),
   });
 
-  const handleFetch = () => {
+  function handleFetch() {
     setFetchError(null);
     let cleaned = url.trim();
     if (cleaned && !cleaned.startsWith("http")) cleaned = "https://" + cleaned;
     fetchMutation.mutate(cleaned);
-  };
+  }
 
-  const handleSave = () => {
+  function handlePhotoChange(index: number, file: File | null) {
+    setPhotoError(null);
+    if (!file) {
+      const newPhotos = photos.filter((_, i) => i !== index);
+      const newPreviews = photoPreviews.filter((_, i) => i !== index);
+      setPhotos(newPhotos);
+      setPhotoPreviews(newPreviews);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    if (index === 0) {
+      const newPhotos = [file, ...photos.slice(1)];
+      const newPreviews = [url, ...photoPreviews.slice(1)];
+      setPhotos(newPhotos);
+      setPhotoPreviews(newPreviews);
+    } else {
+      setPhotos([photos[0], file]);
+      setPhotoPreviews([photoPreviews[0], url]);
+    }
+  }
+
+  function handleAnalyse() {
+    if (photos.length === 0) return;
+    setPhotoError(null);
+    photoMutation.mutate(photos);
+  }
+
+  function handleSave() {
     if (!parsed) return;
     saveMutation.mutate({
       name: parsed.name,
@@ -293,10 +367,32 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
       mealSlot,
       mealStyle,
     });
-  };
+  }
+
+  function goBack() {
+    if (step === "confirm") {
+      setStep(importMethod === "photo" ? "photo" : "url");
+      setParsed(null);
+    } else if (step === "url" || step === "photo") {
+      setStep("method");
+      setFetchError(null);
+      setPhotoError(null);
+    }
+  }
+
+  function selectMethod(method: ImportMethod) {
+    setImportMethod(method);
+    setStep(method === "photo" ? "photo" : "url");
+  }
 
   const macrosComplete = calories && protein && carbs && fat &&
     parseInt(calories) > 0 && parseInt(protein) > 0 && parseInt(carbs) > 0 && parseInt(fat) > 0;
+
+  const headerTitle =
+    step === "method" ? "Import a Recipe" :
+    step === "url" ? "From the Web" :
+    step === "photo" ? "From a Photo" :
+    "Confirm & Save";
 
   return (
     <>
@@ -312,24 +408,71 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 12 }}
         transition={{ type: "spring", damping: 28, stiffness: 320 }}
-        className="fixed inset-x-4 top-[10%] mx-auto max-w-lg bg-white rounded-3xl shadow-2xl z-50 overflow-hidden max-h-[82vh] flex flex-col"
+        className="fixed inset-x-4 top-[8%] mx-auto max-w-lg bg-white rounded-3xl shadow-2xl z-50 overflow-hidden max-h-[84vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 flex-shrink-0">
           <div className="flex items-center gap-2">
+            {step !== "method" && (
+              <button
+                onClick={goBack}
+                className="p-1.5 -ml-1 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
+                data-testid="button-back"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
             <ChefHat className="w-4 h-4 text-zinc-500" />
-            <h3 className="font-semibold text-zinc-900 text-sm">
-              {step === "input" ? "Import a Recipe" : "Confirm & Save"}
-            </h3>
+            <h3 className="font-semibold text-zinc-900 text-sm">{headerTitle}</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors" data-testid="button-close-import">
+          <button
+            onClick={onClose}
+            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
+            data-testid="button-close-import"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="overflow-y-auto flex-1 px-6 py-5">
-          {step === "input" && (
+
+          {/* ── Method picker ── */}
+          {step === "method" && (
+            <div className="space-y-3">
+              <p className="text-xs text-zinc-500 mb-4">How would you like to add a recipe?</p>
+              <button
+                onClick={() => selectMethod("web")}
+                data-testid="button-method-web"
+                className="w-full flex items-center gap-4 p-4 border-2 border-zinc-100 hover:border-zinc-300 rounded-2xl text-left transition-all group"
+              >
+                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition-colors">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">From the web</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">Paste a URL from any recipe website</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => selectMethod("photo")}
+                data-testid="button-method-photo"
+                className="w-full flex items-center gap-4 p-4 border-2 border-zinc-100 hover:border-zinc-300 rounded-2xl text-left transition-all group"
+              >
+                <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-100 transition-colors">
+                  <Camera className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">From a photo</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">Take a photo of a recipe book — up to 2 pages</p>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* ── URL step ── */}
+          {step === "url" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-zinc-600 mb-1.5">Recipe URL</label>
@@ -339,9 +482,10 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
                     value={url}
                     onChange={e => setUrl(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && handleFetch()}
-                    placeholder="https://www.allrecipes.com/recipe/..."
+                    placeholder="https://www.bbcgoodfood.com/recipes/..."
                     className="flex-1 px-3 py-2 text-sm border border-zinc-200 rounded-xl focus:border-zinc-400 focus:outline-none transition-colors"
                     data-testid="input-recipe-url"
+                    autoFocus
                   />
                   <button
                     onClick={handleFetch}
@@ -363,7 +507,7 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
 
               {savedSites.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-zinc-500 mb-2">Your saved sites — navigate to a recipe then paste the URL above</p>
+                  <p className="text-xs font-medium text-zinc-500 mb-2">Your saved sites</p>
                   <div className="flex flex-wrap gap-1.5">
                     {savedSites.map(site => (
                       <a
@@ -385,46 +529,147 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
 
               <div className="pt-2 border-t border-zinc-100">
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  Works with most major recipe websites including AllRecipes, BBC Good Food, Tasty, Serious Eats, and many more that publish structured recipe data.
+                  Works with BBC Good Food, Serious Eats, Cookie and Kate, and most sites that publish structured recipe data.
                 </p>
               </div>
             </div>
           )}
 
+          {/* ── Photo step ── */}
+          {step === "photo" && (
+            <div className="space-y-4">
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Take a clear photo of the recipe page. If the recipe continues on the next page, add a second photo too — the AI will combine both.
+              </p>
+
+              {/* Photo slots */}
+              <div className="space-y-3">
+                {/* Photo 1 — required */}
+                <div>
+                  <p className="text-xs font-medium text-zinc-600 mb-1.5">Page 1 <span className="text-zinc-400 font-normal">(required)</span></p>
+                  {photoPreviews[0] ? (
+                    <div className="relative rounded-2xl overflow-hidden bg-zinc-100 aspect-[4/3]">
+                      <img src={photoPreviews[0]} alt="Recipe page 1" className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => { handlePhotoChange(0, null); if (photo1Ref.current) photo1Ref.current.value = ""; }}
+                        className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-lg hover:bg-black/80 transition-colors"
+                        data-testid="button-remove-photo-1"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => photo1Ref.current?.click()}
+                      className="w-full aspect-[4/3] border-2 border-dashed border-zinc-200 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-zinc-400 hover:bg-zinc-50 transition-all text-zinc-400 hover:text-zinc-600"
+                      data-testid="button-add-photo-1"
+                    >
+                      <Camera className="w-7 h-7" />
+                      <span className="text-xs font-medium">Tap to take photo or choose file</span>
+                    </button>
+                  )}
+                  <input
+                    ref={photo1Ref}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    data-testid="input-photo-1"
+                    onChange={e => handlePhotoChange(0, e.target.files?.[0] ?? null)}
+                  />
+                </div>
+
+                {/* Photo 2 — optional, only shown if page 1 is selected */}
+                {photoPreviews[0] && (
+                  <div>
+                    <p className="text-xs font-medium text-zinc-600 mb-1.5">Page 2 <span className="text-zinc-400 font-normal">(optional — if recipe continues)</span></p>
+                    {photoPreviews[1] ? (
+                      <div className="relative rounded-2xl overflow-hidden bg-zinc-100 aspect-[4/3]">
+                        <img src={photoPreviews[1]} alt="Recipe page 2" className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => { handlePhotoChange(1, null); if (photo2Ref.current) photo2Ref.current.value = ""; }}
+                          className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-lg hover:bg-black/80 transition-colors"
+                          data-testid="button-remove-photo-2"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => photo2Ref.current?.click()}
+                        className="w-full py-4 border-2 border-dashed border-zinc-200 rounded-2xl flex items-center justify-center gap-2 hover:border-zinc-400 hover:bg-zinc-50 transition-all text-zinc-400 hover:text-zinc-600"
+                        data-testid="button-add-photo-2"
+                      >
+                        <ImagePlus className="w-4 h-4" />
+                        <span className="text-xs font-medium">Add page 2</span>
+                      </button>
+                    )}
+                    <input
+                      ref={photo2Ref}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      data-testid="input-photo-2"
+                      onChange={e => handlePhotoChange(1, e.target.files?.[0] ?? null)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {photoError && (
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700">
+                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  {photoError}
+                </div>
+              )}
+
+              <div className="flex items-start gap-2 px-3 py-2.5 bg-zinc-50 border border-zinc-100 rounded-xl">
+                <Sparkles className="w-3.5 h-3.5 text-zinc-400 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-zinc-500">AI reads the recipe and extracts ingredients and macros where visible. You can edit everything before saving.</p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Confirm step ── */}
           {step === "confirm" && parsed && (
             <div className="space-y-5">
-              {/* Recipe preview */}
               <div className="flex gap-3 items-start">
                 {parsed.imageUrl && (
                   <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-zinc-100">
                     <img src={parsed.imageUrl} alt={parsed.name} className="w-full h-full object-cover" />
                   </div>
                 )}
+                {importMethod === "photo" && photoPreviews[0] && !parsed.imageUrl && (
+                  <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-zinc-100">
+                    <img src={photoPreviews[0]} alt={parsed.name} className="w-full h-full object-cover" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-zinc-900 text-sm leading-snug">{parsed.name}</p>
-                  <a href={parsed.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-600 mt-0.5">
-                    <Globe className="w-3 h-3" />
-                    {sourceDomain(parsed.sourceUrl)}
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
+                  {importMethod === "photo" ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-emerald-600 mt-0.5">
+                      <Camera className="w-3 h-3" /> From photo
+                    </span>
+                  ) : (
+                    <a href={parsed.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-600 mt-0.5">
+                      <Globe className="w-3 h-3" />
+                      {sourceDomain(parsed.sourceUrl)}
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  )}
                   <p className="text-xs text-zinc-500 mt-0.5">{parsed.servings} serving{parsed.servings !== 1 ? "s" : ""}</p>
                 </div>
               </div>
 
-              {/* Nutrition (editable) */}
+              {/* Nutrition */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide">Macros per serving</p>
-                  {!parsed.hasNutrition && (
-                    <span className="text-[10px] px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full">
-                      Not found — please fill in
-                    </span>
-                  )}
-                  {parsed.hasNutrition && (
-                    <span className="flex items-center gap-1 text-[10px] text-emerald-600">
-                      <Check className="w-3 h-3" /> Auto-filled
-                    </span>
-                  )}
+                  {parsed.hasNutrition
+                    ? <span className="flex items-center gap-1 text-[10px] text-emerald-600"><Check className="w-3 h-3" /> Auto-filled</span>
+                    : <span className="text-[10px] px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full">Not found — please fill in</span>
+                  }
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {[
@@ -446,7 +691,6 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
                     </div>
                   ))}
                 </div>
-
                 {!macrosComplete && (
                   <div className="flex items-start gap-2 mt-2.5 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl" data-testid="banner-macros-warning">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
@@ -460,9 +704,7 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
                 <div className="flex items-center gap-2 mb-2">
                   <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide">Meal slot</p>
                   {parsed.suggestedSlot && (
-                    <span className="text-[10px] px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-full">
-                      suggested from recipe
-                    </span>
+                    <span className="text-[10px] px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-full">suggested</span>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -514,7 +756,7 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
                 </div>
               </div>
 
-              {/* Ingredients preview */}
+              {/* Ingredients */}
               {parsed.ingredients.length > 0 && (
                 <div>
                   <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2">Ingredients ({parsed.ingredients.length})</p>
@@ -534,9 +776,9 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
           )}
         </div>
 
-        {/* Footer actions */}
+        {/* Footer */}
         <div className="flex-shrink-0 px-6 py-4 border-t border-zinc-100 bg-white">
-          {step === "input" && (
+          {step === "method" && (
             <button
               onClick={onClose}
               className="w-full py-2.5 rounded-xl text-sm font-medium border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-colors"
@@ -544,12 +786,37 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
               Cancel
             </button>
           )}
+
+          {step === "url" && (
+            <button
+              onClick={handleFetch}
+              disabled={!url.trim() || fetchMutation.isPending}
+              data-testid="button-fetch-recipe-footer"
+              className="w-full py-2.5 rounded-xl text-sm font-medium bg-zinc-900 text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            >
+              {fetchMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Fetching…</> : "Fetch Recipe"}
+            </button>
+          )}
+
+          {step === "photo" && (
+            <button
+              onClick={handleAnalyse}
+              disabled={photos.length === 0 || photoMutation.isPending}
+              data-testid="button-analyse-photo"
+              className="w-full py-2.5 rounded-xl text-sm font-medium bg-zinc-900 text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+            >
+              {photoMutation.isPending
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Reading recipe…</>
+                : <><Sparkles className="w-4 h-4" /> Analyse Recipe</>}
+            </button>
+          )}
+
           {step === "confirm" && (
             <div className="flex gap-2">
               <button
-                onClick={() => { setStep("input"); setParsed(null); }}
+                onClick={goBack}
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-colors"
-                data-testid="button-back-to-url"
+                data-testid="button-back-confirm"
               >
                 Back
               </button>

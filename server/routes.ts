@@ -2323,6 +2323,81 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
     });
   });
 
+  app.post("/api/recipes/import-photo", async (req, res) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+    const bodySchema = z.object({
+      images: z.array(z.object({
+        base64: z.string().min(1),
+        mimeType: z.string().default("image/jpeg"),
+      })).min(1).max(2),
+    });
+    const { images } = bodySchema.parse(req.body);
+
+    const imageContent = images.map(img => ({
+      type: "image_url" as const,
+      image_url: { url: `data:${img.mimeType};base64,${img.base64}`, detail: "high" as const },
+    }));
+
+    const pageWord = images.length > 1 ? "these two pages" : "this page";
+
+    let aiJson: any;
+    try {
+      const aiRes = await openai.chat.completions.create({
+        model: "gpt-4o",
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a recipe extraction assistant. The user will send you one or two photos of recipe book pages. Extract all recipe information and return a single JSON object with: name (string), ingredients (array of strings, each item as written), servings (number), calories (number or null — per serving if shown, total divided by servings otherwise), protein (number or null, grams per serving), carbs (number or null, grams per serving), fat (number or null, grams per serving), category (string or null, e.g. 'dinner'). If multiple recipes appear, pick the primary one. If it's not a recipe, set name to null.",
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `Please extract the recipe from ${pageWord}.` },
+              ...imageContent,
+            ],
+          },
+        ],
+      });
+
+      aiJson = JSON.parse(aiRes.choices[0].message.content ?? "{}");
+    } catch (e: any) {
+      return res.status(500).json({ message: "Failed to analyse the photo. Please try again." });
+    }
+
+    if (!aiJson.name) {
+      return res.status(422).json({ message: "No recipe found in that photo. Make sure the recipe text is clearly visible and try again." });
+    }
+
+    const catLower = (aiJson.category ?? "").toLowerCase();
+    const SLOT_MAP_PHOTO: Array<[string[], string]> = [
+      [["breakfast", "brunch", "morning"], "breakfast"],
+      [["lunch", "midday"], "lunch"],
+      [["snack", "appetizer", "starter", "side", "dessert"], "snack"],
+      [["dinner", "main", "supper", "entree", "entrée", "evening"], "dinner"],
+    ];
+    let photoSlot: string | null = null;
+    for (const [keywords, slot] of SLOT_MAP_PHOTO) {
+      if (keywords.some(k => catLower.includes(k))) { photoSlot = slot; break; }
+    }
+
+    res.json({
+      name: String(aiJson.name),
+      imageUrl: null,
+      ingredients: Array.isArray(aiJson.ingredients) ? aiJson.ingredients.map(String) : [],
+      servings: typeof aiJson.servings === "number" && aiJson.servings > 0 ? aiJson.servings : 1,
+      sourceUrl: "photo://recipe-book",
+      calories: typeof aiJson.calories === "number" ? aiJson.calories : null,
+      protein: typeof aiJson.protein === "number" ? aiJson.protein : null,
+      carbs: typeof aiJson.carbs === "number" ? aiJson.carbs : null,
+      fat: typeof aiJson.fat === "number" ? aiJson.fat : null,
+      hasNutrition: typeof aiJson.calories === "number",
+      suggestedSlot: photoSlot,
+    });
+  });
+
   app.get("/api/recipes", async (req, res) => {
     if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
     const recipes = await storage.getUserRecipes(req.session.userId);
