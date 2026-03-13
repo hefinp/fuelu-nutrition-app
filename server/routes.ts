@@ -1836,7 +1836,7 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
   // ── AI Food Recognition ──────────────────────────────────────────────────
 
   app.post("/api/food-log/recognize-food", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    if (!req.session.userId) return res.status(401).json({ error: "Unauthorized" });
     const { imageBase64, description } = req.body as { imageBase64?: string; description?: string };
     if (!imageBase64 && !description) return res.status(400).json({ error: "imageBase64 or description required" });
     if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI service unavailable" });
