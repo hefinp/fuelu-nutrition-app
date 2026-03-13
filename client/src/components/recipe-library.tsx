@@ -234,7 +234,10 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
   const [fat, setFat] = useState("");
 
   const fetchMutation = useMutation({
-    mutationFn: (importUrl: string) => apiRequest("POST", "/api/recipes/import", { url: importUrl }) as Promise<ParsedRecipe>,
+    mutationFn: async (importUrl: string) => {
+      const res = await apiRequest("POST", "/api/recipes/import", { url: importUrl });
+      return res.json() as Promise<ParsedRecipe>;
+    },
     onSuccess: (data) => {
       setParsed(data);
       setCalories(data.calories !== null ? String(data.calories) : "");

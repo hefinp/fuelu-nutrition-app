@@ -2192,7 +2192,69 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
       } catch { continue; }
     }
 
-    if (!recipe) return res.status(422).json({ message: "No recipe data found on that page. The site may not support structured recipe data." });
+    // ── AI fallback: if no LD+JSON found, ask GPT to parse the page text ──
+    if (!recipe) {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        return res.status(422).json({ message: "No structured recipe data found on that page. The site may not support recipe imports." });
+      }
+      try {
+        // Strip tags, collapse whitespace, trim to ~6 000 chars to keep token cost low
+        const pageText = html
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s{2,}/g, " ")
+          .trim()
+          .slice(0, 6000);
+
+        const aiRes = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are a recipe parser. Extract recipe information from webpage text. Return a JSON object with these fields: name (string), ingredients (array of strings), servings (number), calories (number or null), protein (number or null), carbs (number or null), fat (number or null), category (string or null, e.g. 'dinner'). If it's not a recipe page, set name to null.",
+            },
+            { role: "user", content: `URL: ${url}\n\nPage text:\n${pageText}` },
+          ],
+        });
+
+        const aiJson = JSON.parse(aiRes.choices[0].message.content ?? "{}");
+        if (!aiJson.name) {
+          return res.status(422).json({ message: "This doesn't appear to be a recipe page, or the content couldn't be read. Try copying the URL directly from a recipe page." });
+        }
+
+        const catLower = (aiJson.category ?? "").toLowerCase();
+        const SLOT_MAP_AI: Array<[string[], string]> = [
+          [["breakfast", "brunch", "morning"], "breakfast"],
+          [["lunch", "midday"], "lunch"],
+          [["snack", "appetizer", "starter", "side", "dessert"], "snack"],
+          [["dinner", "main", "supper", "entree", "entrée", "evening"], "dinner"],
+        ];
+        let aiSlot: string | null = null;
+        for (const [keywords, slot] of SLOT_MAP_AI) {
+          if (keywords.some(k => catLower.includes(k))) { aiSlot = slot; break; }
+        }
+
+        return res.json({
+          name: aiJson.name,
+          imageUrl: null,
+          ingredients: Array.isArray(aiJson.ingredients) ? aiJson.ingredients : [],
+          servings: typeof aiJson.servings === "number" ? aiJson.servings : 1,
+          sourceUrl: url,
+          calories: typeof aiJson.calories === "number" ? aiJson.calories : null,
+          protein: typeof aiJson.protein === "number" ? aiJson.protein : null,
+          carbs: typeof aiJson.carbs === "number" ? aiJson.carbs : null,
+          fat: typeof aiJson.fat === "number" ? aiJson.fat : null,
+          hasNutrition: typeof aiJson.calories === "number",
+          suggestedSlot: aiSlot,
+        });
+      } catch (e: any) {
+        return res.status(422).json({ message: "Could not extract recipe data from that page. Try a different URL or a site like AllRecipes, BBC Good Food, or Serious Eats." });
+      }
+    }
 
     const name: string = recipe.name ?? "Untitled Recipe";
     const imageUrl: string | null = Array.isArray(recipe.image)
