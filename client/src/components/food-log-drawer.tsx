@@ -548,8 +548,8 @@ export function FoodLogDrawer({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" data-testid="food-log-drawer">
       <div className="absolute inset-0 bg-black/50" onClick={resetFormAndClose} />
-      <div className="relative w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-2xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+      <div className="relative w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-2xl max-h-[92dvh] flex flex-col overflow-hidden shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0">
           <h2 className="text-lg font-display font-bold text-zinc-900">Log Meal</h2>
           <button
             onClick={resetFormAndClose}
@@ -560,60 +560,61 @@ export function FoodLogDrawer({
           </button>
         </div>
 
+        <div className="flex bg-zinc-100 p-1 mx-4 my-3 rounded-xl shrink-0">
+          <button
+            type="button"
+            onClick={() => setFormTab("manual")}
+            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "manual" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-form-tab-manual"
+          >
+            <UtensilsCrossed className="w-3.5 h-3.5" />
+            Manual
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormTab("search")}
+            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "search" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-form-tab-search"
+          >
+            <Search className="w-3.5 h-3.5" />
+            Search
+          </button>
+          <button
+            type="button"
+            onClick={() => { setScanResult(null); setSaveAsCustomFood(false); setScannerError(false); setFormTab("scan"); }}
+            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "scan" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-form-tab-scan"
+          >
+            <Barcode className="w-3.5 h-3.5" />
+            Scan
+          </button>
+          {labelScanAvailable && (
+            <button
+              type="button"
+              onClick={() => { setAiTabResult(null); setAiTabDescription(""); setAiTabPhotoFile(null); setAiTabMode("describe"); setAiTabProductName(""); setAiTabLabelPhotoFile(null); setFormTab("ai"); }}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "ai" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+              data-testid="button-form-tab-ai"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              AI
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setFormTab("plan")}
+            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "plan" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-form-tab-plan"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Plan
+          </button>
+        </div>
+
         <div className="flex-1 overflow-y-auto">
-          <div className="bg-white overflow-hidden">
-            <div className="flex bg-zinc-100 p-1 m-4 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setFormTab("manual")}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "manual" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-                data-testid="button-form-tab-manual"
-              >
-                <UtensilsCrossed className="w-3.5 h-3.5" />
-                Manual
-              </button>
-              <button
-                type="button"
-                onClick={() => setFormTab("search")}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "search" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-                data-testid="button-form-tab-search"
-              >
-                <Search className="w-3.5 h-3.5" />
-                Search
-              </button>
-              <button
-                type="button"
-                onClick={() => { setScanResult(null); setSaveAsCustomFood(false); setScannerError(false); setFormTab("scan"); }}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "scan" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-                data-testid="button-form-tab-scan"
-              >
-                <Barcode className="w-3.5 h-3.5" />
-                Scan
-              </button>
-              {labelScanAvailable && (
-                <button
-                  type="button"
-                  onClick={() => { setAiTabResult(null); setAiTabDescription(""); setAiTabPhotoFile(null); setAiTabMode("describe"); setAiTabProductName(""); setAiTabLabelPhotoFile(null); setFormTab("ai"); }}
-                  className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "ai" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-                  data-testid="button-form-tab-ai"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  AI
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setFormTab("plan")}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "plan" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-                data-testid="button-form-tab-plan"
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                Plan
-              </button>
-            </div>
+          <div>
 
             {formTab === "manual" && (
-              <form onSubmit={handleSubmit} className="p-4 space-y-3">
+              <form id="manual-log-form" onSubmit={handleSubmit} className="p-4 pb-2 space-y-3">
                 {!isToday && (
                   <p className="text-[11px] text-zinc-500 font-medium bg-zinc-100 rounded-lg px-2.5 py-1.5">
                     Logging to {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
@@ -792,25 +793,6 @@ export function FoodLogDrawer({
                     <span className="text-xs text-zinc-600">Save this food for future barcode scans</span>
                   </label>
                 )}
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={addMutation.isPending}
-                    className="flex-1 py-2 bg-zinc-900 text-white rounded-xl text-sm font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
-                    data-testid="button-log-save"
-                  >
-                    {addMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                    Save
-                  </button>
-                  <button
-                    type="button"
-                    onClick={resetFormAndClose}
-                    className="px-4 py-2 bg-zinc-100 text-zinc-600 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-colors"
-                    data-testid="button-log-cancel"
-                  >
-                    Cancel
-                  </button>
-                </div>
               </form>
             )}
 
@@ -1402,6 +1384,28 @@ export function FoodLogDrawer({
             )}
           </div>
         </div>
+        {formTab === "manual" && (
+          <div className="shrink-0 border-t border-zinc-100 bg-white px-4 pt-3 pb-[max(env(safe-area-inset-bottom),12px)] flex gap-2">
+            <button
+              type="submit"
+              form="manual-log-form"
+              disabled={addMutation.isPending}
+              className="flex-1 py-3 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              data-testid="button-log-save"
+            >
+              {addMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={resetFormAndClose}
+              className="px-5 py-3 bg-zinc-100 text-zinc-600 rounded-xl text-sm font-semibold hover:bg-zinc-200 transition-colors"
+              data-testid="button-log-cancel"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
