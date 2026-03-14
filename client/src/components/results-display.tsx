@@ -1762,14 +1762,14 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
         <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 p-5 sm:p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h3 className="text-lg font-bold">Nutrition Distribution</h3>
-              <p className="text-zinc-400 text-xs mt-0.5">Daily macronutrient targets</p>
-            </div>
-            <div className="text-right shrink-0 ml-4">
-              <p className="text-2xl font-bold">{totalCal}</p>
-              <p className="text-zinc-400 text-xs">kcal / day</p>
+          <div className="mb-2">
+            <h3 className="text-lg font-bold">Nutrition Distribution</h3>
+            <p className="text-zinc-400 text-xs mt-0.5">Daily macronutrient targets</p>
+          </div>
+          <div className="flex justify-end mb-3">
+            <div className="text-right">
+              <p className="text-2xl font-bold leading-none">{totalCal}</p>
+              <p className="text-zinc-400 text-xs mt-0.5">kcal / day</p>
             </div>
           </div>
 
