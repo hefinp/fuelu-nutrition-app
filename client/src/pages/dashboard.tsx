@@ -965,24 +965,51 @@ export default function Dashboard() {
               className="fixed inset-0 z-[39] bg-black/20"
               onClick={() => setShowSavedPlans(false)}
             />
-            {/* Panel — mobile: slides up above bottom nav; desktop: drops down below header */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 16 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="fixed z-40 left-0 right-0 bottom-16 sm:bottom-auto sm:top-16 max-h-[75vh] sm:max-h-[65vh] overflow-y-auto bg-white border-t sm:border-t-0 sm:border-b border-zinc-200 shadow-2xl rounded-t-2xl sm:rounded-none"
-            >
-              <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-                <div className="flex items-center justify-between mb-5">
+            {/* Panel — mobile: centered modal; desktop: drops down below header */}
+            {isDesktop ? (
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 16 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="fixed z-40 left-0 right-0 top-16 max-h-[65vh] overflow-y-auto bg-white border-b border-zinc-200 shadow-2xl"
+              >
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                        <BookOpen className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-zinc-900">Saved Plans</h2>
+                        <p className="text-xs text-zinc-500">Your saved meal plans</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowSavedPlans(false)}
+                      className="p-1.5 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400 hover:text-zinc-600"
+                      data-testid="button-close-saved-plans"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <SavedMealPlans onLogMeal={handleLogMeal} />
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="fixed z-40 inset-x-4 top-[10%] bottom-[10%] max-w-lg mx-auto bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+              >
+                <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-zinc-100 shrink-0">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                      <BookOpen className="w-5 h-5" />
+                    <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
+                      <BookOpen className="w-4 h-4" />
                     </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-zinc-900">Saved Plans</h2>
-                      <p className="text-xs text-zinc-500">Your saved meal plans</p>
-                    </div>
+                    <span className="text-sm font-semibold text-zinc-900">Saved Plans</span>
                   </div>
                   <button
                     onClick={() => setShowSavedPlans(false)}
@@ -992,9 +1019,11 @@ export default function Dashboard() {
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-                <SavedMealPlans onLogMeal={handleLogMeal} />
-              </div>
-            </motion.div>
+                <div className="flex-1 overflow-y-auto px-4 py-4">
+                  <SavedMealPlans onLogMeal={handleLogMeal} />
+                </div>
+              </motion.div>
+            )}
           </>
         )}
       </AnimatePresence>
