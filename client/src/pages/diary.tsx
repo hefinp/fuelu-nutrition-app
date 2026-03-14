@@ -10,8 +10,9 @@ import {
   Sparkles, X, ArrowLeft,
 } from "lucide-react";
 import type { UserRecipe, Calculation } from "@shared/schema";
+import { RECIPES } from "@/components/results-display";
 import {
-  type MealSlot, type FoodLogEntry, type PrefillEntry,
+  type MealSlot, type FoodLogEntry,
   SLOT_LABELS, SLOT_ICONS, SLOT_COLORS, ALL_SLOTS,
   todayStr, formatDateLabel, shiftDate,
   getWeekRange, formatWeekLabel,
@@ -648,6 +649,7 @@ function DiaryContent({
         <LoggedMealModal
           entry={selectedEntry}
           userRecipes={userRecipes}
+          recipes={RECIPES}
           onClose={() => setSelectedEntry(null)}
         />
       )}

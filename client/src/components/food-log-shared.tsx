@@ -2,7 +2,11 @@ import {
   Coffee, Salad, Moon, Apple, X, ExternalLink,
 } from "lucide-react";
 import type { SavedMealPlan, UserRecipe } from "@shared/schema";
-import { RECIPES } from "@/components/results-display";
+
+export interface RecipeDetail {
+  instructions: string;
+  ingredients: Array<{ item: string; quantity: string }>;
+}
 
 export type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
 
@@ -221,13 +225,15 @@ export function MacroGrid({
 export function LoggedMealModal({
   entry,
   userRecipes,
+  recipes,
   onClose,
 }: {
   entry: FoodLogEntry;
   userRecipes: UserRecipe[];
+  recipes?: Record<string, RecipeDetail>;
   onClose: () => void;
 }) {
-  const recipe = RECIPES[entry.mealName];
+  const recipe = recipes?.[entry.mealName];
   const webRecipe = userRecipes.find(
     r => r.name.toLowerCase() === entry.mealName.toLowerCase()
   );

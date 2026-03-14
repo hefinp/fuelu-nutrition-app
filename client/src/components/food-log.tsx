@@ -165,13 +165,15 @@ export function FoodLog({
         </Link>
       </div>
 
-      <FoodLogDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        selectedDate={today}
-        prefill={prefill}
-        onPrefillConsumed={onPrefillConsumed}
-      />
+      {(drawerOpen || !!prefill) && (
+        <FoodLogDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          selectedDate={today}
+          prefill={prefill}
+          onPrefillConsumed={onPrefillConsumed}
+        />
+      )}
     </div>
   );
 }
