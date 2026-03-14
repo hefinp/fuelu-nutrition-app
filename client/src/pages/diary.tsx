@@ -9,7 +9,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, Check, Star,
   Sparkles, X, ArrowLeft,
 } from "lucide-react";
-import type { UserRecipe } from "@shared/schema";
+import type { UserRecipe, Calculation } from "@shared/schema";
 import {
   type MealSlot, type FoodLogEntry, type PrefillEntry,
   SLOT_LABELS, SLOT_ICONS, SLOT_COLORS, ALL_SLOTS,
@@ -31,7 +31,7 @@ export default function DiaryPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
 
-  const { data: calcData } = useQuery<any>({
+  const { data: calcData } = useQuery<Calculation>({
     queryKey: ["/api/calculations/latest"],
   });
 
@@ -413,8 +413,41 @@ function DiaryContent({
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {dailyEntries.map(entry => renderEntryRow(entry))}
+                <div className="space-y-4">
+                  {(() => {
+                    const dailyBySlot: Record<string, FoodLogEntry[]> = {};
+                    for (const slot of ALL_SLOTS) dailyBySlot[slot] = [];
+                    dailyBySlot["other"] = [];
+                    for (const e of dailyEntries) {
+                      const key = e.mealSlot && ALL_SLOTS.includes(e.mealSlot as MealSlot) ? e.mealSlot : "other";
+                      dailyBySlot[key].push(e);
+                    }
+                    return [...ALL_SLOTS, "other"].map(slotKey => {
+                      const items = dailyBySlot[slotKey] ?? [];
+                      if (items.length === 0) return null;
+                      const sl = slotKey as MealSlot;
+                      const SlotIcon = SLOT_ICONS[sl];
+                      const slotColor = SLOT_COLORS[sl];
+                      const label = SLOT_LABELS[sl] ?? "Other";
+                      const slotCal = items.reduce((s, e) => s + e.calories, 0);
+                      return (
+                        <div key={slotKey} data-testid={`diary-slot-${slotKey}`}>
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            {SlotIcon && slotColor && (
+                              <div className={`p-1 rounded-md ${slotColor}`}>
+                                <SlotIcon className="w-3 h-3" />
+                              </div>
+                            )}
+                            <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider flex-1">{label}</span>
+                            <span className="text-[10px] text-zinc-400 font-medium">{slotCal} kcal</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {items.map(entry => renderEntryRow(entry))}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </>

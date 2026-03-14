@@ -137,21 +137,36 @@ export function normalizeSlot(slot: string): MealSlot | null {
   return null;
 }
 
+interface PlanMealData {
+  meal: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+type PlanSlotData = PlanMealData[];
+type DailyPlanData = Record<string, PlanSlotData>;
+type WeeklyPlanData = Record<string, DailyPlanData>;
+
 export function extractPlanMeals(plan: SavedMealPlan, selectedDay?: string): PlanMeal[] {
-  const data = plan.planData as any;
   const meals: PlanMeal[] = [];
   if (plan.planType === "daily") {
+    const data = plan.planData as DailyPlanData;
     for (const slot of MEAL_SLOTS_PLAN) {
-      for (const m of (data[slot] ?? [])) {
-        meals.push({ slot: slot.charAt(0).toUpperCase() + slot.slice(1), ...m, meal: m.meal });
+      const slotMeals: PlanMealData[] = (data[slot] as PlanSlotData) ?? [];
+      for (const m of slotMeals) {
+        meals.push({ slot: slot.charAt(0).toUpperCase() + slot.slice(1), meal: m.meal, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat });
       }
     }
   } else {
+    const data = plan.planData as WeeklyPlanData;
     const dayKey = selectedDay ?? "monday";
-    const dayPlan = data[dayKey] ?? {};
+    const dayPlan: DailyPlanData = (data[dayKey] as DailyPlanData) ?? {};
     for (const slot of MEAL_SLOTS_PLAN) {
-      for (const m of (dayPlan[slot] ?? [])) {
-        meals.push({ slot: slot.charAt(0).toUpperCase() + slot.slice(1), ...m, meal: m.meal });
+      const slotMeals: PlanMealData[] = (dayPlan[slot] as PlanSlotData) ?? [];
+      for (const m of slotMeals) {
+        meals.push({ slot: slot.charAt(0).toUpperCase() + slot.slice(1), meal: m.meal, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat });
       }
     }
   }
