@@ -45,6 +45,7 @@ import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
   Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, Home, TrendingUp, Star,
+  Sparkles, ScanLine, Heart, ShieldCheck,
 } from "lucide-react";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
 
@@ -260,7 +261,35 @@ export default function Dashboard() {
       case "hydration":
         return user ? <HydrationTracker /> : null;
       case "cycle":
-        return (user && userPrefs?.cycleTrackingEnabled && lastCalculation?.gender === "female") ? <CycleTracker /> : null;
+        if (!user) return null;
+        if (userPrefs?.cycleTrackingEnabled && lastCalculation?.gender === "female") return <CycleTracker />;
+        if (lastCalculation?.gender === "female" && !userPrefs?.cycleTrackingEnabled) {
+          return (
+            <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl border border-rose-100 p-5" data-testid="cycle-nudge-card">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/80 flex items-center justify-center flex-shrink-0">
+                  <Heart className="w-4.5 h-4.5 text-rose-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-semibold text-zinc-800 mb-1">Cycle-Aware Nutrition</h4>
+                  <p className="text-xs text-zinc-500 leading-relaxed mb-3">
+                    Adapt your meal plans and macros to each phase of your cycle. Get phase-specific food recommendations and research-backed insights.
+                  </p>
+                  <button
+                    onClick={() => updatePrefsMutation.mutate({ cycleTrackingEnabled: true })}
+                    disabled={updatePrefsMutation.isPending}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-600 text-white rounded-lg text-xs font-medium hover:bg-rose-700 transition-colors disabled:opacity-50"
+                    data-testid="button-enable-cycle-tracking"
+                  >
+                    {updatePrefsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Heart className="w-3 h-3" />}
+                    Enable
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return null;
       case "favourites":
         return user ? <FavouritesWidget /> : null;
       case "weight":
@@ -696,6 +725,23 @@ export default function Dashboard() {
                     Continue as guest
                   </button>
                 )}
+
+                <div className="mt-8 pt-6 border-t border-zinc-100">
+                  <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider mb-3">What you'll unlock</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { icon: Sparkles, label: "AI Meal Plans", color: "text-violet-500" },
+                      { icon: ScanLine, label: "Smart Food Scanning", color: "text-blue-500" },
+                      { icon: Heart, label: "Cycle-Aware Nutrition", color: "text-rose-500" },
+                      { icon: ShieldCheck, label: "EU Allergen Filtering", color: "text-emerald-500" },
+                    ].map(({ icon: Icon, label, color }) => (
+                      <div key={label} className="flex items-center gap-2 rounded-xl bg-zinc-50 px-3 py-2" data-testid={`feature-chip-${label.toLowerCase().replace(/\s+/g, "-")}`}>
+                        <Icon className={`w-3.5 h-3.5 ${color} flex-shrink-0`} />
+                        <span className="text-xs text-zinc-600 font-medium">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </AnimatePresence>
