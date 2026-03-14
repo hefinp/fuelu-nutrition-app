@@ -15,6 +15,7 @@ import { FavouritesWidget } from "@/components/favourites-widget";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
+import InsightsPage from "@/pages/insights";
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
 import { useDashboardLayout, WIDE_WIDGETS } from "@/hooks/use-dashboard-layout";
@@ -72,6 +73,7 @@ export default function Dashboard() {
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [logPrefill, setLogPrefill] = useState<PrefillEntry | null>(null);
   const [showFoodLogPopup, setShowFoodLogPopup] = useState(false);
+  const [showInsightsPopup, setShowInsightsPopup] = useState(false);
   const { data: history, isLoading: historyLoading } = useCalculations();
   const { user, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
@@ -873,8 +875,8 @@ export default function Dashboard() {
                 id: "insights",
                 icon: TrendingUp,
                 label: "Insights",
-                active: false,
-                action: () => setLocation("/insights"),
+                active: showInsightsPopup,
+                action: () => setShowInsightsPopup(v => !v),
               },
               {
                 id: "settings",
@@ -1024,6 +1026,33 @@ export default function Dashboard() {
                 </div>
               </motion.div>
             )}
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Insights popup ───────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showInsightsPopup && user && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-[39] bg-black/40"
+              onClick={() => setShowInsightsPopup(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="fixed z-40 inset-x-4 top-[5%] bottom-[5%] max-w-lg mx-auto bg-zinc-50 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+            >
+              <div className="flex-1 overflow-y-auto">
+                <InsightsPage onClose={() => setShowInsightsPopup(false)} />
+              </div>
+            </motion.div>
           </>
         )}
       </AnimatePresence>

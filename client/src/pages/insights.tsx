@@ -47,7 +47,7 @@ function EnergyDot({ level }: { level: string | null }) {
   return <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${colors[level ?? ""] ?? "bg-zinc-300"}`} />;
 }
 
-export default function InsightsPage() {
+export default function InsightsPage({ onClose }: { onClose?: () => void } = {}) {
   const { user } = useAuth();
   const [aiRefreshCount, setAiRefreshCount] = useState(0);
   const [aiEnabled, setAiEnabled] = useState(false);
@@ -98,11 +98,17 @@ export default function InsightsPage() {
       {/* Header */}
       <header className="bg-white border-b border-zinc-100 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Link href="/dashboard">
-            <button className="p-2 rounded-lg hover:bg-zinc-100 transition-colors" data-testid="btn-back-to-dashboard">
+          {onClose ? (
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-zinc-100 transition-colors" data-testid="btn-back-to-dashboard">
               <ArrowLeft className="w-4 h-4 text-zinc-600" />
             </button>
-          </Link>
+          ) : (
+            <Link href="/dashboard">
+              <button className="p-2 rounded-lg hover:bg-zinc-100 transition-colors" data-testid="btn-back-to-dashboard">
+                <ArrowLeft className="w-4 h-4 text-zinc-600" />
+              </button>
+            </Link>
+          )}
           <div className="flex items-center gap-2 flex-1">
             <span className="p-1.5 rounded-lg bg-violet-100">
               <TrendingUp className="w-4 h-4 text-violet-600" />
