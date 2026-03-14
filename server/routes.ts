@@ -261,7 +261,7 @@ function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPreferences 
 
   if (preferences.excludedFoods?.length) {
     for (const food of preferences.excludedFoods) {
-      const categoryKws = FOOD_CATEGORY_KEYWORDS[food.toLowerCase().replace(/\s+/g, '_')];
+      const categoryKws = FOOD_CATEGORY_KEYWORDS[food.trim().toLowerCase().replace(/\s+/g, '_')];
       if (categoryKws) {
         excludeKeywords.push(...categoryKws);
       } else {
