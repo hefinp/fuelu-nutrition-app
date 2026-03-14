@@ -7,9 +7,15 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-function isIos(): boolean {
+const DISMISS_KEY = "fuelr-install-dismissed";
+
+function isIosSafari(): boolean {
   if (typeof navigator === "undefined") return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as Record<string, unknown>).MSStream;
+  const ua = navigator.userAgent;
+  const isIos = /iPad|iPhone|iPod/.test(ua) && !(window as unknown as Record<string, unknown>).MSStream;
+  if (!isIos) return false;
+  const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS/.test(ua);
+  return isSafari;
 }
 
 function isStandalone(): boolean {
@@ -23,14 +29,13 @@ function isStandalone(): boolean {
 export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showIosBanner, setShowIosBanner] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(DISMISS_KEY) === "1");
 
   useEffect(() => {
-    if (isStandalone()) return;
+    if (isStandalone() || dismissed) return;
 
-    if (isIos()) {
-      const iosDismissed = sessionStorage.getItem("fuelr-ios-install-dismissed");
-      if (!iosDismissed) setShowIosBanner(true);
+    if (isIosSafari()) {
+      setShowIosBanner(true);
       return;
     }
 
@@ -40,13 +45,13 @@ export function InstallPrompt() {
     };
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
+  }, [dismissed]);
 
   function dismiss() {
     setDismissed(true);
     setDeferredPrompt(null);
     setShowIosBanner(false);
-    sessionStorage.setItem("fuelr-ios-install-dismissed", "1");
+    sessionStorage.setItem(DISMISS_KEY, "1");
   }
 
   async function handleInstall() {
