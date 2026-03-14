@@ -546,9 +546,9 @@ export function FoodLogDrawer({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" data-testid="food-log-drawer">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" data-testid="food-log-drawer">
       <div className="absolute inset-0 bg-black/50" onClick={resetFormAndClose} />
-      <div className="relative w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-2xl max-h-[92dvh] flex flex-col overflow-hidden shadow-2xl">
+      <div className="relative w-full max-w-lg bg-white rounded-2xl max-h-[92dvh] flex flex-col overflow-hidden shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0">
           <h2 className="text-lg font-display font-bold text-zinc-900">Log Meal</h2>
           <button
