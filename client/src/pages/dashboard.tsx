@@ -15,6 +15,7 @@ import { FavouritesWidget } from "@/components/favourites-widget";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
+import { InstallPrompt } from "@/components/install-prompt";
 import InsightsPage from "@/pages/insights";
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
@@ -911,6 +912,8 @@ export default function Dashboard() {
           </div>
         </div>
       </footer>
+
+      <InstallPrompt />
 
       {/* ── Mobile bottom navigation bar ─────────────────────────────────── */}
       {user && (
