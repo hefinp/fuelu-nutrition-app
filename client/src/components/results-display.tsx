@@ -1729,6 +1729,7 @@ function getMicronutrients(age: number, gender: string): MicroCategory[] {
 }
 
 export function NutritionDisplay({ data }: { data: Calculation }) {
+  const [expanded, setExpanded] = useState(false);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(["Vitamins"]));
   const toggleSection = (label: string) =>
     setOpenSections(prev => {
@@ -1745,169 +1746,184 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
     { name: "Fat", value: data.fatGoal, color: "hsl(var(--chart-3))" },
   ];
 
-  const containerVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.2, ease: "easeOut" }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
-  };
+  const totalCal = data.dailyCalories;
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-6"
-    >
-      {/* Nutrition Distribution */}
-      <motion.div variants={itemVariants} className="bg-zinc-900 text-white p-5 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+    <div className="space-y-4">
+      {/* Nutrition Distribution card */}
+      <div className="bg-zinc-900 text-white rounded-3xl shadow-2xl relative overflow-hidden">
         {/* Abstract background flair */}
-        <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl pointer-events-none" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center relative z-10">
-          <div>
-            <h3 className="text-2xl font-bold mb-2">Nutrition Distribution</h3>
-            <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
-              Based on your metrics, here is the optimal daily macronutrient split to achieve your body goals effectively.
-            </p>
+        <div className="relative z-10 p-5 sm:p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-bold">Nutrition Distribution</h3>
+              <p className="text-zinc-400 text-xs mt-0.5">Daily macronutrient targets</p>
+            </div>
+            <div className="text-right shrink-0 ml-4">
+              <p className="text-2xl font-bold">{totalCal}</p>
+              <p className="text-zinc-400 text-xs">kcal / day</p>
+            </div>
+          </div>
 
-            <div className="space-y-4">
-              {chartData.map((item) => (
-                <div key={item.name}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="font-medium">{item.name}</span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 ml-6 text-sm">
-                    <div className="bg-white/10 p-2 rounded">
-                      <p className="text-zinc-400 text-xs">Daily</p>
-                      <p className="text-lg font-bold">{item.value}g</p>
-                    </div>
-                    <div className="bg-white/10 p-2 rounded">
-                      <p className="text-zinc-400 text-xs">Weekly</p>
-                      <p className="text-lg font-bold">{item.value * 7}g</p>
-                    </div>
+          {/* Compact macro row — always visible */}
+          <div className="grid grid-cols-3 gap-2">
+            {chartData.map((item) => (
+              <div key={item.name} className="bg-white/10 rounded-xl p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                  <span className="text-xs text-zinc-400 font-medium">{item.name}</span>
+                </div>
+                <p className="text-xl font-bold leading-none">{item.value}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
+                {expanded && (
+                  <p className="text-[10px] text-zinc-500 mt-1">{item.value * 7}g / week</p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Expanded: pie chart */}
+          <AnimatePresence initial={false}>
+            {expanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                <div className="h-52 mt-4 relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={chartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', color: '#fff' }}
+                        itemStyle={{ color: '#fff' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span className="text-xs font-semibold text-zinc-400 tracking-widest uppercase">MACROS</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          <div className="h-64 relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '12px', color: '#fff' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-sm font-semibold text-zinc-400 tracking-widest uppercase">MACROS</span>
-            </div>
-          </div>
+          {/* Expand / collapse toggle */}
+          <button
+            type="button"
+            onClick={() => setExpanded(v => !v)}
+            className="w-full mt-4 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium text-zinc-400 hover:text-white transition-colors"
+            data-testid="button-nutrition-expand"
+          >
+            {expanded ? "Show less" : "Show more"}
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+          </button>
         </div>
-      </motion.div>
+      </div>
 
       {/* Health Disclaimer */}
-      <motion.p variants={itemVariants} className="text-xs text-zinc-400 leading-relaxed px-1" data-testid="text-health-disclaimer">
+      <p className="text-xs text-zinc-400 leading-relaxed px-1" data-testid="text-health-disclaimer">
         Results are estimates. Consult a qualified healthcare professional before making dietary changes.
-      </motion.p>
+      </p>
 
-      {/* Micronutrient Recommendations accordion */}
-      <motion.div variants={itemVariants} className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
-        {/* Card header */}
-        <div className="flex items-center gap-2 px-6 pt-5 pb-4">
-          <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
-            <Pill className="w-4 h-4" />
-          </div>
-          <div>
-            <h3 className="text-sm font-display font-bold text-zinc-900">Recommended Micronutrients</h3>
-            <p className="text-xs text-zinc-400 mt-0.5">Daily reference values based on your age &amp; sex (DRI)</p>
-          </div>
-        </div>
-
-        {microCategories.map((cat) => {
-          const isOpen = openSections.has(cat.label);
-          return (
-            <div key={cat.label} className="border-t border-zinc-100">
-              <button
-                type="button"
-                onClick={() => toggleSection(cat.label)}
-                className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-zinc-50 transition-colors text-left"
-                data-testid={`accordion-${cat.label.toLowerCase().replace(/\s+/g, '-')}`}
-              >
-                <span className="text-sm font-semibold text-zinc-700">{cat.label}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-400">{cat.items.length} nutrients</span>
-                  <ChevronDown
-                    className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                  />
+      {/* Micronutrient Recommendations accordion — only shown when expanded */}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2 px-6 pt-5 pb-4">
+                <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
+                  <Pill className="w-4 h-4" />
                 </div>
-              </button>
+                <div>
+                  <h3 className="text-sm font-display font-bold text-zinc-900">Recommended Micronutrients</h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">Daily reference values based on your age &amp; sex (DRI)</p>
+                </div>
+              </div>
 
-              <AnimatePresence initial={false}>
-                {isOpen && (
-                  <motion.div
-                    key="content"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.22, ease: 'easeInOut' }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-6 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 pt-1">
-                      {cat.items.map((item) => (
-                        <div key={item.name} className="flex items-center justify-between py-1 border-b border-zinc-50">
-                          <span className="text-xs text-zinc-600">{item.name}</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-semibold text-zinc-900">{item.amount} {item.unit}</span>
-                            {item.note && (
-                              <span className="text-[10px] font-medium text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded">
-                                {item.note}
-                              </span>
-                            )}
+              {microCategories.map((cat) => {
+                const isOpen = openSections.has(cat.label);
+                return (
+                  <div key={cat.label} className="border-t border-zinc-100">
+                    <button
+                      type="button"
+                      onClick={() => toggleSection(cat.label)}
+                      className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-zinc-50 transition-colors text-left"
+                      data-testid={`accordion-${cat.label.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      <span className="text-sm font-semibold text-zinc-700">{cat.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-zinc-400">{cat.items.length} nutrients</span>
+                        <ChevronDown
+                          className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                        />
+                      </div>
+                    </button>
+
+                    <AnimatePresence initial={false}>
+                      {isOpen && (
+                        <motion.div
+                          key="content"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.22, ease: 'easeInOut' }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-6 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 pt-1">
+                            {cat.items.map((item) => (
+                              <div key={item.name} className="flex items-center justify-between py-1 border-b border-zinc-50">
+                                <span className="text-xs text-zinc-600">{item.name}</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-xs font-semibold text-zinc-900">{item.amount} {item.unit}</span>
+                                  {item.note && (
+                                    <span className="text-[10px] font-medium text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded">
+                                      {item.note}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          );
-        })}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
 
-        <div className="px-6 py-3 border-t border-zinc-50 bg-zinc-50/50">
-          <p className="text-[10px] text-zinc-400 leading-relaxed">
-            Reference values from the Dietary Reference Intakes (DRI). Individual needs may vary — consult a healthcare professional for personalised guidance.
-          </p>
-        </div>
-      </motion.div>
-    </motion.div>
+              <div className="px-6 py-3 border-t border-zinc-50 bg-zinc-50/50">
+                <p className="text-[10px] text-zinc-400 leading-relaxed">
+                  Reference values from the Dietary Reference Intakes (DRI). Individual needs may vary — consult a healthcare professional for personalised guidance.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
