@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import {
@@ -11,6 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { getCyclePhase } from "@/lib/cycle";
+import type { UserPreferences } from "@shared/schema";
 
 type InsightsData = {
   symptomByDay: { cycleDay: number; avgEnergy: number | null; avgMood: number | null; count: number }[];
@@ -51,7 +53,17 @@ export default function InsightsPage({ onClose }: { onClose?: () => void } = {})
   const { user } = useAuth();
   const [aiRefreshCount, setAiRefreshCount] = useState(0);
   const [aiEnabled, setAiEnabled] = useState(false);
-  const [pulsePhase] = useState<string>("luteal");
+
+  const { data: userPrefs } = useQuery<UserPreferences>({
+    queryKey: ["/api/user/preferences"],
+    enabled: !!user,
+  });
+
+  const pulsePhase = useMemo(() => {
+    if (!userPrefs?.cycleTrackingEnabled || !userPrefs?.lastPeriodDate) return null;
+    const info = getCyclePhase(userPrefs.lastPeriodDate, userPrefs.cycleLength ?? 28);
+    return info?.phase ?? null;
+  }, [userPrefs?.cycleTrackingEnabled, userPrefs?.lastPeriodDate, userPrefs?.cycleLength]);
 
   const { data: insights, isLoading: insightsLoading } = useQuery<InsightsData>({
     queryKey: ["/api/cycle/insights"],
@@ -67,7 +79,7 @@ export default function InsightsPage({ onClose }: { onClose?: () => void } = {})
 
   const { data: pulseData, isLoading: pulseLoading, refetch: refetchPulse } = useQuery<ResearchPulseData>({
     queryKey: ["/api/cycle/research-pulse", pulsePhase],
-    enabled: !!user && aiEnabled,
+    enabled: !!user && aiEnabled && !!pulsePhase,
     staleTime: 6 * 60 * 60 * 1000,
     retry: 1,
   });
@@ -333,11 +345,14 @@ export default function InsightsPage({ onClose }: { onClose?: () => void } = {})
                 </section>
 
                 {/* Research pulse */}
+                {pulsePhase && (
                 <section className="rounded-2xl border border-zinc-200 bg-white p-5">
                   <h2 className="text-sm font-semibold text-zinc-800 mb-1 flex items-center gap-1.5">
                     <BookOpen className="w-4 h-4 text-blue-500" /> Current research
                   </h2>
-                  <p className="text-xs text-zinc-400 mb-4">Recent findings from nutrition science journals</p>
+                  <p className="text-xs text-zinc-400 mb-4">
+                    {PHASE_LABELS[pulsePhase] ?? pulsePhase} phase — recent findings from nutrition science journals
+                  </p>
 
                   {pulseLoading && (
                     <div className="flex items-center gap-2 py-3">
@@ -377,6 +392,7 @@ export default function InsightsPage({ onClose }: { onClose?: () => void } = {})
                     {pulseData?.cached ? "Cached · refreshes weekly" : "AI-generated · sourced from PubMed / NIH · refreshes weekly"}
                   </p>
                 </section>
+                )}
               </>
             )}
           </>
