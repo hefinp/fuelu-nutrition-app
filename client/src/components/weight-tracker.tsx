@@ -15,7 +15,7 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
-import { Scale, Plus, Trash2, TrendingDown, TrendingUp, Minus, Flame, Sparkles, Loader2 } from "lucide-react";
+import { Scale, Plus, Trash2, TrendingDown, TrendingUp, Minus, Flame, Sparkles, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { WeightEntry, FoodLogEntry } from "@shared/schema";
 
@@ -57,6 +57,7 @@ export function WeightTracker({
   const [weightInput, setWeightInput] = useState("");
   const [dateInput, setDateInput] = useState(format(new Date(), "yyyy-MM-dd"));
   const [showForm, setShowForm] = useState(false);
+  const [showEntries, setShowEntries] = useState(false);
   const [weightInsight, setWeightInsight] = useState<string | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
 
@@ -370,29 +371,50 @@ export function WeightTracker({
             </div>
           )}
 
-          {/* Entry list — last 5 */}
+          {/* Entry list — collapsible */}
           {entries.length > 0 && (
-            <div className="mt-4 space-y-1">
-              <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-2">Recent entries</p>
-              {[...entries].reverse().slice(0, 5).map((entry) => (
-                <div
-                  key={entry.id}
-                  data-testid={`weight-entry-${entry.id}`}
-                  className="flex items-center justify-between py-1.5 px-3 rounded-xl hover:bg-zinc-50 group transition-colors"
-                >
-                  <span className="text-sm text-zinc-500">{format(new Date(entry.recordedAt!), "d MMM yyyy")}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-zinc-900">{parseFloat(entry.weight)} kg</span>
-                    <button
-                      onClick={() => deleteEntry.mutate(entry.id)}
-                      data-testid={`button-delete-entry-${entry.id}`}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-zinc-300 hover:text-red-500 transition-all rounded"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="mt-4">
+              <button
+                onClick={() => setShowEntries(v => !v)}
+                className="flex items-center gap-1.5 w-full text-xs font-medium text-zinc-400 uppercase tracking-wide hover:text-zinc-600 transition-colors"
+                data-testid="toggle-recent-entries"
+              >
+                Recent entries
+                {showEntries ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+              <AnimatePresence initial={false}>
+                {showEntries && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="space-y-1 pt-2">
+                      {[...entries].reverse().slice(0, 5).map((entry) => (
+                        <div
+                          key={entry.id}
+                          data-testid={`weight-entry-${entry.id}`}
+                          className="flex items-center justify-between py-1.5 px-3 rounded-xl hover:bg-zinc-50 group transition-colors"
+                        >
+                          <span className="text-sm text-zinc-500">{format(new Date(entry.recordedAt!), "d MMM yyyy")}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-semibold text-zinc-900">{parseFloat(entry.weight)} kg</span>
+                            <button
+                              onClick={() => deleteEntry.mutate(entry.id)}
+                              data-testid={`button-delete-entry-${entry.id}`}
+                              className="opacity-0 group-hover:opacity-100 p-1 text-zinc-300 hover:text-red-500 transition-all rounded"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
         </>
