@@ -145,11 +145,12 @@ export function AllergiesForm() {
   };
 
   const handleSave = () => {
-    mutation.mutate({
+    const payload: UserPreferences = {
       ...data,
       allergies,
       excludedFoods,
-    } as any);
+    };
+    mutation.mutate(payload);
   };
 
   const hasChanges =
@@ -281,7 +282,7 @@ export function PreferencesForm() {
   };
 
   const handleSave = () => {
-    mutation.mutate({
+    const payload: UserPreferences = {
       ...data,
       diet: diet ?? undefined,
       preferredFoods,
@@ -292,8 +293,9 @@ export function PreferencesForm() {
       recipeWeeklyLimit,
       hydrationGoalMl,
       hydrationUnit,
-      ...(({ includeCommunityMeals }) => ({ includeCommunityMeals }))({ includeCommunityMeals }),
-    } as any);
+      includeCommunityMeals,
+    };
+    mutation.mutate(payload);
   };
 
   const hasChanges =
