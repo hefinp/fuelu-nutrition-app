@@ -193,13 +193,19 @@ type MealDb = { breakfast: MealEntry[]; lunch: MealEntry[]; dinner: MealEntry[];
 
 const ALLERGEN_KEYWORDS: Record<string, string[]> = {
   gluten: ['toast', 'bread', 'pasta', 'spaghetti', 'noodle', 'tortilla', 'bagel', 'muffin', 'cracker', 'sourdough', 'rye', 'bulgur', 'couscous', 'crouton', 'flatbread', 'crepe', 'pancake', 'brioche', 'crostini', 'crispbread', 'wrap', 'pita', 'blini', 'linguine', 'polenta'],
-  dairy: ['cheese', 'butter', 'cream', 'milk', 'yogurt', 'yoghurt', 'ricotta', 'feta', 'mozzarella', 'parmesan', 'brie', 'gruyere', 'gruyère', 'mascarpone', 'hollandaise', 'creme fraiche', 'crème fraîche', 'burrata', 'manchego'],
+  crustaceans: ['prawn', 'shrimp', 'lobster', 'crab', 'crayfish', 'langoustine'],
   eggs: ['egg', 'omelette', 'frittata', 'shakshuka', 'huevos', 'benedict', 'french toast'],
-  nuts: ['almond', 'walnut', 'hazelnut', 'pistachio', 'pecan', 'cashew', 'pine nut', 'nut butter', 'marcona'],
-  peanuts: ['peanut'],
-  shellfish: ['prawn', 'shrimp', 'lobster', 'crab', 'scallop', 'mussel', 'clam', 'oyster'],
   fish: ['salmon', 'tuna', 'cod', 'haddock', 'sea bass', 'trout', 'mackerel', 'anchovy', 'sardine', 'tilapia', 'halibut', 'sole', 'smoked fish', 'white fish'],
+  peanuts: ['peanut'],
   soy: ['soy', 'edamame', 'tofu', 'miso', 'tempeh'],
+  milk: ['cheese', 'butter', 'cream', 'milk', 'yogurt', 'yoghurt', 'ricotta', 'feta', 'mozzarella', 'parmesan', 'brie', 'gruyere', 'gruyère', 'mascarpone', 'hollandaise', 'creme fraiche', 'crème fraîche', 'burrata', 'manchego'],
+  nuts: ['almond', 'walnut', 'hazelnut', 'pistachio', 'pecan', 'cashew', 'pine nut', 'nut butter', 'marcona'],
+  celery: ['celery', 'celeriac'],
+  mustard: ['mustard'],
+  sesame: ['sesame', 'tahini'],
+  sulphites: ['sulphite', 'sulfite', 'dried fruit', 'wine vinegar'],
+  lupin: ['lupin'],
+  molluscs: ['scallop', 'mussel', 'clam', 'oyster', 'squid', 'calamari', 'octopus', 'snail'],
 };
 
 const MEAT_KEYWORDS = ['chicken', 'beef', 'lamb', 'pork', 'turkey', 'duck', 'veal', 'venison', 'steak', 'mince', 'chorizo', 'bacon', 'ham', 'prosciutto', 'pancetta', 'salami', 'liver', 'rib', 'bresaola', 'serrano', 'parma'];
@@ -220,10 +226,10 @@ function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPreferences 
 
   switch (preferences.diet) {
     case 'vegetarian':
-      excludeKeywords.push(...MEAT_KEYWORDS, ...ALLERGEN_KEYWORDS.shellfish, ...ALLERGEN_KEYWORDS.fish);
+      excludeKeywords.push(...MEAT_KEYWORDS, ...ALLERGEN_KEYWORDS.crustaceans, ...ALLERGEN_KEYWORDS.molluscs, ...ALLERGEN_KEYWORDS.fish);
       break;
     case 'vegan':
-      excludeKeywords.push(...MEAT_KEYWORDS, ...ALLERGEN_KEYWORDS.shellfish, ...ALLERGEN_KEYWORDS.fish, ...ALLERGEN_KEYWORDS.dairy, ...ALLERGEN_KEYWORDS.eggs);
+      excludeKeywords.push(...MEAT_KEYWORDS, ...ALLERGEN_KEYWORDS.crustaceans, ...ALLERGEN_KEYWORDS.molluscs, ...ALLERGEN_KEYWORDS.fish, ...ALLERGEN_KEYWORDS.milk, ...ALLERGEN_KEYWORDS.eggs);
       break;
     case 'pescatarian':
       excludeKeywords.push(...MEAT_KEYWORDS);
@@ -232,7 +238,7 @@ function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPreferences 
       excludeKeywords.push(...PORK_KEYWORDS);
       break;
     case 'kosher':
-      excludeKeywords.push(...PORK_KEYWORDS, ...ALLERGEN_KEYWORDS.shellfish);
+      excludeKeywords.push(...PORK_KEYWORDS, ...ALLERGEN_KEYWORDS.crustaceans, ...ALLERGEN_KEYWORDS.molluscs);
       break;
   }
 
