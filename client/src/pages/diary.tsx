@@ -24,6 +24,7 @@ interface DiaryProps {
   dailyProteinTarget?: number;
   dailyCarbsTarget?: number;
   dailyFatTarget?: number;
+  initialDate?: string;
 }
 
 export default function DiaryPage() {
@@ -40,11 +41,15 @@ export default function DiaryPage() {
     return null;
   }
 
+  const params = new URLSearchParams(window.location.search);
+  const dateParam = params.get("date") ?? undefined;
+
   const targets = {
     dailyCaloriesTarget: calcData?.dailyCalories ?? undefined,
     dailyProteinTarget: calcData?.proteinGoal ?? undefined,
     dailyCarbsTarget: calcData?.carbsGoal ?? undefined,
     dailyFatTarget: calcData?.fatGoal ?? undefined,
+    initialDate: dateParam,
   };
 
   return <DiaryContent {...targets} />;
@@ -55,13 +60,14 @@ function DiaryContent({
   dailyProteinTarget,
   dailyCarbsTarget,
   dailyFatTarget,
+  initialDate,
 }: DiaryProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const today = todayStr();
 
   const [view, setView] = useState<"daily" | "weekly">("daily");
-  const [selectedDate, setSelectedDate] = useState(today);
+  const [selectedDate, setSelectedDate] = useState(initialDate && /^\d{4}-\d{2}-\d{2}$/.test(initialDate) ? initialDate : today);
   const [weekOffset, setWeekOffset] = useState(0);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set([today]));
 
