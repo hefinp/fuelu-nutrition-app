@@ -265,7 +265,7 @@ function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPreferences 
       if (categoryKws) {
         excludeKeywords.push(...categoryKws);
       } else {
-        excludeKeywords.push(food);
+        excludeKeywords.push(food.trim());
       }
     }
   }
