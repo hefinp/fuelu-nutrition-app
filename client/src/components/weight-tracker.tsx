@@ -165,33 +165,31 @@ export function WeightTracker({
   return (
     <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-zinc-100 rounded-lg">
-            {activeTab === "weight"
-              ? <Scale className="w-4 h-4 text-zinc-600" />
-              : <Flame className="w-4 h-4 text-zinc-600" />}
-          </div>
-          <div>
-            <h3 className="font-display font-bold text-zinc-900">Progress Tracker</h3>
-            <p className="text-xs text-zinc-500">
-              {activeTab === "weight" ? "Log your weight over time" : "Calories consumed vs planned"}
-            </p>
-          </div>
+      <div className="flex items-center gap-2 mb-2">
+        <div className="p-2 bg-zinc-100 rounded-lg">
+          {activeTab === "weight"
+            ? <Scale className="w-4 h-4 text-zinc-600" />
+            : <Flame className="w-4 h-4 text-zinc-600" />}
         </div>
-        {activeTab === "weight" && (
+        <div>
+          <h3 className="font-display font-bold text-zinc-900">Progress Tracker</h3>
+          <p className="text-xs text-zinc-500">
+            {activeTab === "weight" ? "Log your weight over time" : "Calories consumed vs planned"}
+          </p>
+        </div>
+      </div>
+      {activeTab === "weight" && (
+        <div className="flex justify-end mb-4">
           <button
             onClick={() => setShowForm(v => !v)}
             data-testid="button-log-weight-toggle"
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              showForm ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
-            }`}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-white rounded-xl text-sm font-medium hover:bg-zinc-800 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             Log Weight
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Tab toggle */}
       <div className="flex bg-zinc-100 rounded-xl p-1 mb-5">
