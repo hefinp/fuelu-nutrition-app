@@ -13,6 +13,7 @@ import ResetPasswordPage from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
 import AdminPage from "@/pages/admin";
 import InsightsPage from "@/pages/insights";
+import DiaryPage from "@/pages/diary";
 import { useAuth } from "@/hooks/use-auth";
 
 function RootRedirect() {
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/insights" component={InsightsPage} />
+      <Route path="/diary" component={DiaryPage} />
       <Route component={NotFound} />
     </Switch>
   );

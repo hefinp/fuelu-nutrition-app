@@ -21,7 +21,11 @@ Core components include:
 -   **WeightTracker**: Logs weight entries, visualizes data with a LineChart, and offers AI-driven trend analysis.
 -   **PreferencesForm**: Manages food preferences, allergies, custom exclusions, preferred foods, and micronutrient optimization.
 -   **HydrationTracker**: Monitors daily water intake with progress indicators, quick-add options, and behind-schedule alerts.
--   **FoodLog**: Provides daily and weekly views of food intake, macro progress bars, AI meal suggestions, and barcode scanning integration with community and external food databases (Open Food Facts, USDA).
+-   **FoodLog**: Dashboard widget showing today's macro progress and entries, with a "Log Meal" button and "View full diary" link. Split into modular files:
+    -   `food-log-shared.tsx`: Types, constants, helpers, ProgressBar, MacroGrid, LoggedMealModal.
+    -   `food-log-drawer.tsx`: 5-tab entry form (manual, search, barcode scan, AI, plan import) as a bottom sheet/modal overlay.
+    -   `food-log.tsx`: Slim dashboard widget (~340 lines).
+-   **DiaryPage** (`/diary`): Full food diary with daily/weekly views, date navigation, entry management (confirm/star/delete), weekly AI insights, and the FoodLogDrawer for logging.
 -   **CycleTracker**: (For female users) Tracks menstrual cycles, predicts phases, provides cycle-phase-specific nutrition tips (via AI with web search), and logs symptoms and period history.
 -   **Insights**: Offers wellbeing insights, including symptom trends, food correlations, AI-powered narrative analysis, and research summaries based on user data and external research (PubMed/NIH).
 
