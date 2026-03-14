@@ -211,6 +211,18 @@ const ALLERGEN_KEYWORDS: Record<string, string[]> = {
 const MEAT_KEYWORDS = ['chicken', 'beef', 'lamb', 'pork', 'turkey', 'duck', 'veal', 'venison', 'steak', 'mince', 'chorizo', 'bacon', 'ham', 'prosciutto', 'pancetta', 'salami', 'liver', 'rib', 'bresaola', 'serrano', 'parma'];
 const PORK_KEYWORDS = ['pork', 'bacon', 'ham', 'pancetta', 'prosciutto', 'chorizo', 'salami', 'serrano', 'parma'];
 
+const FOOD_CATEGORY_KEYWORDS: Record<string, string[]> = {
+  ...ALLERGEN_KEYWORDS,
+  seafood: [...ALLERGEN_KEYWORDS.fish, ...ALLERGEN_KEYWORDS.crustaceans, ...ALLERGEN_KEYWORDS.molluscs],
+  shellfish: [...ALLERGEN_KEYWORDS.crustaceans, ...ALLERGEN_KEYWORDS.molluscs],
+  meat: MEAT_KEYWORDS,
+  poultry: ['chicken', 'turkey', 'duck'],
+  pork: PORK_KEYWORDS,
+  dairy: ALLERGEN_KEYWORDS.milk,
+  wheat: ['bread', 'toast', 'pasta', 'spaghetti', 'noodle', 'tortilla', 'bagel', 'muffin', 'wrap', 'pita', 'flatbread', 'linguine', 'couscous'],
+  red_meat: ['beef', 'lamb', 'veal', 'venison', 'steak', 'mince'],
+};
+
 function filterMealPool(pool: MealEntry[], excludeKeywords: string[]): MealEntry[] {
   if (!excludeKeywords.length) return pool;
   const filtered = pool.filter(m =>
@@ -248,7 +260,14 @@ function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPreferences 
   }
 
   if (preferences.excludedFoods?.length) {
-    excludeKeywords.push(...preferences.excludedFoods);
+    for (const food of preferences.excludedFoods) {
+      const categoryKws = FOOD_CATEGORY_KEYWORDS[food.toLowerCase().replace(/\s+/g, '_')];
+      if (categoryKws) {
+        excludeKeywords.push(...categoryKws);
+      } else {
+        excludeKeywords.push(food);
+      }
+    }
   }
 
   const disliked = (preferences.dislikedMeals ?? []).map(m => m.toLowerCase());
