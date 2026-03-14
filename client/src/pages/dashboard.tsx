@@ -306,11 +306,11 @@ export default function Dashboard() {
               <>
                 <button
                   onClick={() => setShowSavedPlans(v => !v)}
-                  className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${showSavedPlans ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}
+                  className={`hidden sm:flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${showSavedPlans ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}
                   data-testid="button-saved-plans"
                 >
                   <BookOpen className="w-4 h-4" />
-                  <span className="hidden sm:inline">My Plans</span>
+                  <span>My Plans</span>
                 </button>
 
                 <div className="relative">
@@ -404,7 +404,7 @@ export default function Dashboard() {
               <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-zinc-100">
                 <div className="flex items-center gap-2">
                   <Settings className="w-4 h-4 text-zinc-400" />
-                  <h2 className="font-semibold text-zinc-900">Settings</h2>
+                  <h2 className="font-semibold text-zinc-900">Profile & Preferences</h2>
                 </div>
                 <button
                   onClick={() => setShowMetricsPanel(false)}

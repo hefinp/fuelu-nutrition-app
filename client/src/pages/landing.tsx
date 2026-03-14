@@ -95,13 +95,13 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
           </div>
 
           <h1 className="font-display font-bold text-4xl sm:text-5xl md:text-6xl tracking-tight text-zinc-900 leading-tight mb-6">
-            Simple. Gourmet. Michelin.
+            Nutrition, planned for you.
             <br />
-            <span className="text-zinc-400">Your macros, your style.</span>
+            <span className="text-zinc-400">Simple. Gourmet. Michelin.</span>
           </h1>
 
           <p className="text-lg text-zinc-500 max-w-xl mx-auto mb-6 leading-relaxed">
-            Pick a cooking tier, set your calorie targets, and Fuelr builds personalised meal plans that actually fit how you eat — with AI scanning, cycle-aware nutrition, and one-click exports.
+            Track your macros, log meals with AI scanning, and get personalised plans in three cooking tiers — all built around how you actually eat.
           </p>
 
           <ul className="inline-flex flex-col gap-2 text-sm text-zinc-600 text-left mb-10 mx-auto">
