@@ -98,16 +98,16 @@ export function RecipeLibrary() {
 
   return (
     <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
-            <BookOpen className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-zinc-900">My Recipes</h2>
-            <p className="text-xs text-zinc-500">Import recipes from the web or a photo</p>
-          </div>
+      <div className="flex items-center gap-2 mb-2">
+        <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
+          <BookOpen className="w-5 h-5" />
         </div>
+        <div>
+          <h2 className="text-lg font-bold text-zinc-900">My Recipes</h2>
+          <p className="text-xs text-zinc-500">Import recipes from the web or a photo</p>
+        </div>
+      </div>
+      <div className="flex justify-end mb-5">
         <button
           onClick={() => setShowModal(true)}
           data-testid="button-import-recipe"

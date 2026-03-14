@@ -65,16 +65,16 @@ export function FoodLog({
 
   return (
     <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg shrink-0">
-            <ClipboardList className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-lg font-display font-bold text-zinc-900">Food Log</h2>
-            <p className="text-xs text-zinc-500">Track what you eat today</p>
-          </div>
+      <div className="flex items-center gap-2 mb-2">
+        <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg shrink-0">
+          <ClipboardList className="w-5 h-5" />
         </div>
+        <div>
+          <h2 className="text-lg font-display font-bold text-zinc-900">Food Log</h2>
+          <p className="text-xs text-zinc-500">Track what you eat today</p>
+        </div>
+      </div>
+      <div className="flex justify-end mb-3">
         <button
           onClick={() => setDrawerOpen(true)}
           className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors"
