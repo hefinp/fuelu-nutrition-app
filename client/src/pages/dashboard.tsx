@@ -848,6 +848,7 @@ export default function Dashboard() {
                   setShowSavedPlans(false);
                   const widgetHidden = hiddenWidgets.includes("food-log");
                   if (widgetHidden) {
+                    (document.activeElement as HTMLElement)?.blur();
                     setShowFoodLogPopup(v => !v);
                   } else {
                     setShowFoodLogPopup(false);
@@ -1011,24 +1012,28 @@ export default function Dashboard() {
               onClick={() => setShowFoodLogPopup(false)}
             />
             <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 24 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-              className="fixed z-40 left-0 right-0 bottom-16 max-h-[82vh] overflow-y-auto bg-zinc-50 border-t border-zinc-200 shadow-2xl rounded-t-2xl"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="fixed z-40 inset-x-4 top-[10%] bottom-[10%] max-w-lg mx-auto bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden"
             >
-              <div className="flex items-center justify-between px-4 pt-3 pb-1">
-                <div className="w-10 h-1 rounded-full bg-zinc-300 mx-auto absolute left-1/2 -translate-x-1/2 top-2" />
-                <div className="flex-1" />
+              <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-zinc-100 shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-zinc-100 text-zinc-600 rounded-lg">
+                    <ClipboardList className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm font-semibold text-zinc-900">Food Log</span>
+                </div>
                 <button
                   onClick={() => setShowFoodLogPopup(false)}
-                  className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors text-zinc-400 hover:text-zinc-600"
+                  className="p-1.5 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400 hover:text-zinc-600"
                   data-testid="button-close-foodlog-popup"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="px-4 pb-6 pt-1">
+              <div className="flex-1 overflow-y-auto px-4 py-4">
                 <FoodLog
                   dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
                   dailyProteinTarget={activeResult?.proteinGoal ?? undefined}
