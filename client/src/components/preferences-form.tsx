@@ -17,14 +17,20 @@ const DIET_OPTIONS = [
 ];
 
 const ALLERGY_OPTIONS: { value: Allergy; label: string }[] = [
-  { value: "gluten",    label: "Gluten" },
-  { value: "dairy",     label: "Dairy" },
-  { value: "eggs",      label: "Eggs" },
-  { value: "nuts",      label: "Tree Nuts" },
-  { value: "peanuts",   label: "Peanuts" },
-  { value: "shellfish", label: "Shellfish" },
-  { value: "fish",      label: "Fish" },
-  { value: "soy",       label: "Soy" },
+  { value: "gluten",      label: "Gluten" },
+  { value: "crustaceans", label: "Crustaceans" },
+  { value: "eggs",        label: "Eggs" },
+  { value: "fish",        label: "Fish" },
+  { value: "peanuts",     label: "Peanuts" },
+  { value: "soy",         label: "Soybeans" },
+  { value: "milk",        label: "Milk (dairy)" },
+  { value: "nuts",        label: "Tree Nuts" },
+  { value: "celery",      label: "Celery" },
+  { value: "mustard",     label: "Mustard" },
+  { value: "sesame",      label: "Sesame" },
+  { value: "sulphites",   label: "Sulphites" },
+  { value: "lupin",       label: "Lupin" },
+  { value: "molluscs",    label: "Molluscs" },
 ];
 
 const ALL_SLOTS = ["breakfast", "lunch", "dinner", "snack"] as const;

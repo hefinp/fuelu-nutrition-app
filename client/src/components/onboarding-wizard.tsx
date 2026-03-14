@@ -25,7 +25,7 @@ const DIET_TO_PREF: Record<string, { diet?: string; allergy?: string }> = {
   Vegetarian: { diet: "vegetarian" },
   Vegan: { diet: "vegan" },
   "Gluten-free": { allergy: "gluten" },
-  "Dairy-free": { allergy: "dairy" },
+  "Dairy-free": { allergy: "milk" },
   "Nut-free": { allergy: "nuts" },
   Halal: { diet: "halal" },
   Kosher: { diet: "kosher" },

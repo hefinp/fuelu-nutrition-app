@@ -41,7 +41,7 @@ export type PublicUser = Omit<User, "passwordHash">;
 
 export const userPreferencesSchema = z.object({
   diet: z.enum(["vegetarian", "vegan", "pescatarian", "halal", "kosher"]).nullable().optional(),
-  allergies: z.array(z.enum(["gluten", "dairy", "eggs", "nuts", "peanuts", "shellfish", "fish", "soy"])).optional(),
+  allergies: z.array(z.enum(["gluten", "crustaceans", "eggs", "fish", "peanuts", "soy", "milk", "nuts", "celery", "mustard", "sesame", "sulphites", "lupin", "molluscs"])).optional(),
   excludedFoods: z.array(z.string()).optional(),
   preferredFoods: z.array(z.string()).optional(),
   micronutrientOptimize: z.boolean().optional(),
