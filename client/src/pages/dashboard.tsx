@@ -71,6 +71,7 @@ export default function Dashboard() {
   const [dashboardAccordionOpen, setDashboardAccordionOpen] = useState(false);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [logPrefill, setLogPrefill] = useState<PrefillEntry | null>(null);
+  const [showFoodLogPopup, setShowFoodLogPopup] = useState(false);
   const { data: history, isLoading: historyLoading } = useCalculations();
   const { user, logout, isLoggingOut } = useAuth();
   const [, setLocation] = useLocation();
@@ -842,16 +843,22 @@ export default function Dashboard() {
                 id: "food-log",
                 icon: ClipboardList,
                 label: "Food Log",
-                active: false,
+                active: showFoodLogPopup,
                 action: () => {
                   setShowSavedPlans(false);
-                  setTimeout(() => {
-                    const el = document.getElementById("food-log-section");
-                    if (el) {
-                      const top = el.getBoundingClientRect().top + window.scrollY - 80;
-                      window.scrollTo({ top, behavior: "smooth" });
-                    }
-                  }, 50);
+                  const widgetHidden = hiddenWidgets.includes("food-log");
+                  if (widgetHidden) {
+                    setShowFoodLogPopup(v => !v);
+                  } else {
+                    setShowFoodLogPopup(false);
+                    setTimeout(() => {
+                      const el = document.getElementById("food-log-section");
+                      if (el) {
+                        const top = el.getBoundingClientRect().top + window.scrollY - 80;
+                        window.scrollTo({ top, behavior: "smooth" });
+                      }
+                    }, 50);
+                  }
                 },
               },
               {
@@ -985,6 +992,51 @@ export default function Dashboard() {
                   </button>
                 </div>
                 <SavedMealPlans onLogMeal={handleLogMeal} />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Food Log popup (when widget is hidden) ───────────────────────── */}
+      <AnimatePresence>
+        {showFoodLogPopup && user && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-[39] bg-black/20"
+              onClick={() => setShowFoodLogPopup(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 24 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className="fixed z-40 left-0 right-0 bottom-16 max-h-[82vh] overflow-y-auto bg-zinc-50 border-t border-zinc-200 shadow-2xl rounded-t-2xl"
+            >
+              <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-zinc-300 mx-auto absolute left-1/2 -translate-x-1/2 top-2" />
+                <div className="flex-1" />
+                <button
+                  onClick={() => setShowFoodLogPopup(false)}
+                  className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors text-zinc-400 hover:text-zinc-600"
+                  data-testid="button-close-foodlog-popup"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="px-4 pb-6 pt-1">
+                <FoodLog
+                  dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
+                  dailyProteinTarget={activeResult?.proteinGoal ?? undefined}
+                  dailyCarbsTarget={activeResult?.carbsGoal ?? undefined}
+                  dailyFatTarget={activeResult?.fatGoal ?? undefined}
+                  prefill={logPrefill}
+                  onPrefillConsumed={handlePrefillConsumed}
+                />
               </div>
             </motion.div>
           </>
