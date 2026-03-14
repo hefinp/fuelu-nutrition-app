@@ -369,7 +369,14 @@ function pickBestMeal(
 
     if (preferences?.preferredFoods?.length) {
       const mealLower = m.meal.toLowerCase();
-      const hasPreferred = preferences.preferredFoods.some(kw => mealLower.includes(kw.toLowerCase()));
+      const hasPreferred = preferences.preferredFoods.some(kw => {
+        const key = kw.trim().toLowerCase().replace(/\s+/g, '_');
+        const expanded = FOOD_CATEGORY_KEYWORDS[key];
+        if (expanded) {
+          return expanded.some(ek => mealLower.includes(ek));
+        }
+        return mealLower.includes(kw.trim().toLowerCase());
+      });
       if (hasPreferred) score -= 0.2;
     }
 
