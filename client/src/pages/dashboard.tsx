@@ -6,7 +6,7 @@ import { CalculatorForm } from "@/components/calculator-form";
 import { NutritionDisplay, MealPlanGenerator } from "@/components/results-display";
 import { SavedMealPlans } from "@/components/saved-meal-plans";
 import { WeightTracker } from "@/components/weight-tracker";
-import { PreferencesForm } from "@/components/preferences-form";
+import { PreferencesForm, AllergiesForm } from "@/components/preferences-form";
 import { FoodLog } from "@/components/food-log";
 import { RecipeLibrary } from "@/components/recipe-library";
 import { HydrationTracker } from "@/components/hydration-tracker";
@@ -43,7 +43,7 @@ import {
 } from "@dnd-kit/sortable";
 import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
-  ChevronDown, Salad, LayoutDashboard, Check, Loader2,
+  ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
   Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, Home, TrendingUp, Star,
 } from "lucide-react";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
@@ -71,6 +71,7 @@ export default function Dashboard() {
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [dashboardAccordionOpen, setDashboardAccordionOpen] = useState(false);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
+  const [allergiesOpen, setAllergiesOpen] = useState(false);
   const [logPrefill, setLogPrefill] = useState<PrefillEntry | null>(null);
   const [showFoodLogPopup, setShowFoodLogPopup] = useState(false);
   const [showInsightsPopup, setShowInsightsPopup] = useState(false);
@@ -415,13 +416,6 @@ export default function Dashboard() {
               </div>
 
               <div className="flex-1 overflow-y-auto pb-safe">
-                <CalculatorForm
-                  onResult={handleMetricsResult}
-                  defaultValues={lastCalculation}
-                  compact
-                  onPendingChange={setIsCalculating}
-                />
-
                 {user && (() => {
                   const WIDGET_CONFIG: { id: string; label: string; Icon: React.ElementType }[] = [
                     { id: "food-log",       label: "Food Log",         Icon: ClipboardList },
@@ -431,20 +425,12 @@ export default function Dashboard() {
                     { id: "nutrition",      label: "Nutrition",        Icon: SlidersHorizontal },
                     { id: "weight",         label: "Progress Tracker", Icon: Scale },
                     { id: "recipe-library", label: "Recipe Library",   Icon: BookMarked },
-                    // "cycle" is intentionally excluded — its visibility is controlled by the Metrics toggle
-                  ];
-
-                  const CONNECTIONS = [
-                    { label: "Email",  Icon: Mail,      connected: true,                                    colour: "text-zinc-500" },
-                    { label: "Google", Icon: SiGoogle,  connected: user.provider === "google",              colour: "text-blue-500" },
-                    { label: "Apple",  Icon: SiApple,   connected: user.provider === "apple",               colour: "text-zinc-900" },
-                    { label: "Strava", Icon: SiStrava,  connected: false,                                   colour: "text-orange-500" },
                   ];
 
                   return (
                     <>
-                      {/* ── Dashboard accordion ── */}
-                      <div className="border-t border-zinc-100">
+                      {/* ── Dashboard accordion (first) ── */}
+                      <div className="border-b border-zinc-100">
                         <button
                           type="button"
                           onClick={() => setDashboardAccordionOpen(v => !v)}
@@ -487,6 +473,59 @@ export default function Dashboard() {
                           )}
                         </AnimatePresence>
                       </div>
+                    </>
+                  );
+                })()}
+
+                <CalculatorForm
+                  onResult={handleMetricsResult}
+                  defaultValues={lastCalculation}
+                  compact
+                  onPendingChange={setIsCalculating}
+                />
+
+                {user && (() => {
+                  const CONNECTIONS = [
+                    { label: "Email",  Icon: Mail,      connected: true,                                    colour: "text-zinc-500" },
+                    { label: "Google", Icon: SiGoogle,  connected: user.provider === "google",              colour: "text-blue-500" },
+                    { label: "Apple",  Icon: SiApple,   connected: user.provider === "apple",               colour: "text-zinc-900" },
+                    { label: "Strava", Icon: SiStrava,  connected: false,                                   colour: "text-orange-500" },
+                  ];
+
+                  return (
+                    <>
+                      {/* ── Allergies & Intolerances accordion ── */}
+                      <div className="border-t border-zinc-100">
+                        <button
+                          type="button"
+                          onClick={() => setAllergiesOpen(v => !v)}
+                          className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-zinc-50/60 transition-colors"
+                          data-testid="button-accordion-allergies"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <ShieldAlert className="w-4 h-4 text-zinc-400" />
+                            <span className="text-sm font-semibold text-zinc-900">Allergies & Intolerances</span>
+                          </div>
+                          <ChevronDown
+                            className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${allergiesOpen ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                        <AnimatePresence initial={false}>
+                          {allergiesOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.22, ease: "easeInOut" }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-6 pb-5 pt-1">
+                                <AllergiesForm />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
 
                       {/* ── Preferences accordion ── */}
                       <div className="border-t border-zinc-100">
@@ -494,6 +533,7 @@ export default function Dashboard() {
                           type="button"
                           onClick={() => setPrefsOpen(v => !v)}
                           className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-zinc-50/60 transition-colors"
+                          data-testid="button-accordion-preferences"
                         >
                           <div className="flex items-center gap-2.5">
                             <Salad className="w-4 h-4 text-zinc-400" />

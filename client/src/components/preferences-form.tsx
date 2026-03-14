@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type UserPreferences } from "@shared/schema";
-import { Check, Loader2, X, Sparkles, ThumbsDown, Leaf, Sprout, Fish, Moon, Star, Globe, Droplets, Users2 } from "lucide-react";
+import { Check, Loader2, X, Sparkles, ThumbsDown, Leaf, Sprout, Fish, Moon, Star, Globe, Droplets, Users2, ShieldAlert } from "lucide-react";
 
 type Diet = NonNullable<UserPreferences["diet"]>;
 type Allergy = NonNullable<UserPreferences["allergies"]>[number];
@@ -107,6 +107,122 @@ function TagInput({
   );
 }
 
+export function AllergiesForm() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery<UserPreferences>({
+    queryKey: ["/api/user/preferences"],
+  });
+
+  const [allergies, setAllergies] = useState<Allergy[]>([]);
+  const [excludedFoods, setExcludedFoods] = useState<string[]>([]);
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    if (!data || initialized.current) return;
+    initialized.current = true;
+    setAllergies(data.allergies ?? []);
+    setExcludedFoods(data.excludedFoods ?? []);
+  }, [data]);
+
+  const mutation = useMutation({
+    mutationFn: (prefs: UserPreferences) =>
+      apiRequest("PUT", "/api/user/preferences", prefs),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+      toast({ title: "Allergies saved", description: "Your meal plans will avoid these ingredients." });
+    },
+    onError: () => {
+      toast({ title: "Failed to save", description: "Please try again.", variant: "destructive" });
+    },
+  });
+
+  const toggleAllergy = (a: Allergy) => {
+    setAllergies(prev =>
+      prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]
+    );
+  };
+
+  const handleSave = () => {
+    mutation.mutate({
+      ...data,
+      allergies,
+      excludedFoods,
+    } as any);
+  };
+
+  const hasChanges =
+    JSON.stringify([...allergies].sort()) !== JSON.stringify([...(data?.allergies ?? [])].sort()) ||
+    JSON.stringify(excludedFoods) !== JSON.stringify(data?.excludedFoods ?? []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2.5">Allergies & intolerances</p>
+        <div className="grid grid-cols-2 gap-2">
+          {ALLERGY_OPTIONS.map(opt => {
+            const active = allergies.includes(opt.value);
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => toggleAllergy(opt.value)}
+                data-testid={`allergy-${opt.value}`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border transition-all text-left ${
+                  active
+                    ? "bg-red-50 text-red-700 border-red-200"
+                    : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400"
+                }`}
+              >
+                <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors ${
+                  active ? "bg-red-500" : "bg-zinc-100"
+                }`}>
+                  {active && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+                </div>
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2.5">Foods to avoid</p>
+        <p className="text-xs text-zinc-400 mb-2">Type a food keyword and press Enter</p>
+        <TagInput
+          tags={excludedFoods}
+          onChange={setExcludedFoods}
+          placeholder="e.g. mushroom, coconut, tofu..."
+          testIdPrefix="excluded-foods"
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={mutation.isPending || !hasChanges}
+        data-testid="button-save-allergies"
+        className="w-full py-2.5 rounded-xl text-sm font-medium bg-zinc-900 text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+      >
+        {mutation.isPending ? (
+          <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+        ) : (
+          "Save"
+        )}
+      </button>
+    </div>
+  );
+}
+
 export function PreferencesForm() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -116,8 +232,6 @@ export function PreferencesForm() {
   });
 
   const [diet, setDiet] = useState<Diet | null>(null);
-  const [allergies, setAllergies] = useState<Allergy[]>([]);
-  const [excludedFoods, setExcludedFoods] = useState<string[]>([]);
   const [preferredFoods, setPreferredFoods] = useState<string[]>([]);
   const [micronutrientOptimize, setMicronutrientOptimize] = useState(false);
   const [recipeWebsitesEnabled, setRecipeWebsitesEnabled] = useState(false);
@@ -133,8 +247,6 @@ export function PreferencesForm() {
     if (!data || initialized.current) return;
     initialized.current = true;
     setDiet(data.diet ?? null);
-    setAllergies(data.allergies ?? []);
-    setExcludedFoods(data.excludedFoods ?? []);
     setPreferredFoods(data.preferredFoods ?? []);
     setMicronutrientOptimize(data.micronutrientOptimize ?? false);
     setRecipeWebsitesEnabled(data.recipeWebsitesEnabled ?? false);
@@ -158,12 +270,6 @@ export function PreferencesForm() {
     },
   });
 
-  const toggleAllergy = (a: Allergy) => {
-    setAllergies(prev =>
-      prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a]
-    );
-  };
-
   const toggleSlot = (slot: MealSlot) => {
     setRecipeEnabledSlots(prev => {
       if (prev.includes(slot)) {
@@ -176,12 +282,10 @@ export function PreferencesForm() {
 
   const handleSave = () => {
     mutation.mutate({
+      ...data,
       diet: diet ?? undefined,
-      allergies,
-      excludedFoods,
       preferredFoods,
       micronutrientOptimize,
-      dislikedMeals: data?.dislikedMeals ?? [],
       recipeWebsitesEnabled,
       recipeWebsites,
       recipeEnabledSlots,
@@ -194,8 +298,6 @@ export function PreferencesForm() {
 
   const hasChanges =
     (diet ?? null) !== (data?.diet ?? null) ||
-    JSON.stringify([...allergies].sort()) !== JSON.stringify([...(data?.allergies ?? [])].sort()) ||
-    JSON.stringify(excludedFoods) !== JSON.stringify(data?.excludedFoods ?? []) ||
     JSON.stringify(preferredFoods) !== JSON.stringify(data?.preferredFoods ?? []) ||
     micronutrientOptimize !== (data?.micronutrientOptimize ?? false) ||
     recipeWebsitesEnabled !== (data?.recipeWebsitesEnabled ?? false) ||
@@ -215,13 +317,8 @@ export function PreferencesForm() {
   }
 
   return (
-    <div className="mt-8 pt-6 border-t border-zinc-100">
-      <h3 className="text-sm font-semibold text-zinc-900 mb-1">Food Preferences & Allergies</h3>
-      <p className="text-xs text-zinc-500 mb-5">
-        Your meal plans will automatically avoid ingredients that don't suit you.
-      </p>
-
-      <div className="mb-5">
+    <div className="space-y-5">
+      <div>
         <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2.5">Diet type</p>
         <div className="flex flex-wrap gap-2">
           <button
@@ -255,47 +352,7 @@ export function PreferencesForm() {
         </div>
       </div>
 
-      <div className="mb-5">
-        <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2.5">Allergies & intolerances</p>
-        <div className="grid grid-cols-2 gap-2">
-          {ALLERGY_OPTIONS.map(opt => {
-            const active = allergies.includes(opt.value);
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => toggleAllergy(opt.value)}
-                data-testid={`allergy-${opt.value}`}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border transition-all text-left ${
-                  active
-                    ? "bg-red-50 text-red-700 border-red-200"
-                    : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400"
-                }`}
-              >
-                <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors ${
-                  active ? "bg-red-500" : "bg-zinc-100"
-                }`}>
-                  {active && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
-                </div>
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="mb-5">
-        <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2.5">Foods to avoid</p>
-        <p className="text-xs text-zinc-400 mb-2">Type a food keyword and press Enter</p>
-        <TagInput
-          tags={excludedFoods}
-          onChange={setExcludedFoods}
-          placeholder="e.g. mushroom, coconut, tofu..."
-          testIdPrefix="excluded-foods"
-        />
-      </div>
-
-      <div className="mb-5">
+      <div>
         <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2.5">Preferred foods</p>
         <p className="text-xs text-zinc-400 mb-2">Meals containing these will be prioritised</p>
         <TagInput
