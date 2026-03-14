@@ -563,8 +563,11 @@ function calculateMacros(weight: number, height: number, age: number, gender: st
   const proteinGoal = Math.round((dailyCalories * 0.3) / 4);
   const carbsGoal = Math.round((dailyCalories * 0.4) / 4);
   const fatGoal = Math.round((dailyCalories * 0.3) / 9);
+  const fibreGoal = 30;
+  const sugarGoal = Math.round((dailyCalories * 0.10) / 4);
+  const saturatedFatGoal = Math.round((dailyCalories * 0.10) / 9);
 
-  return { dailyCalories, weeklyCalories, proteinGoal, carbsGoal, fatGoal };
+  return { dailyCalories, weeklyCalories, proteinGoal, carbsGoal, fatGoal, fibreGoal, sugarGoal, saturatedFatGoal };
 }
 
 // ── Passport OAuth setup ────────────────────────────────────────────────────
@@ -2826,6 +2829,9 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
         protein: z.number().int().min(0),
         carbs: z.number().int().min(0),
         fat: z.number().int().min(0),
+        fibre: z.number().int().min(0).nullable().optional(),
+        sugar: z.number().int().min(0).nullable().optional(),
+        saturatedFat: z.number().int().min(0).nullable().optional(),
         mealSlot: z.enum(["breakfast", "lunch", "dinner", "snack"]).nullable().optional(),
       }).parse(req.body);
       const entry = await storage.createFoodLogEntry({ ...body, userId: req.session.userId });

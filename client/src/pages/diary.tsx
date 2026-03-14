@@ -25,6 +25,9 @@ interface DiaryProps {
   dailyProteinTarget?: number;
   dailyCarbsTarget?: number;
   dailyFatTarget?: number;
+  dailyFibreTarget?: number;
+  dailySugarTarget?: number;
+  dailySaturatedFatTarget?: number;
   initialDate?: string;
 }
 
@@ -50,6 +53,9 @@ export default function DiaryPage() {
     dailyProteinTarget: calcData?.proteinGoal ?? undefined,
     dailyCarbsTarget: calcData?.carbsGoal ?? undefined,
     dailyFatTarget: calcData?.fatGoal ?? undefined,
+    dailyFibreTarget: calcData?.fibreGoal ?? undefined,
+    dailySugarTarget: calcData?.sugarGoal ?? undefined,
+    dailySaturatedFatTarget: calcData?.saturatedFatGoal ?? undefined,
     initialDate: dateParam,
   };
 
@@ -61,6 +67,9 @@ function DiaryContent({
   dailyProteinTarget,
   dailyCarbsTarget,
   dailyFatTarget,
+  dailyFibreTarget,
+  dailySugarTarget,
+  dailySaturatedFatTarget,
   initialDate,
 }: DiaryProps) {
   const { toast } = useToast();
@@ -153,6 +162,9 @@ function DiaryContent({
   const totalProt = confirmedDaily.reduce((s, e) => s + e.protein, 0);
   const totalCarbs = confirmedDaily.reduce((s, e) => s + e.carbs, 0);
   const totalFat = confirmedDaily.reduce((s, e) => s + e.fat, 0);
+  const totalFibre = confirmedDaily.some(e => e.fibre != null) ? confirmedDaily.reduce((s, e) => s + (e.fibre ?? 0), 0) : undefined;
+  const totalSugar = confirmedDaily.some(e => e.sugar != null) ? confirmedDaily.reduce((s, e) => s + (e.sugar ?? 0), 0) : undefined;
+  const totalSaturatedFat = confirmedDaily.some(e => e.saturatedFat != null) ? confirmedDaily.reduce((s, e) => s + (e.saturatedFat ?? 0), 0) : undefined;
   const plannedCal = plannedDaily.reduce((s, e) => s + e.calories, 0);
 
   const confirmedWeekly = weeklyEntries.filter(e => e.confirmed !== false);
@@ -160,6 +172,9 @@ function DiaryContent({
   const weekTotalProt = confirmedWeekly.reduce((s, e) => s + e.protein, 0);
   const weekTotalCarbs = confirmedWeekly.reduce((s, e) => s + e.carbs, 0);
   const weekTotalFat = confirmedWeekly.reduce((s, e) => s + e.fat, 0);
+  const weekTotalFibre = confirmedWeekly.some(e => e.fibre != null) ? confirmedWeekly.reduce((s, e) => s + (e.fibre ?? 0), 0) : undefined;
+  const weekTotalSugar = confirmedWeekly.some(e => e.sugar != null) ? confirmedWeekly.reduce((s, e) => s + (e.sugar ?? 0), 0) : undefined;
+  const weekTotalSaturatedFat = confirmedWeekly.some(e => e.saturatedFat != null) ? confirmedWeekly.reduce((s, e) => s + (e.saturatedFat ?? 0), 0) : undefined;
 
   const entriesByDay = weekRange.days.reduce<Record<string, FoodLogEntry[]>>((acc, d) => {
     acc[d] = weeklyEntries.filter(e => e.date === d);
@@ -385,8 +400,11 @@ function DiaryContent({
 
               <MacroGrid
                 cal={totalCal} prot={totalProt} carbs={totalCarbs} fat={totalFat}
+                fibre={totalFibre} sugar={totalSugar} saturatedFat={totalSaturatedFat}
                 calTarget={dailyCaloriesTarget} protTarget={dailyProteinTarget}
                 carbsTarget={dailyCarbsTarget} fatTarget={dailyFatTarget}
+                fibreTarget={dailyFibreTarget} sugarTarget={dailySugarTarget}
+                saturatedFatTarget={dailySaturatedFatTarget}
               />
 
               {plannedDaily.length > 0 && (
@@ -495,10 +513,14 @@ function DiaryContent({
 
               <MacroGrid
                 cal={weekTotalCal} prot={weekTotalProt} carbs={weekTotalCarbs} fat={weekTotalFat}
+                fibre={weekTotalFibre} sugar={weekTotalSugar} saturatedFat={weekTotalSaturatedFat}
                 calTarget={dailyCaloriesTarget ? dailyCaloriesTarget * 7 : undefined}
                 protTarget={dailyProteinTarget ? dailyProteinTarget * 7 : undefined}
                 carbsTarget={dailyCarbsTarget ? dailyCarbsTarget * 7 : undefined}
                 fatTarget={dailyFatTarget ? dailyFatTarget * 7 : undefined}
+                fibreTarget={dailyFibreTarget ? dailyFibreTarget * 7 : undefined}
+                sugarTarget={dailySugarTarget ? dailySugarTarget * 7 : undefined}
+                saturatedFatTarget={dailySaturatedFatTarget ? dailySaturatedFatTarget * 7 : undefined}
               />
 
               {weekTotalCal > 0 && (

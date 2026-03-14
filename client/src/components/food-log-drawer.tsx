@@ -35,6 +35,7 @@ export function FoodLogDrawer({
   const [formTab, setFormTab] = useState<"manual" | "plan" | "search" | "scan" | "ai">("manual");
   const [form, setForm] = useState({
     mealName: "", calories: "", protein: "", carbs: "", fat: "",
+    fibre: "", sugar: "", saturatedFat: "",
     mealSlot: null as MealSlot | null,
   });
 
@@ -229,7 +230,9 @@ export function FoodLogDrawer({
   const addMutation = useMutation({
     mutationFn: (entry: {
       date: string; mealName: string; calories: number;
-      protein: number; carbs: number; fat: number; mealSlot?: MealSlot | null;
+      protein: number; carbs: number; fat: number;
+      fibre?: number | null; sugar?: number | null; saturatedFat?: number | null;
+      mealSlot?: MealSlot | null;
     }) => apiRequest("POST", "/api/food-log", entry).then(r => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
@@ -248,7 +251,7 @@ export function FoodLogDrawer({
   });
 
   function resetFormAndClose() {
-    setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", mealSlot: null });
+    setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", fibre: "", sugar: "", saturatedFat: "", mealSlot: null });
     setFormTab("manual");
     setScanResult(null);
     setSaveAsCustomFood(false);
@@ -296,6 +299,9 @@ export function FoodLogDrawer({
       protein: parseInt(form.protein) || 0,
       carbs: parseInt(form.carbs) || 0,
       fat: parseInt(form.fat) || 0,
+      fibre: form.fibre !== "" ? (parseInt(form.fibre) || 0) : null,
+      sugar: form.sugar !== "" ? (parseInt(form.sugar) || 0) : null,
+      saturatedFat: form.saturatedFat !== "" ? (parseInt(form.saturatedFat) || 0) : null,
       mealSlot: form.mealSlot,
     });
   }
@@ -376,6 +382,9 @@ export function FoodLogDrawer({
       protein: Math.round(scannedFood.protein100g * f),
       carbs: Math.round(scannedFood.carbs100g * f),
       fat: Math.round(scannedFood.fat100g * f),
+      fibre: scannedFood.fibre100g != null ? Math.round(scannedFood.fibre100g * f) : null,
+      sugar: scannedFood.sugar100g != null ? Math.round(scannedFood.sugar100g * f) : null,
+      saturatedFat: scannedFood.saturatedFat100g != null ? Math.round(scannedFood.saturatedFat100g * f) : null,
       mealSlot: scanMealSlot,
     });
   }
@@ -536,6 +545,9 @@ export function FoodLogDrawer({
       protein: Math.round(aiTabResult.protein100g * f),
       carbs: Math.round(aiTabResult.carbs100g * f),
       fat: Math.round(aiTabResult.fat100g * f),
+      fibre: aiTabResult.fibre100g != null ? Math.round(aiTabResult.fibre100g * f) : null,
+      sugar: aiTabResult.sugar100g != null ? Math.round(aiTabResult.sugar100g * f) : null,
+      saturatedFat: aiTabResult.saturatedFat100g != null ? Math.round(aiTabResult.saturatedFat100g * f) : null,
       mealSlot: aiTabMealSlot,
     });
   }
@@ -780,6 +792,29 @@ export function FoodLogDrawer({
                       />
                     </div>
                   ))}
+                </div>
+                <div>
+                  <p className="text-[10px] text-zinc-400 mb-1.5 font-medium">Optional — sub-macros</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { key: "fibre", label: "Fibre g" },
+                      { key: "sugar", label: "Sugar g" },
+                      { key: "saturatedFat", label: "Sat. Fat g" },
+                    ] as const).map(({ key, label }) => (
+                      <div key={key}>
+                        <label className="text-[10px] text-zinc-500">{label}</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={form[key]}
+                          onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                          className="w-full px-2 py-1.5 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 text-center bg-white"
+                          placeholder="–"
+                          data-testid={`input-log-${key}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 {scanResult?.type === "not_found" && (
                   <label className="flex items-center gap-2 cursor-pointer py-1" data-testid="label-save-custom-food">

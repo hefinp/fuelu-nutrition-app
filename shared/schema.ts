@@ -82,6 +82,9 @@ export const calculations = pgTable("calculations", {
   proteinGoal: integer("protein_goal").notNull(),
   carbsGoal: integer("carbs_goal").notNull(),
   fatGoal: integer("fat_goal").notNull(),
+  fibreGoal: integer("fibre_goal"),
+  sugarGoal: integer("sugar_goal"),
+  saturatedFatGoal: integer("saturated_fat_goal"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -174,6 +177,9 @@ export const foodLogEntries = pgTable("food_log_entries", {
   protein: integer("protein").notNull(),
   carbs: integer("carbs").notNull(),
   fat: integer("fat").notNull(),
+  fibre: integer("fibre"),
+  sugar: integer("sugar"),
+  saturatedFat: integer("saturated_fat"),
   mealSlot: text("meal_slot"),
   confirmed: boolean("confirmed").notNull().default(true),
   communityMealId: integer("community_meal_id"),

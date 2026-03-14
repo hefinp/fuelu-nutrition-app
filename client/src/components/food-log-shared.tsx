@@ -38,6 +38,9 @@ export interface FoodLogEntry {
   protein: number;
   carbs: number;
   fat: number;
+  fibre?: number | null;
+  sugar?: number | null;
+  saturatedFat?: number | null;
   mealSlot: MealSlot | null;
   confirmed: boolean;
   createdAt: string;
@@ -191,33 +194,52 @@ export function ProgressBar({ value, max, color }: { value: number; max: number;
 }
 
 export function MacroGrid({
-  cal, prot, carbs, fat,
-  calTarget, protTarget, carbsTarget, fatTarget,
+  cal, prot, carbs, fat, fibre, sugar, saturatedFat,
+  calTarget, protTarget, carbsTarget, fatTarget, fibreTarget, sugarTarget, saturatedFatTarget,
 }: {
   cal: number; prot: number; carbs: number; fat: number;
+  fibre?: number; sugar?: number; saturatedFat?: number;
   calTarget?: number; protTarget?: number; carbsTarget?: number; fatTarget?: number;
+  fibreTarget?: number; sugarTarget?: number; saturatedFatTarget?: number;
 }) {
+  const primary = [
+    { label: "Calories", value: cal, target: calTarget, color: "bg-green-500", unit: "kcal" },
+    { label: "Protein", value: prot, target: protTarget, color: "bg-red-400", unit: "g" },
+    { label: "Carbs", value: carbs, target: carbsTarget, color: "bg-blue-400", unit: "g" },
+    { label: "Fat", value: fat, target: fatTarget, color: "bg-yellow-400", unit: "g" },
+  ];
+  const secondary = [
+    { label: "Fibre", value: fibre ?? 0, target: fibreTarget, color: "bg-emerald-500", unit: "g" },
+    { label: "Sugar", value: sugar ?? 0, target: sugarTarget, color: "bg-pink-400", unit: "g" },
+    { label: "Sat. Fat", value: saturatedFat ?? 0, target: saturatedFatTarget, color: "bg-orange-400", unit: "g" },
+  ];
+  const hasSubMacros = fibre != null || sugar != null || saturatedFat != null;
+
+  function MacroCell({ label, value, target, color, unit }: { label: string; value: number; target?: number; color: string; unit: string }) {
+    const exceeded = target != null && target > 0 && value > target;
+    return (
+      <div className="bg-zinc-50 rounded-xl p-3">
+        <div className="flex items-baseline justify-between mb-1.5">
+          <span className="text-xs text-zinc-500 font-medium">{label}</span>
+          <span className={`text-xs font-bold ${exceeded ? "text-red-600" : "text-zinc-900"}`}>
+            {value}<span className="font-normal text-zinc-400">/{target ?? "–"}{unit}</span>
+          </span>
+        </div>
+        <ProgressBar value={value} max={target ?? 0} color={color} />
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-3 mb-4">
-      {[
-        { label: "Calories", value: cal, target: calTarget, color: "bg-green-500", unit: "kcal" },
-        { label: "Protein", value: prot, target: protTarget, color: "bg-red-400", unit: "g" },
-        { label: "Carbs", value: carbs, target: carbsTarget, color: "bg-blue-400", unit: "g" },
-        { label: "Fat", value: fat, target: fatTarget, color: "bg-yellow-400", unit: "g" },
-      ].map(({ label, value, target, color, unit }) => {
-        const exceeded = target != null && target > 0 && value > target;
-        return (
-          <div key={label} className="bg-zinc-50 rounded-xl p-3">
-            <div className="flex items-baseline justify-between mb-1.5">
-              <span className="text-xs text-zinc-500 font-medium">{label}</span>
-              <span className={`text-xs font-bold ${exceeded ? "text-red-600" : "text-zinc-900"}`}>
-                {value}<span className="font-normal text-zinc-400">/{target ?? "–"}{unit}</span>
-              </span>
-            </div>
-            <ProgressBar value={value} max={target ?? 0} color={color} />
-          </div>
-        );
-      })}
+    <div className="mb-4 space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        {primary.map(p => <MacroCell key={p.label} {...p} />)}
+      </div>
+      {hasSubMacros && (
+        <div className="grid grid-cols-3 gap-2">
+          {secondary.map(s => <MacroCell key={s.label} {...s} />)}
+        </div>
+      )}
     </div>
   );
 }

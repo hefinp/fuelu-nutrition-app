@@ -1746,6 +1746,12 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
     { name: "Fat", value: data.fatGoal, color: "hsl(var(--chart-3))" },
   ];
 
+  const subMacros = [
+    { name: "Fibre", value: data.fibreGoal ?? 30, color: "#10b981", unit: "g", tip: "Daily target" },
+    { name: "Sugar", value: data.sugarGoal ?? Math.round((data.dailyCalories * 0.1) / 4), color: "#f472b6", unit: "g", tip: "Max (total)" },
+    { name: "Sat. Fat", value: data.saturatedFatGoal ?? Math.round((data.dailyCalories * 0.1) / 9), color: "#fb923c", unit: "g", tip: "Max" },
+  ];
+
   const totalCal = data.dailyCalories;
 
   return (
@@ -1767,7 +1773,7 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
             </div>
           </div>
 
-          {/* Compact macro row — always visible */}
+          {/* Primary macro row — always visible */}
           <div className="grid grid-cols-3 gap-2">
             {chartData.map((item) => (
               <div key={item.name} className="bg-white/10 rounded-xl p-3">
@@ -1779,6 +1785,20 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
                 {expanded && (
                   <p className="text-[10px] text-zinc-500 mt-1">{item.value * 7}g / week</p>
                 )}
+              </div>
+            ))}
+          </div>
+
+          {/* Sub-macro row — always visible */}
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            {subMacros.map((item) => (
+              <div key={item.name} className="bg-white/5 rounded-xl p-2.5">
+                <div className="flex items-center gap-1 mb-0.5">
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                  <span className="text-[10px] text-zinc-500 font-medium">{item.name}</span>
+                </div>
+                <p className="text-base font-bold leading-none">{item.value}<span className="text-[10px] font-normal text-zinc-500 ml-0.5">{item.unit}</span></p>
+                <p className="text-[9px] text-zinc-600 mt-0.5">{item.tip}</p>
               </div>
             ))}
           </div>
