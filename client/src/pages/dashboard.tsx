@@ -600,30 +600,6 @@ export default function Dashboard() {
       </AnimatePresence>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        {/* Saved Plans */}
-        <AnimatePresence>
-          {showSavedPlans && user && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden mb-8"
-            >
-              <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
-                <div className="flex items-center gap-2 mb-5">
-                  <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                    <BookOpen className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-zinc-900">Saved Plans</h2>
-                    <p className="text-xs text-zinc-500">Save your favorite meal plans after reviewing them</p>
-                  </div>
-                </div>
-                <SavedMealPlans onLogMeal={handleLogMeal} />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Loading */}
         {user && historyLoading && (
@@ -967,6 +943,53 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* ── My Plans overlay ────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showSavedPlans && user && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-[39] bg-black/20"
+              onClick={() => setShowSavedPlans(false)}
+            />
+            {/* Panel — mobile: slides up above bottom nav; desktop: drops down below header */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 16 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="fixed z-40 left-0 right-0 bottom-16 sm:bottom-auto sm:top-16 max-h-[75vh] sm:max-h-[65vh] overflow-y-auto bg-white border-t sm:border-t-0 sm:border-b border-zinc-200 shadow-2xl rounded-t-2xl sm:rounded-none"
+            >
+              <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                      <BookOpen className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-zinc-900">Saved Plans</h2>
+                      <p className="text-xs text-zinc-500">Your saved meal plans</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowSavedPlans(false)}
+                    className="p-1.5 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400 hover:text-zinc-600"
+                    data-testid="button-close-saved-plans"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <SavedMealPlans onLogMeal={handleLogMeal} />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
