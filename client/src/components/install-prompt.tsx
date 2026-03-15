@@ -159,7 +159,10 @@ export function InstallPrompt() {
           className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] sm:bottom-6 left-4 right-4 z-[48] max-w-md mx-auto"
           data-testid="install-prompt-banner"
         >
-          <div className="bg-zinc-900 text-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3">
+          <div
+            className={`bg-zinc-900 text-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3${showIos ? " cursor-pointer active:bg-zinc-800" : ""}`}
+            onClick={showIos ? () => setShowGuide(true) : undefined}
+          >
             <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
               <Download className="w-4 h-4 text-white" />
             </div>
@@ -191,7 +194,7 @@ export function InstallPrompt() {
               </button>
             )}
             <button
-              onClick={dismiss}
+              onClick={(e) => { e.stopPropagation(); dismiss(); }}
               className="p-1 text-zinc-400 hover:text-white transition-colors flex-shrink-0"
               data-testid="button-pwa-dismiss"
             >
