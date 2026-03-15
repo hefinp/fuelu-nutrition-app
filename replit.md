@@ -25,6 +25,14 @@ Core components include:
     -   `food-log-shared.tsx`: Types, constants, helpers, ProgressBar, MacroGrid, LoggedMealModal.
     -   `food-log-drawer.tsx`: 5-tab entry form (manual, search, barcode scan, AI, plan import) as a bottom sheet/modal overlay.
     -   `food-log.tsx`: Slim dashboard widget (~340 lines).
+-   **MyMealsFoodWidget**: Dashboard widget for saved meals and custom foods, split into modular files:
+    -   `meals-food-shared.tsx`: Shared types (MealSlot, Ingredient, etc.), constants (SLOT_OPTIONS, SLOT_COLOURS), and reusable components (MacroBar, MacroChips).
+    -   `community-browser-modal.tsx`: Community meals browser modal with allergen detection. Also used by RecipeLibrary.
+    -   `import-modal.tsx`: Recipe import modal (URL or photo).
+    -   `edit-meal-modal.tsx`: Edit meal/favourite modal.
+    -   `add-food-modal.tsx`: Add custom food modal with barcode scan, AI estimate, and manual entry.
+    -   `create-meal-modal.tsx`: Create meal modal with food picker (search, barcode, AI, My Foods tabs).
+    -   `my-meals-food-widget.tsx`: Slim dashboard widget (~500 lines) importing all modals.
 -   **DiaryPage** (`/diary`): Full food diary with daily/weekly views, date navigation, entry management (confirm/star/delete), weekly AI insights, and the FoodLogDrawer for logging.
 -   **CycleTracker**: (For female users) Tracks menstrual cycles, predicts phases, provides cycle-phase-specific nutrition tips (via AI with web search), and logs symptoms and period history.
 -   **Insights**: Offers wellbeing insights, including symptom trends, food correlations, AI-powered narrative analysis, and research summaries based on user data and external research (PubMed/NIH).
