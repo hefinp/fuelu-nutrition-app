@@ -1,18 +1,21 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus, X, Loader2, Camera, ArrowLeft,
+  Plus, X, Loader2, ArrowLeft,
   Check, Search, Barcode, Sparkles, Wheat, UtensilsCrossed,
 } from "lucide-react";
 import type { UserSavedFood } from "@shared/schema";
-import type { FoodResult, ExtendedFoodResult } from "@/components/food-log-shared";
+import type { ExtendedFoodResult } from "@/components/food-log-shared";
 import {
   type MealSlot, type PickerTab, type Ingredient,
-  SLOT_OPTIONS, MacroChips, fileToBase64,
+  SLOT_OPTIONS, MacroChips,
   ingredientFromSaved, ingredientFromSearch,
 } from "@/components/meals-food-shared";
+import {
+  useFoodPicker, SearchPanel, ScannerView, ScannedFoodPanel, AiPanel,
+} from "@/components/food-picker-tabs";
 import { AddFoodModal } from "@/components/add-food-modal";
 
 export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
@@ -30,99 +33,7 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
   const [instructions, setInstructions] = useState("");
   const [mealSlot, setMealSlot] = useState<MealSlot>("dinner");
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-
-  const [scannerError, setScannerError] = useState(false);
-  const [scanLookingUp, setScanLookingUp] = useState(false);
-  const [scannedFood, setScannedFood] = useState<ExtendedFoodResult | null>(null);
-  const [scanServingGrams, setScanServingGrams] = useState("100");
-  const [scanKey, setScanKey] = useState(0);
-  const zxingModuleRef = useRef<typeof import("@zxing/browser") | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const scanControlsRef = useRef<{ stop: () => void } | null>(null);
-
-  const [aiMode, setAiMode] = useState<"describe" | "label">("describe");
-  const [aiDescription, setAiDescription] = useState("");
-  const [aiPhotoFile, setAiPhotoFile] = useState<File | null>(null);
-  const [aiResult, setAiResult] = useState<ExtendedFoodResult | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiServingGrams, setAiServingGrams] = useState("100");
-  const [aiProductName, setAiProductName] = useState("");
-  const [aiLabelPhotoFile, setAiLabelPhotoFile] = useState<File | null>(null);
-  const aiPhotoRef = useRef<HTMLInputElement>(null);
-  const aiLabelPhotoRef = useRef<HTMLInputElement>(null);
-
-  const { data: labelScanAvailability } = useQuery<{ available: boolean }>({ queryKey: ["/api/food-log/label-scan-available"], staleTime: Infinity });
-  const labelScanAvailable = labelScanAvailability?.available ?? false;
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 400);
-    return () => clearTimeout(t);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    import("@zxing/browser").then(mod => { zxingModuleRef.current = mod; }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (step !== "pick" || pickerTab !== "scan" || scannedFood) {
-      scanControlsRef.current?.stop();
-      scanControlsRef.current = null;
-      return;
-    }
-    let cancelled = false;
-    setScannerError(false);
-    setScanLookingUp(false);
-    (async () => {
-      try {
-        const mod = zxingModuleRef.current ?? await import("@zxing/browser");
-        if (!zxingModuleRef.current) zxingModuleRef.current = mod;
-        const { BrowserMultiFormatReader } = mod;
-        if (cancelled || !videoRef.current) return;
-        const reader = new BrowserMultiFormatReader();
-        const controls = await reader.decodeFromVideoDevice(undefined, videoRef.current, async (result) => {
-          if (!result || cancelled) return;
-          cancelled = true;
-          controls.stop();
-          scanControlsRef.current = null;
-          const barcode = result.getText();
-          setScanLookingUp(true);
-          try {
-            const res = await fetch(`/api/barcode/${encodeURIComponent(barcode)}`);
-            if (res.ok) {
-              const food: ExtendedFoodResult = await res.json();
-              setScannedFood(food);
-              setScanServingGrams(String(food.servingGrams || 100));
-            } else {
-              toast({ title: "Barcode not found", description: "This product isn't in any database yet. Try the Search or AI tab.", variant: "destructive" });
-              setScanKey(k => k + 1);
-            }
-          } catch {
-            toast({ title: "Barcode lookup failed", variant: "destructive" });
-            setScanKey(k => k + 1);
-          }
-          setScanLookingUp(false);
-        });
-        if (!cancelled) scanControlsRef.current = controls;
-      } catch {
-        if (!cancelled) setScannerError(true);
-      }
-    })();
-    return () => { cancelled = true; scanControlsRef.current?.stop(); scanControlsRef.current = null; };
-  }, [step, pickerTab, scanKey, scannedFood]);
-
-  const { data: foodResults = [], isLoading: searchLoading } = useQuery<FoodResult[]>({
-    queryKey: ["/api/food-search", debouncedQuery],
-    queryFn: async () => {
-      if (!debouncedQuery || debouncedQuery.length < 2) return [];
-      const res = await fetch(`/api/food-search?q=${encodeURIComponent(debouncedQuery)}`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: step === "pick" && pickerTab === "search" && debouncedQuery.length >= 2,
-    staleTime: 60_000,
-  });
+  const picker = useFoodPicker({ activeTab: pickerTab, scanActive: step === "pick" });
 
   function addIngredient(ing: Ingredient) {
     setSelected(prev => [...prev, ing]);
@@ -144,43 +55,6 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
       setSelected(prev => prev.filter(s => s.key !== existingKey));
     } else {
       setSelected(prev => [...prev, ingredientFromSaved(food)]);
-    }
-  }
-
-  async function handleAiEstimate() {
-    if (!aiDescription.trim() && !aiPhotoFile) return;
-    setAiLoading(true);
-    try {
-      const body: { imageBase64?: string; description?: string } = {};
-      if (aiPhotoFile) {
-        body.imageBase64 = await fileToBase64(aiPhotoFile);
-      }
-      if (aiDescription.trim()) body.description = aiDescription.trim();
-      const res = await apiRequest("POST", "/api/food-log/recognize-food", body);
-      const food: ExtendedFoodResult = await res.json();
-      setAiResult(food);
-      setAiServingGrams(String(food.servingGrams || 100));
-    } catch {
-      toast({ title: "Could not identify food", description: "Try a more detailed description.", variant: "destructive" });
-    } finally {
-      setAiLoading(false);
-    }
-  }
-
-  async function handleAiLabelScan() {
-    if (!aiLabelPhotoFile) return;
-    setAiLoading(true);
-    try {
-      const b64 = await fileToBase64(aiLabelPhotoFile);
-      const res = await apiRequest("POST", "/api/food-log/extract-label", { imageBase64: b64 });
-      const food: ExtendedFoodResult = await res.json();
-      if (aiProductName.trim()) food.name = aiProductName.trim();
-      setAiResult(food);
-      setAiServingGrams(String(food.servingGrams || 100));
-    } catch {
-      toast({ title: "Could not read label", description: "Try a clearer photo of the nutrition panel.", variant: "destructive" });
-    } finally {
-      setAiLoading(false);
     }
   }
 
@@ -263,265 +137,52 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
               </div>
 
               {pickerTab === "search" && (
-                <div className="space-y-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
-                    <input
-                      type="text"
-                      autoFocus
-                      placeholder="Search foods, brands..."
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-8 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-300 bg-white"
-                      data-testid="input-create-food-search"
-                    />
-                    {searchQuery && (
-                      <button type="button" onClick={() => { setSearchQuery(""); setDebouncedQuery(""); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                  {searchLoading && debouncedQuery.length >= 2 && (
-                    <div className="flex items-center justify-center gap-2 py-6 text-zinc-400">
-                      <Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm">Searching...</span>
-                    </div>
-                  )}
-                  {!searchLoading && debouncedQuery.length >= 2 && foodResults.length === 0 && (
-                    <div className="text-center py-6 text-zinc-400">
-                      <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-sm">No results for "{debouncedQuery}"</p>
-                      {labelScanAvailable && (
-                        <button type="button" onClick={() => { setAiResult(null); setAiDescription(debouncedQuery); setAiPhotoFile(null); setAiMode("describe"); setPickerTab("ai"); }} className="mt-2 inline-flex items-center gap-1 text-xs text-violet-600 font-medium hover:text-violet-800" data-testid="button-search-try-ai">
-                          <Sparkles className="w-3 h-3" />Try AI estimate instead
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {!searchLoading && debouncedQuery.length < 2 && !searchQuery && (
-                    <div className="text-center py-6 text-zinc-300">
-                      <Search className="w-8 h-8 mx-auto mb-2" />
-                      <p className="text-sm">Start typing to search 3M+ foods</p>
-                    </div>
-                  )}
-                  {foodResults.length > 0 && (
-                    <div className="space-y-1.5 max-h-52 overflow-y-auto" data-testid="create-food-search-results">
-                      {foodResults.map(food => (
-                        <button
-                          key={food.id}
-                          type="button"
-                          onClick={() => addIngredient(ingredientFromSearch(food))}
-                          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white hover:bg-zinc-100 border border-zinc-100 transition-colors text-left"
-                          data-testid={`button-search-add-${food.id}`}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-zinc-900 truncate">{food.name}</p>
-                            <p className="text-[10px] text-zinc-400 mt-0.5">P:{food.protein100g}g · C:{food.carbs100g}g · F:{food.fat100g}g per 100g</p>
-                          </div>
-                          <div className="ml-3 shrink-0 flex items-center gap-2">
-                            <div className="text-right">
-                              <p className="text-xs font-bold text-zinc-900">{food.calories100g}</p>
-                              <p className="text-[10px] text-zinc-400">kcal/100g</p>
-                            </div>
-                            <Plus className="w-4 h-4 text-zinc-400" />
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <SearchPanel
+                  picker={picker}
+                  onSelectFood={(food) => addIngredient(ingredientFromSearch(food))}
+                  testPrefix="create"
+                  onSwitchToAi={() => {
+                    picker.setAiResult(null);
+                    picker.setAiDescription(picker.debouncedQuery);
+                    picker.setAiPhotoFile(null);
+                    picker.setAiMode("describe");
+                    setPickerTab("ai");
+                  }}
+                  extraButton={
+                    <div className="space-y-1.5 max-h-52 overflow-y-auto" />
+                  }
+                />
               )}
 
               {pickerTab === "scan" && (
                 <div className="space-y-3">
-                  {scannedFood ? (
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-zinc-900 leading-snug" data-testid="text-create-scan-product">{scannedFood.name}</p>
-                          <p className="text-[10px] text-zinc-400 mt-0.5">
-                            {(scannedFood as ExtendedFoodResult).source === "community" ? "Community database" :
-                             (scannedFood as ExtendedFoodResult).source === "open_food_facts" ? "Open Food Facts" : "USDA database"}
-                          </p>
-                        </div>
-                        <button type="button" onClick={() => { setScannedFood(null); setScanKey(k => k + 1); }} className="p-1 hover:bg-zinc-100 rounded-lg transition-colors shrink-0" data-testid="button-create-scan-reset">
-                          <X className="w-4 h-4 text-zinc-400" />
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2 bg-zinc-50 rounded-xl p-2.5">
-                        <label className="text-[10px] text-zinc-500 font-medium shrink-0">Serving (g)</label>
-                        <input type="number" min={1} value={scanServingGrams} onChange={e => setScanServingGrams(e.target.value)} className="w-20 text-sm font-semibold text-zinc-900 bg-transparent border-none outline-none text-right" data-testid="input-create-scan-serving" />
-                      </div>
-                      {(() => {
-                        const f = (parseFloat(scanServingGrams) || 0) / 100;
-                        return (
-                          <div className="grid grid-cols-4 gap-1.5">
-                            {[
-                              { label: "kcal", value: Math.round(scannedFood.calories100g * f), color: "bg-orange-50 text-orange-700" },
-                              { label: "protein", value: Math.round(scannedFood.protein100g * f), color: "bg-red-50 text-red-700" },
-                              { label: "carbs", value: Math.round(scannedFood.carbs100g * f), color: "bg-blue-50 text-blue-700" },
-                              { label: "fat", value: Math.round(scannedFood.fat100g * f), color: "bg-yellow-50 text-yellow-700" },
-                            ].map(({ label, value, color }) => (
-                              <div key={label} className={`${color} rounded-lg p-1.5 text-center`}>
-                                <p className="text-sm font-bold">{value}</p>
-                                <p className="text-[9px] font-medium uppercase tracking-wide opacity-70">{label}</p>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const grams = parseInt(scanServingGrams) || 100;
-                          addIngredient({ ...ingredientFromSearch(scannedFood), grams });
-                          setScannedFood(null);
-                          setScanKey(k => k + 1);
-                        }}
-                        className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors"
-                        data-testid="button-create-scan-add"
-                      >
-                        <Plus className="w-4 h-4" />Add to meal
-                      </button>
-                    </div>
-                  ) : scannerError ? (
-                    <div className="text-center py-8">
-                      <Barcode className="w-10 h-10 mx-auto mb-3 text-zinc-300" />
-                      <p className="text-sm font-medium text-zinc-600">Camera not available</p>
-                      <p className="text-xs text-zinc-400 mt-1">Allow camera access or try the Search tab.</p>
-                    </div>
+                  {picker.scannedFood ? (
+                    <ScannedFoodPanel
+                      picker={picker}
+                      testPrefix="create"
+                      actionLabel="Add to meal"
+                      onAction={(food: ExtendedFoodResult, grams: number) => {
+                        addIngredient({ ...ingredientFromSearch(food), grams });
+                        picker.resetScan();
+                      }}
+                    />
                   ) : (
-                    <>
-                      <div className="relative overflow-hidden rounded-2xl bg-zinc-900 aspect-[4/3]">
-                        <video ref={videoRef} className="w-full h-full object-cover" playsInline muted data-testid="video-create-barcode-scanner" />
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <div className="absolute inset-0 bg-black/30" />
-                          <div className="relative w-56 h-28 z-10">
-                            <div className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-white rounded-tl" />
-                            <div className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-white rounded-tr" />
-                            <div className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-white rounded-bl" />
-                            <div className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-white rounded-br" />
-                            {!scanLookingUp && (
-                              <div className="absolute inset-x-2 h-0.5 bg-white/70 top-1/2 -translate-y-1/2 animate-pulse" />
-                            )}
-                          </div>
-                        </div>
-                        {scanLookingUp && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20">
-                            <Loader2 className="w-8 h-8 text-white animate-spin mb-2" />
-                            <p className="text-white text-xs font-medium">Looking up product...</p>
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-xs text-zinc-400 text-center">Point camera at a barcode — it will scan automatically</p>
-                    </>
+                    <ScannerView picker={picker} testPrefix="create" />
                   )}
                 </div>
               )}
 
               {pickerTab === "ai" && (
                 <div className="space-y-3">
-                  {!aiResult ? (
-                    <>
-                      {labelScanAvailable && (
-                        <div className="flex bg-zinc-100 p-0.5 rounded-xl">
-                          <button type="button" onClick={() => setAiMode("describe")} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${aiMode === "describe" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`} data-testid="button-create-ai-mode-describe">
-                            <Sparkles className="w-3 h-3" />Describe
-                          </button>
-                          <button type="button" onClick={() => setAiMode("label")} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${aiMode === "label" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`} data-testid="button-create-ai-mode-label">
-                            <Camera className="w-3 h-3" />Label Scan
-                          </button>
-                        </div>
-                      )}
-                      {aiMode === "describe" || !labelScanAvailable ? (
-                        <>
-                          <div>
-                            <p className="text-[10px] text-zinc-500 font-medium mb-1.5">What food are you adding?</p>
-                            <input type="text" placeholder="e.g. chicken breast, 200g" value={aiDescription} onChange={e => setAiDescription(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAiEstimate(); } }} className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-300 bg-white" data-testid="input-create-ai-description" />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button type="button" onClick={() => aiPhotoRef.current?.click()} className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border transition-colors ${aiPhotoFile ? "bg-violet-50 text-violet-700 border-violet-200" : "bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100"}`} data-testid="button-create-ai-photo">
-                              <Camera className="w-3.5 h-3.5" />
-                              {aiPhotoFile ? <span className="truncate max-w-[120px]">{aiPhotoFile.name}</span> : "Add photo (optional)"}
-                            </button>
-                            {aiPhotoFile && <button type="button" onClick={() => setAiPhotoFile(null)} className="text-[10px] text-zinc-400 hover:text-zinc-600">Remove</button>}
-                          </div>
-                          <button type="button" onClick={handleAiEstimate} disabled={aiLoading || (!aiDescription.trim() && !aiPhotoFile)} className="w-full py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50" data-testid="button-create-ai-estimate">
-                            {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                            {aiLoading ? "Estimating..." : "Estimate macros"}
-                          </button>
-                          <input ref={aiPhotoRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setAiPhotoFile(f); e.target.value = ""; }} />
-                        </>
-                      ) : (
-                        <>
-                          <div>
-                            <p className="text-[10px] text-zinc-500 font-medium mb-1.5">Product name (optional)</p>
-                            <input type="text" placeholder="e.g. Fage Total 0%" value={aiProductName} onChange={e => setAiProductName(e.target.value)} className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-300 bg-white" data-testid="input-create-ai-product-name" />
-                          </div>
-                          <button type="button" onClick={() => aiLabelPhotoRef.current?.click()} className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-colors ${aiLabelPhotoFile ? "bg-green-50 text-green-700 border border-green-200" : "bg-zinc-50 text-zinc-600 border border-zinc-200 hover:bg-zinc-100"}`} data-testid="button-create-ai-label-photo">
-                            <Camera className="w-4 h-4" />
-                            {aiLabelPhotoFile ? <span className="truncate max-w-[180px]">{aiLabelPhotoFile.name}</span> : "Photograph nutrition label"}
-                          </button>
-                          {aiLabelPhotoFile && <button type="button" onClick={() => setAiLabelPhotoFile(null)} className="text-[10px] text-zinc-400 hover:text-zinc-600 text-center w-full">Remove photo</button>}
-                          <button type="button" onClick={handleAiLabelScan} disabled={aiLoading || !aiLabelPhotoFile} className="w-full py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50" data-testid="button-create-ai-read-label">
-                            {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-                            {aiLoading ? "Reading label..." : "Read nutrition label"}
-                          </button>
-                          <input ref={aiLabelPhotoRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setAiLabelPhotoFile(f); e.target.value = ""; }} />
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-zinc-900 leading-snug" data-testid="text-create-ai-food-name">{aiResult.name}</p>
-                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-violet-50 border border-violet-200 rounded-full text-[9px] font-medium text-violet-700">
-                            <Sparkles className="w-2.5 h-2.5" />AI-estimated
-                          </span>
-                        </div>
-                        <button type="button" onClick={() => { setAiResult(null); setAiDescription(""); setAiPhotoFile(null); setAiLabelPhotoFile(null); }} className="p-1 hover:bg-zinc-100 rounded-lg transition-colors shrink-0" data-testid="button-create-ai-reset">
-                          <X className="w-4 h-4 text-zinc-400" />
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2 bg-zinc-50 rounded-xl p-2.5">
-                        <label className="text-[10px] text-zinc-500 font-medium shrink-0">Serving (g)</label>
-                        <input type="number" min={1} value={aiServingGrams} onChange={e => setAiServingGrams(e.target.value)} className="w-20 text-sm font-semibold text-zinc-900 bg-transparent border-none outline-none text-right" data-testid="input-create-ai-serving" />
-                      </div>
-                      {(() => {
-                        const f = (parseFloat(aiServingGrams) || 0) / 100;
-                        return (
-                          <div className="grid grid-cols-4 gap-1.5">
-                            {[
-                              { label: "kcal", value: Math.round(aiResult.calories100g * f), color: "bg-orange-50 text-orange-700" },
-                              { label: "protein", value: Math.round(aiResult.protein100g * f), color: "bg-red-50 text-red-700" },
-                              { label: "carbs", value: Math.round(aiResult.carbs100g * f), color: "bg-blue-50 text-blue-700" },
-                              { label: "fat", value: Math.round(aiResult.fat100g * f), color: "bg-yellow-50 text-yellow-700" },
-                            ].map(({ label, value, color }) => (
-                              <div key={label} className={`${color} rounded-lg p-1.5 text-center`}>
-                                <p className="text-sm font-bold">{value}</p>
-                                <p className="text-[9px] font-medium uppercase tracking-wide opacity-70">{label}</p>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const grams = parseInt(aiServingGrams) || 100;
-                          addIngredient({ ...ingredientFromSearch(aiResult), grams });
-                          setAiResult(null);
-                          setAiDescription("");
-                          setAiPhotoFile(null);
-                          setAiLabelPhotoFile(null);
-                        }}
-                        className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors"
-                        data-testid="button-create-ai-add"
-                      >
-                        <Plus className="w-4 h-4" />Add to meal
-                      </button>
-                    </div>
-                  )}
+                  <AiPanel
+                    picker={picker}
+                    testPrefix="create"
+                    actionLabel="Add to meal"
+                    onAction={(food: ExtendedFoodResult, grams: number) => {
+                      addIngredient({ ...ingredientFromSearch(food), grams });
+                      picker.resetAi();
+                    }}
+                  />
                 </div>
               )}
 

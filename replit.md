@@ -30,6 +30,7 @@ Core components include:
     -   `community-browser-modal.tsx`: Community meals browser modal with allergen detection. Also used by RecipeLibrary.
     -   `import-modal.tsx`: Recipe import modal (URL or photo).
     -   `edit-meal-modal.tsx`: Edit meal/favourite modal.
+    -   `food-picker-tabs.tsx`: Shared `useFoodPicker` hook and reusable UI panels (SearchPanel, ScannerView, ScannedFoodPanel, AiPanel, MacroGrid) used by both AddFoodModal and CreateMealModal.
     -   `add-food-modal.tsx`: Add custom food modal with barcode scan, AI estimate, and manual entry.
     -   `create-meal-modal.tsx`: Create meal modal with food picker (search, barcode, AI, My Foods tabs).
     -   `my-meals-food-widget.tsx`: Slim dashboard widget (~500 lines) importing all modals.
