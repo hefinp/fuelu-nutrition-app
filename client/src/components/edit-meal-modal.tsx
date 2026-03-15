@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -76,6 +76,16 @@ export function EditMealModal({
 
   const { data: myFoods = [] } = useQuery<UserSavedFood[]>({ queryKey: ["/api/my-foods"] });
   const picker = useFoodPicker({ activeTab: pickerTab, scanActive: showPicker });
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  const stopScrollLeak = useCallback((e: React.TouchEvent | React.WheelEvent) => {
+    e.stopPropagation();
+  }, []);
 
   const totals = useMemo(() => selected.reduce((acc, ing) => {
     const factor = ing.grams / 100;
@@ -195,14 +205,14 @@ export function EditMealModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm pb-16 sm:pb-0" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm pb-16 sm:pb-0" onClick={onClose} onWheel={stopScrollLeak} onTouchMove={stopScrollLeak}>
       <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
           <h3 className="text-base font-semibold text-zinc-900">Edit {isFav ? "Favourite" : "Meal"}</h3>
           <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-700" data-testid="button-edit-meal-close"><X className="w-4 h-4" /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-4">
           <div>
             <label className="block text-xs font-medium text-zinc-600 mb-1.5">Name</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
