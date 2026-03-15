@@ -1,5 +1,4 @@
-import { test, expect, type Page, type Locator } from "@playwright/test";
-import { createTestUser } from "./helpers";
+import { test, expect, type Locator } from "@playwright/test";
 
 async function visibleInstance(locator: Locator): Promise<Locator> {
   const count = await locator.count();
@@ -10,45 +9,39 @@ async function visibleInstance(locator: Locator): Promise<Locator> {
 }
 
 test.describe("Weight tracker", () => {
-  test("log weight entry and switch to calories tab", async ({ page }) => {
-    await createTestUser(page);
-
-    await page.request.post("/api/calculations", {
-      data: {
-        weight: "75",
-        height: "175",
-        age: 30,
-        gender: "male",
-        activityLevel: "moderate",
-        goal: "maintain",
-      },
-    });
-
+  test("log weight, verify stat and chart entry, switch to calories tab", async ({ page }) => {
     await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");
-    await page.waitForTimeout(1000);
 
     const logWeightBtn = await visibleInstance(page.getByTestId("button-log-weight-toggle"));
-    await expect(logWeightBtn).toBeVisible({ timeout: 5000 });
+    await expect(logWeightBtn).toBeVisible({ timeout: 10000 });
     await logWeightBtn.click();
-    await page.waitForTimeout(500);
 
     const weightInput = await visibleInstance(page.getByTestId("input-log-weight"));
     await expect(weightInput).toBeVisible();
-    await weightInput.fill("75.5");
+    await weightInput.fill("82.3");
 
     const saveBtn = await visibleInstance(page.getByTestId("button-save-weight"));
     await saveBtn.click();
-    await page.waitForTimeout(1500);
 
     const statEl = await visibleInstance(page.getByTestId("stat-current-weight"));
-    await expect(statEl).toContainText("75.5");
+    await expect(statEl).toContainText("82.3", { timeout: 5000 });
+
+    const entriesToggle = await visibleInstance(page.getByTestId("toggle-recent-entries"));
+    await entriesToggle.click();
+
+    const entryList = page.locator('[data-testid^="weight-entry-"]');
+    await expect(entryList.first()).toBeVisible({ timeout: 3000 });
 
     const calTab = await visibleInstance(page.getByTestId("button-tracker-tab-calories"));
     await calTab.click();
-    await page.waitForTimeout(500);
 
     const todayCal = await visibleInstance(page.getByTestId("stat-today-calories"));
     await expect(todayCal).toBeVisible();
+
+    const weightTab = await visibleInstance(page.getByTestId("button-tracker-tab-weight"));
+    await weightTab.click();
+
+    await expect(await visibleInstance(page.getByTestId("stat-current-weight"))).toBeVisible();
   });
 });
