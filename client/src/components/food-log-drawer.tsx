@@ -171,6 +171,9 @@ export function FoodLogDrawer({
         protein: String(prefill.protein),
         carbs: String(prefill.carbs),
         fat: String(prefill.fat),
+        fibre: "",
+        sugar: "",
+        saturatedFat: "",
         mealSlot: prefill.mealSlot ?? null,
       });
       setFormTab("manual");
@@ -313,6 +316,9 @@ export function FoodLogDrawer({
       protein: String(m.protein),
       carbs: String(m.carbs),
       fat: String(m.fat),
+      fibre: "",
+      sugar: "",
+      saturatedFat: "",
       mealSlot: normalizeSlot(m.slot),
     });
     setFormTab("manual");

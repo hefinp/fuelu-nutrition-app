@@ -5,6 +5,7 @@ import { storage } from "../storage";
 import { insertFeedbackSchema, inviteCodes as inviteCodesTable } from "@shared/schema";
 import { db } from "../db";
 import { sendEmail, buildFeedbackEmailHtml } from "../email";
+import { checkAndRefillCommunityMealBalance, BUCKET_FLOOR } from "./community";
 
 const router = Router();
 
@@ -64,5 +65,34 @@ router.post("/api/feedback", async (req, res) => {
     throw err;
   }
 });
+
+router.get("/api/admin/community-meal-balance", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  try {
+    const balance = await storage.getCommunityMealBalance();
+    const gaps = balance.filter(b => b.total < BUCKET_FLOOR);
+    res.json({ buckets: balance, gapsFound: gaps.length, mealsGenerated: 0 });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch balance" });
+  }
+});
+
+router.post("/api/admin/community-meal-balance/refill", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  try {
+    const result = await checkAndRefillCommunityMealBalance(true);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to refill balance" });
+  }
+});
+
+setTimeout(() => {
+  checkAndRefillCommunityMealBalance(true).then(r => {
+    if (r.mealsGenerated > 0) {
+      console.log(`[community-meals] Startup gap-fill: generated ${r.mealsGenerated} meals`);
+    }
+  }).catch(() => {});
+}, 5000);
 
 export default router;

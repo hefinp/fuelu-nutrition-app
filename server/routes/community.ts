@@ -120,7 +120,6 @@ Macros: ${meal.caloriesPerServing} kcal, ${meal.proteinPerServing}g protein, ${m
   }
 });
 
-const ADMIN_EMAIL = "hefin.price@gmail.com";
 const BUCKET_FLOOR = 8;
 
 async function checkAndRefillCommunityMealBalance(autoFill = true): Promise<{ buckets: any[]; gapsFound: number; mealsGenerated: number }> {
@@ -178,37 +177,6 @@ async function checkAndRefillCommunityMealBalance(autoFill = true): Promise<{ bu
   return { buckets: updatedBalance, gapsFound: gaps.length, mealsGenerated };
 }
 
-router.get("/api/admin/community-meal-balance", async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
-  const user = await storage.getUserById(req.session.userId);
-  if (user?.email !== ADMIN_EMAIL) return res.status(403).json({ message: "Forbidden" });
-  try {
-    const balance = await storage.getCommunityMealBalance();
-    const gaps = balance.filter(b => b.total < BUCKET_FLOOR);
-    res.json({ buckets: balance, gapsFound: gaps.length, mealsGenerated: 0 });
-  } catch (err) {
-    res.status(500).json({ message: "Failed to fetch balance" });
-  }
-});
-
-router.post("/api/admin/community-meal-balance/refill", async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
-  const user = await storage.getUserById(req.session.userId);
-  if (user?.email !== ADMIN_EMAIL) return res.status(403).json({ message: "Forbidden" });
-  try {
-    const result = await checkAndRefillCommunityMealBalance(true);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ message: "Failed to refill balance" });
-  }
-});
-
-setTimeout(() => {
-  checkAndRefillCommunityMealBalance(true).then(r => {
-    if (r.mealsGenerated > 0) {
-      console.log(`[community-meals] Startup gap-fill: generated ${r.mealsGenerated} meals`);
-    }
-  }).catch(() => {});
-}, 5000);
+export { checkAndRefillCommunityMealBalance, BUCKET_FLOOR };
 
 export default router;

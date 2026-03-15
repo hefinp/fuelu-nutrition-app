@@ -770,7 +770,7 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
     onError: (e: any) => {
       let msg = e?.message ?? "Could not import that recipe. Try a different URL.";
       try {
-        const match = msg.match(/^\d+: (.+)$/s);
+        const match = msg.match(/^\d+: (.+)$/);
         if (match) {
           const parsed = JSON.parse(match[1]);
           if (parsed.message) msg = parsed.message;
@@ -792,7 +792,7 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
     onError: (e: any) => {
       let msg = e?.message ?? "Could not read the recipe from that photo. Try again with a clearer image.";
       try {
-        const match = msg.match(/^\d+: (.+)$/s);
+        const match = msg.match(/^\d+: (.+)$/);
         if (match) {
           const parsed = JSON.parse(match[1]);
           if (parsed.message) msg = parsed.message;

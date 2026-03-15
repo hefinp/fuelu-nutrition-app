@@ -33,7 +33,7 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/admin" component={AdminPage} />
-      <Route path="/insights" component={InsightsPage} />
+      <Route path="/insights">{() => <InsightsPage />}</Route>
       <Route path="/diary" component={DiaryPage} />
       <Route component={NotFound} />
     </Switch>
