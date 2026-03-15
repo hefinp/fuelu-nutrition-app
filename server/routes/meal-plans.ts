@@ -191,6 +191,10 @@ router.post("/api/meal-plans/replace-meal", async (req, res) => {
       : null;
     const picked = pickBestMeal(candidates, tProtein, tCarbs, tFat, prefs, replCyclePhase);
 
+    if (!picked) {
+      return res.status(200).json({ meal: null, message: "No safe replacement available for your dietary restrictions." });
+    }
+
     const slotCalMap: Record<string, number> = {
       breakfast: 0.25,
       lunch: 0.30,
