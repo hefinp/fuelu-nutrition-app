@@ -405,22 +405,22 @@ export function MyMealsFoodWidget() {
                           <p className="text-sm font-medium text-zinc-900 truncate">{food.name}</p>
                           <p className="text-xs text-zinc-400 mt-0.5">{food.calories100g} kcal · P:{Number(food.protein100g).toFixed(1)}g · C:{Number(food.carbs100g).toFixed(1)}g · F:{Number(food.fat100g).toFixed(1)}g per 100g</p>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex items-center shrink-0">
                           <button
                             onClick={e => { e.stopPropagation(); setEditFoodTarget(food); }}
-                            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
+                            className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
                             data-testid={`button-edit-food-${food.id}`}
                             title="Edit"
                           >
-                            <Pencil className="w-3 h-3" />
+                            <Pencil className="w-4 h-4" />
                           </button>
                           <button
                             onClick={e => { e.stopPropagation(); deleteFoodMutation.mutate(food.id); }}
-                            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                             data-testid={`button-delete-food-${food.id}`}
                             title="Remove"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                         <div className="shrink-0 text-zinc-300 ml-1">
