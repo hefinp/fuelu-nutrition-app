@@ -1711,6 +1711,8 @@ export function MyMealsFoodWidget() {
   const [showCreateMeal, setShowCreateMeal] = useState(false);
   const [showAddFood, setShowAddFood] = useState(false);
   const [showCommunityBrowser, setShowCommunityBrowser] = useState(false);
+  const [mealSearch, setMealSearch] = useState("");
+  const [mealSlotFilter, setMealSlotFilter] = useState<MealSlot | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<{ type: "favourite" | "recipe"; item: FavouriteMeal | UserRecipe } | null>(null);
 
@@ -1732,6 +1734,20 @@ export function MyMealsFoodWidget() {
     const bTime = new Date(b.item.createdAt ?? 0).getTime();
     return bTime - aTime;
   });
+
+  const filteredMealEntries = mealEntries.filter(entry => {
+    if (mealSlotFilter !== "all") {
+      const slot = getMealSlot(entry);
+      if (slot !== mealSlotFilter) return false;
+    }
+    if (mealSearch.trim()) {
+      const name = getMealName(entry).toLowerCase();
+      if (!name.includes(mealSearch.trim().toLowerCase())) return false;
+    }
+    return true;
+  });
+
+  const hasActiveFilters = mealSearch.trim() !== "" || mealSlotFilter !== "all";
 
   const logMutation = useMutation({
     mutationFn: (entry: { name: string; cal: number; prot: number; carbs: number; fat: number; slot?: string | null }) =>
@@ -1883,8 +1899,49 @@ export function MyMealsFoodWidget() {
                 <p className="text-xs text-zinc-400">Import a recipe or create a meal from your saved foods.</p>
               </div>
             ) : (
-              <div className="space-y-1.5">
-                {mealEntries.map(entry => {
+              <>
+                <div className="mb-3 space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search your meals..."
+                      value={mealSearch}
+                      onChange={e => setMealSearch(e.target.value)}
+                      className="w-full pl-8 pr-8 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-300 bg-white"
+                      data-testid="input-meal-search"
+                    />
+                    {mealSearch && (
+                      <button type="button" onClick={() => setMealSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600" data-testid="button-meal-search-clear">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {([{ value: "all" as const, label: "All" }, ...SLOT_OPTIONS] as { value: MealSlot | "all"; label: string }[]).map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setMealSlotFilter(opt.value)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors ${mealSlotFilter === opt.value ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"}`}
+                        data-testid={`button-meal-filter-${opt.value}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {filteredMealEntries.length === 0 ? (
+                  <div className="text-center py-8" data-testid="text-no-meals-match">
+                    <Search className="w-8 h-8 mx-auto mb-2 text-zinc-200" />
+                    <p className="text-sm text-zinc-400">No meals match your filters</p>
+                    <button type="button" onClick={() => { setMealSearch(""); setMealSlotFilter("all"); }} className="mt-2 text-xs text-zinc-500 hover:text-zinc-700 font-medium" data-testid="button-meal-filter-clear-all">
+                      Clear filters
+                    </button>
+                  </div>
+                ) : (
+                <div className="space-y-1.5">
+                {filteredMealEntries.map(entry => {
                   const key = getKey(entry);
                   const isOpen = expandedId === key;
                   const macros = getMacros(entry);
@@ -1984,6 +2041,8 @@ export function MyMealsFoodWidget() {
                   );
                 })}
               </div>
+                )}
+              </>
             )}
 
             <button
