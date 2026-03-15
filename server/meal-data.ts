@@ -168,7 +168,14 @@ export const MICHELIN_MEAL_DATABASE: MealDb = {
   ],
 };
 
-export function filterMealPool(pool: MealEntry[], excludeKeywords: string[]): MealEntry[] {
+export function filterMealPoolStrict(pool: MealEntry[], excludeKeywords: string[]): MealEntry[] {
+  if (!excludeKeywords.length) return pool;
+  return pool.filter(m =>
+    !excludeKeywords.some(kw => m.meal.toLowerCase().includes(kw.toLowerCase()))
+  );
+}
+
+export function filterMealPoolSoft(pool: MealEntry[], excludeKeywords: string[]): MealEntry[] {
   if (!excludeKeywords.length) return pool;
   const filtered = pool.filter(m =>
     !excludeKeywords.some(kw => m.meal.toLowerCase().includes(kw.toLowerCase()))
@@ -176,49 +183,73 @@ export function filterMealPool(pool: MealEntry[], excludeKeywords: string[]): Me
   return filtered.length > 0 ? filtered : pool;
 }
 
-export function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPreferences | null): MealDb {
-  if (!preferences) return mealDb;
+export function containsExcludedKeyword(name: string, excludeKeywords: string[]): boolean {
+  const lower = name.toLowerCase();
+  return excludeKeywords.some(kw => lower.includes(kw.toLowerCase()));
+}
 
-  const excludeKeywords: string[] = [];
+export function buildSafetyKeywords(preferences: UserPreferences | null): string[] {
+  if (!preferences) return [];
+  const keywords: string[] = [];
 
   switch (preferences.diet) {
     case 'vegetarian':
-      excludeKeywords.push(...MEAT_KEYWORDS, ...ALLERGEN_KEYWORDS.crustaceans, ...ALLERGEN_KEYWORDS.molluscs, ...ALLERGEN_KEYWORDS.fish);
+      keywords.push(...MEAT_KEYWORDS, ...ALLERGEN_KEYWORDS.crustaceans, ...ALLERGEN_KEYWORDS.molluscs, ...ALLERGEN_KEYWORDS.fish);
       break;
     case 'vegan':
-      excludeKeywords.push(...MEAT_KEYWORDS, ...ALLERGEN_KEYWORDS.crustaceans, ...ALLERGEN_KEYWORDS.molluscs, ...ALLERGEN_KEYWORDS.fish, ...ALLERGEN_KEYWORDS.milk, ...ALLERGEN_KEYWORDS.eggs);
+      keywords.push(...MEAT_KEYWORDS, ...ALLERGEN_KEYWORDS.crustaceans, ...ALLERGEN_KEYWORDS.molluscs, ...ALLERGEN_KEYWORDS.fish, ...ALLERGEN_KEYWORDS.milk, ...ALLERGEN_KEYWORDS.eggs);
       break;
     case 'pescatarian':
-      excludeKeywords.push(...MEAT_KEYWORDS);
+      keywords.push(...MEAT_KEYWORDS);
       break;
     case 'halal':
-      excludeKeywords.push(...PORK_KEYWORDS);
+      keywords.push(...PORK_KEYWORDS);
       break;
     case 'kosher':
-      excludeKeywords.push(...PORK_KEYWORDS, ...ALLERGEN_KEYWORDS.crustaceans, ...ALLERGEN_KEYWORDS.molluscs);
+      keywords.push(...PORK_KEYWORDS, ...ALLERGEN_KEYWORDS.crustaceans, ...ALLERGEN_KEYWORDS.molluscs);
       break;
   }
 
   for (const allergy of (preferences.allergies ?? [])) {
     const kws = ALLERGEN_KEYWORDS[allergy];
-    if (kws) excludeKeywords.push(...kws);
+    if (kws) keywords.push(...kws);
   }
+
+  return keywords;
+}
+
+export function buildPreferenceKeywords(preferences: UserPreferences | null): string[] {
+  if (!preferences) return [];
+  const keywords: string[] = [];
 
   if (preferences.excludedFoods?.length) {
     for (const food of preferences.excludedFoods) {
       const categoryKws = FOOD_CATEGORY_KEYWORDS[food.trim().toLowerCase().replace(/\s+/g, '_')];
       if (categoryKws) {
-        excludeKeywords.push(...categoryKws);
+        keywords.push(...categoryKws);
       } else {
-        excludeKeywords.push(food.trim());
+        keywords.push(food.trim());
       }
     }
   }
 
+  return keywords;
+}
+
+export function buildExcludeKeywords(preferences: UserPreferences | null): string[] {
+  return [...buildSafetyKeywords(preferences), ...buildPreferenceKeywords(preferences)];
+}
+
+export function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPreferences | null): MealDb {
+  if (!preferences) return mealDb;
+
+  const safetyKws = buildSafetyKeywords(preferences);
+  const prefKws = buildPreferenceKeywords(preferences);
   const disliked = (preferences.dislikedMeals ?? []).map(m => m.toLowerCase());
 
-  const filterWithDisliked = (pool: MealEntry[]): MealEntry[] => {
-    let filtered = excludeKeywords.length ? filterMealPool(pool, excludeKeywords) : pool;
+  const filterSlot = (pool: MealEntry[]): MealEntry[] => {
+    let filtered = safetyKws.length ? filterMealPoolStrict(pool, safetyKws) : pool;
+    filtered = prefKws.length ? filterMealPoolSoft(filtered, prefKws) : filtered;
     if (disliked.length) {
       const withoutDisliked = filtered.filter(m => !disliked.includes(m.meal.toLowerCase()));
       filtered = withoutDisliked.length > 0 ? withoutDisliked : filtered;
@@ -227,10 +258,10 @@ export function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPrefe
   };
 
   return {
-    breakfast: filterWithDisliked(mealDb.breakfast),
-    lunch:     filterWithDisliked(mealDb.lunch),
-    dinner:    filterWithDisliked(mealDb.dinner),
-    snack:     filterWithDisliked(mealDb.snack),
+    breakfast: filterSlot(mealDb.breakfast),
+    lunch:     filterSlot(mealDb.lunch),
+    dinner:    filterSlot(mealDb.dinner),
+    snack:     filterSlot(mealDb.snack),
   };
 }
 
