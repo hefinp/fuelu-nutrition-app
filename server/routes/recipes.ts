@@ -50,7 +50,7 @@ router.post("/api/recipes/import", async (req, res) => {
     return res.status(400).json({ message: `Could not reach that URL: ${e?.message ?? 'timeout'}` });
   }
 
-  const ldJsonBlocks = [...html.matchAll(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)];
+  const ldJsonBlocks = Array.from(html.matchAll(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi));
   let recipe: any = null;
 
   for (const block of ldJsonBlocks) {

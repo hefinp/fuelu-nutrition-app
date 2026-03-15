@@ -166,9 +166,9 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
           barcode: null,
           name: result.name,
           calories100g: result.calories100g,
-          protein100g: result.protein100g,
-          carbs100g: result.carbs100g,
-          fat100g: result.fat100g,
+          protein100g: String(result.protein100g),
+          carbs100g: String(result.carbs100g),
+          fat100g: String(result.fat100g),
           servingGrams: result.servingGrams,
           contributedByUserId: (req.user as any)?.id ?? null,
         }).catch(() => {});
@@ -253,9 +253,9 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
           barcode: null,
           name: result.name,
           calories100g: result.calories100g,
-          protein100g: result.protein100g,
-          carbs100g: result.carbs100g,
-          fat100g: result.fat100g,
+          protein100g: String(result.protein100g),
+          carbs100g: String(result.carbs100g),
+          fat100g: String(result.fat100g),
           servingGrams: result.servingGrams,
           contributedByUserId: (req.user as any)?.id ?? null,
         }).catch(() => {});
@@ -361,9 +361,9 @@ router.get("/api/barcode/:barcode", async (req, res) => {
           barcode,
           name: food.name,
           calories100g: food.calories100g,
-          protein100g: food.protein100g,
-          carbs100g: food.carbs100g,
-          fat100g: food.fat100g,
+          protein100g: String(food.protein100g),
+          carbs100g: String(food.carbs100g),
+          fat100g: String(food.fat100g),
           servingGrams: food.servingGrams,
           contributedByUserId: null,
         });
@@ -465,7 +465,7 @@ router.post("/api/custom-foods", async (req, res) => {
     }).parse(req.body);
     const existing = await storage.getCustomFoodByBarcode(body.barcode);
     if (existing) return res.status(200).json(existing);
-    const food = await storage.createCustomFood({ ...body, contributedByUserId: req.session.userId });
+    const food = await storage.createCustomFood({ ...body, protein100g: String(body.protein100g), carbs100g: String(body.carbs100g), fat100g: String(body.fat100g), contributedByUserId: req.session.userId });
     res.status(201).json(food);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });

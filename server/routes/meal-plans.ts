@@ -65,7 +65,7 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
         from14.toISOString().split("T")[0],
         now.toISOString().split("T")[0],
       );
-      const recentMealNames = [...new Set(recentEntries.map(e => e.mealName))];
+      const recentMealNames = Array.from(new Set(recentEntries.map(e => e.mealName)));
       baseDb = filterMealDbByRecentLog(baseDb, recentMealNames);
     }
 
@@ -334,7 +334,7 @@ router.post("/api/saved-meal-plans/:id/schedule", async (req, res) => {
 
     const user = await storage.getUserById(req.session.userId);
     const prefs = (user?.preferences as UserPreferences | null) ?? null;
-    const hasCycle = !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate && user?.gender === 'female');
+    const hasCycle = !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate && (user as any)?.gender === 'female');
 
     if (hasCycle && !body.force) {
       if (plan.planType === 'daily' && body.targetDate) {
@@ -402,7 +402,7 @@ router.post("/api/saved-meal-plans/:id/schedule", async (req, res) => {
     }
 
     if (foodLogRows.length > 0 && !body.allowDuplicate) {
-      const datesToCheck = [...new Set(foodLogRows.map(r => r.date))];
+      const datesToCheck = Array.from(new Set(foodLogRows.map(r => r.date)));
       const mealsByDate = new Map<string, Set<string>>();
       for (const row of foodLogRows) {
         if (!mealsByDate.has(row.date)) mealsByDate.set(row.date, new Set());
@@ -459,7 +459,7 @@ router.post("/api/saved-meal-plans/:id/generate-optimised", async (req, res) => 
 
     const user = await storage.getUserById(req.session.userId);
     const prefs = (user?.preferences as UserPreferences | null) ?? null;
-    const hasCycle = !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate && user?.gender === 'female');
+    const hasCycle = !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate && (user as any)?.gender === 'female');
 
     const dailyCal = plan.planType === 'weekly'
       ? Math.round((planData.weekTotalCalories || 2000) / 7)
