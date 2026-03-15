@@ -87,12 +87,13 @@ export interface IStorage {
   // Favourite meals
   getFavouriteMeals(userId: number): Promise<FavouriteMeal[]>;
   addFavouriteMeal(entry: { userId: number; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null }): Promise<FavouriteMeal>;
-  updateFavouriteMeal(id: number, userId: number, updates: { mealName?: string; calories?: number; protein?: number; carbs?: number; fat?: number; mealSlot?: string | null }): Promise<FavouriteMeal | undefined>;
+  updateFavouriteMeal(id: number, userId: number, updates: { mealName?: string; calories?: number; protein?: number; carbs?: number; fat?: number; mealSlot?: string | null; ingredients?: string | null; instructions?: string | null }): Promise<FavouriteMeal | undefined>;
   removeFavouriteMeal(id: number, userId: number): Promise<void>;
 
   // User saved foods
   getUserSavedFoods(userId: number): Promise<UserSavedFood[]>;
   addUserSavedFood(entry: { userId: number; name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams?: number }): Promise<UserSavedFood>;
+  updateUserSavedFood(id: number, userId: number, updates: { name?: string; calories100g?: number; protein100g?: number; carbs100g?: number; fat100g?: number; servingGrams?: number }): Promise<UserSavedFood | undefined>;
   removeUserSavedFood(id: number, userId: number): Promise<void>;
 
   // Community meals
@@ -456,7 +457,7 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateFavouriteMeal(id: number, userId: number, updates: { mealName?: string; calories?: number; protein?: number; carbs?: number; fat?: number; mealSlot?: string | null }): Promise<FavouriteMeal | undefined> {
+  async updateFavouriteMeal(id: number, userId: number, updates: { mealName?: string; calories?: number; protein?: number; carbs?: number; fat?: number; mealSlot?: string | null; ingredients?: string | null; instructions?: string | null }): Promise<FavouriteMeal | undefined> {
     const [updated] = await db.update(favouriteMeals)
       .set(updates)
       .where(and(eq(favouriteMeals.id, id), eq(favouriteMeals.userId, userId)))
@@ -481,6 +482,21 @@ export class DatabaseStorage implements IStorage {
       servingGrams: entry.servingGrams ?? 100,
     }).returning();
     return created;
+  }
+
+  async updateUserSavedFood(id: number, userId: number, updates: { name?: string; calories100g?: number; protein100g?: number; carbs100g?: number; fat100g?: number; servingGrams?: number }): Promise<UserSavedFood | undefined> {
+    const setObj: Record<string, unknown> = {};
+    if (updates.name !== undefined) setObj.name = updates.name;
+    if (updates.calories100g !== undefined) setObj.calories100g = updates.calories100g;
+    if (updates.protein100g !== undefined) setObj.protein100g = String(updates.protein100g);
+    if (updates.carbs100g !== undefined) setObj.carbs100g = String(updates.carbs100g);
+    if (updates.fat100g !== undefined) setObj.fat100g = String(updates.fat100g);
+    if (updates.servingGrams !== undefined) setObj.servingGrams = updates.servingGrams;
+    const [updated] = await db.update(userSavedFoods)
+      .set(setObj)
+      .where(and(eq(userSavedFoods.id, id), eq(userSavedFoods.userId, userId)))
+      .returning();
+    return updated;
   }
 
   async removeUserSavedFood(id: number, userId: number): Promise<void> {

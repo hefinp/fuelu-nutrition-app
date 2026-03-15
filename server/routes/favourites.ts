@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { storage } from "../storage";
 
 const router = Router();
@@ -41,18 +42,21 @@ router.post("/api/favourites", async (req, res) => {
 router.patch("/api/favourites/:id", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
-    const { mealName, calories, protein, carbs, fat, mealSlot } = req.body;
-    const updates: Record<string, unknown> = {};
-    if (mealName !== undefined) updates.mealName = mealName;
-    if (calories !== undefined) updates.calories = Number(calories);
-    if (protein !== undefined) updates.protein = Number(protein);
-    if (carbs !== undefined) updates.carbs = Number(carbs);
-    if (fat !== undefined) updates.fat = Number(fat);
-    if (mealSlot !== undefined) updates.mealSlot = mealSlot;
-    const updated = await storage.updateFavouriteMeal(Number(req.params.id), req.session.userId, updates as any);
+    const body = z.object({
+      mealName: z.string().min(1).optional(),
+      calories: z.number().int().min(0).optional(),
+      protein: z.number().int().min(0).optional(),
+      carbs: z.number().int().min(0).optional(),
+      fat: z.number().int().min(0).optional(),
+      mealSlot: z.string().nullable().optional(),
+      ingredients: z.string().nullable().optional(),
+      instructions: z.string().nullable().optional(),
+    }).parse(req.body);
+    const updated = await storage.updateFavouriteMeal(Number(req.params.id), req.session.userId, body as any);
     if (!updated) return res.status(404).json({ message: "Not found" });
     res.json(updated);
   } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
     res.status(500).json({ message: "Failed to update favourite" });
   }
 });

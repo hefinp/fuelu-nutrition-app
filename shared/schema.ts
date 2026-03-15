@@ -336,6 +336,8 @@ export const favouriteMeals = pgTable("favourite_meals", {
   carbs: integer("carbs").notNull(),
   fat: integer("fat").notNull(),
   mealSlot: text("meal_slot"),
+  ingredients: text("ingredients"),
+  instructions: text("instructions"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

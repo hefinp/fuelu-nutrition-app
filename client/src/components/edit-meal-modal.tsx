@@ -29,8 +29,8 @@ export function EditMealModal({
   const [carbs, setCarbs] = useState(String(isFav ? fav!.carbs : rec!.carbsPerServing));
   const [fat, setFat] = useState(String(isFav ? fav!.fat : rec!.fatPerServing));
   const [mealSlot, setMealSlot] = useState<MealSlot>((isFav ? fav!.mealSlot : rec!.mealSlot) as MealSlot ?? "dinner");
-  const [instructions, setInstructions] = useState(rec?.instructions ?? "");
-  const [ingredients, setIngredients] = useState(rec?.ingredients ?? "");
+  const [instructions, setInstructions] = useState(isFav ? (fav as any)?.instructions ?? "" : rec?.instructions ?? "");
+  const [ingredients, setIngredients] = useState(isFav ? (fav as any)?.ingredients ?? "" : rec?.ingredients ?? "");
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -42,6 +42,8 @@ export function EditMealModal({
           carbs: parseInt(carbs) || 0,
           fat: parseInt(fat) || 0,
           mealSlot,
+          ingredients: ingredients.trim() || null,
+          instructions: instructions.trim() || null,
         }).then(r => r.json());
       }
       return apiRequest("PATCH", `/api/recipes/${rec!.id}`, {
@@ -105,20 +107,16 @@ export function EditMealModal({
               ))}
             </div>
           </div>
-          {!isFav && (
-            <>
-              <div>
-                <label className="block text-xs font-medium text-zinc-600 mb-1.5">Ingredients</label>
-                <textarea value={ingredients} onChange={e => setIngredients(e.target.value)} rows={4}
-                  className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none" data-testid="textarea-edit-ingredients" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-600 mb-1.5">Instructions</label>
-                <textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={4}
-                  className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none" data-testid="textarea-edit-instructions" />
-              </div>
-            </>
-          )}
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1.5">Ingredients <span className="text-zinc-400 font-normal">(optional)</span></label>
+            <textarea value={ingredients} onChange={e => setIngredients(e.target.value)} rows={4}
+              className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none" data-testid="textarea-edit-ingredients" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1.5">Instructions <span className="text-zinc-400 font-normal">(optional)</span></label>
+            <textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={4}
+              className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none" data-testid="textarea-edit-instructions" />
+          </div>
         </div>
         <div className="px-6 pb-6 pt-4 border-t border-zinc-100 shrink-0">
           <button

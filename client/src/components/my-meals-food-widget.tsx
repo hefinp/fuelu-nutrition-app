@@ -15,6 +15,7 @@ import {
 import { CommunityBrowserModal } from "@/components/community-browser-modal";
 import { ImportModal } from "@/components/import-modal";
 import { EditMealModal } from "@/components/edit-meal-modal";
+import { EditFoodModal } from "@/components/edit-food-modal";
 import { AddFoodModal } from "@/components/add-food-modal";
 import { CreateMealModal } from "@/components/create-meal-modal";
 
@@ -31,6 +32,7 @@ export function MyMealsFoodWidget() {
   const [mealSlotFilter, setMealSlotFilter] = useState<MealSlot | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<{ type: "favourite" | "recipe"; item: FavouriteMeal | UserRecipe } | null>(null);
+  const [editFoodTarget, setEditFoodTarget] = useState<UserSavedFood | null>(null);
 
   const { data: favourites = [], isLoading: favsLoading } = useQuery<FavouriteMeal[]>({ queryKey: ["/api/favourites"] });
   const { data: recipes = [], isLoading: recsLoading } = useQuery<UserRecipe[]>({ queryKey: ["/api/recipes"] });
@@ -258,6 +260,7 @@ export function MyMealsFoodWidget() {
                   const name = getMealName(entry);
                   const isCustom = isCustomMeal(entry);
                   const recipe = entry.kind === "recipe" ? (entry.item as UserRecipe) : null;
+                  const favItem = entry.kind === "favourite" ? (entry.item as FavouriteMeal) : null;
 
                   return (
                     <div key={key} className="group relative rounded-xl border border-zinc-100 overflow-hidden">
@@ -280,7 +283,7 @@ export function MyMealsFoodWidget() {
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={e => { e.stopPropagation(); setEditTarget({ type: entry.kind, item: entry.item }); }}
-                            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
                             data-testid={`button-edit-meal-${entry.kind}-${entry.item.id}`}
                             title="Edit"
                           >
@@ -288,7 +291,7 @@ export function MyMealsFoodWidget() {
                           </button>
                           <button
                             onClick={e => { e.stopPropagation(); deleteMeal(entry); }}
-                            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
                             data-testid={`button-delete-meal-${entry.kind}-${entry.item.id}`}
                             title="Remove"
                           >
@@ -305,11 +308,11 @@ export function MyMealsFoodWidget() {
                           <MacroChips cal={macros.cal} p={macros.prot} c={macros.carbs} f={macros.fat} />
                           <MacroBar p={macros.prot} c={macros.carbs} f={macros.fat} />
 
-                          {recipe?.ingredients && (
+                          {(recipe?.ingredients || favItem?.ingredients) && (
                             <div className="mt-3">
                               <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Ingredients</p>
                               <ul className="text-xs text-zinc-600 space-y-0.5 max-h-28 overflow-y-auto">
-                                {recipe.ingredients.split("\n").filter(Boolean).map((ing, i) => (
+                                {(recipe?.ingredients || favItem?.ingredients || "").split("\n").filter(Boolean).map((ing, i) => (
                                   <li key={i} className="flex items-start gap-1.5">
                                     <span className="mt-1.5 w-1 h-1 rounded-full bg-zinc-300 shrink-0" />{ing}
                                   </li>
@@ -318,10 +321,10 @@ export function MyMealsFoodWidget() {
                             </div>
                           )}
 
-                          {recipe?.instructions && (
+                          {(recipe?.instructions || favItem?.instructions) && (
                             <div className="mt-3">
                               <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Instructions</p>
-                              <p className="text-xs text-zinc-600 leading-relaxed line-clamp-4">{recipe.instructions}</p>
+                              <p className="text-xs text-zinc-600 leading-relaxed line-clamp-4">{recipe?.instructions || favItem?.instructions}</p>
                             </div>
                           )}
 
@@ -402,14 +405,24 @@ export function MyMealsFoodWidget() {
                           <p className="text-sm font-medium text-zinc-900 truncate">{food.name}</p>
                           <p className="text-xs text-zinc-400 mt-0.5">{food.calories100g} kcal · P:{Number(food.protein100g).toFixed(1)}g · C:{Number(food.carbs100g).toFixed(1)}g · F:{Number(food.fat100g).toFixed(1)}g per 100g</p>
                         </div>
-                        <button
-                          onClick={e => { e.stopPropagation(); deleteFoodMutation.mutate(food.id); }}
-                          className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-                          data-testid={`button-delete-food-${food.id}`}
-                          title="Remove"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={e => { e.stopPropagation(); setEditFoodTarget(food); }}
+                            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+                            data-testid={`button-edit-food-${food.id}`}
+                            title="Edit"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={e => { e.stopPropagation(); deleteFoodMutation.mutate(food.id); }}
+                            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+                            data-testid={`button-delete-food-${food.id}`}
+                            title="Remove"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
                         <div className="shrink-0 text-zinc-300 ml-1">
                           {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </div>
@@ -493,6 +506,13 @@ export function MyMealsFoodWidget() {
           item={editTarget.item}
           onClose={() => setEditTarget(null)}
           onSaved={() => setEditTarget(null)}
+        />
+      )}
+      {editFoodTarget && (
+        <EditFoodModal
+          food={editFoodTarget}
+          onClose={() => setEditFoodTarget(null)}
+          onSaved={() => setEditFoodTarget(null)}
         />
       )}
     </div>

@@ -33,6 +33,26 @@ router.post("/api/my-foods", async (req, res) => {
   }
 });
 
+router.patch("/api/my-foods/:id", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const body = z.object({
+      name: z.string().min(1).optional(),
+      calories100g: z.number().int().min(0).optional(),
+      protein100g: z.number().min(0).optional(),
+      carbs100g: z.number().min(0).optional(),
+      fat100g: z.number().min(0).optional(),
+      servingGrams: z.number().int().min(1).optional(),
+    }).parse(req.body);
+    const updated = await storage.updateUserSavedFood(Number(req.params.id), req.session.userId, body);
+    if (!updated) return res.status(404).json({ message: "Not found" });
+    res.json(updated);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+    res.status(500).json({ message: "Failed to update food" });
+  }
+});
+
 router.delete("/api/my-foods/:id", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
