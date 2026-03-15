@@ -1864,13 +1864,6 @@ export function MyMealsFoodWidget() {
                 <Link2 className="w-3.5 h-3.5" />Import
               </button>
               <button
-                onClick={() => setShowCommunityBrowser(true)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-zinc-200 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-all"
-                data-testid="button-browse-community"
-              >
-                <Users2 className="w-3.5 h-3.5" />Browse community
-              </button>
-              <button
                 onClick={() => setShowCreateMeal(true)}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-zinc-900 text-xs font-medium text-white hover:bg-zinc-700 transition-all"
                 data-testid="button-create-meal"
@@ -1992,6 +1985,14 @@ export function MyMealsFoodWidget() {
                 })}
               </div>
             )}
+
+            <button
+              onClick={() => setShowCommunityBrowser(true)}
+              className="w-full mt-4 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-zinc-200 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-all"
+              data-testid="button-browse-community"
+            >
+              <Users2 className="w-4 h-4" />Community meals
+            </button>
           </div>
         )}
 
