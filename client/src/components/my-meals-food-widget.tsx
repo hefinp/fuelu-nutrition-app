@@ -1868,7 +1868,7 @@ export function MyMealsFoodWidget() {
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-zinc-200 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-all"
                 data-testid="button-browse-community"
               >
-                <Users2 className="w-3.5 h-3.5" />Community
+                <Users2 className="w-3.5 h-3.5" />Browse community
               </button>
               <button
                 onClick={() => setShowCreateMeal(true)}
