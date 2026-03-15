@@ -81,6 +81,7 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
         carbsPerServing: totals.carbs,
         fatPerServing: totals.fat,
         ingredients: ingredientLines,
+        ingredientsJson: selected,
         instructions: instructions.trim() || null,
         mealSlot,
         mealStyle: "simple",

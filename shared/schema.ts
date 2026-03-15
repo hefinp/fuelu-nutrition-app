@@ -228,6 +228,7 @@ export const userRecipes = pgTable("user_recipes", {
   carbsPerServing: integer("carbs_per_serving").notNull(),
   fatPerServing: integer("fat_per_serving").notNull(),
   ingredients: text("ingredients"),
+  ingredientsJson: jsonb("ingredients_json"),
   instructions: text("instructions"),
   mealSlot: text("meal_slot").notNull(),
   mealStyle: text("meal_style").notNull().default("simple"),
@@ -337,6 +338,7 @@ export const favouriteMeals = pgTable("favourite_meals", {
   fat: integer("fat").notNull(),
   mealSlot: text("meal_slot"),
   ingredients: text("ingredients"),
+  ingredientsJson: jsonb("ingredients_json"),
   instructions: text("instructions"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -359,6 +361,7 @@ export const userSavedFoods = pgTable("user_saved_foods", {
   carbs100g: numeric("carbs_100g").notNull(),
   fat100g: numeric("fat_100g").notNull(),
   servingGrams: integer("serving_grams").notNull().default(100),
+  source: text("source"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

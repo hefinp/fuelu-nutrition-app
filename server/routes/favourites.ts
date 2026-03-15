@@ -42,6 +42,15 @@ router.post("/api/favourites", async (req, res) => {
 router.patch("/api/favourites/:id", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
+    const ingredientItemSchema = z.object({
+      key: z.string(),
+      name: z.string(),
+      calories100g: z.number(),
+      protein100g: z.number(),
+      carbs100g: z.number(),
+      fat100g: z.number(),
+      grams: z.number(),
+    });
     const body = z.object({
       mealName: z.string().min(1).optional(),
       calories: z.number().int().min(0).optional(),
@@ -50,6 +59,7 @@ router.patch("/api/favourites/:id", async (req, res) => {
       fat: z.number().int().min(0).optional(),
       mealSlot: z.string().nullable().optional(),
       ingredients: z.string().nullable().optional(),
+      ingredientsJson: z.array(ingredientItemSchema).nullable().optional(),
       instructions: z.string().nullable().optional(),
     }).parse(req.body);
     const updated = await storage.updateFavouriteMeal(Number(req.params.id), req.session.userId, body);

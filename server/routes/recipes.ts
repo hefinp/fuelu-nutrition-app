@@ -268,24 +268,36 @@ router.post("/api/recipes", async (req, res) => {
   res.status(201).json(recipe);
 });
 
+const ingredientItemSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  calories100g: z.number(),
+  protein100g: z.number(),
+  carbs100g: z.number(),
+  fat100g: z.number(),
+  grams: z.number(),
+});
+
 router.patch("/api/recipes/:id", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
     const id = parseInt(req.params.id);
-    const { name, caloriesPerServing, proteinPerServing, carbsPerServing, fatPerServing, mealSlot, instructions, ingredients } = req.body;
-    const updates: Record<string, unknown> = {};
-    if (name !== undefined) updates.name = name;
-    if (caloriesPerServing !== undefined) updates.caloriesPerServing = Number(caloriesPerServing);
-    if (proteinPerServing !== undefined) updates.proteinPerServing = Number(proteinPerServing);
-    if (carbsPerServing !== undefined) updates.carbsPerServing = Number(carbsPerServing);
-    if (fatPerServing !== undefined) updates.fatPerServing = Number(fatPerServing);
-    if (mealSlot !== undefined) updates.mealSlot = mealSlot;
-    if (instructions !== undefined) updates.instructions = instructions;
-    if (ingredients !== undefined) updates.ingredients = ingredients;
-    const updated = await storage.updateUserRecipe(id, req.session.userId, updates as any);
+    const body = z.object({
+      name: z.string().min(1).optional(),
+      caloriesPerServing: z.number().int().min(0).optional(),
+      proteinPerServing: z.number().int().min(0).optional(),
+      carbsPerServing: z.number().int().min(0).optional(),
+      fatPerServing: z.number().int().min(0).optional(),
+      mealSlot: z.string().optional(),
+      instructions: z.string().nullable().optional(),
+      ingredients: z.string().nullable().optional(),
+      ingredientsJson: z.array(ingredientItemSchema).nullable().optional(),
+    }).parse(req.body);
+    const updated = await storage.updateUserRecipe(id, req.session.userId, body);
     if (!updated) return res.status(404).json({ message: "Not found" });
     res.json(updated);
   } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
     res.status(500).json({ message: "Failed to update recipe" });
   }
 });
