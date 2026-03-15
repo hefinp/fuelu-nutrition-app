@@ -280,16 +280,33 @@ async function run() {
     await req('POST', '/api/preferences/disliked-meals', { mealName: name }, sid);
   }
   const emptyRes = await generateWeekly(sid, 'simple');
+  const dislikedAll = new Set([...allMealNames].map(n => n.toLowerCase()));
+  let f9 = 0;
   if (emptyRes.status >= 200 && emptyRes.status < 300) {
-    report('Empty-pool weekly generation succeeds (graceful)', 0);
+    const emptyPlan = JSON.parse(emptyRes.body);
+    const emptyNames = collectAllMealNames(emptyPlan, true);
+    for (const name of emptyNames) {
+      if (dislikedAll.has(name.toLowerCase())) {
+        f9++;
+        console.log(`  FAIL: disliked meal leaked in empty-pool plan — "${name}"`);
+      }
+    }
+    report('Empty-pool weekly: no disliked meals returned', f9);
   } else {
     report('Empty-pool weekly generation succeeds (graceful)', 1);
     console.log(`  Got status ${emptyRes.status}`);
   }
   for (const slot of REPLACE_SLOTS) {
     const repRes = await replaceMeal(sid, slot, 'simple');
+    let fRep = 0;
     if (repRes.status >= 200 && repRes.status < 300) {
-      report(`Empty-pool replace ${slot} succeeds (graceful)`, 0);
+      const repBody = JSON.parse(repRes.body);
+      const repMealName = repBody?.meal?.meal || repBody?.meal?.name || '';
+      if (repMealName && dislikedAll.has(repMealName.toLowerCase())) {
+        fRep++;
+        console.log(`  FAIL: disliked meal leaked in replace ${slot} — "${repMealName}"`);
+      }
+      report(`Empty-pool replace ${slot}: no disliked meal returned`, fRep);
     } else {
       report(`Empty-pool replace ${slot} succeeds (graceful)`, 1);
     }
