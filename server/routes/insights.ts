@@ -25,21 +25,21 @@ router.get("/api/cycle/insights", async (req, res) => {
   const daysLogged = symptoms.length;
   const hasEnoughData = daysLogged >= 7 && foodLogs.length >= 7;
 
-  const byDay: Record<number, { energySum: number; moodSum: number; count: number }> = {};
+  const byDay: Record<number, { energySum: number; energyCount: number; moodSum: number; moodCount: number; count: number }> = {};
   for (const s of symptoms) {
     const day = getCycleDay(s.date, periods, prefs);
     if (day === null || day < 1 || day > 35) continue;
-    if (!byDay[day]) byDay[day] = { energySum: 0, moodSum: 0, count: 0 };
+    if (!byDay[day]) byDay[day] = { energySum: 0, energyCount: 0, moodSum: 0, moodCount: 0, count: 0 };
     const es = energyScore(s.energy); const ms = moodScore(s.mood);
-    if (es !== null) byDay[day].energySum += es;
-    if (ms !== null) byDay[day].moodSum += ms;
+    if (es !== null) { byDay[day].energySum += es; byDay[day].energyCount++; }
+    if (ms !== null) { byDay[day].moodSum += ms; byDay[day].moodCount++; }
     byDay[day].count++;
   }
   const symptomByDay = Object.entries(byDay)
     .map(([day, d]) => ({
       cycleDay: parseInt(day),
-      avgEnergy: d.count > 0 ? Math.round((d.energySum / d.count) * 10) / 10 : null,
-      avgMood: d.count > 0 ? Math.round((d.moodSum / d.count) * 10) / 10 : null,
+      avgEnergy: d.energyCount > 0 ? Math.round((d.energySum / d.energyCount) * 10) / 10 : null,
+      avgMood: d.moodCount > 0 ? Math.round((d.moodSum / d.moodCount) * 10) / 10 : null,
       count: d.count,
     }))
     .sort((a, b) => a.cycleDay - b.cycleDay);
