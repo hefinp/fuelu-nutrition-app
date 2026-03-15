@@ -32,6 +32,22 @@ Core components include:
 ### Backend
 The backend runs on **Node.js** with **TypeScript** using **Express 5**. It integrates Vite in middleware mode for HMR during development. Authentication is session-based using `express-session` with a PostgreSQL store. The API follows a RESTful pattern, with all routes under `/api`, sharing Zod schemas with the client via a `shared/` directory.
 
+**Route architecture** (split into domain modules under `server/routes/`):
+-   `server/routes.ts` — Thin entry point: imports all routers, sets up Passport OAuth strategies, mounts routers via `app.use()`.
+-   `server/constants.ts` — Shared constants: ALLERGEN_KEYWORDS, FOOD_CATEGORY_KEYWORDS, MEAT/PORK_KEYWORDS, CYCLE_PHASE_KEYWORDS, authRateLimiter.
+-   `server/meal-data.ts` — Meal databases (Simple, Gourmet, Michelin), types (MealEntry, MealDb), helper functions (filtering, scaling, scoring, cycle phase computation, plan generation, macro calculation).
+-   `server/routes/auth.ts` — Auth (register, login, logout, OAuth callbacks, password reset, invite check).
+-   `server/routes/calculations.ts` — Calculation preview/create/list + user preferences get/put.
+-   `server/routes/meal-plans.ts` — Meal plan generation, replace-meal, saved plans CRUD, schedule, optimise, email.
+-   `server/routes/weight.ts` — Weight entries CRUD + AI trend insights.
+-   `server/routes/cycle.ts` — Cycle daily-tip, period logs, cycle insights, phase-evidence, AI insights, research-pulse, symptoms.
+-   `server/routes/hydration.ts` — Hydration CRUD.
+-   `server/routes/food-log.ts` — Food log CRUD, food search, barcode lookup, label scan, AI food recognition, weekly insights, daily nudge, custom foods, disliked meals.
+-   `server/routes/recipes.ts` — User recipes CRUD, URL import, photo import.
+-   `server/routes/favourites.ts` — Favourite meals CRUD.
+-   `server/routes/community.ts` — Community meals CRUD + admin community meal balance + startup gap-fill.
+-   `server/routes/admin.ts` — Admin invite codes + beta feedback.
+
 Key backend functionalities include:
 -   User authentication (register, login, logout, OAuth).
 -   Server-side meal plan generation using static meal databases (Simple, Gourmet, Michelin) with filtering based on user preferences and nutrient density scoring.
