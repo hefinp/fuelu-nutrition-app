@@ -2526,7 +2526,7 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
   });
 
   const replaceMealMutation = useMutation({
-    mutationFn: async ({ slot, currentMealName }: { slot: string; currentMealName: string }) => {
+    mutationFn: async ({ slot, currentMealName, targetDate }: { slot: string; currentMealName: string; targetDate?: string }) => {
       const res = await apiRequest('POST', '/api/meal-plans/replace-meal', {
         slot,
         mealStyle,
@@ -2535,6 +2535,7 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
         carbsGoal: data.carbsGoal,
         fatGoal: data.fatGoal,
         currentMealName,
+        ...(targetDate ? { targetDate } : {}),
       });
       return { slot, meal: await res.json() };
     },
@@ -2829,7 +2830,7 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
                       plan={{ ...dayPlan, planType: 'daily' }}
                       onLogMeal={onLogMeal}
                       onReplace={(slot, mealName, idx) => {
-                        replaceMealMutation.mutate({ slot, currentMealName: mealName }, {
+                        replaceMealMutation.mutate({ slot, currentMealName: mealName, targetDate: dateStr }, {
                           onSuccess: ({ slot: s, meal: newMeal }) => {
                             setMealPlan((prev: any) => {
                               if (!prev) return prev;
@@ -2857,7 +2858,8 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
               plan={mealPlan}
               onLogMeal={onLogMeal}
               onReplace={(slot, mealName, idx) => {
-                replaceMealMutation.mutate({ slot, currentMealName: mealName }, {
+                const dailyTargetDate = (mealPlan as any).targetDate;
+                replaceMealMutation.mutate({ slot, currentMealName: mealName, ...(dailyTargetDate ? { targetDate: dailyTargetDate } : {}) }, {
                   onSuccess: ({ slot: s, meal: newMeal }) => {
                     setMealPlan((prev: any) => {
                       if (!prev) return prev;
@@ -2884,7 +2886,15 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
               plan={mealPlan}
               onLogMeal={onLogMeal}
               onReplace={(day, slot, mealName, idx) => {
-                replaceMealMutation.mutate({ slot, currentMealName: mealName }, {
+                const dayOffsets: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6 };
+                const ws = (mealPlan as any).weekStartDate;
+                let targetDate: string | undefined;
+                if (ws) {
+                  const d = new Date(ws);
+                  d.setDate(d.getDate() + (dayOffsets[day] ?? 0));
+                  targetDate = d.toISOString().split('T')[0];
+                }
+                replaceMealMutation.mutate({ slot, currentMealName: mealName, targetDate }, {
                   onSuccess: ({ slot: s, meal: newMeal }) => {
                     setMealPlan((prev: any) => {
                       if (!prev) return prev;

@@ -128,6 +128,7 @@ const replaceMealSchema = z.object({
   carbsGoal: z.number(),
   fatGoal: z.number(),
   currentMealName: z.string().optional(),
+  targetDate: z.string().optional(),
 });
 
 router.post("/api/meal-plans/replace-meal", async (req, res) => {
@@ -191,7 +192,7 @@ router.post("/api/meal-plans/replace-meal", async (req, res) => {
     const tFat = (input.fatGoal * 9) / totalMacroCals;
 
     const replCyclePhase = (prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate)
-      ? computeCyclePhase(prefs.lastPeriodDate, prefs.cycleLength ?? 28)
+      ? computeCyclePhase(prefs.lastPeriodDate, prefs.cycleLength ?? 28, input.targetDate)
       : null;
     const picked = pickBestMeal(candidates, tProtein, tCarbs, tFat, prefs, replCyclePhase);
 
