@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type RefObject } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -24,7 +24,7 @@ export interface FoodPickerState {
   setScanServingGrams: (v: string) => void;
   scanKey: number;
   setScanKey: React.Dispatch<React.SetStateAction<number>>;
-  videoRef: RefObject<HTMLVideoElement | null>;
+  videoRef: React.RefObject<HTMLVideoElement>;
 
   aiMode: "describe" | "label";
   setAiMode: (m: "describe" | "label") => void;
@@ -41,8 +41,8 @@ export interface FoodPickerState {
   setAiProductName: (v: string) => void;
   aiLabelPhotoFile: File | null;
   setAiLabelPhotoFile: (f: File | null) => void;
-  aiPhotoRef: RefObject<HTMLInputElement | null>;
-  aiLabelPhotoRef: RefObject<HTMLInputElement | null>;
+  aiPhotoRef: React.RefObject<HTMLInputElement>;
+  aiLabelPhotoRef: React.RefObject<HTMLInputElement>;
   labelScanAvailable: boolean;
 
   handleAiEstimate: () => Promise<void>;
