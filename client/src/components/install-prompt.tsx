@@ -39,6 +39,11 @@ export function InstallPrompt() {
       return;
     }
 
+    if (window.__deferredInstallPrompt) {
+      setDeferredPrompt(window.__deferredInstallPrompt as BeforeInstallPromptEvent);
+      delete window.__deferredInstallPrompt;
+    }
+
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
