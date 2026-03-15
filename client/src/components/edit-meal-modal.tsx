@@ -432,14 +432,21 @@ export function EditMealModal({
                     >Or start with an empty structured list</button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => { setHasStructured(true); setShowPicker(true); }}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-zinc-300 text-xs font-medium text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors"
-                    data-testid="button-edit-start-structured"
-                  >
-                    <Plus className="w-3.5 h-3.5" />Add ingredients
-                  </button>
+                  <div className="bg-zinc-50 rounded-xl p-4 text-center space-y-2">
+                    <p className="text-xs text-zinc-500">
+                      {isFav
+                        ? "No ingredients recorded \u2014 this meal was saved from your food log without ingredient details."
+                        : "No ingredients added yet."}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { setHasStructured(true); setShowPicker(true); }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-dashed border-zinc-300 text-xs font-medium text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors"
+                      data-testid="button-edit-start-structured"
+                    >
+                      <Plus className="w-3.5 h-3.5" />Add ingredients
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -468,6 +475,7 @@ export function EditMealModal({
           <div>
             <label className="block text-xs font-medium text-zinc-600 mb-1.5">Instructions <span className="text-zinc-400 font-normal">(optional)</span></label>
             <textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={4}
+              placeholder="Add cooking steps, tips, or notes\u2026"
               className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none" data-testid="textarea-edit-instructions" />
           </div>
         </div>
