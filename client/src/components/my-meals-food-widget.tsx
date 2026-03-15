@@ -583,7 +583,7 @@ function ingredientFromSaved(f: UserSavedFood): Ingredient {
   return { key: `saved-${f.id}`, name: f.name, calories100g: f.calories100g, protein100g: Number(f.protein100g), carbs100g: Number(f.carbs100g), fat100g: Number(f.fat100g), grams: f.servingGrams };
 }
 function ingredientFromSearch(f: FoodResult | ExtendedFoodResult): Ingredient {
-  return { key: `search-${f.id}-${Date.now()}`, name: f.name, calories100g: f.calories100g, protein100g: f.protein100g, carbs100g: f.carbs100g, fat100g: f.fat100g, grams: f.servingGrams || 100 };
+  return { key: `search-${f.id}-${Date.now()}`, name: f.name, calories100g: f.calories100g, protein100g: f.protein100g, carbs100g: f.carbs100g, fat100g: f.fat100g, grams: 100 };
 }
 
 function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
@@ -794,8 +794,8 @@ function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
 
   const pickerTabs: { id: PickerTab; label: string; icon: typeof Search }[] = [
     { id: "search", label: "Search", icon: Search },
-    { id: "scan", label: "Scan", icon: Barcode },
-    ...(labelScanAvailable ? [{ id: "ai" as PickerTab, label: "AI", icon: Sparkles }] : []),
+    { id: "scan", label: "Barcode", icon: Barcode },
+    { id: "ai", label: "AI", icon: Sparkles },
     { id: "myfoods", label: "My Foods", icon: Wheat },
   ];
 
@@ -993,15 +993,17 @@ function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
                 <div className="space-y-3">
                   {!aiResult ? (
                     <>
-                      <div className="flex bg-zinc-100 p-0.5 rounded-xl">
-                        <button type="button" onClick={() => setAiMode("describe")} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${aiMode === "describe" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`} data-testid="button-create-ai-mode-describe">
-                          <Sparkles className="w-3 h-3" />Describe
-                        </button>
-                        <button type="button" onClick={() => setAiMode("label")} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${aiMode === "label" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`} data-testid="button-create-ai-mode-label">
-                          <Camera className="w-3 h-3" />Label Scan
-                        </button>
-                      </div>
-                      {aiMode === "describe" ? (
+                      {labelScanAvailable && (
+                        <div className="flex bg-zinc-100 p-0.5 rounded-xl">
+                          <button type="button" onClick={() => setAiMode("describe")} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${aiMode === "describe" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`} data-testid="button-create-ai-mode-describe">
+                            <Sparkles className="w-3 h-3" />Describe
+                          </button>
+                          <button type="button" onClick={() => setAiMode("label")} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${aiMode === "label" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`} data-testid="button-create-ai-mode-label">
+                            <Camera className="w-3 h-3" />Label Scan
+                          </button>
+                        </div>
+                      )}
+                      {aiMode === "describe" || !labelScanAvailable ? (
                         <>
                           <div>
                             <p className="text-[10px] text-zinc-500 font-medium mb-1.5">What food are you adding?</p>
