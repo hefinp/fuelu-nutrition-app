@@ -116,6 +116,48 @@ async function run() {
   const res6 = await replaceMeal(sid, 'lunch', 'simple', futureDateStr);
   report('Non-cycle user with targetDate returns 200', res6.status !== 200 ? 1 : 0);
 
+  console.log('\n=== TEST 7: Generate weekly plan then replace a later-week day meal with correct targetDate ===');
+  const weekMonday = new Date(today);
+  weekMonday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const weekStartStr = weekMonday.toISOString().split('T')[0];
+  const lpForWeek = new Date(weekMonday);
+  lpForWeek.setDate(weekMonday.getDate() - 10);
+  const lpForWeekStr = lpForWeek.toISOString().split('T')[0];
+  await setPrefs(sid, { cycleTrackingEnabled: true, lastPeriodDate: lpForWeekStr, cycleLength: 28 });
+  const genRes = await req('POST', '/api/meal-plans', {
+    dailyCalories: 2000, weeklyCalories: 14000,
+    proteinGoal: 150, carbsGoal: 250, fatGoal: 65,
+    planType: 'weekly', mealStyle: 'simple',
+    weekStartDate: weekStartStr,
+  }, sid);
+  let f7 = 0;
+  if (genRes.status !== 201) {
+    f7++;
+    console.log(`  FAIL: Weekly generation returned ${genRes.status}`);
+  } else {
+    const plan = JSON.parse(genRes.body);
+    const thursdayMeal = plan.thursday?.lunch?.[0]?.meal || plan.thursday?.dinner?.[0]?.meal;
+    if (!thursdayMeal) {
+      console.log('  SKIP: No Thursday meal found in plan (empty slots)');
+    }
+    const thursdayDateStr = (() => {
+      const d = new Date(weekMonday);
+      d.setDate(d.getDate() + 3);
+      return d.toISOString().split('T')[0];
+    })();
+    const replRes = await replaceMeal(sid, 'lunch', 'simple', thursdayDateStr);
+    if (replRes.status !== 200) {
+      f7++;
+      console.log(`  FAIL: Thursday replace-meal returned ${replRes.status}`);
+    }
+    const replBody = JSON.parse(replRes.body);
+    if (!replBody.meal && !replBody.calories) {
+      f7++;
+      console.log('  FAIL: Thursday replace-meal returned no meal');
+    }
+  }
+  report('Weekly plan + Thursday replace with targetDate', f7);
+
   await setPrefs(sid, { cycleTrackingEnabled: false, lastPeriodDate: null });
 
   console.log(`\n=== RESULTS: ${passed} passed, ${failed} failed ===`);

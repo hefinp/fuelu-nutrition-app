@@ -2887,13 +2887,8 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
               onLogMeal={onLogMeal}
               onReplace={(day, slot, mealName, idx) => {
                 const dayOffsets: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6 };
-                const ws = (mealPlan as any).weekStartDate;
-                let targetDate: string | undefined;
-                if (ws) {
-                  const d = new Date(ws);
-                  d.setDate(d.getDate() + (dayOffsets[day] ?? 0));
-                  targetDate = d.toISOString().split('T')[0];
-                }
+                const ws = (mealPlan as any).weekStartDate as string | undefined;
+                const targetDate = ws ? addDays(ws, dayOffsets[day] ?? 0) : undefined;
                 replaceMealMutation.mutate({ slot, currentMealName: mealName, targetDate }, {
                   onSuccess: ({ slot: s, meal: newMeal }) => {
                     setMealPlan((prev: any) => {
