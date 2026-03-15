@@ -191,7 +191,7 @@ function detectAllergyConflicts(ingredients: string[], allergies: string[]): str
   return conflicts;
 }
 
-function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
+export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [selectedStyle, setSelectedStyle] = useState<MealStyle>("simple");

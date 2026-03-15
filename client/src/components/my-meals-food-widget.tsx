@@ -5,9 +5,10 @@ import { useToast } from "@/hooks/use-toast";
 import {
   UtensilsCrossed, Wheat, Plus, Trash2, Loader2, X, Pencil,
   ChevronDown, ChevronUp, Link2, Camera, ArrowLeft, ImagePlus,
-  Check, AlertCircle, Utensils, Globe, BookOpen, Search, Barcode, Sparkles, Send,
+  Check, AlertCircle, Utensils, Globe, BookOpen, Search, Barcode, Sparkles, Send, Users2,
 } from "lucide-react";
 import type { FavouriteMeal, UserRecipe, UserSavedFood } from "@shared/schema";
+import { CommunityBrowserModal } from "@/components/recipe-library";
 import type { FoodResult, ExtendedFoodResult } from "@/components/food-log-shared";
 
 type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
@@ -1709,6 +1710,7 @@ export function MyMealsFoodWidget() {
   const [showImport, setShowImport] = useState(false);
   const [showCreateMeal, setShowCreateMeal] = useState(false);
   const [showAddFood, setShowAddFood] = useState(false);
+  const [showCommunityBrowser, setShowCommunityBrowser] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<{ type: "favourite" | "recipe"; item: FavouriteMeal | UserRecipe } | null>(null);
 
@@ -1860,6 +1862,13 @@ export function MyMealsFoodWidget() {
                 data-testid="button-import-recipe"
               >
                 <Link2 className="w-3.5 h-3.5" />Import
+              </button>
+              <button
+                onClick={() => setShowCommunityBrowser(true)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-zinc-200 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-all"
+                data-testid="button-browse-community"
+              >
+                <Users2 className="w-3.5 h-3.5" />Community
               </button>
               <button
                 onClick={() => setShowCreateMeal(true)}
@@ -2107,6 +2116,9 @@ export function MyMealsFoodWidget() {
           onClose={() => setShowAddFood(false)}
           onSaved={() => {}}
         />
+      )}
+      {showCommunityBrowser && (
+        <CommunityBrowserModal onClose={() => setShowCommunityBrowser(false)} />
       )}
       {editTarget && (
         <EditMealModal
