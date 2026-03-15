@@ -41,7 +41,6 @@ export function InstallPrompt() {
 
     if (window.__deferredInstallPrompt) {
       setDeferredPrompt(window.__deferredInstallPrompt as BeforeInstallPromptEvent);
-      delete window.__deferredInstallPrompt;
     }
 
     const handler = (e: Event) => {
@@ -56,6 +55,7 @@ export function InstallPrompt() {
     setDismissed(true);
     setDeferredPrompt(null);
     setShowIosBanner(false);
+    delete window.__deferredInstallPrompt;
     sessionStorage.setItem(DISMISS_KEY, "1");
   }
 
