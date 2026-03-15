@@ -956,13 +956,13 @@ export default function Dashboard() {
                 active: showSavedPlans,
                 action: () => setShowSavedPlans(v => !v),
               },
-              {
+              ...(userPrefs?.cycleTrackingEnabled ? [{
                 id: "insights",
                 icon: TrendingUp,
                 label: "Insights",
                 active: showInsightsPopup,
                 action: () => setShowInsightsPopup(v => !v),
-              },
+              }] : []),
               {
                 id: "settings",
                 icon: Settings,
