@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +38,43 @@ function parseIngredientsJson(raw: unknown): Ingredient[] | null {
   }
 }
 
+function AutoGrowTextarea({
+  value,
+  onChange,
+  placeholder,
+  testId,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  testId?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  const resize = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+  }, []);
+
+  useEffect(() => { resize(); }, [value, resize]);
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      onInput={resize}
+      placeholder={placeholder}
+      rows={2}
+      className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none overflow-y-auto"
+      style={{ maxHeight: 200 }}
+      data-testid={testId}
+    />
+  );
+}
+
 export function EditMealModal({
   type,
   item,
@@ -68,6 +105,9 @@ export function EditMealModal({
   const [converting, setConverting] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [pickerTab, setPickerTab] = useState<PickerTab>("search");
+
+  const initInstructions = isFav ? fav!.instructions ?? "" : rec?.instructions ?? "";
+  const [showInstructions, setShowInstructions] = useState(!!initInstructions.trim());
 
   const [manualCal, setManualCal] = useState(String(isFav ? fav!.calories : rec!.caloriesPerServing));
   const [manualProt, setManualProt] = useState(String(isFav ? fav!.protein : rec!.proteinPerServing));
@@ -199,7 +239,7 @@ export function EditMealModal({
 
   const pickerTabs: { id: PickerTab; label: string; icon: typeof Search }[] = [
     { id: "search", label: "Search", icon: Search },
-    { id: "scan", label: "Barcode", icon: Barcode },
+    { id: "scan", label: "Scan", icon: Barcode },
     { id: "ai", label: "AI", icon: Sparkles },
     { id: "myfoods", label: "My Foods", icon: Wheat },
   ];
@@ -207,12 +247,12 @@ export function EditMealModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm pb-16 sm:pb-0" onClick={onClose} onWheel={stopScrollLeak} onTouchMove={stopScrollLeak}>
       <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-zinc-100 shrink-0">
           <h3 className="text-base font-semibold text-zinc-900">Edit {isFav ? "Favourite" : "Meal"}</h3>
-          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-700" data-testid="button-edit-meal-close"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="p-2 -mr-1 text-zinc-400 hover:text-zinc-700" data-testid="button-edit-meal-close"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 sm:py-5 space-y-3 sm:space-y-4">
           <div>
             <label className="block text-xs font-medium text-zinc-600 mb-1.5">Name</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
@@ -220,11 +260,11 @@ export function EditMealModal({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-zinc-600 mb-2">Meal slot</label>
-            <div className="grid grid-cols-4 gap-2">
+            <label className="block text-xs font-medium text-zinc-600 mb-1.5 sm:mb-2">Meal slot</label>
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
               {SLOT_OPTIONS.map(o => (
                 <button key={o.value} onClick={() => setMealSlot(o.value)}
-                  className={`py-1.5 rounded-lg text-xs font-medium border transition-colors ${mealSlot === o.value ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"}`}
+                  className={`py-2.5 sm:py-1.5 rounded-lg text-xs font-medium border transition-colors h-11 sm:h-auto ${mealSlot === o.value ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"}`}
                   data-testid={`button-edit-slot-${o.value}`}
                 >{o.label}</button>
               ))}
@@ -239,11 +279,11 @@ export function EditMealModal({
                   type="button"
                   onClick={convertIngredients}
                   disabled={converting}
-                  className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-800 disabled:opacity-50"
+                  className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-800 disabled:opacity-50 min-h-[44px] sm:min-h-0 px-2"
                   data-testid="button-convert-ingredients"
                 >
                   {converting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-                  {converting ? "Converting…" : "Convert ingredients"}
+                  {converting ? "Converting\u2026" : "Convert ingredients"}
                 </button>
               )}
             </div>
@@ -251,7 +291,7 @@ export function EditMealModal({
             {hasStructured ? (
               <div className="space-y-2">
                 {selected.length > 0 ? (
-                  <div className="bg-zinc-50 rounded-2xl p-3 space-y-2">
+                  <div className="bg-zinc-50 rounded-2xl p-2.5 sm:p-3 space-y-1.5 sm:space-y-2">
                     {selected.map(ing => {
                       const factor = ing.grams / 100;
                       const ingCal = Math.round(ing.calories100g * factor);
@@ -259,20 +299,22 @@ export function EditMealModal({
                       const ingCarbs = Math.round(ing.carbs100g * factor * 10) / 10;
                       const ingFat = Math.round(ing.fat100g * factor * 10) / 10;
                       return (
-                        <div key={ing.key} className="bg-white rounded-xl border border-zinc-100 p-2.5 space-y-2">
+                        <div key={ing.key} className="bg-white rounded-xl border border-zinc-100 p-2.5 sm:p-3 space-y-1.5">
                           <div className="flex items-center gap-2">
                             <span className="flex-1 text-xs font-medium text-zinc-800 truncate">{ing.name}</span>
-                            <input
-                              type="number"
-                              value={ing.grams}
-                              min={1}
-                              onChange={e => updateGrams(ing.key, parseInt(e.target.value) || 1)}
-                              className="w-16 text-xs border border-zinc-200 rounded-lg px-1.5 py-1 text-center focus:outline-none focus:ring-1 focus:ring-zinc-300"
-                              data-testid={`input-edit-ing-grams-${ing.key}`}
-                            />
-                            <span className="text-zinc-400 text-[10px] shrink-0">g</span>
-                            <button type="button" onClick={() => removeIngredient(ing.key)} className="text-zinc-300 hover:text-red-500 shrink-0" data-testid={`button-edit-remove-ing-${ing.key}`}>
-                              <X className="w-3.5 h-3.5" />
+                            <div className="flex items-center gap-1 shrink-0">
+                              <input
+                                type="number"
+                                value={ing.grams}
+                                min={1}
+                                onChange={e => updateGrams(ing.key, parseInt(e.target.value) || 1)}
+                                className="w-[4.5rem] text-xs border border-zinc-200 rounded-lg px-2 py-1.5 text-center focus:outline-none focus:ring-1 focus:ring-zinc-300"
+                                data-testid={`input-edit-ing-grams-${ing.key}`}
+                              />
+                              <span className="text-zinc-400 text-[10px]">g</span>
+                            </div>
+                            <button type="button" onClick={() => removeIngredient(ing.key)} className="p-1.5 -mr-1 text-zinc-300 hover:text-red-500 shrink-0 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center" data-testid={`button-edit-remove-ing-${ing.key}`}>
+                              <X className="w-4 h-4" />
                             </button>
                           </div>
                           <div className="flex flex-wrap gap-1">
@@ -298,7 +340,7 @@ export function EditMealModal({
                 <button
                   type="button"
                   onClick={() => setShowPicker(v => !v)}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-zinc-300 text-xs font-medium text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 sm:py-2 rounded-xl border border-dashed border-zinc-300 text-xs font-medium text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors min-h-[44px] sm:min-h-0"
                   data-testid="button-edit-toggle-picker"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -307,17 +349,17 @@ export function EditMealModal({
                 </button>
 
                 {showPicker && (
-                  <div className="border border-zinc-100 rounded-2xl p-3 space-y-3 bg-white">
-                    <div className="flex bg-zinc-100 p-1 rounded-xl">
+                  <div className="border border-zinc-100 rounded-2xl p-2.5 sm:p-3 space-y-2.5 sm:space-y-3 bg-white">
+                    <div className="flex bg-zinc-100 p-0.5 sm:p-1 rounded-xl">
                       {pickerTabs.map(tab => (
                         <button
                           key={tab.id}
                           onClick={() => setPickerTab(tab.id)}
-                          className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold transition-colors rounded-lg ${pickerTab === tab.id ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+                          className={`flex-1 flex items-center justify-center gap-1 py-2 sm:py-1.5 text-xs font-semibold transition-colors rounded-lg min-h-[40px] sm:min-h-0 ${pickerTab === tab.id ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
                           data-testid={`button-edit-picker-tab-${tab.id}`}
                         >
-                          <tab.icon className="w-3.5 h-3.5" />
-                          {tab.label}
+                          <tab.icon className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                          <span className="hidden min-[380px]:inline">{tab.label}</span>
                         </button>
                       ))}
                     </div>
@@ -366,7 +408,7 @@ export function EditMealModal({
                     )}
 
                     {pickerTab === "myfoods" && (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5 sm:space-y-2">
                         {myFoods.length === 0 ? (
                           <p className="text-xs text-zinc-400 text-center py-4">No foods saved yet</p>
                         ) : (
@@ -377,12 +419,12 @@ export function EditMealModal({
                             return (
                               <div key={food.id} className={`rounded-xl border transition-all ${isSelected ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 bg-white"}`}>
                                 <button
-                                  className="w-full flex items-center gap-3 p-2.5 text-left"
+                                  className="w-full flex items-center gap-3 p-2.5 sm:p-3 text-left min-h-[44px]"
                                   onClick={() => toggleSavedFood(food)}
                                   data-testid={`button-edit-pick-food-${food.id}`}
                                 >
-                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isSelected ? "bg-zinc-900 border-zinc-900" : "border-zinc-300"}`}>
-                                    {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                                  <div className={`w-5 h-5 sm:w-4 sm:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isSelected ? "bg-zinc-900 border-zinc-900" : "border-zinc-300"}`}>
+                                    {isSelected && <Check className="w-3 h-3 sm:w-2.5 sm:h-2.5 text-white" />}
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-xs font-medium text-zinc-900 truncate">{food.name}</p>
@@ -397,10 +439,10 @@ export function EditMealModal({
                                       value={sel.grams}
                                       min={1}
                                       onChange={e => updateGrams(sel.key, parseInt(e.target.value) || 1)}
-                                      className="w-16 text-xs border border-zinc-200 rounded-lg px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-zinc-300"
+                                      className="w-20 text-xs border border-zinc-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-zinc-300"
                                       data-testid={`input-edit-myfood-grams-${food.id}`}
                                     />
-                                    <p className="text-[10px] text-zinc-400">≈ {Math.round(food.calories100g * sel.grams / 100)} kcal</p>
+                                    <p className="text-[10px] text-zinc-400">{"\u2248"} {Math.round(food.calories100g * sel.grams / 100)} kcal</p>
                                   </div>
                                 )}
                               </div>
@@ -435,13 +477,13 @@ export function EditMealModal({
                   <div className="bg-zinc-50 rounded-xl p-4 text-center space-y-2">
                     <p className="text-xs text-zinc-500">
                       {isFav
-                        ? "No ingredients recorded — this meal was saved from your food log without ingredient details."
+                        ? "No ingredients recorded \u2014 this meal was saved from your food log without ingredient details."
                         : "No ingredients added yet."}
                     </p>
                     <button
                       type="button"
                       onClick={() => { setHasStructured(true); setShowPicker(true); }}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-dashed border-zinc-300 text-xs font-medium text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-dashed border-zinc-300 text-xs font-medium text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors min-h-[44px] sm:min-h-0"
                       data-testid="button-edit-start-structured"
                     >
                       <Plus className="w-3.5 h-3.5" />Add ingredients
@@ -453,16 +495,34 @@ export function EditMealModal({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-zinc-600 mb-1.5">Instructions <span className="text-zinc-400 font-normal">(optional)</span></label>
-            <textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={3}
-              placeholder="Add cooking steps, tips, or notes…"
-              className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none" data-testid="textarea-edit-instructions" />
+            <button
+              type="button"
+              onClick={() => setShowInstructions(v => !v)}
+              className="flex items-center gap-1.5 w-full text-left py-1 min-h-[44px] sm:min-h-0"
+              data-testid="button-toggle-instructions"
+            >
+              <span className="text-xs font-medium text-zinc-600">Instructions</span>
+              <span className="text-zinc-400 text-[10px] font-normal">(optional)</span>
+              {showInstructions
+                ? <ChevronUp className="w-3.5 h-3.5 text-zinc-400 ml-auto" />
+                : <ChevronDown className="w-3.5 h-3.5 text-zinc-400 ml-auto" />}
+            </button>
+            {showInstructions && (
+              <div className="mt-1.5">
+                <AutoGrowTextarea
+                  value={instructions}
+                  onChange={setInstructions}
+                  placeholder="Add cooking steps, tips, or notes\u2026"
+                  testId="textarea-edit-instructions"
+                />
+              </div>
+            )}
           </div>
 
           {!hasStructured && (
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1.5">Macros per serving</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                 {[
                   { label: "Calories (kcal)", value: manualCal, set: setManualCal, testid: "input-edit-cal" },
                   { label: "Protein (g)", value: manualProt, set: setManualProt, testid: "input-edit-prot" },
@@ -472,7 +532,7 @@ export function EditMealModal({
                   <div key={label}>
                     <label className="text-[10px] text-zinc-400">{label}</label>
                     <input type="number" value={value} onChange={e => set(e.target.value)} min={0}
-                      className="w-full text-sm border border-zinc-200 rounded-lg px-2.5 py-1.5 mt-0.5 focus:outline-none focus:ring-2 focus:ring-zinc-300" data-testid={testid} />
+                      className="w-full text-sm border border-zinc-200 rounded-lg px-2.5 py-2 sm:py-1.5 mt-0.5 focus:outline-none focus:ring-2 focus:ring-zinc-300" data-testid={testid} />
                   </div>
                 ))}
               </div>
@@ -480,11 +540,11 @@ export function EditMealModal({
           )}
         </div>
 
-        <div className="px-6 pb-6 pt-4 border-t border-zinc-100 shrink-0">
+        <div className="px-4 sm:px-6 pb-6 pt-3 sm:pt-4 border-t border-zinc-100 shrink-0" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
           <button
             onClick={() => saveMutation.mutate()}
             disabled={!name.trim() || saveMutation.isPending}
-            className="w-full py-3 bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-semibold rounded-2xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+            className="w-full py-3 bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-semibold rounded-2xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60 min-h-[48px]"
             data-testid="button-edit-save"
           >
             {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" />Save Changes</>}
