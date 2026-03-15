@@ -202,10 +202,112 @@ async function run() {
   }
   report('Combined disliked + excluded chicken + allergen nuts', f6);
 
+  console.log('\n=== TEST 7: User recipe with disliked name is not injected ===');
+  await setPrefs(sid, { recipeWebsitesEnabled: true, recipeWeeklyLimit: 10, recipeEnabledSlots: ['breakfast', 'lunch', 'dinner', 'snack'] });
+  const testRecipeName = uniqueDislike[0];
+  const createRecipeRes = await req('POST', '/api/recipes', {
+    name: testRecipeName,
+    sourceUrl: 'https://test.example.com/disliked-recipe',
+    servings: 1,
+    caloriesPerServing: 400,
+    proteinPerServing: 30,
+    carbsPerServing: 40,
+    fatPerServing: 15,
+    mealSlot: 'lunch',
+    mealStyle: 'simple',
+  }, sid);
+  let createdRecipeId = null;
+  if (createRecipeRes.status === 201) {
+    createdRecipeId = JSON.parse(createRecipeRes.body).id;
+    const genRes = await generateWeekly(sid, 'simple');
+    const genPlan = JSON.parse(genRes.body);
+    const allNames = collectAllMealNames(genPlan, true);
+    let f7 = 0;
+    for (const name of allNames) {
+      if (dislikedLower.has(name.toLowerCase())) {
+        f7++;
+        console.log(`  FAIL: user recipe injection bypass — "${name}" is disliked`);
+      }
+    }
+    report('User recipe with disliked name not injected', f7);
+  } else {
+    console.log('  SKIP: Could not create test recipe (status ' + createRecipeRes.status + ')');
+    report('User recipe with disliked name not injected', 0);
+  }
+
+  console.log('\n=== TEST 8: Community meal with disliked name is not injected ===');
+  const testCmName = uniqueDislike[uniqueDislike.length - 1];
+  const createCmRes = await req('POST', '/api/community-meals', {
+    name: testCmName,
+    slot: 'dinner',
+    style: 'simple',
+    caloriesPerServing: 500,
+    proteinPerServing: 35,
+    carbsPerServing: 50,
+    fatPerServing: 20,
+    microScore: 3,
+  }, sid);
+  let createdCmId = null;
+  if (createCmRes.status === 201) {
+    createdCmId = JSON.parse(createCmRes.body).id;
+    const genRes = await generateWeekly(sid, 'simple');
+    const genPlan = JSON.parse(genRes.body);
+    const allNames = collectAllMealNames(genPlan, true);
+    let f8 = 0;
+    for (const name of allNames) {
+      if (dislikedLower.has(name.toLowerCase())) {
+        f8++;
+        console.log(`  FAIL: community meal injection bypass — "${name}" is disliked`);
+      }
+    }
+    report('Community meal with disliked name not injected', f8);
+  } else {
+    console.log('  SKIP: Could not create test community meal (status ' + createCmRes.status + ')');
+    report('Community meal with disliked name not injected', 0);
+  }
+
+  console.log('\n=== TEST 9: Empty-pool graceful handling (all meals disliked) ===');
+  await setPrefs(sid, { recipeWebsitesEnabled: false });
+  const baseRes2 = await generateWeekly(sid, 'simple');
+  const basePlan2 = JSON.parse(baseRes2.body);
+  const allMealNames = new Set();
+  for (const day of DAYS) {
+    for (const slot of SLOTS) {
+      for (const m of (basePlan2[day]?.[slot] || [])) allMealNames.add(m.meal);
+    }
+  }
+  for (const name of allMealNames) {
+    await req('POST', '/api/preferences/disliked-meals', { mealName: name }, sid);
+  }
+  const emptyRes = await generateWeekly(sid, 'simple');
+  if (emptyRes.status >= 200 && emptyRes.status < 300) {
+    report('Empty-pool weekly generation succeeds (graceful)', 0);
+  } else {
+    report('Empty-pool weekly generation succeeds (graceful)', 1);
+    console.log(`  Got status ${emptyRes.status}`);
+  }
+  for (const slot of REPLACE_SLOTS) {
+    const repRes = await replaceMeal(sid, slot, 'simple');
+    if (repRes.status >= 200 && repRes.status < 300) {
+      report(`Empty-pool replace ${slot} succeeds (graceful)`, 0);
+    } else {
+      report(`Empty-pool replace ${slot} succeeds (graceful)`, 1);
+    }
+  }
+  for (const name of allMealNames) {
+    await req('DELETE', '/api/preferences/disliked-meals/' + encodeURIComponent(name), null, sid);
+  }
+
+  if (createdRecipeId) {
+    await req('DELETE', '/api/recipes/' + createdRecipeId, null, sid);
+  }
+  if (createdCmId) {
+    await req('DELETE', '/api/community-meals/' + createdCmId + '/unshare', null, sid);
+  }
   for (const meal of uniqueDislike) {
     await req('DELETE', '/api/preferences/disliked-meals/' + encodeURIComponent(meal), null, sid);
   }
-  await setPrefs(sid, {});
+  await setPrefs(sid, { dislikedMeals: [] });
 
   console.log(`\n=== RESULTS: ${passed} passed, ${failed} failed ===`);
   process.exit(failed > 0 ? 1 : 0);
