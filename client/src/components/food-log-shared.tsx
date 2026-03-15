@@ -180,14 +180,17 @@ export function extractPlanMeals(plan: SavedMealPlan, selectedDay?: string): Pla
   return meals;
 }
 
-export function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
+export function ProgressBar({ value, max, color, label }: { value: number; max: number; color: string; label?: string }) {
   const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
   const over = value > max && max > 0;
+  const barTestId = label ? `progress-${label.toLowerCase().replace(/[.\s]+/g, "-")}-fill` : undefined;
   return (
-    <div className="w-full bg-zinc-100 rounded-full h-1.5 overflow-hidden">
+    <div className="w-full bg-zinc-100 rounded-full h-1.5 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
       <div
         className={`h-full rounded-full transition-all ${over ? "bg-red-600" : color}`}
         style={{ width: `${pct}%` }}
+        data-testid={barTestId}
+        data-pct={pct}
       />
     </div>
   );
@@ -217,15 +220,16 @@ export function MacroGrid({
 
   function MacroCell({ label, value, target, color, unit }: { label: string; value: number; target?: number; color: string; unit: string }) {
     const exceeded = target != null && target > 0 && value > target;
+    const testId = `macro-${label.toLowerCase().replace(/[.\s]+/g, "-")}`;
     return (
-      <div className="bg-zinc-50 rounded-xl p-3">
+      <div className="bg-zinc-50 rounded-xl p-3" data-testid={testId}>
         <div className="flex items-baseline justify-between mb-1.5">
           <span className="text-xs text-zinc-500 font-medium">{label}</span>
-          <span className={`text-xs font-bold ${exceeded ? "text-red-600" : "text-zinc-900"}`}>
+          <span className={`text-xs font-bold ${exceeded ? "text-red-600" : "text-zinc-900"}`} data-testid={`${testId}-value`}>
             {value}<span className="font-normal text-zinc-400">/{target ?? "–"}{unit}</span>
           </span>
         </div>
-        <ProgressBar value={value} max={target ?? 0} color={color} />
+        <ProgressBar value={value} max={target ?? 0} color={color} label={label} />
       </div>
     );
   }

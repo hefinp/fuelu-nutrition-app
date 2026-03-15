@@ -11,7 +11,7 @@ test.describe("Dashboard", () => {
     expect(onAuthPage || (await signInLink.count()) > 0).toBeTruthy();
   });
 
-  test("authenticated dashboard shows nutrition targets and widgets", async ({ browser }) => {
+  test("authenticated dashboard shows nutrition targets and food log widget", async ({ browser }) => {
     const context = await browser.newContext({
       storageState: "tests/e2e/.auth-state.json",
       baseURL: "http://localhost:5000",
@@ -21,14 +21,22 @@ test.describe("Dashboard", () => {
     await page.goto("/dashboard");
     await page.waitForLoadState("networkidle");
 
-    const hasWidgets = await page.getByTestId("button-log-weight-toggle").count();
-    expect(hasWidgets).toBeGreaterThan(0);
+    const logWeightBtns = page.getByTestId("button-log-weight-toggle");
+    expect(await logWeightBtns.count()).toBeGreaterThan(0);
 
-    const foodLogBtn = page.getByTestId("button-add-log-entry");
-    expect(await foodLogBtn.count()).toBeGreaterThan(0);
+    const foodLogBtns = page.getByTestId("button-add-log-entry");
+    expect(await foodLogBtns.count()).toBeGreaterThan(0);
 
-    const diaryLink = page.getByTestId("link-view-diary");
-    expect(await diaryLink.count()).toBeGreaterThan(0);
+    const diaryLinks = page.getByTestId("link-view-diary");
+    expect(await diaryLinks.count()).toBeGreaterThan(0);
+
+    const macroCalories = page.getByTestId("macro-calories");
+    expect(await macroCalories.count()).toBeGreaterThan(0);
+
+    const macroCalValue = page.getByTestId("macro-calories-value").first();
+    const calText = await macroCalValue.textContent();
+    expect(calText).toContain("/");
+    expect(calText).not.toContain("/–");
 
     await context.close();
   });

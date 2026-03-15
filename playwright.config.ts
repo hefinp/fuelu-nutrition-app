@@ -13,7 +13,7 @@ export default defineConfig({
   projects: [
     {
       name: "unauthenticated",
-      testMatch: /01-auth|02-dashboard/,
+      testMatch: /00-calculator|01-auth|02-dashboard/,
     },
     {
       name: "authenticated",

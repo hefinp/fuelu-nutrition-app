@@ -27,4 +27,21 @@ test.describe("Diary navigation", () => {
     await page.getByTestId("button-diary-view-daily").click();
     await expect(page.getByTestId("text-diary-date")).toBeVisible();
   });
+
+  test("diary shows non-zero macro targets from calculation", async ({ page }) => {
+    await page.goto("/diary");
+    await page.waitForLoadState("networkidle");
+
+    const macroCalValue = page.getByTestId("macro-calories-value");
+    await expect(macroCalValue).toBeVisible({ timeout: 5000 });
+
+    const calText = await macroCalValue.textContent();
+    expect(calText).toContain("/");
+    expect(calText).not.toContain("/–");
+
+    const macroProtValue = page.getByTestId("macro-protein-value");
+    await expect(macroProtValue).toBeVisible();
+    const protText = await macroProtValue.textContent();
+    expect(protText).not.toContain("/–");
+  });
 });
