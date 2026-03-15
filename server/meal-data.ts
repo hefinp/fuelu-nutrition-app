@@ -249,7 +249,7 @@ export function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPrefe
 
   const filterSlot = (pool: MealEntry[]): MealEntry[] => {
     let filtered = safetyKws.length ? filterMealPoolStrict(pool, safetyKws) : pool;
-    filtered = prefKws.length ? filterMealPoolSoft(filtered, prefKws) : filtered;
+    filtered = prefKws.length ? filterMealPoolStrict(filtered, prefKws) : filtered;
     if (disliked.length) {
       const withoutDisliked = filtered.filter(m => !disliked.includes(m.meal.toLowerCase()));
       filtered = withoutDisliked.length > 0 ? withoutDisliked : filtered;
