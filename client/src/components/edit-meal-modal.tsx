@@ -452,6 +452,13 @@ export function EditMealModal({
             )}
           </div>
 
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1.5">Instructions <span className="text-zinc-400 font-normal">(optional)</span></label>
+            <textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={3}
+              placeholder="Add cooking steps, tips, or notes\u2026"
+              className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none" data-testid="textarea-edit-instructions" />
+          </div>
+
           {!hasStructured && (
             <div>
               <label className="block text-xs font-medium text-zinc-600 mb-1.5">Macros per serving</label>
@@ -471,13 +478,6 @@ export function EditMealModal({
               </div>
             </div>
           )}
-
-          <div>
-            <label className="block text-xs font-medium text-zinc-600 mb-1.5">Instructions <span className="text-zinc-400 font-normal">(optional)</span></label>
-            <textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={4}
-              placeholder="Add cooking steps, tips, or notes\u2026"
-              className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none" data-testid="textarea-edit-instructions" />
-          </div>
         </div>
 
         <div className="px-6 pb-6 pt-4 border-t border-zinc-100 shrink-0">
