@@ -435,7 +435,7 @@ export function EditMealModal({
                   <div className="bg-zinc-50 rounded-xl p-4 text-center space-y-2">
                     <p className="text-xs text-zinc-500">
                       {isFav
-                        ? "No ingredients recorded \u2014 this meal was saved from your food log without ingredient details."
+                        ? "No ingredients recorded — this meal was saved from your food log without ingredient details."
                         : "No ingredients added yet."}
                     </p>
                     <button
@@ -455,7 +455,7 @@ export function EditMealModal({
           <div>
             <label className="block text-xs font-medium text-zinc-600 mb-1.5">Instructions <span className="text-zinc-400 font-normal">(optional)</span></label>
             <textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={3}
-              placeholder="Add cooking steps, tips, or notes\u2026"
+              placeholder="Add cooking steps, tips, or notes…"
               className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none" data-testid="textarea-edit-instructions" />
           </div>
 
