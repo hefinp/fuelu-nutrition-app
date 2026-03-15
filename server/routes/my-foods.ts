@@ -44,6 +44,10 @@ router.patch("/api/my-foods/:id", async (req, res) => {
       fat100g: z.number().min(0).optional(),
       servingGrams: z.number().int().min(1).optional(),
     }).parse(req.body);
+    const { name, calories100g, protein100g, carbs100g, fat100g, servingGrams } = body;
+    if (name === undefined && calories100g === undefined && protein100g === undefined && carbs100g === undefined && fat100g === undefined && servingGrams === undefined) {
+      return res.status(400).json({ message: "No fields to update" });
+    }
     const updated = await storage.updateUserSavedFood(Number(req.params.id), req.session.userId, body);
     if (!updated) return res.status(404).json({ message: "Not found" });
     res.json(updated);
