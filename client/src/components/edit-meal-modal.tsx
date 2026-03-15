@@ -87,8 +87,21 @@ export function EditMealModal({
     };
   }, { cal: 0, prot: 0, carbs: 0, fat: 0 }), [selected]);
 
-  function addIngredient(ing: Ingredient) {
+  async function addIngredientAndPersist(ing: Ingredient, food: ExtendedFoodResult) {
     setSelected(prev => [...prev, ing]);
+    try {
+      await apiRequest("POST", "/api/my-foods", {
+        name: food.name,
+        calories100g: Math.round(food.calories100g ?? 0),
+        protein100g: Math.round((food.protein100g ?? 0) * 10) / 10,
+        carbs100g: Math.round((food.carbs100g ?? 0) * 10) / 10,
+        fat100g: Math.round((food.fat100g ?? 0) * 10) / 10,
+        servingGrams: Math.round(ing.grams),
+        source: "user-added",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-foods"] });
+    } catch {
+    }
     toast({ title: `${ing.name} added` });
   }
 
@@ -284,7 +297,7 @@ export function EditMealModal({
                     {pickerTab === "search" && (
                       <SearchPanel
                         picker={picker}
-                        onSelectFood={food => addIngredient(ingredientFromSearch(food))}
+                        onSelectFood={food => addIngredientAndPersist(ingredientFromSearch(food), food)}
                         testPrefix="edit"
                         onSwitchToAi={() => {
                           picker.setAiResult(null);
@@ -303,7 +316,7 @@ export function EditMealModal({
                           testPrefix="edit"
                           actionLabel="Add to meal"
                           onAction={(food: ExtendedFoodResult, grams: number) => {
-                            addIngredient({ ...ingredientFromSearch(food), grams });
+                            addIngredientAndPersist({ ...ingredientFromSearch(food), grams }, food);
                             picker.resetScan();
                           }}
                         />
@@ -318,7 +331,7 @@ export function EditMealModal({
                         testPrefix="edit"
                         actionLabel="Add to meal"
                         onAction={(food: ExtendedFoodResult, grams: number) => {
-                          addIngredient({ ...ingredientFromSearch(food), grams });
+                          addIngredientAndPersist({ ...ingredientFromSearch(food), grams }, food);
                           picker.resetAi();
                         }}
                       />
