@@ -39,14 +39,15 @@ The backend runs on **Node.js** with **TypeScript** using **Express 5**. It inte
 -   `server/routes/auth.ts` — Auth (register, login, logout, OAuth callbacks, password reset, invite check).
 -   `server/routes/calculations.ts` — Calculation preview/create/list + user preferences get/put.
 -   `server/routes/meal-plans.ts` — Meal plan generation, replace-meal, saved plans CRUD, schedule, optimise, email.
--   `server/routes/weight.ts` — Weight entries CRUD + AI trend insights.
--   `server/routes/cycle.ts` — Cycle daily-tip, period logs, cycle insights, phase-evidence, AI insights, research-pulse, symptoms.
+-   `server/routes/weight.ts` — Weight entries CRUD.
+-   `server/routes/cycle.ts` — Cycle daily-tip, period logs, symptoms CRUD.
+-   `server/routes/insights.ts` — All AI insight endpoints: cycle insights, phase-evidence, AI insights, research-pulse, weight insights, food-log weekly insights.
 -   `server/routes/hydration.ts` — Hydration CRUD.
--   `server/routes/food-log.ts` — Food log CRUD, food search, barcode lookup, label scan, AI food recognition, weekly insights, daily nudge, custom foods, disliked meals.
+-   `server/routes/food-log.ts` — Food log CRUD, food search, barcode lookup, label scan, AI food recognition, daily nudge, custom foods, disliked meals.
 -   `server/routes/recipes.ts` — User recipes CRUD, URL import, photo import.
 -   `server/routes/favourites.ts` — Favourite meals CRUD.
--   `server/routes/community.ts` — Community meals CRUD + admin community meal balance + startup gap-fill.
--   `server/routes/admin.ts` — Admin invite codes + beta feedback.
+-   `server/routes/community.ts` — Community meals CRUD + startup gap-fill.
+-   `server/routes/admin.ts` — Admin invite codes, beta feedback, community meal balance.
 
 Key backend functionalities include:
 -   User authentication (register, login, logout, OAuth).

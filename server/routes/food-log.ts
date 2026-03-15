@@ -95,7 +95,7 @@ router.get("/api/food-log/label-scan-available", (req, res) => {
 });
 
 router.post("/api/food-log/extract-label", async (req, res) => {
-  if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+  if (!req.session.userId) return res.status(401).json({ error: "Unauthorized" });
   const { imageBase64 } = req.body as { imageBase64?: string };
   if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
   if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "Vision service unavailable" });
@@ -269,36 +269,6 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
   }
 });
 
-router.post("/api/food-log/weekly-insights", async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
-  if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI unavailable" });
-
-  const { entries, targets, weekLabel } = req.body as {
-    entries: { date: string; calories: number; protein: number; carbs: number; fat: number }[];
-    targets: { calories: number; protein: number; carbs: number; fat: number };
-    weekLabel?: string;
-  };
-  if (!entries?.length) return res.status(400).json({ error: "No entries provided" });
-
-  try {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const logSummary = entries.map(e =>
-      `${e.date}: ${e.calories}kcal, ${e.protein}g protein, ${e.carbs}g carbs, ${e.fat}g fat`
-    ).join("\n");
-    const prompt = `Here are a user's food log totals by day${weekLabel ? ` for ${weekLabel}` : ""}:\n${logSummary}\n\nDaily targets: ${targets.calories}kcal, ${targets.protein}g protein, ${targets.carbs}g carbs, ${targets.fat}g fat.\n\nWrite 2-4 short bullet points (use • character) that: summarise macro targets hit or missed, highlight the best and weakest days, and give one practical tip for the coming week. Keep it encouraging, specific, and concise. Plain text only.`;
-
-    const resp = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 200,
-      temperature: 0.7,
-    });
-    const summary = resp.choices[0]?.message?.content?.trim() ?? "";
-    res.json({ summary });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to generate insights" });
-  }
-});
 
 router.post("/api/food-log/daily-nudge", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });

@@ -14,6 +14,7 @@ import recipesRouter from "./routes/recipes";
 import favouritesRouter from "./routes/favourites";
 import communityRouter from "./routes/community";
 import adminRouter from "./routes/admin";
+import insightsRouter from "./routes/insights";
 
 function setupPassportStrategies() {
   const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -123,6 +124,7 @@ export async function registerRoutes(
   app.use(favouritesRouter);
   app.use(communityRouter);
   app.use(adminRouter);
+  app.use(insightsRouter);
 
   return httpServer;
 }
