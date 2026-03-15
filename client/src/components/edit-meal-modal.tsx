@@ -240,26 +240,42 @@ export function EditMealModal({
               <div className="space-y-2">
                 {selected.length > 0 ? (
                   <div className="bg-zinc-50 rounded-2xl p-3 space-y-2">
-                    {selected.map(ing => (
-                      <div key={ing.key} className="flex items-center gap-2 text-xs">
-                        <div className="flex-1 min-w-0">
-                          <span className="text-zinc-700 truncate">{ing.name}</span>
+                    {selected.map(ing => {
+                      const factor = ing.grams / 100;
+                      const ingCal = Math.round(ing.calories100g * factor);
+                      const ingProt = Math.round(ing.protein100g * factor * 10) / 10;
+                      const ingCarbs = Math.round(ing.carbs100g * factor * 10) / 10;
+                      const ingFat = Math.round(ing.fat100g * factor * 10) / 10;
+                      return (
+                        <div key={ing.key} className="bg-white rounded-xl border border-zinc-100 p-2.5 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="flex-1 text-xs font-medium text-zinc-800 truncate">{ing.name}</span>
+                            <input
+                              type="number"
+                              value={ing.grams}
+                              min={1}
+                              onChange={e => updateGrams(ing.key, parseInt(e.target.value) || 1)}
+                              className="w-16 text-xs border border-zinc-200 rounded-lg px-1.5 py-1 text-center focus:outline-none focus:ring-1 focus:ring-zinc-300"
+                              data-testid={`input-edit-ing-grams-${ing.key}`}
+                            />
+                            <span className="text-zinc-400 text-[10px] shrink-0">g</span>
+                            <button type="button" onClick={() => removeIngredient(ing.key)} className="text-zinc-300 hover:text-red-500 shrink-0" data-testid={`button-edit-remove-ing-${ing.key}`}>
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            <span className="px-1.5 py-0.5 rounded-md bg-orange-50 text-orange-700 text-[10px] font-medium">{ingCal} kcal</span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-medium">P {ingProt}g</span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-green-50 text-green-700 text-[10px] font-medium">C {ingCarbs}g</span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-yellow-50 text-yellow-700 text-[10px] font-medium">F {ingFat}g</span>
+                          </div>
                         </div>
-                        <input
-                          type="number"
-                          value={ing.grams}
-                          min={1}
-                          onChange={e => updateGrams(ing.key, parseInt(e.target.value) || 1)}
-                          className="w-16 text-xs border border-zinc-200 rounded-lg px-1.5 py-1 text-center focus:outline-none focus:ring-1 focus:ring-zinc-300"
-                          data-testid={`input-edit-ing-grams-${ing.key}`}
-                        />
-                        <span className="text-zinc-400 text-[10px] shrink-0">g · {Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
-                        <button type="button" onClick={() => removeIngredient(ing.key)} className="text-zinc-300 hover:text-red-500 shrink-0" data-testid={`button-edit-remove-ing-${ing.key}`}>
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                    <MacroChips cal={totals.cal} p={totals.prot} c={totals.carbs} f={totals.fat} />
+                      );
+                    })}
+                    <div className="pt-1 border-t border-zinc-100">
+                      <p className="text-[10px] text-zinc-400 mb-1">Meal total</p>
+                      <MacroChips cal={totals.cal} p={totals.prot} c={totals.carbs} f={totals.fat} />
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-4 text-zinc-400 text-xs bg-zinc-50 rounded-2xl">
