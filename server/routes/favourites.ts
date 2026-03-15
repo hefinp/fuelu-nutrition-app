@@ -23,13 +23,13 @@ router.post("/api/favourites", async (req, res) => {
     }
     let finalIngredients: string | null = typeof ingredients === "string" ? ingredients : null;
     let finalInstructions: string | null = typeof instructions === "string" ? instructions : null;
-    if (communityMealId && !finalIngredients && !finalInstructions) {
+    if (communityMealId && (!finalIngredients || !finalInstructions)) {
       const cm = await storage.getCommunityMealById(Number(communityMealId)).catch(() => undefined);
       if (cm) {
-        if (cm.ingredients && cm.ingredients.length > 0) {
+        if (!finalIngredients && cm.ingredients && cm.ingredients.length > 0) {
           finalIngredients = cm.ingredients.join("\n");
         }
-        if (cm.instructions) {
+        if (!finalInstructions && cm.instructions) {
           finalInstructions = cm.instructions;
         }
       }
