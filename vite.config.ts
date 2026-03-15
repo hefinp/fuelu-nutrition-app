@@ -30,6 +30,15 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-recharts": ["recharts"],
+          "vendor-framer": ["framer-motion"],
+          "vendor-dnd": ["@dnd-kit/core", "@dnd-kit/sortable"],
+        },
+      },
+    },
   },
   server: {
     fs: {

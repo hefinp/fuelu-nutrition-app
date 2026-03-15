@@ -8,7 +8,12 @@ import { getCyclePhase } from "@/lib/cycle";
 import type { Calculation } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import jsPDF from "jspdf";
+type jsPDFType = import("jspdf").default;
+
+async function loadJsPDF(): Promise<typeof import("jspdf").default> {
+  const mod = await import("jspdf");
+  return mod.default;
+}
 
 const GOAL_LABELS: Record<string, string> = {
   fat_loss: "Fat Loss",
@@ -46,7 +51,7 @@ function formatShort(dateStr: string): string {
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function drawPDFLogo(doc: jsPDF, pageW: number) {
+function drawPDFLogo(doc: jsPDFType, pageW: number) {
   // White rounded square — inverted for dark header background
   const sqX = pageW - 56;
   const sqY = 10;
@@ -65,7 +70,8 @@ function drawPDFLogo(doc: jsPDF, pageW: number) {
   doc.text("Fuelr", sqX + sqSize + 2.5, sqY + 6);
 }
 
-export function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
+export async function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
+  const jsPDF = await loadJsPDF();
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
   let y = 20;
@@ -461,7 +467,8 @@ export function buildShoppingList(mealPlan: any, multiplier = 1): Record<string,
 
 export const CATEGORY_ORDER = ["Protein", "Produce", "Grains & Carbs", "Dairy", "Pantry & Spices", "Other"];
 
-export function exportShoppingListToPDF(mealPlan: any, data: Calculation, days = 1) {
+export async function exportShoppingListToPDF(mealPlan: any, data: Calculation, days = 1) {
+  const jsPDF = await loadJsPDF();
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
   let y = 20;

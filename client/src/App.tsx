@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -12,9 +13,19 @@ import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
 import AdminPage from "@/pages/admin";
-import InsightsPage from "@/pages/insights";
-import DiaryPage from "@/pages/diary";
 import { useAuth } from "@/hooks/use-auth";
+import { Loader2 } from "lucide-react";
+
+const InsightsPage = lazy(() => import("@/pages/insights"));
+const DiaryPage = lazy(() => import("@/pages/diary"));
+
+function LazyFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+    </div>
+  );
+}
 
 function RootRedirect() {
   const { user, isLoading } = useAuth();
@@ -33,8 +44,8 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/admin" component={AdminPage} />
-      <Route path="/insights">{() => <InsightsPage />}</Route>
-      <Route path="/diary" component={DiaryPage} />
+      <Route path="/insights">{() => <Suspense fallback={<LazyFallback />}><InsightsPage /></Suspense>}</Route>
+      <Route path="/diary">{() => <Suspense fallback={<LazyFallback />}><DiaryPage /></Suspense>}</Route>
       <Route component={NotFound} />
     </Switch>
   );

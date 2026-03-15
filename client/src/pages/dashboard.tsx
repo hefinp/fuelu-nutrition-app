@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,13 +9,13 @@ import { WeightTracker } from "@/components/weight-tracker";
 import { PreferencesForm, AllergiesForm } from "@/components/preferences-form";
 import { FoodLog } from "@/components/food-log";
 import { HydrationTracker } from "@/components/hydration-tracker";
-import { CycleTracker } from "@/components/cycle-tracker";
+const CycleTracker = lazy(() => import("@/components/cycle-tracker").then(m => ({ default: m.CycleTracker })));
 import { MyMealsFoodWidget } from "@/components/my-meals-food-widget";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { InstallPrompt } from "@/components/install-prompt";
-import InsightsPage from "@/pages/insights";
+const InsightsPage = lazy(() => import("@/pages/insights"));
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
 import { useDashboardLayout, WIDE_WIDGETS } from "@/hooks/use-dashboard-layout";
@@ -262,7 +262,7 @@ export default function Dashboard() {
         return user ? <HydrationTracker /> : null;
       case "cycle":
         if (!user) return null;
-        if (userPrefs?.cycleTrackingEnabled && lastCalculation?.gender === "female") return <CycleTracker />;
+        if (userPrefs?.cycleTrackingEnabled && lastCalculation?.gender === "female") return <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>}><CycleTracker /></Suspense>;
         if (lastCalculation?.gender === "female" && !userPrefs?.cycleTrackingEnabled) {
           return (
             <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl border border-rose-100 p-5" data-testid="cycle-nudge-card">
@@ -1135,7 +1135,7 @@ export default function Dashboard() {
               className="fixed z-40 inset-x-4 top-[5%] bottom-[5%] max-w-lg mx-auto bg-zinc-50 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
             >
               <div className="flex-1 overflow-y-auto">
-                <InsightsPage onClose={() => setShowInsightsPopup(false)} />
+                <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>}><InsightsPage onClose={() => setShowInsightsPopup(false)} /></Suspense>
               </div>
             </motion.div>
           </>
