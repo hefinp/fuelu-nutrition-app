@@ -127,8 +127,10 @@ async function verify() {
 
   if (missingCommunity.length === 0 && missingFavs.length === 0) {
     console.log(`All rows processed successfully.`);
+    return true;
   } else {
     console.log(`WARNING: Some rows remain unprocessed. Re-run the script.`);
+    return false;
   }
 }
 
@@ -136,8 +138,8 @@ async function main() {
   console.log("=== Bulk Generate Ingredients & Instructions ===\n");
   await generateIngredientsForCommunityMeals();
   await convertFavouritesIngredients();
-  await verify();
-  process.exit(0);
+  const ok = await verify();
+  process.exit(ok ? 0 : 1);
 }
 
 main().catch(err => {
