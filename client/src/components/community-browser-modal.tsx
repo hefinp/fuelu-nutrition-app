@@ -119,6 +119,10 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
     setSavingId(meal.id);
     setAllergyWarning(null);
     try {
+      const detail = mealDetails[meal.id];
+      const detailData = (detail && detail !== "loading" && detail !== "error") ? detail : null;
+      const ingredientsArr = detailData?.ingredients ?? meal.ingredients;
+      const instructionsText = detailData?.instructions ?? meal.instructions;
       await apiRequest("POST", "/api/favourites", {
         mealName: meal.name,
         calories: meal.caloriesPerServing,
@@ -127,6 +131,8 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
         fat: meal.fatPerServing,
         mealSlot: meal.slot,
         communityMealId: meal.id,
+        ingredients: ingredientsArr && ingredientsArr.length > 0 ? ingredientsArr.join("\n") : undefined,
+        instructions: instructionsText || undefined,
       });
       setSavedMealIds(prev => new Set(prev).add(meal.id));
       queryClient.invalidateQueries({ queryKey: ["/api/favourites"] });

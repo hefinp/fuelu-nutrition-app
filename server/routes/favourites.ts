@@ -17,9 +17,22 @@ router.get("/api/favourites", async (req, res) => {
 router.post("/api/favourites", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
-    const { mealName, calories, protein, carbs, fat, mealSlot, communityMealId } = req.body;
+    const { mealName, calories, protein, carbs, fat, mealSlot, communityMealId, ingredients, instructions } = req.body;
     if (!mealName || calories == null || protein == null || carbs == null || fat == null) {
       return res.status(400).json({ message: "Missing required fields" });
+    }
+    let finalIngredients: string | null = typeof ingredients === "string" ? ingredients : null;
+    let finalInstructions: string | null = typeof instructions === "string" ? instructions : null;
+    if (communityMealId && !finalIngredients && !finalInstructions) {
+      const cm = await storage.getCommunityMealById(Number(communityMealId)).catch(() => undefined);
+      if (cm) {
+        if (cm.ingredients && cm.ingredients.length > 0) {
+          finalIngredients = cm.ingredients.join("\n");
+        }
+        if (cm.instructions) {
+          finalInstructions = cm.instructions;
+        }
+      }
     }
     const created = await storage.addFavouriteMeal({
       userId: req.session.userId,
@@ -29,6 +42,8 @@ router.post("/api/favourites", async (req, res) => {
       carbs: Number(carbs),
       fat: Number(fat),
       mealSlot: mealSlot ?? null,
+      ingredients: finalIngredients,
+      instructions: finalInstructions,
     });
     if (communityMealId) {
       await storage.incrementCommunityMealFavourite(Number(communityMealId)).catch(() => {});

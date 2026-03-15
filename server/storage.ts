@@ -86,7 +86,7 @@ export interface IStorage {
 
   // Favourite meals
   getFavouriteMeals(userId: number): Promise<FavouriteMeal[]>;
-  addFavouriteMeal(entry: { userId: number; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null }): Promise<FavouriteMeal>;
+  addFavouriteMeal(entry: { userId: number; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null; ingredients?: string | null; ingredientsJson?: unknown; instructions?: string | null }): Promise<FavouriteMeal>;
   updateFavouriteMeal(id: number, userId: number, updates: { mealName?: string; calories?: number; protein?: number; carbs?: number; fat?: number; mealSlot?: string | null; ingredients?: string | null; ingredientsJson?: unknown; instructions?: string | null }): Promise<FavouriteMeal | undefined>;
   removeFavouriteMeal(id: number, userId: number): Promise<void>;
 
@@ -452,7 +452,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(favouriteMeals.createdAt));
   }
 
-  async addFavouriteMeal(entry: { userId: number; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null }): Promise<FavouriteMeal> {
+  async addFavouriteMeal(entry: { userId: number; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null; ingredients?: string | null; ingredientsJson?: unknown; instructions?: string | null }): Promise<FavouriteMeal> {
     const [created] = await db.insert(favouriteMeals).values(entry).returning();
     return created;
   }
