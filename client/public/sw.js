@@ -1,4 +1,4 @@
-const CACHE_NAME = "fuelr-v1";
+const CACHE_NAME = "fuelr-v2";
 const SHELL_ASSETS = ["/", "/dashboard"];
 
 self.addEventListener("install", (event) => {
@@ -23,6 +23,24 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.pathname.startsWith("/api/") || url.origin !== self.location.origin) return;
+
+  const isNavigation = request.mode === "navigate" ||
+    request.headers.get("accept")?.includes("text/html");
+
+  if (isNavigation) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(request).then((cached) => {
