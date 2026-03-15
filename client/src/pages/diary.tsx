@@ -35,9 +35,10 @@ export default function DiaryPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
 
-  const { data: calcData } = useQuery<Calculation>({
-    queryKey: ["/api/calculations/latest"],
+  const { data: calcHistory = [] } = useQuery<Calculation[]>({
+    queryKey: ["/api/calculations"],
   });
+  const calcData = calcHistory[0] ?? null;
 
   if (authLoading) return null;
   if (!user) {
