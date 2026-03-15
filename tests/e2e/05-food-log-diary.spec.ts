@@ -47,6 +47,12 @@ test.describe("Food log via diary", () => {
     await expect(protBar).toBeAttached();
     const protPct = parseInt(await protBar.getAttribute("data-pct") || "0", 10);
     expect(protPct).toBeGreaterThan(0);
+
+    await page.goto("/dashboard");
+    await page.waitForLoadState("networkidle");
+
+    const dashboardPage = page.locator("body");
+    await expect(dashboardPage).toContainText("380", { timeout: 5000 });
   });
 
   test("drawer opens and closes correctly", async ({ page }) => {
