@@ -173,7 +173,26 @@ async function run() {
   const combNames = collectAllMealNames(combPlan, true);
   report('Weekly simple excludes chicken + nut allergen', checkNoKeywords(combNames, combKws, 'weekly/simple'));
 
-  console.log('\n=== TEST 8: Allergen regression (gluten+sesame, no excluded foods) ===');
+  console.log('\n=== TEST 8: Empty-pool graceful handling (extreme exclusions) ===');
+  await setPrefs(sid, { excludedFoods: ['chicken', 'beef', 'lamb', 'pork', 'turkey', 'duck', 'salmon', 'tuna', 'cod', 'egg', 'tofu', 'rice', 'pasta', 'bread', 'avocado', 'mushroom', 'cheese', 'yogurt', 'oat', 'quinoa', 'lentil', 'bean', 'chickpea'] });
+  const emptyRes = await generateWeekly(sid, 'simple');
+  if (emptyRes.status >= 200 && emptyRes.status < 300) {
+    report('Empty-pool weekly returns success (graceful, no crash)', 0);
+  } else {
+    report('Empty-pool weekly returns success (graceful, no crash)', 1);
+    console.log(`  Got status ${emptyRes.status}`);
+  }
+  for (const slot of REPLACE_SLOTS) {
+    const repRes = await replaceMeal(sid, slot, 'simple');
+    const repData = JSON.parse(repRes.body);
+    if (repRes.status === 200) {
+      report(`Empty-pool replace ${slot} returns 200`, 0);
+    } else {
+      report(`Empty-pool replace ${slot} returns 200`, 1);
+    }
+  }
+
+  console.log('\n=== TEST 9: Allergen regression (gluten+sesame, no excluded foods) ===');
   await setPrefs(sid, { allergies: ['gluten', 'sesame'] });
   const glSeKws = ['toast', 'bread', 'pasta', 'spaghetti', 'noodle', 'tortilla', 'bagel', 'muffin', 'cracker', 'sourdough', 'rye', 'bulgur', 'couscous', 'crouton', 'flatbread', 'crepe', 'pancake', 'brioche', 'oat', 'oats', 'oatmeal', 'granola', 'muesli', 'barley', 'spelt', 'wheat', 'pumpernickel', 'porridge', 'sesame', 'tahini', 'hummus', 'halva', 'gomashio'];
   const glRes = await generateWeekly(sid, 'simple');
