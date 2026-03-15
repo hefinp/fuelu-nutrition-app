@@ -29,8 +29,8 @@ export function EditMealModal({
   const [carbs, setCarbs] = useState(String(isFav ? fav!.carbs : rec!.carbsPerServing));
   const [fat, setFat] = useState(String(isFav ? fav!.fat : rec!.fatPerServing));
   const [mealSlot, setMealSlot] = useState<MealSlot>((isFav ? fav!.mealSlot : rec!.mealSlot) as MealSlot ?? "dinner");
-  const [instructions, setInstructions] = useState(isFav ? (fav as any)?.instructions ?? "" : rec?.instructions ?? "");
-  const [ingredients, setIngredients] = useState(isFav ? (fav as any)?.ingredients ?? "" : rec?.ingredients ?? "");
+  const [instructions, setInstructions] = useState(isFav ? fav!.instructions ?? "" : rec?.instructions ?? "");
+  const [ingredients, setIngredients] = useState(isFav ? fav!.ingredients ?? "" : rec?.ingredients ?? "");
 
   const saveMutation = useMutation({
     mutationFn: () => {

@@ -52,7 +52,7 @@ router.patch("/api/favourites/:id", async (req, res) => {
       ingredients: z.string().nullable().optional(),
       instructions: z.string().nullable().optional(),
     }).parse(req.body);
-    const updated = await storage.updateFavouriteMeal(Number(req.params.id), req.session.userId, body as any);
+    const updated = await storage.updateFavouriteMeal(Number(req.params.id), req.session.userId, body);
     if (!updated) return res.status(404).json({ message: "Not found" });
     res.json(updated);
   } catch (err) {

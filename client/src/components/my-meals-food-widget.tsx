@@ -283,7 +283,7 @@ export function MyMealsFoodWidget() {
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={e => { e.stopPropagation(); setEditTarget({ type: entry.kind, item: entry.item }); }}
-                            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+                            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
                             data-testid={`button-edit-meal-${entry.kind}-${entry.item.id}`}
                             title="Edit"
                           >
@@ -291,7 +291,7 @@ export function MyMealsFoodWidget() {
                           </button>
                           <button
                             onClick={e => { e.stopPropagation(); deleteMeal(entry); }}
-                            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+                            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                             data-testid={`button-delete-meal-${entry.kind}-${entry.item.id}`}
                             title="Remove"
                           >
@@ -408,7 +408,7 @@ export function MyMealsFoodWidget() {
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={e => { e.stopPropagation(); setEditFoodTarget(food); }}
-                            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+                            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
                             data-testid={`button-edit-food-${food.id}`}
                             title="Edit"
                           >
@@ -416,7 +416,7 @@ export function MyMealsFoodWidget() {
                           </button>
                           <button
                             onClick={e => { e.stopPropagation(); deleteFoodMutation.mutate(food.id); }}
-                            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+                            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                             data-testid={`button-delete-food-${food.id}`}
                             title="Remove"
                           >
