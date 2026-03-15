@@ -16,6 +16,7 @@ import myFoodsRouter from "./routes/my-foods";
 import communityRouter from "./routes/community";
 import adminRouter from "./routes/admin";
 import insightsRouter from "./routes/insights";
+import testSetupRouter from "./routes/test-setup";
 
 function setupPassportStrategies() {
   const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -127,6 +128,9 @@ export async function registerRoutes(
   app.use(communityRouter);
   app.use(adminRouter);
   app.use(insightsRouter);
+  if (process.env.NODE_ENV !== "production") {
+    app.use(testSetupRouter);
+  }
 
   return httpServer;
 }
