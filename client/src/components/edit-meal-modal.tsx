@@ -101,6 +101,8 @@ export function EditMealModal({
       });
       queryClient.invalidateQueries({ queryKey: ["/api/my-foods"] });
     } catch {
+      toast({ title: `${ing.name} added (not saved to My Foods)`, variant: "destructive" });
+      return;
     }
     toast({ title: `${ing.name} added` });
   }
@@ -412,6 +414,12 @@ export function EditMealModal({
                       ))}
                     </ul>
                     <p className="text-[10px] text-zinc-400 mt-2">Tap "Convert ingredients" above to enable editing with macro data.</p>
+                    <button
+                      type="button"
+                      onClick={() => { setSelected([]); setHasStructured(true); setShowPicker(true); }}
+                      className="mt-2 text-[10px] text-zinc-400 underline hover:text-zinc-600"
+                      data-testid="button-edit-start-fresh"
+                    >Or start with an empty structured list</button>
                   </div>
                 ) : (
                   <button
