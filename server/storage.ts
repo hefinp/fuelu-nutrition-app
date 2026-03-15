@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, favouriteMeals, communityMeals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type FavouriteMeal, type CommunityMeal } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, favouriteMeals, communityMeals, userSavedFoods, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type FavouriteMeal, type CommunityMeal, type UserSavedFood } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, ilike, sql } from "drizzle-orm";
 
@@ -53,6 +53,7 @@ export interface IStorage {
   // User recipes
   getUserRecipes(userId: number): Promise<UserRecipe[]>;
   createUserRecipe(recipe: InsertUserRecipe & { userId: number }): Promise<UserRecipe>;
+  updateUserRecipe(id: number, userId: number, updates: { name?: string; caloriesPerServing?: number; proteinPerServing?: number; carbsPerServing?: number; fatPerServing?: number; mealSlot?: string; instructions?: string | null; ingredients?: string | null }): Promise<UserRecipe | undefined>;
   deleteUserRecipe(id: number, userId: number): Promise<void>;
 
   // Hydration
@@ -86,7 +87,13 @@ export interface IStorage {
   // Favourite meals
   getFavouriteMeals(userId: number): Promise<FavouriteMeal[]>;
   addFavouriteMeal(entry: { userId: number; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null }): Promise<FavouriteMeal>;
+  updateFavouriteMeal(id: number, userId: number, updates: { mealName?: string; calories?: number; protein?: number; carbs?: number; fat?: number; mealSlot?: string | null }): Promise<FavouriteMeal | undefined>;
   removeFavouriteMeal(id: number, userId: number): Promise<void>;
+
+  // User saved foods
+  getUserSavedFoods(userId: number): Promise<UserSavedFood[]>;
+  addUserSavedFood(entry: { userId: number; name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams?: number }): Promise<UserSavedFood>;
+  removeUserSavedFood(id: number, userId: number): Promise<void>;
 
   // Community meals
   getCommunityMeals(filters?: { slot?: string; style?: string }): Promise<CommunityMeal[]>;
@@ -317,6 +324,14 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async updateUserRecipe(id: number, userId: number, updates: { name?: string; caloriesPerServing?: number; proteinPerServing?: number; carbsPerServing?: number; fatPerServing?: number; mealSlot?: string; instructions?: string | null; ingredients?: string | null }): Promise<UserRecipe | undefined> {
+    const [updated] = await db.update(userRecipes)
+      .set(updates)
+      .where(and(eq(userRecipes.id, id), eq(userRecipes.userId, userId)))
+      .returning();
+    return updated;
+  }
+
   async deleteUserRecipe(id: number, userId: number): Promise<void> {
     await db.delete(userRecipes)
       .where(and(eq(userRecipes.id, id), eq(userRecipes.userId, userId)));
@@ -441,9 +456,36 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async updateFavouriteMeal(id: number, userId: number, updates: { mealName?: string; calories?: number; protein?: number; carbs?: number; fat?: number; mealSlot?: string | null }): Promise<FavouriteMeal | undefined> {
+    const [updated] = await db.update(favouriteMeals)
+      .set(updates)
+      .where(and(eq(favouriteMeals.id, id), eq(favouriteMeals.userId, userId)))
+      .returning();
+    return updated;
+  }
+
   async removeFavouriteMeal(id: number, userId: number): Promise<void> {
     await db.delete(favouriteMeals)
       .where(and(eq(favouriteMeals.id, id), eq(favouriteMeals.userId, userId)));
+  }
+
+  async getUserSavedFoods(userId: number): Promise<UserSavedFood[]> {
+    return await db.select().from(userSavedFoods)
+      .where(eq(userSavedFoods.userId, userId))
+      .orderBy(desc(userSavedFoods.createdAt));
+  }
+
+  async addUserSavedFood(entry: { userId: number; name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams?: number }): Promise<UserSavedFood> {
+    const [created] = await db.insert(userSavedFoods).values({
+      ...entry,
+      servingGrams: entry.servingGrams ?? 100,
+    }).returning();
+    return created;
+  }
+
+  async removeUserSavedFood(id: number, userId: number): Promise<void> {
+    await db.delete(userSavedFoods)
+      .where(and(eq(userSavedFoods.id, id), eq(userSavedFoods.userId, userId)));
   }
 
   async getCommunityMeals(filters?: { slot?: string; style?: string }): Promise<CommunityMeal[]> {

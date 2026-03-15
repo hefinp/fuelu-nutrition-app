@@ -228,6 +228,7 @@ export const userRecipes = pgTable("user_recipes", {
   carbsPerServing: integer("carbs_per_serving").notNull(),
   fatPerServing: integer("fat_per_serving").notNull(),
   ingredients: text("ingredients"),
+  instructions: text("instructions"),
   mealSlot: text("meal_slot").notNull(),
   mealStyle: text("meal_style").notNull().default("simple"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -346,6 +347,27 @@ export const insertFavouriteMealSchema = createInsertSchema(favouriteMeals).omit
 
 export type InsertFavouriteMeal = z.infer<typeof insertFavouriteMealSchema>;
 export type FavouriteMeal = typeof favouriteMeals.$inferSelect;
+
+export const userSavedFoods = pgTable("user_saved_foods", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  calories100g: integer("calories_100g").notNull(),
+  protein100g: numeric("protein_100g").notNull(),
+  carbs100g: numeric("carbs_100g").notNull(),
+  fat100g: numeric("fat_100g").notNull(),
+  servingGrams: integer("serving_grams").notNull().default(100),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserSavedFoodSchema = createInsertSchema(userSavedFoods).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
+export type InsertUserSavedFood = z.infer<typeof insertUserSavedFoodSchema>;
+export type UserSavedFood = typeof userSavedFoods.$inferSelect;
 
 export const feedbackEntries = pgTable("feedback_entries", {
   id: serial("id").primaryKey(),

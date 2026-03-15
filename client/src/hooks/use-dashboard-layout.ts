@@ -6,32 +6,36 @@ import type { UserPreferences } from "@shared/schema";
 
 export type WidgetId =
   | "nutrition"
-  | "recipe-library"
+  | "my-meals-food"
   | "food-log"
   | "meal-plan"
   | "hydration"
   | "weight"
-  | "cycle"
-  | "favourites";
+  | "cycle";
 
 // Widgets that span the wide (left) desktop column
-export const WIDE_WIDGETS = new Set<WidgetId>(["nutrition", "recipe-library"]);
+export const WIDE_WIDGETS = new Set<WidgetId>(["nutrition", "my-meals-food"]);
 
 // Default stacking order — mobile renders this top-to-bottom
 // Desktop splits by WIDE_WIDGETS automatically
 export const DEFAULT_ORDER: WidgetId[] = [
   "food-log",
-  "favourites",
   "cycle",
   "hydration",
   "meal-plan",
   "nutrition",
   "weight",
-  "recipe-library",
+  "my-meals-food",
 ];
 
 // All known widget IDs — used to merge new widgets into saved layouts
 const ALL_WIDGET_IDS: WidgetId[] = DEFAULT_ORDER;
+
+// Legacy IDs that no longer exist — strip from saved layouts and replace if needed
+const LEGACY_ID_MAP: Partial<Record<string, WidgetId>> = {
+  "recipe-library": "my-meals-food",
+  "favourites": undefined as any,
+};
 
 export function useDashboardLayout(isLoggedIn: boolean) {
   const queryClient = useQueryClient();
@@ -48,8 +52,15 @@ export function useDashboardLayout(isLoggedIn: boolean) {
     if (!prefs) return;
     const saved = prefs.dashboardLayout?.order;
     if (saved?.length) {
-      const base = saved as WidgetId[];
-      // Merge any new widget IDs that aren't in the saved layout
+      // Migrate legacy IDs: replace recipe-library → my-meals-food, remove favourites
+      let base = (saved as string[]).flatMap(id => {
+        const mapped = LEGACY_ID_MAP[id];
+        if (id in LEGACY_ID_MAP) {
+          return mapped ? [mapped as WidgetId] : [];
+        }
+        return [id as WidgetId];
+      });
+      // Merge any new widget IDs that aren't in the migrated layout
       const merged = [...base];
       for (const id of ALL_WIDGET_IDS) {
         if (!merged.includes(id)) {

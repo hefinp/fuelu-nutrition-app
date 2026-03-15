@@ -45,13 +45,14 @@ const WIDGET_HELP: Record<string, { title: string; description: string; tips?: s
       "Dietary preferences and allergies set in your settings are automatically respected.",
     ],
   },
-  "recipe-library": {
-    title: "Recipe Library",
-    description: "Save and browse recipes from anywhere on the web. Paste a URL from any recipe website and Fuelr will fetch the ingredients and calculate full nutritional information per serving automatically.",
+  "my-meals-food": {
+    title: "My Meals & Food",
+    description: "Save, organise and log your favourite meals, imported recipes, and individual foods. Build custom meals from your saved foods, import recipes from any website or a photo, and log anything with one tap.",
     tips: [
-      "Works with most major recipe websites (BBC Good Food, AllRecipes, Serious Eats, and more).",
-      "Nutritional info is estimated per serving based on the ingredient list.",
-      "Saved recipes can be added straight to your meal plan or food log.",
+      "Switch between the Meals and My Foods tabs to see different types of saved items.",
+      "Import a recipe by pasting a URL from BBC Good Food, AllRecipes, or most other recipe sites.",
+      "Use Create Meal to build a meal from your saved foods — macros are summed automatically.",
+      "Star meals from your food diary to save them here instantly.",
     ],
   },
   hydration: {

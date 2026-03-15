@@ -268,6 +268,28 @@ router.post("/api/recipes", async (req, res) => {
   res.status(201).json(recipe);
 });
 
+router.patch("/api/recipes/:id", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const id = parseInt(req.params.id);
+    const { name, caloriesPerServing, proteinPerServing, carbsPerServing, fatPerServing, mealSlot, instructions, ingredients } = req.body;
+    const updates: Record<string, unknown> = {};
+    if (name !== undefined) updates.name = name;
+    if (caloriesPerServing !== undefined) updates.caloriesPerServing = Number(caloriesPerServing);
+    if (proteinPerServing !== undefined) updates.proteinPerServing = Number(proteinPerServing);
+    if (carbsPerServing !== undefined) updates.carbsPerServing = Number(carbsPerServing);
+    if (fatPerServing !== undefined) updates.fatPerServing = Number(fatPerServing);
+    if (mealSlot !== undefined) updates.mealSlot = mealSlot;
+    if (instructions !== undefined) updates.instructions = instructions;
+    if (ingredients !== undefined) updates.ingredients = ingredients;
+    const updated = await storage.updateUserRecipe(id, req.session.userId, updates as any);
+    if (!updated) return res.status(404).json({ message: "Not found" });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update recipe" });
+  }
+});
+
 router.delete("/api/recipes/:id", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const id = parseInt(req.params.id);

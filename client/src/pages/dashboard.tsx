@@ -8,10 +8,9 @@ import { SavedMealPlans } from "@/components/saved-meal-plans";
 import { WeightTracker } from "@/components/weight-tracker";
 import { PreferencesForm, AllergiesForm } from "@/components/preferences-form";
 import { FoodLog } from "@/components/food-log";
-import { RecipeLibrary } from "@/components/recipe-library";
 import { HydrationTracker } from "@/components/hydration-tracker";
 import { CycleTracker } from "@/components/cycle-tracker";
-import { FavouritesWidget } from "@/components/favourites-widget";
+import { MyMealsFoodWidget } from "@/components/my-meals-food-widget";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
@@ -242,8 +241,8 @@ export default function Dashboard() {
     switch (id) {
       case "nutrition":
         return <NutritionDisplay data={activeResult!} />;
-      case "recipe-library":
-        return user ? <RecipeLibrary /> : null;
+      case "my-meals-food":
+        return user ? <MyMealsFoodWidget /> : null;
       case "food-log":
         return user ? (
           <div id="food-log-section">
@@ -291,8 +290,6 @@ export default function Dashboard() {
           );
         }
         return null;
-      case "favourites":
-        return user ? <FavouritesWidget /> : null;
       case "weight":
         return user ? (
           <WeightTracker
@@ -448,13 +445,12 @@ export default function Dashboard() {
               <div className="flex-1 overflow-y-auto pb-safe">
                 {user && (() => {
                   const WIDGET_CONFIG: { id: string; label: string; Icon: React.ElementType }[] = [
-                    { id: "food-log",       label: "Food Log",         Icon: ClipboardList },
-                    { id: "favourites",     label: "Favourites",       Icon: Star },
-                    { id: "hydration",      label: "Hydration",        Icon: Droplets },
-                    { id: "meal-plan",      label: "Meal Planner",     Icon: UtensilsCrossed },
-                    { id: "nutrition",      label: "Nutrition",        Icon: SlidersHorizontal },
-                    { id: "weight",         label: "Progress Tracker", Icon: Scale },
-                    { id: "recipe-library", label: "Recipe Library",   Icon: BookMarked },
+                    { id: "food-log",        label: "Food Log",           Icon: ClipboardList },
+                    { id: "my-meals-food",   label: "My Meals & Food",    Icon: UtensilsCrossed },
+                    { id: "hydration",       label: "Hydration",          Icon: Droplets },
+                    { id: "meal-plan",       label: "Meal Planner",       Icon: Salad },
+                    { id: "nutrition",       label: "Nutrition",          Icon: SlidersHorizontal },
+                    { id: "weight",          label: "Progress Tracker",   Icon: Scale },
                   ];
 
                   return (
