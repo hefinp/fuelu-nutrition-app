@@ -1,4 +1,4 @@
-const CACHE_NAME = "fuelr-v3";
+const CACHE_NAME = "fuelu-v1";
 const SHELL_ASSETS = ["/", "/dashboard"];
 
 self.addEventListener("install", (event) => {

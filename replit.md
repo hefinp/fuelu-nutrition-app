@@ -1,8 +1,8 @@
-# Fuelr — Replit.md
+# FuelU — Replit.md
 
 ## Overview
 
-Fuelr is a comprehensive full-stack nutrition calculator web application designed to empower users with personalized dietary management. It generates daily/weekly calorie and macronutrient targets based on user biometrics, and creates tailored meal plans (Simple, Gourmet, Michelin) considering food preferences, allergies, and dislikes. Key features include meal plan save/export (PDF), shopping list generation, individual meal replacement, a food log with macro tracking, weight tracking with AI insights, hydration tracking with alerts, and a robust user authentication system with password reset and OAuth options. The platform aims to provide a holistic solution for personal nutrition, from planning to tracking and analysis, incorporating AI for personalized insights and meal suggestions.
+FuelU is a comprehensive full-stack nutrition calculator web application designed to empower users with personalized dietary management. It generates daily/weekly calorie and macronutrient targets based on user biometrics, and creates tailored meal plans (Simple, Gourmet, Michelin) considering food preferences, allergies, and dislikes. Key features include meal plan save/export (PDF), shopping list generation, individual meal replacement, a food log with macro tracking, weight tracking with AI insights, hydration tracking with alerts, and a robust user authentication system with password reset and OAuth options. The platform aims to provide a holistic solution for personal nutrition, from planning to tracking and analysis, incorporating AI for personalized insights and meal suggestions.
 
 ## User Preferences
 

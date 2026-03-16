@@ -8,14 +8,14 @@ import {
 const STEPS = [
   {
     Icon: Sparkles,
-    title: "Welcome to Fuelr",
+    title: "Welcome to FuelU",
     description: "Let's take a 30-second tour of everything you can do. You can skip this at any time.",
     accent: "bg-violet-100 text-violet-600",
   },
   {
     Icon: SlidersHorizontal,
     title: "Enter Your Metrics",
-    description: "Start by entering your weight, height, age, and fitness goal. Fuelr calculates your daily calorie target and a personalised protein, carbs, and fat breakdown.",
+    description: "Start by entering your weight, height, age, and fitness goal. FuelU calculates your daily calorie target and a personalised protein, carbs, and fat breakdown.",
     accent: "bg-blue-100 text-blue-600",
   },
   {
@@ -45,7 +45,7 @@ const STEPS = [
   {
     Icon: BookMarked,
     title: "Recipe Library",
-    description: "Import recipes from your favourite websites. Fuelr extracts the nutrition info and can include them in your generated meal plans.",
+    description: "Import recipes from your favourite websites. FuelU extracts the nutrition info and can include them in your generated meal plans.",
     accent: "bg-orange-100 text-orange-600",
   },
   {

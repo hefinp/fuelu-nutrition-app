@@ -250,7 +250,7 @@ router.post("/api/auth/forgot-password", async (req, res) => {
     const resetUrl = `${appUrl}/reset-password?token=${token}`;
     await sendEmail({
       to: user.email,
-      subject: "Reset your Fuelr password",
+      subject: "Reset your FuelU password",
       html: buildPasswordResetEmailHtml(resetUrl, user.name),
     });
     res.json({ message: "If that email is registered you will receive a reset link." });

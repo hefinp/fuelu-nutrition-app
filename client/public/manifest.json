@@ -1,6 +1,6 @@
 {
-  "name": "Fuelr",
-  "short_name": "Fuelr",
+  "name": "FuelU",
+  "short_name": "FuelU",
   "description": "Personalised meal plans, macro tracking, and cycle-aware nutrition.",
   "start_url": "/dashboard",
   "display": "standalone",

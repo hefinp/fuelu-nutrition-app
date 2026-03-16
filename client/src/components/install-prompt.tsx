@@ -7,7 +7,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-const DISMISS_KEY = "fuelr-install-dismissed";
+const DISMISS_KEY = "fuelu-install-dismissed";
 
 function isIosSafari(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -47,7 +47,7 @@ function IosGuideModal({ onClose }: { onClose: () => void }) {
         data-testid="ios-guide-sheet"
       >
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-semibold">Install Fuelr</h3>
+          <h3 className="text-lg font-semibold">Install FuelU</h3>
           <button
             onClick={onClose}
             className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
@@ -167,7 +167,7 @@ export function InstallPrompt() {
               <Download className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium leading-tight">Add Fuelr to your home screen</p>
+              <p className="text-sm font-medium leading-tight">Add FuelU to your home screen</p>
               {showIos && (
                 <p className="text-xs text-zinc-400 mt-0.5">
                   Tap to see how

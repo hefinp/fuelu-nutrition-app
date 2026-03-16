@@ -7,10 +7,11 @@ export default function TermsPage() {
       <header className="border-b border-zinc-100 sticky top-0 z-50 bg-white/90 backdrop-blur-sm">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center relative">
               <div className="w-3 h-3 bg-white rounded-full" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[3px] h-[calc(50%-6px)] bg-white rounded-t-sm" />
             </div>
-            <span className="font-display font-bold text-xl tracking-tight text-zinc-900">Fuelr</span>
+            <span className="font-display font-bold text-xl tracking-tight text-zinc-900">FuelU</span>
           </Link>
           <Link
             href="/"
@@ -30,32 +31,32 @@ export default function TermsPage() {
         <div className="prose prose-zinc max-w-none space-y-8 text-zinc-700 leading-relaxed text-[15px]">
           <section>
             <h2 className="text-xl font-semibold text-zinc-900 mb-3">1. Acceptance of Terms</h2>
-            <p>By creating an account or using Fuelr you agree to these Terms of Service. If you do not agree, please do not use the service.</p>
+            <p>By creating an account or using FuelU you agree to these Terms of Service. If you do not agree, please do not use the service.</p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-zinc-900 mb-3">2. Description of Service</h2>
-            <p>Fuelr is a nutrition calculator and meal-planning tool. It provides estimated calorie targets, macronutrient breakdowns, and sample meal plans based on the body metrics and goals you supply. The service is provided free of charge.</p>
+            <p>FuelU is a nutrition calculator and meal-planning tool. It provides estimated calorie targets, macronutrient breakdowns, and sample meal plans based on the body metrics and goals you supply. The service is provided free of charge.</p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-zinc-900 mb-3">3. Health Disclaimer</h2>
-            <p>Fuelr is not a medical service. All calorie targets, macro breakdowns, and meal plans are estimates based on widely used formulas (Mifflin-St Jeor) and should not be treated as medical advice. You should consult a qualified healthcare professional before making significant dietary changes, especially if you have a medical condition, food allergies, or special nutritional needs.</p>
+            <p>FuelU is not a medical service. All calorie targets, macro breakdowns, and meal plans are estimates based on widely used formulas (Mifflin-St Jeor) and should not be treated as medical advice. You should consult a qualified healthcare professional before making significant dietary changes, especially if you have a medical condition, food allergies, or special nutritional needs.</p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-zinc-900 mb-3">4. User Accounts</h2>
-            <p>You are responsible for maintaining the confidentiality of your account credentials. You agree to provide accurate information when creating your account and using the calculator. Fuelr reserves the right to suspend or terminate accounts that violate these terms.</p>
+            <p>You are responsible for maintaining the confidentiality of your account credentials. You agree to provide accurate information when creating your account and using the calculator. FuelU reserves the right to suspend or terminate accounts that violate these terms.</p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-zinc-900 mb-3">5. Limitation of Liability</h2>
-            <p>Fuelr and its operators shall not be held liable for any direct, indirect, incidental, or consequential damages arising from your use of the service, including but not limited to health outcomes resulting from following generated meal plans. The service is provided &ldquo;as is&rdquo; without warranties of any kind.</p>
+            <p>FuelU and its operators shall not be held liable for any direct, indirect, incidental, or consequential damages arising from your use of the service, including but not limited to health outcomes resulting from following generated meal plans. The service is provided &ldquo;as is&rdquo; without warranties of any kind.</p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-zinc-900 mb-3">6. Intellectual Property</h2>
-            <p>All content, design, and code comprising Fuelr are the property of its operators. You may not reproduce, distribute, or create derivative works from the service without prior written consent.</p>
+            <p>All content, design, and code comprising FuelU are the property of its operators. You may not reproduce, distribute, or create derivative works from the service without prior written consent.</p>
           </section>
 
           <section>
@@ -65,14 +66,14 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-xl font-semibold text-zinc-900 mb-3">8. Governing Law</h2>
-            <p>These terms are governed by applicable law. Any disputes arising from the use of Fuelr shall be resolved in accordance with the jurisdiction of the service operator.</p>
+            <p>These terms are governed by applicable law. Any disputes arising from the use of FuelU shall be resolved in accordance with the jurisdiction of the service operator.</p>
           </section>
         </div>
       </main>
 
       <footer className="border-t border-zinc-100 py-8">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 flex items-center justify-between">
-          <span className="text-xs text-zinc-400">&copy; 2026 Fuelr</span>
+          <span className="text-xs text-zinc-400">&copy; 2026 FuelU</span>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors" data-testid="link-terms-privacy">Privacy</Link>
             <Link href="/terms" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors font-medium">Terms</Link>

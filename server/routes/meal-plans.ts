@@ -617,7 +617,7 @@ router.post("/api/saved-meal-plans/:id/email", async (req, res) => {
     if (Object.keys(validated).length > 0) shoppingList = validated;
   }
   const html = buildMealPlanEmailHtml(plan.name, user.name, plan.planData as any, plan.planType, shoppingList);
-  await sendEmail({ to: user.email, subject: `Your Fuelr plan: ${plan.name}`, html });
+  await sendEmail({ to: user.email, subject: `Your FuelU plan: ${plan.name}`, html });
   res.json({ message: "Plan sent to your email." });
 });
 

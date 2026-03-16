@@ -48,16 +48,22 @@ function drawPDFLogo(doc: jsPDFType, pageW: number) {
   const sqX = pageW - 56;
   const sqY = 10;
   const sqSize = 8;
-  doc.setFillColor(255, 255, 255);
+  doc.setFillColor(24, 24, 27);
   doc.roundedRect(sqX, sqY, sqSize, sqSize, 1.5, 1.5, "F");
 
-  doc.setFillColor(24, 24, 27);
+  doc.setFillColor(255, 255, 255);
   doc.circle(sqX + sqSize / 2, sqY + sqSize / 2, 1.8, "F");
+
+  const handleW = 0.8;
+  const cx = sqX + sqSize / 2;
+  const circleTop = sqY + sqSize / 2 - 1.8;
+  doc.setFillColor(255, 255, 255);
+  doc.rect(cx - handleW / 2, sqY, handleW, circleTop - sqY, "F");
 
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("Fuelr", sqX + sqSize + 2.5, sqY + 6);
+  doc.text("FuelU", sqX + sqSize + 2.5, sqY + 6);
 }
 
 export async function exportMealPlanToPDF(mealPlan: any, data: Calculation) {

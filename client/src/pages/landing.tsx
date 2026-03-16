@@ -46,10 +46,11 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
       <header className="border-b border-zinc-100 sticky top-0 z-50 bg-white/90 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center relative">
               <div className="w-3 h-3 bg-white rounded-full" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[3px] h-[calc(50%-6px)] bg-white rounded-t-sm" />
             </div>
-            <span className="font-display font-bold text-xl tracking-tight text-zinc-900">Fuelr</span>
+            <span className="font-display font-bold text-xl tracking-tight text-zinc-900">FuelU</span>
           </div>
           <div className="flex items-center gap-3">
             <Link
@@ -242,16 +243,17 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
       <footer className="border-t border-zinc-100 py-8">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-zinc-900 rounded-md flex items-center justify-center">
+            <div className="w-6 h-6 bg-zinc-900 rounded-md flex items-center justify-center relative">
               <div className="w-2 h-2 bg-white rounded-full" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[2px] h-[calc(50%-4px)] bg-white rounded-t-sm" />
             </div>
-            <span className="font-display font-semibold text-sm text-zinc-900">Fuelr</span>
+            <span className="font-display font-semibold text-sm text-zinc-900">FuelU</span>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors" data-testid="link-footer-privacy">Privacy Policy</Link>
             <Link href="/terms" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors" data-testid="link-footer-terms">Terms of Service</Link>
           </div>
-          <p className="text-xs text-zinc-400">&copy; 2026 Fuelr. All rights reserved.</p>
+          <p className="text-xs text-zinc-400">&copy; 2026 FuelU. All rights reserved.</p>
         </div>
       </footer>
     </div>

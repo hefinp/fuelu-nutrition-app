@@ -108,10 +108,11 @@ export default function AuthPage() {
     return (
       <div className="min-h-screen bg-zinc-50/50 flex flex-col items-center justify-center px-4">
         <div className="mb-8 flex items-center gap-2">
-          <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center relative">
             <div className="w-3 h-3 bg-white rounded-full" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[3px] h-[calc(50%-6px)] bg-white rounded-t-sm" />
           </div>
-          <span className="font-display font-bold text-xl tracking-tight text-zinc-900">Fuelr</span>
+          <span className="font-display font-bold text-xl tracking-tight text-zinc-900">FuelU</span>
         </div>
 
         <motion.div
@@ -125,7 +126,7 @@ export default function AuthPage() {
             </div>
             <div>
               <h2 className="text-lg font-bold text-zinc-900">One more step</h2>
-              <p className="text-sm text-zinc-500">Fuelr is in private beta</p>
+              <p className="text-sm text-zinc-500">FuelU is in private beta</p>
             </div>
           </div>
 
@@ -178,10 +179,11 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-zinc-50/50 flex flex-col items-center justify-center px-4">
       <div className="mb-8 flex items-center gap-2">
-        <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
+        <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center relative">
           <div className="w-3 h-3 bg-white rounded-full" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[3px] h-[calc(50%-6px)] bg-white rounded-t-sm" />
         </div>
-        <span className="font-display font-bold text-xl tracking-tight text-zinc-900">Fuelr</span>
+        <span className="font-display font-bold text-xl tracking-tight text-zinc-900">FuelU</span>
       </div>
 
       <motion.div

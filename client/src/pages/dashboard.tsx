@@ -357,10 +357,11 @@ export default function Dashboard() {
       <header className="bg-white border-b border-zinc-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center relative">
               <div className="w-3 h-3 bg-white rounded-full" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[3px] h-[calc(50%-6px)] bg-white rounded-t-sm" />
             </div>
-            <h1 className="font-display font-bold text-xl tracking-tight text-zinc-900">Fuelr</h1>
+            <h1 className="font-display font-bold text-xl tracking-tight text-zinc-900">FuelU</h1>
           </Link>
 
           <div className="flex items-center gap-3">
@@ -955,7 +956,7 @@ export default function Dashboard() {
 
       <footer className="hidden sm:block max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 mt-4 border-t border-zinc-100">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-zinc-400">&copy; 2026 Fuelr</span>
+          <span className="text-xs text-zinc-400">&copy; 2026 FuelU</span>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors" data-testid="link-dash-privacy">Privacy</Link>
             <Link href="/terms" className="text-xs text-zinc-400 hover:text-zinc-700 transition-colors" data-testid="link-dash-terms">Terms</Link>

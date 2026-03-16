@@ -62,7 +62,7 @@ router.post("/api/feedback", async (req, res) => {
         message: input.message,
         submittedAt: new Date(entry.createdAt ?? Date.now()).toUTCString(),
       });
-      sendEmail({ to: developerEmail, subject: `[Fuelr Beta] ${input.category === "bug" ? "Bug Report" : input.category === "feature" ? "Feature Request" : "Feedback"} from ${user.name}`, html }).catch(() => {});
+      sendEmail({ to: developerEmail, subject: `[FuelU Beta] ${input.category === "bug" ? "Bug Report" : input.category === "feature" ? "Feature Request" : "Feedback"} from ${user.name}`, html }).catch(() => {});
     }
     res.status(201).json({ message: "Thank you for your feedback!" });
   } catch (err) {
@@ -125,7 +125,7 @@ router.post("/api/admin/tier-pricing", async (req, res) => {
     const priceChanged = existing && (existing.monthlyPriceUsd !== monthlyPriceUsd || existing.annualPriceUsd !== annualPriceUsd);
 
     if (stripe && priceChanged) {
-      const productName = `Fuelr ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
+      const productName = `FuelU ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
 
       if (existing.stripePriceIdMonthly) {
         try { await stripe.prices.update(existing.stripePriceIdMonthly, { active: false }); } catch {}

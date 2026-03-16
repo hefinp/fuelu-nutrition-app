@@ -226,10 +226,11 @@ export default function AdminPage() {
       <header className="bg-white border-b border-zinc-100 sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-zinc-900 rounded flex items-center justify-center">
+            <div className="w-6 h-6 bg-zinc-900 rounded flex items-center justify-center relative">
               <div className="w-2.5 h-2.5 bg-white rounded-full" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[2px] h-[calc(50%-5px)] bg-white rounded-t-sm" />
             </div>
-            <span className="font-semibold text-sm text-zinc-900">Fuelr Admin</span>
+            <span className="font-semibold text-sm text-zinc-900">FuelU Admin</span>
           </div>
           <button
             onClick={() => navigate("/dashboard")}
