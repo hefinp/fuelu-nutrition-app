@@ -414,24 +414,35 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
                 </p>
               )}
             </div>
-            <button
-              onClick={() => savePlanMutation.mutate()}
-              disabled={savePlanMutation.isPending || planSaved}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-colors ${
-                planSaved
-                  ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
-                  : "bg-zinc-900 hover:bg-zinc-700 text-white"
-              }`}
-              data-testid="button-save-plan"
-            >
-              {savePlanMutation.isPending ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
-              ) : planSaved ? (
-                <><Check className="w-4 h-4" /> Saved</>
-              ) : (
-                <><Save className="w-4 h-4" /> Save Plan</>
+            <div className="flex items-center gap-2">
+              {!planSaved && (
+                <button
+                  onClick={() => { setMealPlan(null); setPlanSaved(false); }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[44px]"
+                  data-testid="button-discard-plan"
+                >
+                  <X className="w-4 h-4" /> Discard
+                </button>
               )}
-            </button>
+              <button
+                onClick={() => savePlanMutation.mutate()}
+                disabled={savePlanMutation.isPending || planSaved}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-colors min-h-[44px] ${
+                  planSaved
+                    ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
+                    : "bg-zinc-900 hover:bg-zinc-700 text-white"
+                }`}
+                data-testid="button-save-plan"
+              >
+                {savePlanMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+                ) : planSaved ? (
+                  <><Check className="w-4 h-4" /> Saved</>
+                ) : (
+                  <><Save className="w-4 h-4" /> Save Plan</>
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 mb-5">
