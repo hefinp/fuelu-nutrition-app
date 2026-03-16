@@ -76,6 +76,7 @@ function DiaryContent({
   dailySaturatedFatTarget,
   initialDate,
 }: DiaryProps) {
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const today = todayStr();
