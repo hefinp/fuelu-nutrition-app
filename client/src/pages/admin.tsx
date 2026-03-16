@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import { CheckCircle2, Circle, Plus, ShieldAlert, RefreshCw, Sparkles, Settings, Users, Coins, Shield, ChevronDown } from "lucide-react";
+import { CheckCircle2, Circle, Plus, ShieldAlert, RefreshCw, Sparkles, Settings, Users, Coins, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface CommunityMealBucket {
@@ -131,20 +131,14 @@ export default function AdminPage() {
     onError: () => toast({ title: "Error", description: "Failed to add codes.", variant: "destructive" }),
   });
 
-  const myTierMutation = useMutation({
-    mutationFn: (tier: string) => apiRequest("POST", "/api/admin/my-tier", { tier }),
-    onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tier/status"] });
-      toast({ title: "Tier updated" });
-    },
-    onError: () => toast({ title: "Error", variant: "destructive" }),
-  });
-
   const userTierMutation = useMutation({
     mutationFn: (data: { userId: number; tier?: string; betaUser?: boolean; betaTierLocked?: boolean }) => apiRequest("POST", "/api/admin/user-tier", data),
-    onSuccess: async () => {
+    onSuccess: async (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      if (variables.userId === user?.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/tier/status"] });
+      }
       toast({ title: "User updated" });
     },
     onError: () => toast({ title: "Error", variant: "destructive" }),
@@ -243,34 +237,6 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {/* Admin tier switcher */}
-        <div className="bg-white rounded-2xl border border-zinc-100 p-4 flex items-center justify-between" data-testid="card-admin-tier-switcher">
-          <div className="flex items-center gap-3">
-            <Shield className="w-5 h-5 text-zinc-400" />
-            <div>
-              <p className="text-sm font-semibold text-zinc-900">My Account Tier</p>
-              <p className="text-xs text-zinc-400">Switch your own tier for testing</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {TIER_OPTIONS.map(t => (
-              <button
-                key={t}
-                onClick={() => myTierMutation.mutate(t)}
-                disabled={myTierMutation.isPending}
-                className={`px-3 py-1.5 text-xs font-medium rounded-xl transition-colors capitalize ${
-                  user.tier === t
-                    ? "bg-zinc-900 text-white"
-                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-                }`}
-                data-testid={`button-my-tier-${t}`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Tabs */}
         <div className="flex gap-1 bg-zinc-100 rounded-xl p-1">
           {[

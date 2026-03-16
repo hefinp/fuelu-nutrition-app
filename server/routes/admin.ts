@@ -286,21 +286,6 @@ router.post("/api/admin/user-tier", async (req, res) => {
   res.json({ id: user.id, email: user.email, tier: user.tier, betaUser: user.betaUser, betaTierLocked: user.betaTierLocked });
 });
 
-// Admin tier switcher (self)
-const myTierSchema = z.object({
-  tier: z.enum(["free", "simple", "advanced"]),
-});
-
-router.post("/api/admin/my-tier", async (req, res) => {
-  if (!await requireAdmin(req, res)) return;
-  const parsed = myTierSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
-  const { tier } = parsed.data;
-
-  const user = await storage.updateUserTier(req.session.userId!, { tier, betaTierLocked: true });
-  res.json({ tier: user.tier, betaTierLocked: user.betaTierLocked });
-});
-
 // Get all users with tier info (for invite code tier management)
 router.get("/api/admin/users", async (req, res) => {
   if (!await requireAdmin(req, res)) return;
