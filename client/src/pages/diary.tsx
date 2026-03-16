@@ -115,13 +115,15 @@ function DiaryContent({
     enabled: view === "weekly",
   });
 
-  const { data: userRecipes = [] } = useQuery<UserRecipe[]>({
+  const { data: userRecipes = [] } = useQuery<{ items: UserRecipe[] }, Error, UserRecipe[]>({
     queryKey: ["/api/recipes"],
     staleTime: 60_000,
+    select: (d) => d.items,
   });
 
-  const { data: favourites = [] } = useQuery<{ id: number; mealName: string }[]>({
+  const { data: favourites = [] } = useQuery<{ items: { id: number; mealName: string }[] }, Error, { id: number; mealName: string }[]>({
     queryKey: ["/api/favourites"],
+    select: (d) => d.items,
   });
   const favouriteNames = new Set(favourites.map(f => f.mealName));
 

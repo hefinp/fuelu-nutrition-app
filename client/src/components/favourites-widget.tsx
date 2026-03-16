@@ -15,8 +15,9 @@ export function FavouritesWidget() {
   const [selectedMeal, setSelectedMeal] = useState<FavouriteMeal | null>(null);
   const [loggingId, setLoggingId] = useState<number | null>(null);
 
-  const { data: favourites = [], isLoading } = useQuery<FavouriteMeal[]>({
+  const { data: favourites = [], isLoading } = useQuery<{ items: FavouriteMeal[] }, Error, FavouriteMeal[]>({
     queryKey: ["/api/favourites"],
+    select: (d) => d.items,
   });
 
   const removeMutation = useMutation({

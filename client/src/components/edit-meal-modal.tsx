@@ -114,7 +114,7 @@ export function EditMealModal({
   const [manualCarbs, setManualCarbs] = useState(String(isFav ? fav!.carbs : rec!.carbsPerServing));
   const [manualFat, setManualFat] = useState(String(isFav ? fav!.fat : rec!.fatPerServing));
 
-  const { data: myFoods = [] } = useQuery<UserSavedFood[]>({ queryKey: ["/api/my-foods"] });
+  const { data: myFoods = [] } = useQuery<{ items: UserSavedFood[] }, Error, UserSavedFood[]>({ queryKey: ["/api/my-foods"], select: (d) => d.items });
   const picker = useFoodPicker({ activeTab: pickerTab, scanActive: showPicker });
 
   useEffect(() => {

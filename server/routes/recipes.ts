@@ -259,10 +259,10 @@ router.get("/api/recipes", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
     const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
-    const limit = typeof req.query.limit === "string" ? Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100) : undefined;
-    const paginated = cursor !== undefined || limit !== undefined;
-    const result = await storage.getUserRecipes(req.session.userId, paginated ? { cursor, limit: limit ?? 20 } : undefined);
-    res.json(paginated ? result : result.items);
+    const limitRaw = typeof req.query.limit === "string" ? parseInt(req.query.limit) : NaN;
+    const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 20, 1), 100);
+    const result = await storage.getUserRecipes(req.session.userId, { cursor, limit });
+    res.json(result);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch recipes" });
   }

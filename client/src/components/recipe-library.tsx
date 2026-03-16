@@ -83,8 +83,9 @@ export function RecipeLibrary() {
   const [showModal, setShowModal] = useState(false);
   const [showCommunityBrowser, setShowCommunityBrowser] = useState(false);
 
-  const { data: recipes = [], isLoading } = useQuery<UserRecipe[]>({
+  const { data: recipes = [], isLoading } = useQuery<{ items: UserRecipe[] }, Error, UserRecipe[]>({
     queryKey: ["/api/recipes"],
+    select: (d) => d.items,
   });
 
   const { data: prefs } = useQuery<UserPreferences>({
