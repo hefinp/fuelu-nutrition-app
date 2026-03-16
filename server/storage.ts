@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 
@@ -112,14 +112,30 @@ export interface IStorage {
   deleteMealTemplate(id: number, userId: number): Promise<void>;
 
   // Tier & billing
-  updateUserTier(userId: number, updates: { tier?: string; stripeCustomerId?: string; stripeSubscriptionId?: string; tierExpiresAt?: Date | null; creditBalance?: number; paymentFailedAt?: Date | null; betaUser?: boolean }): Promise<User>;
+  updateUserTier(userId: number, updates: { tier?: string; stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; tierExpiresAt?: Date | null; creditBalance?: number; paymentFailedAt?: Date | null; betaUser?: boolean; betaTierLocked?: boolean; pendingTier?: string | null }): Promise<User>;
   getFeatureGates(): Promise<FeatureGate[]>;
   getFeatureGate(featureKey: string): Promise<FeatureGate | undefined>;
   upsertFeatureGate(featureKey: string, requiredTier: string, creditCost: number, description?: string): Promise<FeatureGate>;
   deleteFeatureGate(featureKey: string): Promise<void>;
-  createCreditTransaction(entry: { userId: number; amount: number; type: string; featureKey?: string; description?: string }): Promise<CreditTransaction>;
+  createCreditTransaction(entry: { userId: number; amount: number; type: string; featureKey?: string; description?: string; costUsd?: number }): Promise<CreditTransaction>;
   getCreditTransactions(userId: number, limit?: number): Promise<CreditTransaction[]>;
+  getMonthlySpendUsd(userId: number): Promise<number>;
   adjustCreditBalance(userId: number, amount: number): Promise<number>;
+
+  // Tier pricing
+  getTierPricing(): Promise<TierPricing[]>;
+  getTierPricingByTier(tier: string): Promise<TierPricing | undefined>;
+  upsertTierPricing(data: { tier: string; monthlyPriceUsd: number; annualPriceUsd: number; stripePriceIdMonthly?: string; stripePriceIdAnnual?: string; active?: boolean; features?: unknown[]; displayOrder?: number }): Promise<TierPricing>;
+  updateTierPricing(id: number, updates: Partial<{ monthlyPriceUsd: number; annualPriceUsd: number; stripePriceIdMonthly: string; stripePriceIdAnnual: string; active: boolean; features: unknown[]; displayOrder: number }>): Promise<TierPricing | undefined>;
+
+  // Credit packs
+  getCreditPacks(): Promise<CreditPack[]>;
+  upsertCreditPack(data: { id?: number; credits: number; priceUsd: number; stripePriceId?: string; active?: boolean }): Promise<CreditPack>;
+  deleteCreditPack(id: number): Promise<void>;
+
+  // User lookup helpers
+  getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -673,15 +689,17 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(mealTemplates.id, id), eq(mealTemplates.userId, userId)));
   }
 
-  async updateUserTier(userId: number, updates: { tier?: string; stripeCustomerId?: string; stripeSubscriptionId?: string; tierExpiresAt?: Date | null; creditBalance?: number; paymentFailedAt?: Date | null; betaUser?: boolean }): Promise<User> {
+  async updateUserTier(userId: number, updates: { tier?: string; stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; tierExpiresAt?: Date | null; creditBalance?: number; paymentFailedAt?: Date | null; betaUser?: boolean; betaTierLocked?: boolean; pendingTier?: string | null }): Promise<User> {
     const setObj: Record<string, unknown> = {};
-    if (updates.tier !== undefined) setObj.tier = updates.tier;
-    if (updates.stripeCustomerId !== undefined) setObj.stripeCustomerId = updates.stripeCustomerId;
-    if (updates.stripeSubscriptionId !== undefined) setObj.stripeSubscriptionId = updates.stripeSubscriptionId;
-    if (updates.tierExpiresAt !== undefined) setObj.tierExpiresAt = updates.tierExpiresAt;
-    if (updates.creditBalance !== undefined) setObj.creditBalance = updates.creditBalance;
-    if (updates.paymentFailedAt !== undefined) setObj.paymentFailedAt = updates.paymentFailedAt;
-    if (updates.betaUser !== undefined) setObj.betaUser = updates.betaUser;
+    if ("tier" in updates) setObj.tier = updates.tier;
+    if ("stripeCustomerId" in updates) setObj.stripeCustomerId = updates.stripeCustomerId;
+    if ("stripeSubscriptionId" in updates) setObj.stripeSubscriptionId = updates.stripeSubscriptionId;
+    if ("tierExpiresAt" in updates) setObj.tierExpiresAt = updates.tierExpiresAt;
+    if ("creditBalance" in updates) setObj.creditBalance = updates.creditBalance;
+    if ("paymentFailedAt" in updates) setObj.paymentFailedAt = updates.paymentFailedAt;
+    if ("betaUser" in updates) setObj.betaUser = updates.betaUser;
+    if ("betaTierLocked" in updates) setObj.betaTierLocked = updates.betaTierLocked;
+    if ("pendingTier" in updates) setObj.pendingTier = updates.pendingTier;
     const [updated] = await db.update(users).set(setObj).where(eq(users.id, userId)).returning();
     return updated;
   }
@@ -708,8 +726,11 @@ export class DatabaseStorage implements IStorage {
     await db.delete(featureGates).where(eq(featureGates.featureKey, featureKey));
   }
 
-  async createCreditTransaction(entry: { userId: number; amount: number; type: string; featureKey?: string; description?: string }): Promise<CreditTransaction> {
-    const [tx] = await db.insert(creditTransactions).values(entry).returning();
+  async createCreditTransaction(entry: { userId: number; amount: number; type: string; featureKey?: string; description?: string; costUsd?: number }): Promise<CreditTransaction> {
+    const [tx] = await db.insert(creditTransactions).values({
+      ...entry,
+      costUsd: entry.costUsd ?? 0,
+    }).returning();
     return tx;
   }
 
@@ -720,12 +741,112 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
+  async getMonthlySpendUsd(userId: number): Promise<number> {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const rows = await db.select().from(creditTransactions)
+      .where(and(
+        eq(creditTransactions.userId, userId),
+        eq(creditTransactions.type, "usage"),
+      ));
+    return rows
+      .filter(r => r.createdAt && new Date(r.createdAt) >= startOfMonth)
+      .reduce((sum, r) => sum + r.costUsd, 0);
+  }
+
   async adjustCreditBalance(userId: number, amount: number): Promise<number> {
     const [updated] = await db.update(users)
       .set({ creditBalance: sql`GREATEST(0, ${users.creditBalance} + ${amount})` })
       .where(eq(users.id, userId))
       .returning();
     return updated.creditBalance;
+  }
+
+  async getTierPricing(): Promise<TierPricing[]> {
+    return db.select().from(tierPricing).orderBy(tierPricing.displayOrder);
+  }
+
+  async getTierPricingByTier(tier: string): Promise<TierPricing | undefined> {
+    const [row] = await db.select().from(tierPricing).where(eq(tierPricing.tier, tier));
+    return row;
+  }
+
+  async upsertTierPricing(data: { tier: string; monthlyPriceUsd: number; annualPriceUsd: number; stripePriceIdMonthly?: string; stripePriceIdAnnual?: string; active?: boolean; features?: unknown[]; displayOrder?: number }): Promise<TierPricing> {
+    const existing = await this.getTierPricingByTier(data.tier);
+    if (existing) {
+      const [updated] = await db.update(tierPricing).set({
+        monthlyPriceUsd: data.monthlyPriceUsd,
+        annualPriceUsd: data.annualPriceUsd,
+        stripePriceIdMonthly: data.stripePriceIdMonthly ?? existing.stripePriceIdMonthly,
+        stripePriceIdAnnual: data.stripePriceIdAnnual ?? existing.stripePriceIdAnnual,
+        active: data.active ?? existing.active,
+        features: data.features ?? existing.features,
+        displayOrder: data.displayOrder ?? existing.displayOrder,
+      }).where(eq(tierPricing.id, existing.id)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(tierPricing).values({
+      tier: data.tier,
+      monthlyPriceUsd: data.monthlyPriceUsd,
+      annualPriceUsd: data.annualPriceUsd,
+      stripePriceIdMonthly: data.stripePriceIdMonthly,
+      stripePriceIdAnnual: data.stripePriceIdAnnual,
+      active: data.active ?? true,
+      features: data.features ?? [],
+      displayOrder: data.displayOrder ?? 0,
+    }).returning();
+    return created;
+  }
+
+  async updateTierPricing(id: number, updates: Partial<{ monthlyPriceUsd: number; annualPriceUsd: number; stripePriceIdMonthly: string; stripePriceIdAnnual: string; active: boolean; features: unknown[]; displayOrder: number }>): Promise<TierPricing | undefined> {
+    const setObj: Record<string, unknown> = {};
+    if (updates.monthlyPriceUsd !== undefined) setObj.monthlyPriceUsd = updates.monthlyPriceUsd;
+    if (updates.annualPriceUsd !== undefined) setObj.annualPriceUsd = updates.annualPriceUsd;
+    if (updates.stripePriceIdMonthly !== undefined) setObj.stripePriceIdMonthly = updates.stripePriceIdMonthly;
+    if (updates.stripePriceIdAnnual !== undefined) setObj.stripePriceIdAnnual = updates.stripePriceIdAnnual;
+    if (updates.active !== undefined) setObj.active = updates.active;
+    if (updates.features !== undefined) setObj.features = updates.features;
+    if (updates.displayOrder !== undefined) setObj.displayOrder = updates.displayOrder;
+    if (Object.keys(setObj).length === 0) return undefined;
+    const [updated] = await db.update(tierPricing).set(setObj).where(eq(tierPricing.id, id)).returning();
+    return updated;
+  }
+
+  async getCreditPacks(): Promise<CreditPack[]> {
+    return db.select().from(creditPacks).orderBy(creditPacks.credits);
+  }
+
+  async upsertCreditPack(data: { id?: number; credits: number; priceUsd: number; stripePriceId?: string; active?: boolean }): Promise<CreditPack> {
+    if (data.id) {
+      const [updated] = await db.update(creditPacks).set({
+        credits: data.credits,
+        priceUsd: data.priceUsd,
+        stripePriceId: data.stripePriceId,
+        active: data.active ?? true,
+      }).where(eq(creditPacks.id, data.id)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(creditPacks).values({
+      credits: data.credits,
+      priceUsd: data.priceUsd,
+      stripePriceId: data.stripePriceId,
+      active: data.active ?? true,
+    }).returning();
+    return created;
+  }
+
+  async deleteCreditPack(id: number): Promise<void> {
+    await db.delete(creditPacks).where(eq(creditPacks.id, id));
+  }
+
+  async getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.stripeCustomerId, stripeCustomerId));
+    return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return db.select().from(users).orderBy(users.id);
   }
 }
 

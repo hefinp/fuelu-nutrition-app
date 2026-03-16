@@ -52,6 +52,13 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
             <span className="font-display font-bold text-xl tracking-tight text-zinc-900">Fuelr</span>
           </div>
           <div className="flex items-center gap-3">
+            <Link
+              href="/pricing"
+              className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
+              data-testid="link-landing-pricing"
+            >
+              Pricing
+            </Link>
             {loggedIn ? (
               <Link
                 href="/dashboard"

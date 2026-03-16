@@ -15,10 +15,12 @@ export const users = pgTable("users", {
   preferences: jsonb("preferences"),
   tier: text("tier").notNull().default("free"),
   betaUser: boolean("beta_user").notNull().default(false),
+  betaTierLocked: boolean("beta_tier_locked").notNull().default(false),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   tierExpiresAt: timestamp("tier_expires_at"),
   creditBalance: integer("credit_balance").notNull().default(0),
+  pendingTier: text("pending_tier"),
   paymentFailedAt: timestamp("payment_failed_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -470,7 +472,34 @@ export const creditTransactions = pgTable("credit_transactions", {
   type: text("type").notNull(),
   featureKey: text("feature_key"),
   description: text("description"),
+  costUsd: integer("cost_usd").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export type CreditTransaction = typeof creditTransactions.$inferSelect;
+
+export const tierPricing = pgTable("tier_pricing", {
+  id: serial("id").primaryKey(),
+  tier: text("tier").notNull(),
+  monthlyPriceUsd: integer("monthly_price_usd").notNull(),
+  annualPriceUsd: integer("annual_price_usd").notNull(),
+  stripePriceIdMonthly: text("stripe_price_id_monthly"),
+  stripePriceIdAnnual: text("stripe_price_id_annual"),
+  active: boolean("active").notNull().default(true),
+  features: jsonb("features").notNull().default([]),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type TierPricing = typeof tierPricing.$inferSelect;
+
+export const creditPacks = pgTable("credit_packs", {
+  id: serial("id").primaryKey(),
+  credits: integer("credits").notNull(),
+  priceUsd: integer("price_usd").notNull(),
+  stripePriceId: text("stripe_price_id"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type CreditPack = typeof creditPacks.$inferSelect;

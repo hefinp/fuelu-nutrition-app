@@ -13,6 +13,8 @@ import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
 import AdminPage from "@/pages/admin";
+import PricingPage from "@/pages/pricing";
+import BillingPage from "@/pages/billing";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 
@@ -45,6 +47,8 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPasswordPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/admin" component={AdminPage} />
+      <Route path="/pricing" component={PricingPage} />
+      <Route path="/billing" component={BillingPage} />
       <Route path="/insights">{() => <Suspense fallback={<LazyFallback />}><InsightsPage /></Suspense>}</Route>
       <Route path="/diary">{() => <Suspense fallback={<LazyFallback />}><DiaryPage /></Suspense>}</Route>
       <Route path="/my-library">{() => <Suspense fallback={<LazyFallback />}><MyLibraryPage /></Suspense>}</Route>

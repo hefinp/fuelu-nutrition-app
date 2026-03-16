@@ -5,6 +5,7 @@ import { storage } from "../storage";
 import type { UserPreferences } from "@shared/schema";
 import { searchMedicalLiterature } from "../ai-research";
 import { nDaysAgo, getCycleDay, energyScore, moodScore, getMostCommon } from "./cycle";
+import { hasTierAccess, deductCredits } from "../tier";
 
 const router = Router();
 
@@ -124,6 +125,9 @@ router.get("/api/cycle/ai-insights", async (req, res) => {
   if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI unavailable" });
 
   const userId = req.session.userId;
+  const user = await storage.getUserById(userId);
+  if (!user) return res.status(401).json({ message: "User not found" });
+  if (!(await hasTierAccess(user, "ai_insights"))) return res.status(403).json({ error: "Upgrade your plan to access AI insights" });
   const today = new Date().toISOString().split("T")[0];
   const cacheKey = `ai-insights:${today}`;
 
@@ -156,6 +160,7 @@ router.get("/api/cycle/ai-insights", async (req, res) => {
     const expiresAt = new Date();
     expiresAt.setHours(23, 59, 59, 999);
     await storage.upsertAiInsightsCache(userId, cacheKey, payload, expiresAt);
+    await deductCredits(userId, "ai_insights");
 
     res.json({ ...payload, cached: false });
   } catch (err) {
@@ -199,6 +204,10 @@ router.post("/api/weight/insights", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI unavailable" });
 
+  const user = await storage.getUserById(req.session.userId);
+  if (!user) return res.status(401).json({ message: "User not found" });
+  if (!(await hasTierAccess(user, "ai_insights"))) return res.status(403).json({ error: "Upgrade your plan to access AI insights" });
+
   const { entries, goal, targetWeight } = req.body as {
     entries: { date: string; weightKg: number }[];
     goal?: string;
@@ -219,6 +228,7 @@ Write 1-2 sentences analysing their trend: rate of change, whether they're on tr
       temperature: 0.7,
     });
     const insight = resp.choices[0]?.message?.content?.trim() ?? "";
+    await deductCredits(req.session.userId!, "ai_insights");
     res.json({ insight });
   } catch (err) {
     res.status(500).json({ error: "Failed to generate insight" });
@@ -228,6 +238,10 @@ Write 1-2 sentences analysing their trend: rate of change, whether they're on tr
 router.post("/api/food-log/weekly-insights", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI unavailable" });
+
+  const user = await storage.getUserById(req.session.userId);
+  if (!user) return res.status(401).json({ message: "User not found" });
+  if (!(await hasTierAccess(user, "ai_insights"))) return res.status(403).json({ error: "Upgrade your plan to access AI insights" });
 
   const { entries, targets, weekLabel } = req.body as {
     entries: { date: string; calories: number; protein: number; carbs: number; fat: number }[];
@@ -250,6 +264,7 @@ router.post("/api/food-log/weekly-insights", async (req, res) => {
       temperature: 0.7,
     });
     const summary = resp.choices[0]?.message?.content?.trim() ?? "";
+    await deductCredits(req.session.userId!, "ai_insights");
     res.json({ summary });
   } catch (err) {
     res.status(500).json({ error: "Failed to generate insights" });

@@ -42,8 +42,9 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
     const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
     await storage.updateUserPreferences(user.id, initialPrefs);
     await storage.markInviteCodeUsed(submitted, input.email);
+    await storage.updateUserTier(user.id, { betaUser: true, tier: "advanced" });
     req.session.userId = user.id;
-    const publicUser = toPublicUser(user);
+    const publicUser = toPublicUser({ ...user, betaUser: true, tier: "advanced" });
     req.session.save(() => res.status(201).json(publicUser));
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -156,6 +157,7 @@ router.post("/api/auth/oauth-invite", authRateLimiter, async (req, res) => {
     const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
     await storage.updateUserPreferences(user.id, initialPrefs);
     await storage.markInviteCodeUsed(submittedOAuth, pending.email);
+    await storage.updateUserTier(user.id, { betaUser: true, tier: "advanced" });
     delete req.session.pendingOAuth;
     req.session.userId = user.id;
     req.session.save(() => res.json({ ok: true }));

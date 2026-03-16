@@ -24,6 +24,7 @@ import type { PrefillEntry } from "@/components/food-log";
 import type { Meal } from "@/components/results-display";
 import { useCalculations } from "@/hooks/use-calculations";
 import { useAuth } from "@/hooks/use-auth";
+import { useTierStatus } from "@/hooks/use-tier";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Calculation, UserPreferences } from "@shared/schema";
@@ -78,6 +79,7 @@ export default function Dashboard() {
   const [showInsightsPopup, setShowInsightsPopup] = useState(false);
   const { data: history, isLoading: historyLoading } = useCalculations();
   const { user, logout, isLoggingOut } = useAuth();
+  const { data: tierStatus } = useTierStatus();
   const [, setLocation] = useLocation();
   const isDesktop = useIsDesktop();
   const queryClient = useQueryClient();
@@ -669,6 +671,21 @@ export default function Dashboard() {
       </AnimatePresence>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+
+        {tierStatus?.paymentFailedAt && (
+          <div className="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-2xl" data-testid="banner-payment-failed-dashboard">
+            <ShieldAlert className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-red-800">Payment failed</p>
+              <p className="text-xs text-red-600 mt-1">
+                Your last payment failed and your account has been reverted to the Free tier.
+              </p>
+              <Link href="/billing" className="mt-2 inline-block text-xs font-medium text-red-700 underline hover:text-red-900" data-testid="link-payment-failed-billing">
+                Update payment method
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Loading */}
         {user && historyLoading && (

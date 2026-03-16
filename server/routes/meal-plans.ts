@@ -4,6 +4,7 @@ import { storage } from "../storage";
 import { api, mealPlanSchema } from "@shared/routes";
 import type { UserPreferences } from "@shared/schema";
 import { sendEmail, buildMealPlanEmailHtml } from "../email";
+import { hasTierAccess, deductCredits } from "../tier";
 import {
   type MealEntry, type MealDb,
   MEAL_DATABASE, GOURMET_MEAL_DATABASE, MICHELIN_MEAL_DATABASE,
@@ -18,6 +19,14 @@ const router = Router();
 router.post(api.mealPlans.generate.path, async (req, res) => {
   try {
     const input = mealPlanSchema.parse(req.body);
+
+    if (req.session.userId) {
+      const user = await storage.getUserById(req.session.userId);
+      if (user && !(await hasTierAccess(user, "ai_meal_plan"))) {
+        return res.status(403).json({ message: "Upgrade your plan to generate meal plans" });
+      }
+    }
+
     let baseDb: MealDb = input.mealStyle === 'michelin' ? MICHELIN_MEAL_DATABASE : input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
 
     let prefs: UserPreferences | null = null;
@@ -90,6 +99,7 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
       const fallbackPhase = hasCycle ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28) : null;
       const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, true, baseDb, prefs, fallbackPhase, perDayPhases);
       if (input.weekStartDate) (mealPlan as any).weekStartDate = input.weekStartDate;
+      if (req.session.userId) await deductCredits(req.session.userId, "ai_meal_plan");
       res.status(201).json(mealPlan);
     } else if (input.targetDates && input.targetDates.length > 1) {
       const plans: Record<string, any> = {};
@@ -100,6 +110,7 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
         const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, phase);
         plans[dateStr] = { ...dayPlan, cyclePhase: phase };
       }
+      if (req.session.userId) await deductCredits(req.session.userId, "ai_meal_plan");
       res.status(201).json({ planType: 'multi-daily', days: plans, targetDates: input.targetDates, cyclePhaseByDate });
     } else {
       const targetDate = input.targetDates?.[0];
@@ -108,6 +119,7 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
         : null;
       const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, false, baseDb, prefs, cyclePhase);
       if (targetDate) (mealPlan as any).targetDate = targetDate;
+      if (req.session.userId) await deductCredits(req.session.userId, "ai_meal_plan");
       res.status(201).json(mealPlan);
     }
   } catch (err) {

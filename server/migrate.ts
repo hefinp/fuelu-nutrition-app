@@ -165,12 +165,19 @@ export async function runMigrations(): Promise<void> {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS tier_expires_at TIMESTAMP`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS credit_balance INTEGER NOT NULL DEFAULT 0`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_failed_at TIMESTAMP`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_tier TEXT`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS beta_tier_locked BOOLEAN NOT NULL DEFAULT FALSE`);
 
     await client.query(`
-      UPDATE users SET beta_user = TRUE
+      UPDATE users SET beta_user = TRUE, tier = 'advanced'
       WHERE email IN (SELECT used_by_email FROM invite_codes WHERE used_by_email IS NOT NULL)
         AND beta_user = FALSE
         AND created_at < '2026-03-17T00:00:00Z'
+    `);
+
+    await client.query(`
+      UPDATE users SET tier = 'advanced'
+      WHERE beta_user = TRUE AND tier = 'free'
     `);
 
     await client.query(`
@@ -192,8 +199,48 @@ export async function runMigrations(): Promise<void> {
         type            TEXT NOT NULL,
         feature_key     TEXT,
         description     TEXT,
+        cost_usd        INTEGER NOT NULL DEFAULT 0,
         created_at      TIMESTAMP DEFAULT NOW()
       )
+    `);
+
+    await client.query(`ALTER TABLE credit_transactions ADD COLUMN IF NOT EXISTS cost_usd INTEGER NOT NULL DEFAULT 0`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tier_pricing (
+        id                     SERIAL PRIMARY KEY,
+        tier                   TEXT NOT NULL,
+        monthly_price_usd      INTEGER NOT NULL,
+        annual_price_usd       INTEGER NOT NULL,
+        stripe_price_id_monthly TEXT,
+        stripe_price_id_annual  TEXT,
+        active                 BOOLEAN NOT NULL DEFAULT TRUE,
+        features               JSONB NOT NULL DEFAULT '[]',
+        display_order          INTEGER NOT NULL DEFAULT 0,
+        created_at             TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS credit_packs (
+        id              SERIAL PRIMARY KEY,
+        credits         INTEGER NOT NULL,
+        price_usd       INTEGER NOT NULL,
+        stripe_price_id TEXT,
+        active          BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at      TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS tier_pricing_tier_idx ON tier_pricing (tier)
+    `).catch(() => {});
+
+    await client.query(`
+      INSERT INTO tier_pricing (tier, monthly_price_usd, annual_price_usd, active, features, display_order) VALUES
+        ('simple', 999, 9590, TRUE, '["AI meal plans (Simple tier)","Barcode scanning","PDF export","Up to 5 saved meal plans","Hydration tracking"]'::jsonb, 1),
+        ('advanced', 1999, 19190, TRUE, '["AI meal plans (all tiers)","AI food recognition","AI insights & trends","Cycle-aware nutrition","Unlimited saved plans","Priority support"]'::jsonb, 2)
+      ON CONFLICT (tier) DO NOTHING
     `);
 
     await client.query(`

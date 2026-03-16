@@ -1,11 +1,18 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { z } from "zod";
+import Stripe from "stripe";
 import { storage } from "../storage";
 import { insertFeedbackSchema, inviteCodes as inviteCodesTable } from "@shared/schema";
 import { db } from "../db";
 import { sendEmail, buildFeedbackEmailHtml } from "../email";
 import { checkAndRefillCommunityMealBalance, BUCKET_FLOOR } from "./community";
+
+function getStripe(): Stripe | null {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) return null;
+  return new Stripe(key);
+}
 
 const router = Router();
 
@@ -85,6 +92,230 @@ router.post("/api/admin/community-meal-balance/refill", async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: "Failed to refill balance" });
   }
+});
+
+// Admin tier pricing management
+router.get("/api/admin/tier-pricing", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  const pricing = await storage.getTierPricing();
+  res.json(pricing);
+});
+
+const tierPricingSchema = z.object({
+  tier: z.enum(["simple", "advanced"]),
+  monthlyPriceUsd: z.number().int().min(0),
+  annualPriceUsd: z.number().int().min(0),
+  stripePriceIdMonthly: z.string().optional(),
+  stripePriceIdAnnual: z.string().optional(),
+  active: z.boolean().optional(),
+  features: z.array(z.string()).optional(),
+  displayOrder: z.number().int().min(0).optional(),
+});
+
+router.post("/api/admin/tier-pricing", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  try {
+    const parsed = tierPricingSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+    const { tier, monthlyPriceUsd, annualPriceUsd, active, features, displayOrder } = parsed.data;
+    let { stripePriceIdMonthly, stripePriceIdAnnual } = parsed.data;
+
+    const existing = await storage.getTierPricingByTier(tier);
+    const stripe = getStripe();
+    const priceChanged = existing && (existing.monthlyPriceUsd !== monthlyPriceUsd || existing.annualPriceUsd !== annualPriceUsd);
+
+    if (stripe && priceChanged) {
+      const productName = `Fuelr ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
+
+      if (existing.stripePriceIdMonthly) {
+        try { await stripe.prices.update(existing.stripePriceIdMonthly, { active: false }); } catch {}
+      }
+      if (existing.stripePriceIdAnnual) {
+        try { await stripe.prices.update(existing.stripePriceIdAnnual, { active: false }); } catch {}
+      }
+
+      let productId: string | undefined;
+      const products = await stripe.products.search({ query: `name:'${productName}'` });
+      if (products.data.length > 0) {
+        productId = products.data[0].id;
+      } else {
+        const product = await stripe.products.create({ name: productName });
+        productId = product.id;
+      }
+
+      const newMonthly = await stripe.prices.create({
+        product: productId,
+        unit_amount: monthlyPriceUsd,
+        currency: "usd",
+        recurring: { interval: "month" },
+      });
+      stripePriceIdMonthly = newMonthly.id;
+
+      const newAnnual = await stripe.prices.create({
+        product: productId,
+        unit_amount: annualPriceUsd,
+        currency: "usd",
+        recurring: { interval: "year" },
+      });
+      stripePriceIdAnnual = newAnnual.id;
+    }
+
+    const result = await storage.upsertTierPricing({
+      tier, monthlyPriceUsd, annualPriceUsd,
+      stripePriceIdMonthly, stripePriceIdAnnual,
+      active, features, displayOrder,
+    });
+    res.json(result);
+  } catch (err: any) {
+    console.error("[admin] Tier pricing update error:", err.message);
+    res.status(500).json({ message: "Failed to update tier pricing" });
+  }
+});
+
+const tierPricingPatchSchema = z.object({
+  monthlyPriceUsd: z.number().int().min(0).optional(),
+  annualPriceUsd: z.number().int().min(0).optional(),
+  stripePriceIdMonthly: z.string().optional(),
+  stripePriceIdAnnual: z.string().optional(),
+  active: z.boolean().optional(),
+  features: z.array(z.string()).optional(),
+  displayOrder: z.number().int().min(0).optional(),
+});
+
+router.patch("/api/admin/tier-pricing/:id", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  try {
+    const id = parseInt(req.params.id);
+    const parsed = tierPricingPatchSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+    const result = await storage.updateTierPricing(id, parsed.data);
+    if (!result) return res.status(404).json({ message: "Not found" });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update" });
+  }
+});
+
+// Feature gates management
+router.get("/api/admin/feature-gates", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  const gates = await storage.getFeatureGates();
+  res.json(gates);
+});
+
+const featureGateSchema = z.object({
+  featureKey: z.string().min(1).max(100).regex(/^[a-z0-9_]+$/, "Use lowercase letters, numbers, and underscores"),
+  requiredTier: z.enum(["free", "simple", "advanced"]),
+  creditCost: z.number().int().min(0).default(0),
+  description: z.string().max(500).optional(),
+});
+
+router.post("/api/admin/feature-gates", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  const parsed = featureGateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+  const { featureKey, requiredTier, creditCost, description } = parsed.data;
+  const gate = await storage.upsertFeatureGate(featureKey, requiredTier, creditCost, description);
+  res.json(gate);
+});
+
+router.delete("/api/admin/feature-gates/:key", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  await storage.deleteFeatureGate(req.params.key);
+  res.json({ ok: true });
+});
+
+// Credit packs management
+router.get("/api/admin/credit-packs", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  const packs = await storage.getCreditPacks();
+  res.json(packs);
+});
+
+const creditPackSchema = z.object({
+  id: z.number().int().positive().optional(),
+  credits: z.number().int().positive(),
+  priceUsd: z.number().int().min(0),
+  stripePriceId: z.string().optional(),
+  active: z.boolean().optional(),
+});
+
+router.post("/api/admin/credit-packs", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  const parsed = creditPackSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+  const { id, credits, priceUsd, stripePriceId, active } = parsed.data;
+  const pack = await storage.upsertCreditPack({ id, credits, priceUsd, stripePriceId, active });
+  res.json(pack);
+});
+
+router.delete("/api/admin/credit-packs/:id", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  await storage.deleteCreditPack(parseInt(req.params.id));
+  res.json({ ok: true });
+});
+
+// Beta user tier override
+const userTierSchema = z.object({
+  userId: z.number().int().positive(),
+  tier: z.enum(["free", "simple", "advanced"]).optional(),
+  betaUser: z.boolean().optional(),
+  betaTierLocked: z.boolean().optional(),
+});
+
+router.post("/api/admin/user-tier", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  const parsed = userTierSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+  const { userId, tier, betaUser, betaTierLocked } = parsed.data;
+
+  const existingUser = await storage.getUserById(userId);
+  if (!existingUser) return res.status(404).json({ message: "User not found" });
+
+  const updates: { tier?: string; betaUser?: boolean; betaTierLocked?: boolean } = {};
+  if (tier !== undefined) {
+    updates.tier = tier;
+    if (existingUser.betaUser && betaTierLocked === undefined) {
+      updates.betaTierLocked = true;
+    }
+  }
+  if (betaUser !== undefined) updates.betaUser = betaUser;
+  if (betaTierLocked !== undefined) updates.betaTierLocked = betaTierLocked;
+
+  const user = await storage.updateUserTier(userId, updates);
+  res.json({ id: user.id, email: user.email, tier: user.tier, betaUser: user.betaUser, betaTierLocked: user.betaTierLocked });
+});
+
+// Admin tier switcher (self)
+const myTierSchema = z.object({
+  tier: z.enum(["free", "simple", "advanced"]),
+});
+
+router.post("/api/admin/my-tier", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  const parsed = myTierSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+  const { tier } = parsed.data;
+
+  const user = await storage.updateUserTier(req.session.userId!, { tier, betaTierLocked: true });
+  res.json({ tier: user.tier, betaTierLocked: user.betaTierLocked });
+});
+
+// Get all users with tier info (for invite code tier management)
+router.get("/api/admin/users", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  const allUsers = await storage.getAllUsers();
+  const result = allUsers.map(u => ({
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    tier: u.tier,
+    betaUser: u.betaUser,
+    betaTierLocked: u.betaTierLocked,
+    creditBalance: u.creditBalance,
+    createdAt: u.createdAt,
+  }));
+  res.json(result);
 });
 
 setTimeout(() => {

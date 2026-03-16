@@ -60,7 +60,8 @@ The backend runs on **Node.js** with **TypeScript** using **Express 5**. It inte
 -   `server/routes/recipes.ts` — Recipe import (URL/photo parse) and community recipe sharing.
 -   `server/routes/favourites.ts` — Legacy favourites endpoint (retained for backward compatibility).
 -   `server/routes/community.ts` — Community meals CRUD + startup gap-fill.
--   `server/routes/admin.ts` — Admin invite codes, beta feedback, community meal balance.
+-   `server/routes/admin.ts` — Admin invite codes, beta feedback, community meal balance, tier pricing management, feature gates, user tier controls.
+-   `server/routes/stripe.ts` — Stripe integration: Checkout sessions, webhooks, customer portal, tier status, credit transactions.
 
 Key backend functionalities include:
 -   User authentication (register, login, logout, OAuth).
@@ -88,11 +89,13 @@ Key tables include:
 -   `ai_insights_cache`: Caches AI-generated insights to optimize performance.
 -   `feature_gates`: Maps feature keys to required tier levels and credit costs for tier-gated access control.
 -   `credit_transactions`: Tracks credit purchases and usage for PAYG users.
+-   `tier_pricing`: Admin-editable subscription pricing per tier (monthly/annual, Stripe price IDs, features list).
+-   `credit_packs`: PAYG credit pack options with prices and Stripe integration.
 -   `meal_templates`: Stores recurring meal templates with day-of-week scheduling.
 Database migrations are handled automatically on server start.
 
 ### Tier System
-Users have a `tier` field (free/simple/advanced/payg), `betaUser` flag (bypasses all gates), and `creditBalance` for PAYG. Stripe fields (`stripeCustomerId`, `stripeSubscriptionId`, `tierExpiresAt`, `paymentFailedAt`) are prepared but Stripe integration is not yet connected. Existing invite-code users are auto-migrated to `betaUser = true`.
+Users have a `tier` field (free/simple/advanced/payg), `betaUser` flag (bypasses all gates), and `creditBalance` for PAYG. Stripe integration handles subscription lifecycle via webhooks. The `hasTierAccess(user, featureKey)` utility in `server/tier.ts` checks tier access against the `feature_gates` table, always returning true for beta users. Key tables: `tier_pricing` (admin-editable per-tier prices), `credit_packs` (PAYG credit options), `feature_gates` (feature-to-tier mappings), `credit_transactions` (PAYG credit history). Frontend pages: `/pricing` (public), `/billing` (logged-in users). Admin panel has tier pricing management, feature gate editor, user tier controls, and a self-tier-switcher for testing. Existing invite-code users are auto-migrated to `betaUser = true`.
 
 ### Authentication
 Session-based authentication is implemented with `express-session` and a PostgreSQL store. Passwords are hashed with `bcryptjs`. OAuth is supported for Google and Apple via **Passport.js**, conditionally enabled based on environment variables. An optional invite code beta gate can restrict new registrations.
