@@ -418,16 +418,16 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
               {!planSaved && (
                 <button
                   onClick={() => { setMealPlan(null); setPlanSaved(false); }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[44px]"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
                   data-testid="button-discard-plan"
                 >
-                  <X className="w-4 h-4" /> Discard
+                  <X className="w-3.5 h-3.5" /> Discard
                 </button>
               )}
               <button
                 onClick={() => savePlanMutation.mutate()}
                 disabled={savePlanMutation.isPending || planSaved}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-colors min-h-[44px] ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors min-h-[36px] ${
                   planSaved
                     ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
                     : "bg-zinc-900 hover:bg-zinc-700 text-white"
@@ -435,11 +435,11 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
                 data-testid="button-save-plan"
               >
                 {savePlanMutation.isPending ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
                 ) : planSaved ? (
-                  <><Check className="w-4 h-4" /> Saved</>
+                  <><Check className="w-3.5 h-3.5" /> Saved</>
                 ) : (
-                  <><Save className="w-4 h-4" /> Save Plan</>
+                  <><Save className="w-3.5 h-3.5" /> Save Plan</>
                 )}
               </button>
             </div>
