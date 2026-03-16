@@ -25,6 +25,7 @@ export interface ParsedRecipe {
   name: string;
   imageUrl: string | null;
   ingredients: string[];
+  instructions: string[];
   servings: number;
   sourceUrl: string;
   calories: number | null;

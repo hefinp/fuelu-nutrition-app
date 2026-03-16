@@ -26,6 +26,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const photoRef = useRef<HTMLInputElement>(null);
   const [dupWarning, setDupWarning] = useState<{ message: string; exactMatch: boolean; existingCount: number } | null>(null);
+  const [instructions, setInstructions] = useState("");
 
   const importMutation = useMutation({
     mutationFn: (u: string) => apiRequest("POST", "/api/recipes/import", { url: u }).then(r => r.json()),
@@ -36,6 +37,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       setProtein(data.protein != null ? String(data.protein) : "");
       setCarbs(data.carbs != null ? String(data.carbs) : "");
       setFat(data.fat != null ? String(data.fat) : "");
+      setInstructions(Array.isArray(data.instructions) && data.instructions.length > 0 ? data.instructions.join("\n") : "");
       setSlot((data.suggestedSlot as MealSlot) || "dinner");
       setStep("confirm");
     },
@@ -57,6 +59,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       setProtein(data.protein != null ? String(data.protein) : "");
       setCarbs(data.carbs != null ? String(data.carbs) : "");
       setFat(data.fat != null ? String(data.fat) : "");
+      setInstructions(Array.isArray(data.instructions) && data.instructions.length > 0 ? data.instructions.join("\n") : "");
       setSlot((data.suggestedSlot as MealSlot) || "dinner");
       setStep("confirm");
     },
@@ -75,6 +78,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       carbsPerServing: parseInt(carbs) || 0,
       fatPerServing: parseInt(fat) || 0,
       ingredients: parsed!.ingredients.join("\n"),
+      instructions: instructions.trim() || null,
       mealSlot: slot,
       mealStyle: "simple",
       ...(confirm ? { confirmDuplicate: true } : {}),
@@ -190,7 +194,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
 
           {step === "photo" && (
             <div className="space-y-4">
-              <p className="text-sm text-zinc-500">Upload a photo (or two pages) of a recipe from a cookbook. AI will extract the ingredients and nutrition information.</p>
+              <p className="text-sm text-zinc-500">Upload a photo (or two pages) of a recipe from a cookbook. AI will extract the ingredients, instructions and nutrition information.</p>
               <input ref={photoRef} type="file" accept="image/*" multiple className="hidden" onChange={e => setPhotoFiles(Array.from(e.target.files ?? []).slice(0, 2))} data-testid="input-import-photo" />
               {photoFiles.length === 0 ? (
                 <button
@@ -276,6 +280,17 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
                   </ul>
                 </div>
               )}
+              <div>
+                <label className="block text-xs font-medium text-zinc-500 mb-1">Instructions</label>
+                <textarea
+                  value={instructions}
+                  onChange={e => setInstructions(e.target.value)}
+                  placeholder="No instructions extracted — you can add them manually"
+                  rows={instructions ? Math.min(instructions.split("\n").length + 1, 8) : 3}
+                  className="w-full text-xs text-zinc-600 border border-zinc-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none"
+                  data-testid="textarea-import-instructions"
+                />
+              </div>
             </div>
           )}
         </div>

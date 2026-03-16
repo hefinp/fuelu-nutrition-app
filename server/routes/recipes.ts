@@ -88,7 +88,7 @@ router.post("/api/recipes/import", async (req, res) => {
           {
             role: "system",
             content:
-              "You are a recipe parser. Extract recipe information from webpage text. Return a JSON object with these fields: name (string), ingredients (array of strings), servings (number), calories (number or null), protein (number or null), carbs (number or null), fat (number or null), category (string or null, e.g. 'dinner'). If it's not a recipe page, set name to null.",
+              "You are a recipe parser. Extract recipe information from webpage text. Return a JSON object with these fields: name (string), ingredients (array of strings), instructions (array of strings, each cooking step in order), servings (number), calories (number or null), protein (number or null), carbs (number or null), fat (number or null), category (string or null, e.g. 'dinner'). If it's not a recipe page, set name to null.",
           },
           { role: "user", content: `URL: ${url}\n\nPage text:\n${pageText}` },
         ],
@@ -115,6 +115,7 @@ router.post("/api/recipes/import", async (req, res) => {
         name: aiJson.name,
         imageUrl: null,
         ingredients: Array.isArray(aiJson.ingredients) ? aiJson.ingredients : [],
+        instructions: Array.isArray(aiJson.instructions) ? aiJson.instructions.map(String) : [],
         servings: typeof aiJson.servings === "number" ? aiJson.servings : 1,
         sourceUrl: url,
         calories: typeof aiJson.calories === "number" ? aiJson.calories : null,
@@ -135,6 +136,20 @@ router.post("/api/recipes/import", async (req, res) => {
     : (typeof recipe.image === 'string' ? recipe.image : recipe.image?.url ?? null);
 
   const ingredients: string[] = Array.isArray(recipe.recipeIngredient) ? recipe.recipeIngredient : [];
+
+  const rawInstructions = recipe.recipeInstructions;
+  let instructions: string[] = [];
+  if (Array.isArray(rawInstructions)) {
+    instructions = rawInstructions.map((step: any) => {
+      if (typeof step === "string") return step;
+      if (step && typeof step === "object" && step.text) return String(step.text);
+      if (step && typeof step === "object" && step.name) return String(step.name);
+      return String(step);
+    }).filter((s: string) => s.trim().length > 0);
+  } else if (typeof rawInstructions === "string") {
+    instructions = rawInstructions.split(/\n+/).map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+  }
+
   const servingsRaw = recipe.recipeYield;
   const servings = typeof servingsRaw === 'number' ? servingsRaw
     : typeof servingsRaw === 'string' ? (parseInt(servingsRaw.match(/\d+/)?.[0] ?? '1') || 1)
@@ -168,6 +183,7 @@ router.post("/api/recipes/import", async (req, res) => {
     name,
     imageUrl,
     ingredients,
+    instructions,
     servings,
     sourceUrl: url,
     calories,
@@ -206,7 +222,7 @@ router.post("/api/recipes/import-photo", async (req, res) => {
         {
           role: "system",
           content:
-            "You are a recipe extraction assistant. The user will send you one or two photos of recipe book pages. Extract all recipe information and return a single JSON object with: name (string), ingredients (array of strings, each item as written), servings (number), calories (number or null — per serving if shown, total divided by servings otherwise), protein (number or null, grams per serving), carbs (number or null, grams per serving), fat (number or null, grams per serving), category (string or null, e.g. 'dinner'). If multiple recipes appear, pick the primary one. If it's not a recipe, set name to null.",
+            "You are a recipe extraction assistant. The user will send you one or two photos of recipe book pages. Extract all recipe information and return a single JSON object with: name (string), ingredients (array of strings, each item as written), instructions (array of strings, each cooking step in order), servings (number), calories (number or null — per serving if shown, total divided by servings otherwise), protein (number or null, grams per serving), carbs (number or null, grams per serving), fat (number or null, grams per serving), category (string or null, e.g. 'dinner'). If multiple recipes appear, pick the primary one. If it's not a recipe, set name to null.",
         },
         {
           role: "user",
@@ -243,6 +259,7 @@ router.post("/api/recipes/import-photo", async (req, res) => {
     name: String(aiJson.name),
     imageUrl: null,
     ingredients: Array.isArray(aiJson.ingredients) ? aiJson.ingredients.map(String) : [],
+    instructions: Array.isArray(aiJson.instructions) ? aiJson.instructions.map(String) : [],
     servings: typeof aiJson.servings === "number" && aiJson.servings > 0 ? aiJson.servings : 1,
     sourceUrl: "photo://recipe-book",
     calories: typeof aiJson.calories === "number" ? aiJson.calories : null,
