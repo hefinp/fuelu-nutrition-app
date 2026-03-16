@@ -140,12 +140,24 @@ router.post("/api/recipes/import", async (req, res) => {
   const rawInstructions = recipe.recipeInstructions;
   let instructions: string[] = [];
   if (Array.isArray(rawInstructions)) {
-    instructions = rawInstructions.map((step: any) => {
-      if (typeof step === "string") return step;
-      if (step && typeof step === "object" && step.text) return String(step.text);
-      if (step && typeof step === "object" && step.name) return String(step.name);
-      return String(step);
-    }).filter((s: string) => s.trim().length > 0);
+    for (const step of rawInstructions) {
+      if (typeof step === "string") {
+        const trimmed = step.trim();
+        if (trimmed) instructions.push(trimmed);
+      } else if (step && typeof step === "object") {
+        if (step["@type"] === "HowToSection" && Array.isArray(step.itemListElement)) {
+          for (const sub of step.itemListElement) {
+            const text = typeof sub === "string" ? sub : sub?.text ?? sub?.name ?? "";
+            const trimmed = String(text).trim();
+            if (trimmed) instructions.push(trimmed);
+          }
+        } else if (step.text) {
+          instructions.push(String(step.text).trim());
+        } else if (step.name) {
+          instructions.push(String(step.name).trim());
+        }
+      }
+    }
   } else if (typeof rawInstructions === "string") {
     instructions = rawInstructions.split(/\n+/).map((s: string) => s.trim()).filter((s: string) => s.length > 0);
   }
