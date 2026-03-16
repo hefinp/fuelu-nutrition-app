@@ -47,7 +47,7 @@ export function FeedbackWidget() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 mb-20 sm:mb-0">
       <div className="border border-zinc-100 rounded-2xl overflow-hidden bg-white shadow-sm">
         <button
           data-testid="button-feedback-toggle"
