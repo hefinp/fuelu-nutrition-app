@@ -36,17 +36,88 @@ function getNutrient(nutrients: UsdaNutrient[], id: number): number {
   return nutrients.find(n => n.nutrientId === id)?.value ?? 0;
 }
 
-export function parseIngredientLine(line: string): { name: string; grams: number } {
+const NON_GRAM_UNIT_PATTERN = /^(\d+(?:[./]\d+)?(?:\s*-\s*\d+(?:[./]\d+)?)?)\s*(tbsp|tablespoons?|tsp|teaspoons?|cups?|oz|ounces?|ml|milliliters?|l|liters?|litres?|lbs?|pounds?|kg|kilograms?|pieces?|pcs?|slices?|cloves?|stalks?|sticks?|heads?|bunche?s?|cans?|bottles?|pinche?s?|dashe?s?|handfuls?|sprigs?)\s+(?:of\s+)?(.+)$/i;
+
+const BARE_COUNT_PATTERN = /^(\d+(?:[./]\d+)?)\s+(.+)$/i;
+
+export interface ParsedLine {
+  name: string;
+  grams: number;
+  needsAiConversion: boolean;
+  originalLine: string;
+}
+
+export function parseIngredientLine(line: string): ParsedLine {
   const trimmed = line.trim();
+
   const gramsMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*g(?:rams?)?\s+(.+)$/i);
   if (gramsMatch) {
-    return { grams: parseFloat(gramsMatch[1]), name: gramsMatch[2].trim() };
+    return { grams: parseFloat(gramsMatch[1]), name: gramsMatch[2].trim(), needsAiConversion: false, originalLine: trimmed };
   }
   const revMatch = trimmed.match(/^(.+?)[,\s]+(\d+(?:\.\d+)?)\s*g(?:rams?)?$/i);
   if (revMatch) {
-    return { grams: parseFloat(revMatch[2]), name: revMatch[1].trim() };
+    return { grams: parseFloat(revMatch[2]), name: revMatch[1].trim(), needsAiConversion: false, originalLine: trimmed };
   }
-  return { name: trimmed, grams: 100 };
+
+  if (NON_GRAM_UNIT_PATTERN.test(trimmed)) {
+    return { name: trimmed, grams: 100, needsAiConversion: true, originalLine: trimmed };
+  }
+
+  if (BARE_COUNT_PATTERN.test(trimmed)) {
+    return { name: trimmed, grams: 100, needsAiConversion: true, originalLine: trimmed };
+  }
+
+  if (!/\d/.test(trimmed)) {
+    return { name: trimmed, grams: 100, needsAiConversion: true, originalLine: trimmed };
+  }
+
+  return { name: trimmed, grams: 100, needsAiConversion: false, originalLine: trimmed };
+}
+
+const aiGramsSchema = z.object({
+  name: z.string(),
+  grams: z.number().min(0),
+});
+
+export async function aiConvertToGrams(description: string): Promise<{ name: string; grams: number } | null> {
+  if (!process.env.OPENAI_API_KEY) return null;
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `You are a culinary measurement expert. Convert the given ingredient description into grams. Return JSON with:
+- name (string): the cleaned ingredient name without quantities or units
+- grams (number): the total weight in grams
+
+Examples:
+- "2 tbsp olive oil" → {"name": "olive oil", "grams": 27}
+- "1 cup flour" → {"name": "flour", "grams": 125}
+- "3 eggs" → {"name": "eggs", "grams": 150}
+- "1 oz butter" → {"name": "butter", "grams": 28}
+- "chicken" (no quantity) → {"name": "chicken", "grams": 150} (single serving estimate)
+- "salt" (no quantity) → {"name": "salt", "grams": 2} (typical recipe amount)
+
+For items with no quantity, estimate a reasonable single-serving or typical recipe amount.
+Respond ONLY with JSON.`,
+        },
+        { role: "user", content: description },
+      ],
+      max_tokens: 150,
+    });
+    const text = response.choices[0]?.message?.content ?? "";
+    const match = text.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(match ? match[0] : text);
+    const validated = aiGramsSchema.parse(parsed);
+    return {
+      name: validated.name,
+      grams: Math.max(1, Math.round(validated.grams)),
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function searchFoodDb(name: string): Promise<{ calories100g: number; protein100g: number; carbs100g: number; fat100g: number } | null> {
@@ -133,9 +204,24 @@ export async function aiEstimateIngredient(description: string): Promise<AiEstim
 export async function parseIngredients(ingredientText: string, userId?: number): Promise<IngredientResult[]> {
   const lines = ingredientText.split("\n").map(l => l.trim()).filter(Boolean);
   const results: IngredientResult[] = [];
+  const gramsCache = new Map<string, { name: string; grams: number } | null>();
 
   for (const line of lines) {
-    const { name, grams } = parseIngredientLine(line);
+    const parsed = parseIngredientLine(line);
+    let { name, grams } = parsed;
+
+    if (parsed.needsAiConversion && process.env.OPENAI_API_KEY) {
+      const cacheKey = parsed.originalLine.toLowerCase();
+      let converted: { name: string; grams: number } | null | undefined = gramsCache.get(cacheKey);
+      if (converted === undefined) {
+        converted = await aiConvertToGrams(parsed.originalLine);
+        gramsCache.set(cacheKey, converted);
+      }
+      if (converted) {
+        name = converted.name;
+        grams = converted.grams;
+      }
+    }
 
     const dbResult = await searchFoodDb(name);
     if (dbResult) {
