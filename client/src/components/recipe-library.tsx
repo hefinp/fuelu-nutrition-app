@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CommunityBrowserModal } from "@/components/community-browser-modal";
-import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
+import { DuplicateWarningBanner, type DuplicateWarning } from "@/components/duplicate-warning-banner";
 
 type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
 type MealStyle = "simple" | "gourmet" | "michelin";
@@ -405,9 +405,10 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
       toast({ title: "Recipe saved!", description: "It will appear in your meal plan generation." });
       onClose();
     },
-    onError: (err: any) => {
-      if (err?.isDuplicate) {
-        setDupWarning(err.warning);
+    onError: (err: unknown) => {
+      const e = err as Record<string, unknown>;
+      if (e?.isDuplicate) {
+        setDupWarning(e.warning as DuplicateWarning);
         return;
       }
       toast({ title: "Failed to save recipe", variant: "destructive" });

@@ -6,7 +6,7 @@ import {
   Plus, X, Loader2, ArrowLeft, ImagePlus,
   AlertCircle, Globe, BookOpen, Camera,
 } from "lucide-react";
-import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
+import { DuplicateWarningBanner, type DuplicateWarning } from "@/components/duplicate-warning-banner";
 import {
   type MealSlot, type ImportStep, type ParsedRecipe,
   SLOT_OPTIONS, fileToBase64,
@@ -102,9 +102,10 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       onSaved();
       onClose();
     },
-    onError: (err: any) => {
-      if (err?.isDuplicate) {
-        setDupWarning(err.warning);
+    onError: (err: unknown) => {
+      const e = err as Record<string, unknown>;
+      if (e?.isDuplicate) {
+        setDupWarning(e.warning as DuplicateWarning);
         return;
       }
       toast({ title: "Failed to save recipe", variant: "destructive" });

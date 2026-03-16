@@ -73,6 +73,7 @@ function ConfirmPanel({ food, servGrams, setServGrams, onSave, onReset, testPref
 }
 
 type DuplicateWarning = { message: string; exactMatch: boolean; existingCount: number };
+type FoodPayload = { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams: number; confirmDuplicate?: boolean };
 
 export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSaved: (food: UserSavedFood) => void }) {
   const { toast } = useToast();
@@ -89,12 +90,12 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
   const [selectedResult, setSelectedResult] = useState<FoodResult | ExtendedFoodResult | null>(null);
   const [resultServing, setResultServing] = useState("100");
   const [dupWarning, setDupWarning] = useState<DuplicateWarning | null>(null);
-  const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null);
+  const [pendingPayload, setPendingPayload] = useState<FoodPayload | null>(null);
 
   const picker = useFoodPicker({ activeTab: tab, scanActive: true });
 
   const saveMutation = useMutation({
-    mutationFn: async (payload: { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams: number; confirmDuplicate?: boolean }) => {
+    mutationFn: async (payload: FoodPayload) => {
       const res = await fetch("/api/my-foods", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -116,19 +117,19 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
       onSaved(data);
       onClose();
     },
-    onError: (err: any) => {
-      if (err?.isDuplicate) {
-        setDupWarning(err.warning);
+    onError: (err: unknown) => {
+      const e = err as Record<string, unknown>;
+      if (e?.isDuplicate) {
+        setDupWarning(e.warning as DuplicateWarning);
         return;
       }
       toast({ title: "Failed to save food", variant: "destructive" });
     },
   });
 
-  function doSave(payload: Record<string, unknown>, confirm = false) {
-    const p = { ...payload, ...(confirm ? { confirmDuplicate: true } : {}) };
+  function doSave(payload: FoodPayload, confirm = false) {
     setPendingPayload(payload);
-    saveMutation.mutate(p as any);
+    saveMutation.mutate(confirm ? { ...payload, confirmDuplicate: true } : payload);
   }
 
   function saveFromResult(food: FoodResult | ExtendedFoodResult, servGrams: string) {

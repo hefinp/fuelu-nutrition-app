@@ -6,7 +6,7 @@ import {
   Plus, X, Loader2, ArrowLeft,
   Check, Search, Barcode, Sparkles, Wheat, UtensilsCrossed,
 } from "lucide-react";
-import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
+import { DuplicateWarningBanner, type DuplicateWarning } from "@/components/duplicate-warning-banner";
 import type { UserSavedFood } from "@shared/schema";
 import type { ExtendedFoodResult } from "@/components/food-log-shared";
 import {
@@ -117,9 +117,10 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
       onSaved();
       onClose();
     },
-    onError: (err: any) => {
-      if (err?.isDuplicate) {
-        setDupWarning(err.warning);
+    onError: (err: unknown) => {
+      const e = err as Record<string, unknown>;
+      if (e?.isDuplicate) {
+        setDupWarning(e.warning as DuplicateWarning);
         return;
       }
       toast({ title: "Failed to save meal", variant: "destructive" });

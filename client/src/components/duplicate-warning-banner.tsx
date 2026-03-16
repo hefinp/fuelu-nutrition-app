@@ -1,6 +1,6 @@
 import { AlertTriangle, Copy } from "lucide-react";
 
-type DuplicateWarning = {
+export type DuplicateWarning = {
   message: string;
   exactMatch: boolean;
   existingCount: number;
