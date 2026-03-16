@@ -218,7 +218,7 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-zinc-900 truncate">{food.name}</p>
-                              <p className="text-xs text-zinc-400">{food.calories100g} kcal · P:{Number(food.protein100g).toFixed(1)}g · C:{Number(food.carbs100g).toFixed(1)}g · F:{Number(food.fat100g).toFixed(1)}g per 100g</p>
+                              <p className="text-xs text-zinc-400">{food.calories100g} kcal · P:{food.protein100g.toFixed(1)}g · C:{food.carbs100g.toFixed(1)}g · F:{food.fat100g.toFixed(1)}g per 100g</p>
                             </div>
                           </button>
                           {isSelected && sel && (

@@ -182,15 +182,15 @@ export function FoodCard({ food, isOpen, onToggle, onLog, onEdit, onDelete, isLo
               <p className="text-[10px] text-orange-400">kcal</p>
             </div>
             <div className="bg-blue-50 rounded-lg p-1.5 text-center">
-              <p className="text-xs font-bold text-blue-600">{Number(food.protein100g).toFixed(1)}g</p>
+              <p className="text-xs font-bold text-blue-600">{food.protein100g.toFixed(1)}g</p>
               <p className="text-[10px] text-blue-400">prot</p>
             </div>
             <div className="bg-amber-50 rounded-lg p-1.5 text-center">
-              <p className="text-xs font-bold text-amber-600">{Number(food.carbs100g).toFixed(1)}g</p>
+              <p className="text-xs font-bold text-amber-600">{food.carbs100g.toFixed(1)}g</p>
               <p className="text-[10px] text-amber-400">carbs</p>
             </div>
             <div className="bg-rose-50 rounded-lg p-1.5 text-center">
-              <p className="text-xs font-bold text-rose-600">{Number(food.fat100g).toFixed(1)}g</p>
+              <p className="text-xs font-bold text-rose-600">{food.fat100g.toFixed(1)}g</p>
               <p className="text-[10px] text-rose-400">fat</p>
             </div>
           </div>

@@ -93,7 +93,7 @@ export function MacroChips({ cal, p, c, f }: { cal: number; p: number; c: number
 }
 
 export function ingredientFromSaved(f: UserSavedFood): Ingredient {
-  return { key: `saved-${f.id}`, name: f.name, calories100g: f.calories100g, protein100g: Number(f.protein100g), carbs100g: Number(f.carbs100g), fat100g: Number(f.fat100g), grams: f.servingGrams };
+  return { key: `saved-${f.id}`, name: f.name, calories100g: f.calories100g, protein100g: f.protein100g, carbs100g: f.carbs100g, fat100g: f.fat100g, grams: f.servingGrams };
 }
 
 export function ingredientFromSearch(f: FoodResult | ExtendedFoodResult): Ingredient {

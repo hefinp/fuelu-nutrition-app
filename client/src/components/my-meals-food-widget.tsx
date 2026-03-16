@@ -303,9 +303,9 @@ export function MyMealsFoodWidget() {
                       logMutation.mutate({
                         name: food.name,
                         cal: Math.round(food.calories100g * factor),
-                        prot: Math.round(Number(food.protein100g) * factor),
-                        carbs: Math.round(Number(food.carbs100g) * factor),
-                        fat: Math.round(Number(food.fat100g) * factor),
+                        prot: Math.round(food.protein100g * factor),
+                        carbs: Math.round(food.carbs100g * factor),
+                        fat: Math.round(food.fat100g * factor),
                         slot: null,
                       });
                     }}

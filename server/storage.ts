@@ -496,9 +496,9 @@ export class DatabaseStorage implements IStorage {
       userId: entry.userId,
       name: entry.name,
       calories100g: entry.calories100g,
-      protein100g: String(entry.protein100g),
-      carbs100g: String(entry.carbs100g),
-      fat100g: String(entry.fat100g),
+      protein100g: entry.protein100g,
+      carbs100g: entry.carbs100g,
+      fat100g: entry.fat100g,
       servingGrams: entry.servingGrams ?? 100,
       source: entry.source ?? null,
     }).returning();
@@ -509,9 +509,9 @@ export class DatabaseStorage implements IStorage {
     const setObj: Record<string, unknown> = {};
     if (updates.name !== undefined) setObj.name = updates.name;
     if (updates.calories100g !== undefined) setObj.calories100g = updates.calories100g;
-    if (updates.protein100g !== undefined) setObj.protein100g = String(updates.protein100g);
-    if (updates.carbs100g !== undefined) setObj.carbs100g = String(updates.carbs100g);
-    if (updates.fat100g !== undefined) setObj.fat100g = String(updates.fat100g);
+    if (updates.protein100g !== undefined) setObj.protein100g = updates.protein100g;
+    if (updates.carbs100g !== undefined) setObj.carbs100g = updates.carbs100g;
+    if (updates.fat100g !== undefined) setObj.fat100g = updates.fat100g;
     if (updates.servingGrams !== undefined) setObj.servingGrams = updates.servingGrams;
     const [updated] = await db.update(userSavedFoods)
       .set(setObj)

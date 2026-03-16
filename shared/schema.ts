@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, numeric, timestamp, text, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, numeric, real, timestamp, text, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -357,9 +357,9 @@ export const userSavedFoods = pgTable("user_saved_foods", {
   userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   calories100g: integer("calories_100g").notNull(),
-  protein100g: numeric("protein_100g").notNull(),
-  carbs100g: numeric("carbs_100g").notNull(),
-  fat100g: numeric("fat_100g").notNull(),
+  protein100g: real("protein_100g").notNull(),
+  carbs100g: real("carbs_100g").notNull(),
+  fat100g: real("fat_100g").notNull(),
   servingGrams: integer("serving_grams").notNull().default(100),
   source: text("source"),
   createdAt: timestamp("created_at").defaultNow(),
