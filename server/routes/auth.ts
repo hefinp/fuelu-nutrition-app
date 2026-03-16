@@ -5,9 +5,14 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import passport from "passport";
 import { storage } from "../storage";
-import { registerSchema, loginSchema, type UserPreferences } from "@shared/schema";
+import { registerSchema, loginSchema, type UserPreferences, type User } from "@shared/schema";
 import { authRateLimiter } from "../constants";
 import { sendEmail, buildPasswordResetEmailHtml } from "../email";
+
+function toPublicUser(user: User) {
+  const { passwordHash: _, stripeCustomerId: _s, stripeSubscriptionId: _si, paymentFailedAt: _p, ...pub } = user;
+  return pub;
+}
 
 const router = Router();
 
@@ -38,7 +43,7 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
     await storage.updateUserPreferences(user.id, initialPrefs);
     await storage.markInviteCodeUsed(submitted, input.email);
     req.session.userId = user.id;
-    const { passwordHash: _, ...publicUser } = user;
+    const publicUser = toPublicUser(user);
     req.session.save(() => res.status(201).json(publicUser));
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -64,7 +69,7 @@ router.post("/api/auth/login", authRateLimiter, async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
     req.session.userId = user.id;
-    const { passwordHash: _, ...publicUser } = user;
+    const publicUser = toPublicUser(user);
     req.session.save(() => res.status(200).json(publicUser));
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -88,7 +93,7 @@ router.get("/api/auth/me", async (req, res) => {
   if (!user) {
     return res.status(401).json({ message: "User not found" });
   }
-  const { passwordHash: _, ...publicUser } = user;
+  const publicUser = toPublicUser(user);
   res.status(200).json(publicUser);
 });
 

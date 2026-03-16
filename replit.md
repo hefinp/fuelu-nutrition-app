@@ -36,6 +36,7 @@ Core components include:
     -   `meal-food-cards.tsx`: Shared MealCard and FoodCard components using unified `UserMeal` type, with helper functions (getMealKey, getMealSlot, isImportedMeal). Used by both the dashboard widget and the full-page library.
     -   `my-meals-food-widget.tsx`: Slim dashboard widget (~415 lines) importing shared cards and all modals.
 -   **MyLibraryPage** (`/my-library`): Full-page view of meals and foods with responsive grid (2-col on desktop), search filtering, slot filters, pagination, and all CRUD actions. Linked from the widget via "View all".
+-   **GoalPreview** (`goal-preview.tsx`): Pre-log nutritional goal preview component. Shows how adding a food will impact daily calorie/macro goals before logging. Displays current totals, added amounts, projected totals vs targets with color-coded progress bars (blue=under, green=on target, amber=slightly over, red=significantly over). Integrated into manual form, food search, and barcode scan flows in the FoodLogDrawer.
 -   **DiaryPage** (`/diary`): Full food diary with daily/weekly views, date navigation, entry management (confirm/star/delete), weekly AI insights, and the FoodLogDrawer for logging.
 -   **CycleTracker**: (For female users) Tracks menstrual cycles, predicts phases, provides cycle-phase-specific nutrition tips (via AI with web search), and logs symptoms and period history.
 -   **Insights**: Offers wellbeing insights, including symptom trends, food correlations, AI-powered narrative analysis, and research summaries based on user data and external research (PubMed/NIH).
@@ -85,7 +86,13 @@ Key tables include:
 -   `cycle_symptoms`: Logs menstrual cycle symptoms.
 -   `cycle_period_logs`: Stores menstrual period start/end dates and computed cycle lengths.
 -   `ai_insights_cache`: Caches AI-generated insights to optimize performance.
+-   `feature_gates`: Maps feature keys to required tier levels and credit costs for tier-gated access control.
+-   `credit_transactions`: Tracks credit purchases and usage for PAYG users.
+-   `meal_templates`: Stores recurring meal templates with day-of-week scheduling.
 Database migrations are handled automatically on server start.
+
+### Tier System
+Users have a `tier` field (free/simple/advanced/payg), `betaUser` flag (bypasses all gates), and `creditBalance` for PAYG. Stripe fields (`stripeCustomerId`, `stripeSubscriptionId`, `tierExpiresAt`, `paymentFailedAt`) are prepared but Stripe integration is not yet connected. Existing invite-code users are auto-migrated to `betaUser = true`.
 
 ### Authentication
 Session-based authentication is implemented with `express-session` and a PostgreSQL store. Passwords are hashed with `bcryptjs`. OAuth is supported for Google and Apple via **Passport.js**, conditionally enabled based on environment variables. An optional invite code beta gate can restrict new registrations.
