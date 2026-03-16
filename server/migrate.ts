@@ -168,6 +168,11 @@ export async function runMigrations(): Promise<void> {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_tier TEXT`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS beta_tier_locked BOOLEAN NOT NULL DEFAULT FALSE`);
 
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_start_date TIMESTAMP`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_status TEXT NOT NULL DEFAULT 'none'`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_step_down_seen BOOLEAN NOT NULL DEFAULT FALSE`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_expired_seen BOOLEAN NOT NULL DEFAULT FALSE`);
+
     await client.query(`
       UPDATE users SET beta_user = TRUE, tier = 'advanced'
       WHERE email IN (SELECT used_by_email FROM invite_codes WHERE used_by_email IS NOT NULL)

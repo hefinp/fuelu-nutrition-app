@@ -6,6 +6,7 @@ import crypto from "crypto";
 import passport from "passport";
 import { storage } from "../storage";
 import { registerSchema, loginSchema, type UserPreferences, type User } from "@shared/schema";
+import { computeTrialInfo } from "@shared/trial";
 import { authRateLimiter } from "../constants";
 import { sendEmail, buildPasswordResetEmailHtml } from "../email";
 
@@ -41,11 +42,18 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
     const user = await storage.createUser({ email: input.email, name: input.name, passwordHash });
     const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
     await storage.updateUserPreferences(user.id, initialPrefs);
+    if (!user.betaUser) {
+      await storage.updateUserTrial(user.id, { trialStartDate: new Date(), trialStatus: "active" });
+    }
     await storage.markInviteCodeUsed(submitted, input.email);
     await storage.updateUserTier(user.id, { betaUser: true, tier: "advanced" });
     req.session.userId = user.id;
-    const publicUser = toPublicUser({ ...user, betaUser: true, tier: "advanced" });
-    req.session.save(() => res.status(201).json(publicUser));
+    const updatedUser = await storage.getUserById(user.id);
+    const publicUser = toPublicUser(updatedUser!);
+    const trialInfo = computeTrialInfo(
+      publicUser.trialStatus, publicUser.trialStartDate, publicUser.trialStepDownSeen, publicUser.trialExpiredSeen, publicUser.betaUser, publicUser.tier
+    );
+    req.session.save(() => res.status(201).json({ ...publicUser, trialInfo }));
   } catch (err) {
     if (err instanceof z.ZodError) {
       return res.status(400).json({ message: err.errors[0].message });
@@ -69,9 +77,20 @@ router.post("/api/auth/login", authRateLimiter, async (req, res) => {
     if (!valid) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
+    const trialInfo = computeTrialInfo(
+      user.trialStatus, user.trialStartDate, user.trialStepDownSeen, user.trialExpiredSeen, user.betaUser, user.tier
+    );
+    if (trialInfo.phase === "expired" && user.trialStatus === "active") {
+      await storage.updateUserTrial(user.id, { trialStatus: "expired" });
+      await storage.updateUserTier(user.id, { tier: "free" });
+    }
     req.session.userId = user.id;
-    const publicUser = toPublicUser(user);
-    req.session.save(() => res.status(200).json(publicUser));
+    const freshUser = await storage.getUserById(user.id);
+    const publicUser = toPublicUser(freshUser!);
+    const freshTrialInfo = computeTrialInfo(
+      publicUser.trialStatus, publicUser.trialStartDate, publicUser.trialStepDownSeen, publicUser.trialExpiredSeen, publicUser.betaUser, publicUser.tier
+    );
+    req.session.save(() => res.status(200).json({ ...publicUser, trialInfo: freshTrialInfo }));
   } catch (err) {
     if (err instanceof z.ZodError) {
       return res.status(400).json({ message: err.errors[0].message });
@@ -94,8 +113,37 @@ router.get("/api/auth/me", async (req, res) => {
   if (!user) {
     return res.status(401).json({ message: "User not found" });
   }
+  const trialInfo = computeTrialInfo(
+    user.trialStatus, user.trialStartDate, user.trialStepDownSeen, user.trialExpiredSeen, user.betaUser, user.tier
+  );
+  if (trialInfo.phase === "expired" && user.trialStatus === "active") {
+    await storage.updateUserTrial(user.id, { trialStatus: "expired" });
+    await storage.updateUserTier(user.id, { tier: "free" });
+    const freshUser = await storage.getUserById(user.id);
+    const publicUser = toPublicUser(freshUser!);
+    const freshTrialInfo = computeTrialInfo(
+      publicUser.trialStatus, publicUser.trialStartDate, publicUser.trialStepDownSeen, publicUser.trialExpiredSeen, publicUser.betaUser, publicUser.tier
+    );
+    return res.status(200).json({ ...publicUser, trialInfo: freshTrialInfo });
+  }
   const publicUser = toPublicUser(user);
-  res.status(200).json(publicUser);
+  res.status(200).json({ ...publicUser, trialInfo });
+});
+
+router.post("/api/auth/trial/acknowledge-stepdown", async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  await storage.updateUserTrial(req.session.userId, { trialStepDownSeen: true });
+  res.json({ ok: true });
+});
+
+router.post("/api/auth/trial/acknowledge-expired", async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  await storage.updateUserTrial(req.session.userId, { trialExpiredSeen: true });
+  res.json({ ok: true });
 });
 
 router.get("/api/auth/providers", (_req, res) => {
@@ -156,6 +204,9 @@ router.post("/api/auth/oauth-invite", authRateLimiter, async (req, res) => {
     const user = await storage.findOrCreateOAuthUser(pending);
     const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
     await storage.updateUserPreferences(user.id, initialPrefs);
+    if (!user.betaUser && user.trialStatus === "none") {
+      await storage.updateUserTrial(user.id, { trialStartDate: new Date(), trialStatus: "active" });
+    }
     await storage.markInviteCodeUsed(submittedOAuth, pending.email);
     await storage.updateUserTier(user.id, { betaUser: true, tier: "advanced" });
     delete req.session.pendingOAuth;

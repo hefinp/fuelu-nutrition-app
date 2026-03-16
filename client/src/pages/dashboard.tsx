@@ -16,6 +16,8 @@ import { OnboardingTour } from "@/components/onboarding-tour";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { InstallPrompt } from "@/components/install-prompt";
+import { TrialBanner } from "@/components/trial-banner";
+import type { TrialInfo } from "@shared/trial";
 const InsightsPage = lazy(() => import("@/pages/insights"));
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
@@ -442,6 +444,10 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
+
+      {user && (user as any).trialInfo && (
+        <TrialBanner trialInfo={(user as any).trialInfo as TrialInfo} />
+      )}
 
       {/* Metrics slide-over panel */}
       <AnimatePresence>

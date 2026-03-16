@@ -116,6 +116,9 @@ export interface IStorage {
   updateMealTemplate(id: number, userId: number, updates: { mealSlot?: string; daysOfWeek?: string[]; active?: boolean }): Promise<MealTemplate | undefined>;
   deleteMealTemplate(id: number, userId: number): Promise<void>;
 
+  // Trial
+  updateUserTrial(userId: number, updates: { trialStartDate?: Date; trialStatus?: string; trialStepDownSeen?: boolean; trialExpiredSeen?: boolean }): Promise<void>;
+
   // Tier & billing
   updateUserTier(userId: number, updates: { tier?: string; stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; tierExpiresAt?: Date | null; creditBalance?: number; paymentFailedAt?: Date | null; betaUser?: boolean; betaTierLocked?: boolean; pendingTier?: string | null }): Promise<User>;
   getFeatureGates(): Promise<FeatureGate[]>;
@@ -723,6 +726,15 @@ export class DatabaseStorage implements IStorage {
   async deleteMealTemplate(id: number, userId: number): Promise<void> {
     await db.delete(mealTemplates)
       .where(and(eq(mealTemplates.id, id), eq(mealTemplates.userId, userId)));
+  }
+
+  async updateUserTrial(userId: number, updates: { trialStartDate?: Date; trialStatus?: string; trialStepDownSeen?: boolean; trialExpiredSeen?: boolean }): Promise<void> {
+    const setObj: Record<string, unknown> = {};
+    if (updates.trialStartDate !== undefined) setObj.trialStartDate = updates.trialStartDate;
+    if (updates.trialStatus !== undefined) setObj.trialStatus = updates.trialStatus;
+    if (updates.trialStepDownSeen !== undefined) setObj.trialStepDownSeen = updates.trialStepDownSeen;
+    if (updates.trialExpiredSeen !== undefined) setObj.trialExpiredSeen = updates.trialExpiredSeen;
+    await db.update(users).set(setObj).where(eq(users.id, userId));
   }
 
   async updateUserTier(userId: number, updates: { tier?: string; stripeCustomerId?: string | null; stripeSubscriptionId?: string | null; tierExpiresAt?: Date | null; creditBalance?: number; paymentFailedAt?: Date | null; betaUser?: boolean; betaTierLocked?: boolean; pendingTier?: string | null }): Promise<User> {

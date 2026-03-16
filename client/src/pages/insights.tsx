@@ -11,6 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { TrialBanner } from "@/components/trial-banner";
+import type { TrialInfo } from "@shared/trial";
 import { getCyclePhase } from "@/lib/cycle";
 import type { UserPreferences } from "@shared/schema";
 
@@ -132,6 +134,10 @@ export default function InsightsPage({ onClose }: { onClose?: () => void } = {})
           </Badge>
         </div>
       </header>
+
+      {user && (user as any).trialInfo && (
+        <TrialBanner trialInfo={(user as any).trialInfo as TrialInfo} />
+      )}
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-5 pb-24">
         {/* Loading state */}

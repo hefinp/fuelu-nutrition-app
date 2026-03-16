@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { TrialBanner } from "@/components/trial-banner";
+import type { TrialInfo } from "@shared/trial";
 import { Link, useLocation } from "wouter";
 import {
   Loader2, Plus, Trash2, ClipboardList, CalendarDays,
@@ -349,6 +351,10 @@ function DiaryContent({
           </button>
         </div>
       </header>
+
+      {user && (user as any).trialInfo && (
+        <TrialBanner trialInfo={(user as any).trialInfo as TrialInfo} />
+      )}
 
       <main className="max-w-2xl mx-auto px-4 py-6">
         <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">

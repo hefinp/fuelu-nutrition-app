@@ -4,6 +4,8 @@ import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tansta
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { TrialBanner } from "@/components/trial-banner";
+import type { TrialInfo } from "@shared/trial";
 import {
   UtensilsCrossed, Wheat, Plus, Loader2, X,
   Link2, Search, Users2, ArrowLeft, Repeat,
@@ -179,6 +181,10 @@ export default function MyLibraryPage() {
           </div>
         </div>
       </header>
+
+      {user && (user as any).trialInfo && (
+        <TrialBanner trialInfo={(user as any).trialInfo as TrialInfo} />
+      )}
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
         <div className="flex bg-zinc-100 rounded-xl p-1 mb-6">

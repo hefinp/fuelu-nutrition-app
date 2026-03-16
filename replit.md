@@ -101,6 +101,9 @@ Database migrations are handled automatically on server start.
 ### Tier System
 Users have a `tier` field (free/simple/advanced/payg), `betaUser` flag (bypasses all gates), and `creditBalance` for PAYG. Stripe integration handles subscription lifecycle via webhooks. The `hasTierAccess(user, featureKey)` utility in `server/tier.ts` checks tier access against the `feature_gates` table, always returning true for beta users. Key tables: `tier_pricing` (admin-editable per-tier prices), `credit_packs` (PAYG credit options), `feature_gates` (feature-to-tier mappings), `credit_transactions` (PAYG credit history). Frontend pages: `/pricing` (public), `/billing` (logged-in users). Admin panel has tier pricing management, feature gate editor, user tier controls, and a self-tier-switcher for testing. Existing invite-code users are auto-migrated to `betaUser = true`.
 
+### Trial System
+New non-beta users get a 21-day stepped trial on registration. Fields: `trialStartDate`, `trialStatus` (none/active/expired), `trialStepDownSeen`, `trialExpiredSeen`. Days 1-14 = Advanced tier access, days 15-21 = Simple tier access, day 22+ = expired (set to Free). Trial info is computed via `shared/trial.ts` (`computeTrialInfo`) and returned as `trialInfo` on the `/api/auth/me` response. Frontend components: `TrialBanner` (persistent bar on all authenticated pages), `TrialModal` (shown on login with tier info, step-down notice, or expiry notice). Acknowledge endpoints: `POST /api/auth/trial/acknowledge-stepdown` and `POST /api/auth/trial/acknowledge-expired`.
+
 ### Authentication
 Session-based authentication is implemented with `express-session` and a PostgreSQL store. Passwords are hashed with `bcryptjs`. OAuth is supported for Google and Apple via **Passport.js**, conditionally enabled based on environment variables. An optional invite code beta gate can restrict new registrations.
 

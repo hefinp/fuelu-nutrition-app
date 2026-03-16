@@ -22,6 +22,10 @@ export const users = pgTable("users", {
   creditBalance: integer("credit_balance").notNull().default(0),
   pendingTier: text("pending_tier"),
   paymentFailedAt: timestamp("payment_failed_at"),
+  trialStartDate: timestamp("trial_start_date"),
+  trialStatus: text("trial_status").notNull().default("none"),
+  trialStepDownSeen: boolean("trial_step_down_seen").notNull().default(false),
+  trialExpiredSeen: boolean("trial_expired_seen").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

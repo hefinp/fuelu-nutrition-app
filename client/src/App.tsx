@@ -16,6 +16,8 @@ import AdminPage from "@/pages/admin";
 import PricingPage from "@/pages/pricing";
 import BillingPage from "@/pages/billing";
 import { useAuth } from "@/hooks/use-auth";
+import { TrialModal } from "@/components/trial-modal";
+import type { TrialInfo } from "@shared/trial";
 import { Loader2 } from "lucide-react";
 
 const InsightsPage = lazy(() => import("@/pages/insights"));
@@ -35,6 +37,14 @@ function RootRedirect() {
   const { user, isLoading } = useAuth();
   if (isLoading) return null;
   return <LandingPage loggedIn={!!user} />;
+}
+
+function TrialModalWrapper() {
+  const { user } = useAuth();
+  if (!user) return null;
+  const trialInfo = (user as any).trialInfo as TrialInfo | undefined;
+  if (!trialInfo) return null;
+  return <TrialModal trialInfo={trialInfo} showOnLogin={true} />;
 }
 
 function Router() {
@@ -64,6 +74,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
+        <TrialModalWrapper />
         <Router />
       </TooltipProvider>
     </QueryClientProvider>
