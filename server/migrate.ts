@@ -170,6 +170,7 @@ export async function runMigrations(): Promise<void> {
       UPDATE users SET beta_user = TRUE
       WHERE email IN (SELECT used_by_email FROM invite_codes WHERE used_by_email IS NOT NULL)
         AND beta_user = FALSE
+        AND created_at < '2026-03-17T00:00:00Z'
     `);
 
     await client.query(`
