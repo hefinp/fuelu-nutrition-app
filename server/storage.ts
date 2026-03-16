@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 
@@ -110,6 +110,16 @@ export interface IStorage {
   createMealTemplate(entry: { userId: number; userMealId: number; mealSlot: string; daysOfWeek: string[] }): Promise<MealTemplate>;
   updateMealTemplate(id: number, userId: number, updates: { mealSlot?: string; daysOfWeek?: string[]; active?: boolean }): Promise<MealTemplate | undefined>;
   deleteMealTemplate(id: number, userId: number): Promise<void>;
+
+  // Tier & billing
+  updateUserTier(userId: number, updates: { tier?: string; stripeCustomerId?: string; stripeSubscriptionId?: string; tierExpiresAt?: Date | null; creditBalance?: number; paymentFailedAt?: Date | null; betaUser?: boolean }): Promise<User>;
+  getFeatureGates(): Promise<FeatureGate[]>;
+  getFeatureGate(featureKey: string): Promise<FeatureGate | undefined>;
+  upsertFeatureGate(featureKey: string, requiredTier: string, creditCost: number, description?: string): Promise<FeatureGate>;
+  deleteFeatureGate(featureKey: string): Promise<void>;
+  createCreditTransaction(entry: { userId: number; amount: number; type: string; featureKey?: string; description?: string }): Promise<CreditTransaction>;
+  getCreditTransactions(userId: number, limit?: number): Promise<CreditTransaction[]>;
+  adjustCreditBalance(userId: number, amount: number): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -661,6 +671,61 @@ export class DatabaseStorage implements IStorage {
   async deleteMealTemplate(id: number, userId: number): Promise<void> {
     await db.delete(mealTemplates)
       .where(and(eq(mealTemplates.id, id), eq(mealTemplates.userId, userId)));
+  }
+
+  async updateUserTier(userId: number, updates: { tier?: string; stripeCustomerId?: string; stripeSubscriptionId?: string; tierExpiresAt?: Date | null; creditBalance?: number; paymentFailedAt?: Date | null; betaUser?: boolean }): Promise<User> {
+    const setObj: Record<string, unknown> = {};
+    if (updates.tier !== undefined) setObj.tier = updates.tier;
+    if (updates.stripeCustomerId !== undefined) setObj.stripeCustomerId = updates.stripeCustomerId;
+    if (updates.stripeSubscriptionId !== undefined) setObj.stripeSubscriptionId = updates.stripeSubscriptionId;
+    if (updates.tierExpiresAt !== undefined) setObj.tierExpiresAt = updates.tierExpiresAt;
+    if (updates.creditBalance !== undefined) setObj.creditBalance = updates.creditBalance;
+    if (updates.paymentFailedAt !== undefined) setObj.paymentFailedAt = updates.paymentFailedAt;
+    if (updates.betaUser !== undefined) setObj.betaUser = updates.betaUser;
+    const [updated] = await db.update(users).set(setObj).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+
+  async getFeatureGates(): Promise<FeatureGate[]> {
+    return db.select().from(featureGates).orderBy(featureGates.featureKey);
+  }
+
+  async getFeatureGate(featureKey: string): Promise<FeatureGate | undefined> {
+    const [gate] = await db.select().from(featureGates).where(eq(featureGates.featureKey, featureKey));
+    return gate;
+  }
+
+  async upsertFeatureGate(featureKey: string, requiredTier: string, creditCost: number, description?: string): Promise<FeatureGate> {
+    const [gate] = await db
+      .insert(featureGates)
+      .values({ featureKey, requiredTier, creditCost, description })
+      .onConflictDoUpdate({ target: featureGates.featureKey, set: { requiredTier, creditCost, description } })
+      .returning();
+    return gate;
+  }
+
+  async deleteFeatureGate(featureKey: string): Promise<void> {
+    await db.delete(featureGates).where(eq(featureGates.featureKey, featureKey));
+  }
+
+  async createCreditTransaction(entry: { userId: number; amount: number; type: string; featureKey?: string; description?: string }): Promise<CreditTransaction> {
+    const [tx] = await db.insert(creditTransactions).values(entry).returning();
+    return tx;
+  }
+
+  async getCreditTransactions(userId: number, limit = 50): Promise<CreditTransaction[]> {
+    return db.select().from(creditTransactions)
+      .where(eq(creditTransactions.userId, userId))
+      .orderBy(desc(creditTransactions.createdAt))
+      .limit(limit);
+  }
+
+  async adjustCreditBalance(userId: number, amount: number): Promise<number> {
+    const [updated] = await db.update(users)
+      .set({ creditBalance: sql`GREATEST(0, ${users.creditBalance} + ${amount})` })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated.creditBalance;
   }
 }
 

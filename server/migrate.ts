@@ -158,6 +158,59 @@ export async function runMigrations(): Promise<void> {
       END $$;
     `);
 
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS tier TEXT NOT NULL DEFAULT 'free'`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS beta_user BOOLEAN NOT NULL DEFAULT FALSE`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS tier_expires_at TIMESTAMP`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS credit_balance INTEGER NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_failed_at TIMESTAMP`);
+
+    await client.query(`
+      UPDATE users SET beta_user = TRUE
+      WHERE email IN (SELECT used_by_email FROM invite_codes WHERE used_by_email IS NOT NULL)
+        AND beta_user = FALSE
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS feature_gates (
+        id              SERIAL PRIMARY KEY,
+        feature_key     TEXT NOT NULL UNIQUE,
+        required_tier   TEXT NOT NULL DEFAULT 'free',
+        credit_cost     INTEGER NOT NULL DEFAULT 0,
+        description     TEXT,
+        created_at      TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS credit_transactions (
+        id              SERIAL PRIMARY KEY,
+        user_id         INTEGER NOT NULL REFERENCES users(id),
+        amount          INTEGER NOT NULL,
+        type            TEXT NOT NULL,
+        feature_key     TEXT,
+        description     TEXT,
+        created_at      TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      INSERT INTO feature_gates (feature_key, required_tier, credit_cost, description) VALUES
+        ('ai_insights', 'simple', 5, 'AI-powered nutrition insights'),
+        ('ai_meal_plan', 'simple', 10, 'AI meal plan generation'),
+        ('ai_photo_scan', 'simple', 3, 'AI nutrition label scanning'),
+        ('recipe_library', 'free', 0, 'Access recipe library'),
+        ('barcode_scan', 'free', 0, 'Barcode food scanning'),
+        ('community_meals', 'free', 0, 'Community meal sharing'),
+        ('meal_templates', 'simple', 0, 'Recurring meal templates'),
+        ('cycle_tracking', 'simple', 0, 'Cycle-aware nutrition'),
+        ('advanced_analytics', 'advanced', 0, 'Advanced analytics dashboard'),
+        ('export_data', 'advanced', 0, 'Export nutrition data'),
+        ('priority_support', 'advanced', 0, 'Priority support access')
+      ON CONFLICT (feature_key) DO NOTHING
+    `);
+
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
   } finally {
     client.release();

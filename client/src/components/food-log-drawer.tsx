@@ -6,6 +6,7 @@ import {
   Loader2, Plus, X, Check, Barcode, BookOpen, UtensilsCrossed,
   Coffee, Salad, Moon, Apple, Search, Camera, Sparkles, Send, ChevronDown,
 } from "lucide-react";
+import { GoalPreview } from "@/components/goal-preview";
 import type { SavedMealPlan } from "@shared/schema";
 import {
   type MealSlot, type FoodResult, type ExtendedFoodResult,
@@ -20,6 +21,8 @@ interface FoodLogDrawerProps {
   selectedDate: string;
   prefill?: PrefillEntry | null;
   onPrefillConsumed?: () => void;
+  dailyTotals?: { calories: number; protein: number; carbs: number; fat: number };
+  dailyTargets?: { calories?: number; protein?: number; carbs?: number; fat?: number };
 }
 
 export function FoodLogDrawer({
@@ -28,6 +31,8 @@ export function FoodLogDrawer({
   selectedDate,
   prefill,
   onPrefillConsumed,
+  dailyTotals,
+  dailyTargets,
 }: FoodLogDrawerProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -919,6 +924,25 @@ export function FoodLogDrawer({
                         })}
                       </div>
                     </div>
+                    {dailyTotals && dailyTargets && (() => {
+                      const fac = (parseFloat(servingGrams) || 0) / 100;
+                      return (
+                        <GoalPreview
+                          currentCalories={dailyTotals.calories}
+                          currentProtein={dailyTotals.protein}
+                          currentCarbs={dailyTotals.carbs}
+                          currentFat={dailyTotals.fat}
+                          addCalories={Math.round(selectedFood.calories100g * fac)}
+                          addProtein={Math.round(selectedFood.protein100g * fac)}
+                          addCarbs={Math.round(selectedFood.carbs100g * fac)}
+                          addFat={Math.round(selectedFood.fat100g * fac)}
+                          targetCalories={dailyTargets.calories}
+                          targetProtein={dailyTargets.protein}
+                          targetCarbs={dailyTargets.carbs}
+                          targetFat={dailyTargets.fat}
+                        />
+                      );
+                    })()}
                     <button
                       type="button"
                       onClick={useSelectedFood}
@@ -1108,6 +1132,26 @@ export function FoodLogDrawer({
                             })}
                           </div>
                         </div>
+                        {dailyTotals && dailyTargets && (() => {
+                          const g = parseFloat(scanServingGrams) || 100;
+                          const fac = g / 100;
+                          return (
+                            <GoalPreview
+                              currentCalories={dailyTotals.calories}
+                              currentProtein={dailyTotals.protein}
+                              currentCarbs={dailyTotals.carbs}
+                              currentFat={dailyTotals.fat}
+                              addCalories={Math.round(scannedFood.calories100g * fac)}
+                              addProtein={Math.round(scannedFood.protein100g * fac)}
+                              addCarbs={Math.round(scannedFood.carbs100g * fac)}
+                              addFat={Math.round(scannedFood.fat100g * fac)}
+                              targetCalories={dailyTargets.calories}
+                              targetProtein={dailyTargets.protein}
+                              targetCarbs={dailyTargets.carbs}
+                              targetFat={dailyTargets.fat}
+                            />
+                          );
+                        })()}
                         <button type="button" onClick={logScannedFood} disabled={addMutation.isPending} className="w-full py-3 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-60" data-testid="button-log-scanned-food">
                           {addMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                           Log this food
@@ -1426,7 +1470,24 @@ export function FoodLogDrawer({
           </div>
         </div>
         {formTab === "manual" && (
-          <div className="shrink-0 border-t border-zinc-100 bg-white px-4 pt-3 pb-[max(env(safe-area-inset-bottom),12px)] flex gap-2">
+          <div className="shrink-0 border-t border-zinc-100 bg-white px-4 pt-3 pb-[max(env(safe-area-inset-bottom),12px)] space-y-2">
+            {dailyTotals && dailyTargets && (parseInt(form.calories) > 0 || parseInt(form.protein) > 0 || parseInt(form.carbs) > 0 || parseInt(form.fat) > 0) && (
+              <GoalPreview
+                currentCalories={dailyTotals.calories}
+                currentProtein={dailyTotals.protein}
+                currentCarbs={dailyTotals.carbs}
+                currentFat={dailyTotals.fat}
+                addCalories={parseInt(form.calories) || 0}
+                addProtein={parseInt(form.protein) || 0}
+                addCarbs={parseInt(form.carbs) || 0}
+                addFat={parseInt(form.fat) || 0}
+                targetCalories={dailyTargets.calories}
+                targetProtein={dailyTargets.protein}
+                targetCarbs={dailyTargets.carbs}
+                targetFat={dailyTargets.fat}
+              />
+            )}
+            <div className="flex gap-2">
             <button
               type="submit"
               form="manual-log-form"
@@ -1445,6 +1506,7 @@ export function FoodLogDrawer({
             >
               Cancel
             </button>
+            </div>
           </div>
         )}
       </div>

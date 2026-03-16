@@ -2,6 +2,9 @@ import { pgTable, serial, integer, numeric, real, timestamp, text, jsonb, boolea
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const tierEnum = ["free", "simple", "advanced", "payg"] as const;
+export type Tier = typeof tierEnum[number];
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
@@ -10,6 +13,13 @@ export const users = pgTable("users", {
   provider: text("provider"),
   providerId: text("provider_id"),
   preferences: jsonb("preferences"),
+  tier: text("tier").notNull().default("free"),
+  betaUser: boolean("beta_user").notNull().default(false),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  tierExpiresAt: timestamp("tier_expires_at"),
+  creditBalance: integer("credit_balance").notNull().default(0),
+  paymentFailedAt: timestamp("payment_failed_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -37,7 +47,7 @@ export const loginSchema = z.object({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
-export type PublicUser = Omit<User, "passwordHash">;
+export type PublicUser = Omit<User, "passwordHash" | "stripeCustomerId" | "stripeSubscriptionId" | "paymentFailedAt">;
 
 export const userPreferencesSchema = z.object({
   diet: z.enum(["vegetarian", "vegan", "pescatarian", "halal", "kosher"]).nullable().optional(),
@@ -441,3 +451,26 @@ export const insertMealTemplateSchema = createInsertSchema(mealTemplates).omit({
 
 export type InsertMealTemplate = z.infer<typeof insertMealTemplateSchema>;
 export type MealTemplate = typeof mealTemplates.$inferSelect;
+
+export const featureGates = pgTable("feature_gates", {
+  id: serial("id").primaryKey(),
+  featureKey: text("feature_key").notNull().unique(),
+  requiredTier: text("required_tier").notNull().default("free"),
+  creditCost: integer("credit_cost").notNull().default(0),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type FeatureGate = typeof featureGates.$inferSelect;
+
+export const creditTransactions = pgTable("credit_transactions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  amount: integer("amount").notNull(),
+  type: text("type").notNull(),
+  featureKey: text("feature_key"),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type CreditTransaction = typeof creditTransactions.$inferSelect;

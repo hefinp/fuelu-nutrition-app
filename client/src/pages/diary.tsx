@@ -676,6 +676,8 @@ function DiaryContent({
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         selectedDate={view === "daily" ? selectedDate : today}
+        dailyTotals={{ calories: totalCal, protein: totalProt, carbs: totalCarbs, fat: totalFat }}
+        dailyTargets={{ calories: dailyCaloriesTarget, protein: dailyProteinTarget, carbs: dailyCarbsTarget, fat: dailyFatTarget }}
       />
 
       {selectedEntry && (

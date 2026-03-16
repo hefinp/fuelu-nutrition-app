@@ -235,6 +235,8 @@ export function FoodLog({
           selectedDate={today}
           prefill={prefill}
           onPrefillConsumed={onPrefillConsumed}
+          dailyTotals={{ calories: totalCal, protein: totalProt, carbs: totalCarbs, fat: totalFat }}
+          dailyTargets={{ calories: dailyCaloriesTarget, protein: dailyProteinTarget, carbs: dailyCarbsTarget, fat: dailyFatTarget }}
         />
       )}
     </div>
