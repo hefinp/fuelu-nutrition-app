@@ -110,7 +110,11 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
       for (const dateStr of input.targetDates) {
         const phase = hasCycle ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, dateStr) : null;
         cyclePhaseByDate[dateStr] = phase;
-        const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, phase);
+        const [y, mo, da] = dateStr.split("-").map(Number);
+        const dateObj = new Date(y, mo - 1, da);
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayName = dayNames[dateObj.getDay()];
+        const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, phase, dayName);
         plans[dateStr] = { ...dayPlan, cyclePhase: phase };
       }
       if (req.session.userId) await deductCredits(req.session.userId, "ai_meal_plan");
@@ -120,7 +124,14 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
       const cyclePhase = hasCycle
         ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, targetDate)
         : null;
-      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, false, baseDb, prefs, cyclePhase);
+      let singleDayName: string | undefined;
+      if (targetDate) {
+        const [y, mo, da] = targetDate.split("-").map(Number);
+        const dateObj = new Date(y, mo - 1, da);
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        singleDayName = dayNames[dateObj.getDay()];
+      }
+      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, false, baseDb, prefs, cyclePhase, undefined, singleDayName);
       if (targetDate) (mealPlan as any).targetDate = targetDate;
       if (req.session.userId) await deductCredits(req.session.userId, "ai_meal_plan");
       res.status(201).json(mealPlan);
@@ -530,7 +541,11 @@ router.post("/api/saved-meal-plans/:id/generate-optimised", async (req, res) => 
     } else {
       const td = body.targetDate || new Date().toISOString().split('T')[0];
       const cyclePhase = hasCycle ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, td) : null;
-      newPlanData = generateMealPlan(dailyCal, dailyProt, dailyCarbs, dailyFat, false, baseDb, prefs, cyclePhase);
+      const [tdY, tdM, tdD] = td.split("-").map(Number);
+      const tdObj = new Date(tdY, tdM - 1, tdD);
+      const tdDayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const tdDayName = tdDayNames[tdObj.getDay()];
+      newPlanData = generateMealPlan(dailyCal, dailyProt, dailyCarbs, dailyFat, false, baseDb, prefs, cyclePhase, undefined, tdDayName);
       newPlanData.targetDate = td;
       if (cyclePhase) newPlanData.cyclePhase = cyclePhase;
     }

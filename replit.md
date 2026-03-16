@@ -19,7 +19,7 @@ Core components include:
 -   **SavedMealPlans**: Manages saved meal plans, supporting renaming, deletion, and email functionality.
 -   **Dashboard**: The main application page, displaying user metrics, results, and tracking components.
 -   **WeightTracker**: Logs weight entries, visualizes data with a LineChart, and offers AI-driven trend analysis.
--   **PreferencesForm**: Manages food preferences, allergies, custom exclusions, preferred foods, and micronutrient optimization.
+-   **PreferencesForm**: Manages food preferences, allergies, custom exclusions, preferred foods, micronutrient optimization, and intermittent fasting settings (protocol selection, eating window, fasting days).
 -   **HydrationTracker**: Monitors daily water intake with progress indicators, quick-add options, and behind-schedule alerts.
 -   **FoodLog**: Dashboard widget showing today's macro progress and entries, with a "Log Meal" button and "View full diary" link. Split into modular files:
     -   `food-log-shared.tsx`: Types, constants, helpers, ProgressBar, MacroGrid, LoggedMealModal.

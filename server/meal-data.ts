@@ -375,29 +375,112 @@ export function buildDayPlan(
   lunchOverride?: MealEntry,
   preferences?: UserPreferences | null,
   cyclePhase?: string | null,
+  fastingOverride?: FastingOverride | null,
 ) {
-  const bfTarget     = Math.round(dailyCalories * 0.25);
-  const lunchTarget  = Math.round(dailyCalories * 0.30);
-  const dinnerTarget = Math.round(dailyCalories * 0.35);
-  const snackBudget  = dailyCalories - bfTarget - lunchTarget - dinnerTarget;
+  const fasting = fastingOverride ?? null;
 
   const totalMacroCals = proteinGoal * 4 + carbsGoal * 4 + fatGoal * 9;
   const tProtein = (proteinGoal * 4) / totalMacroCals;
   const tCarbs   = (carbsGoal   * 4) / totalMacroCals;
   const tFat     = (fatGoal     * 9) / totalMacroCals;
 
-  const breakfastBase = pickBestMeal(db.breakfast, tProtein, tCarbs, tFat, preferences, cyclePhase);
-  const lunchBase     = lunchOverride ?? pickBestMeal(db.lunch, tProtein, tCarbs, tFat, preferences, cyclePhase);
-  const dinnerBase    = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences, cyclePhase);
+  if (fasting?.lowCalDay) {
+    const lunchBase = pickBestMeal(db.lunch, tProtein, tCarbs, tFat, preferences, cyclePhase);
+    const lunchList = lunchBase ? [scaleMeal(lunchBase, 500)] : [];
+    const dayTotalCalories = lunchList.reduce((s, m) => s + m.calories, 0);
+    const dayTotalProtein  = lunchList.reduce((s, m) => s + m.protein,  0);
+    const dayTotalCarbs    = lunchList.reduce((s, m) => s + m.carbs,    0);
+    const dayTotalFat      = lunchList.reduce((s, m) => s + m.fat,      0);
+    return {
+      breakfast: [] as MealEntry[],
+      lunch: lunchList,
+      dinner: [] as MealEntry[],
+      snacks: [] as MealEntry[],
+      dayTotalCalories,
+      dayTotalProtein,
+      dayTotalCarbs,
+      dayTotalFat,
+      fastingDay: true,
+    };
+  }
 
-  const breakfastList = breakfastBase ? [scaleMeal(breakfastBase, bfTarget)] : [];
-  const lunchList     = lunchBase ? [scaleMeal(lunchBase, lunchTarget)] : [];
-  const dinnerList    = dinnerBase ? [scaleMeal(dinnerBase, dinnerTarget)] : [];
+  if (fasting?.omad) {
+    const dinnerBase = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences, cyclePhase);
+    const dinnerList = dinnerBase ? [scaleMeal(dinnerBase, dailyCalories)] : [];
+    const dayTotalCalories = dinnerList.reduce((s, m) => s + m.calories, 0);
+    const dayTotalProtein  = dinnerList.reduce((s, m) => s + m.protein,  0);
+    const dayTotalCarbs    = dinnerList.reduce((s, m) => s + m.carbs,    0);
+    const dayTotalFat      = dinnerList.reduce((s, m) => s + m.fat,      0);
+
+    const addRationale = (meals: MealEntry[]) => {
+      if (!preferences?.hormoneBoostingMeals) return meals;
+      return meals.map(m => {
+        const lower = m.meal.toLowerCase();
+        const matched = Object.entries(VITALITY_RATIONALE).find(([kw]) => lower.includes(kw));
+        return matched ? { ...m, vitalityRationale: matched[1] } : m;
+      });
+    };
+
+    return {
+      breakfast: [] as MealEntry[],
+      lunch: [] as MealEntry[],
+      dinner: addRationale(dinnerList),
+      snacks: [] as MealEntry[],
+      dayTotalCalories,
+      dayTotalProtein,
+      dayTotalCarbs,
+      dayTotalFat,
+    };
+  }
+
+  const skipSlots = fasting?.skipSlots ?? new Set<string>();
+  const includeBreakfast = !skipSlots.has('breakfast');
+  const includeLunch = !skipSlots.has('lunch');
+  const includeDinner = !skipSlots.has('dinner');
+  const includeSnack = !skipSlots.has('snack');
+
+  const basePcts: Record<string, number> = { breakfast: 0.25, lunch: 0.30, dinner: 0.35, snack: 0.10 };
+  const activeSlots: string[] = [];
+  if (includeBreakfast) activeSlots.push('breakfast');
+  if (includeLunch) activeSlots.push('lunch');
+  if (includeDinner) activeSlots.push('dinner');
+  if (includeSnack) activeSlots.push('snack');
+
+  let slotPcts: Record<string, number> = { ...basePcts };
+  if (activeSlots.length > 0 && activeSlots.length < 4) {
+    const activeTotal = activeSlots.reduce((s, slot) => s + basePcts[slot], 0);
+    const scale = 1 / activeTotal;
+    slotPcts = {};
+    for (const slot of activeSlots) {
+      slotPcts[slot] = basePcts[slot] * scale;
+    }
+  }
+
+  const bfTarget     = includeBreakfast ? Math.round(dailyCalories * (slotPcts.breakfast ?? 0)) : 0;
+  const lunchTarget  = includeLunch ? Math.round(dailyCalories * (slotPcts.lunch ?? 0)) : 0;
+  const dinnerTarget = includeDinner ? Math.round(dailyCalories * (slotPcts.dinner ?? 0)) : 0;
+  const snackBudget  = includeSnack ? (dailyCalories - bfTarget - lunchTarget - dinnerTarget) : 0;
+
+  let breakfastList: MealEntry[] = [];
+  if (includeBreakfast) {
+    const breakfastBase = pickBestMeal(db.breakfast, tProtein, tCarbs, tFat, preferences, cyclePhase);
+    breakfastList = breakfastBase ? [scaleMeal(breakfastBase, bfTarget)] : [];
+  }
+
+  let lunchList: MealEntry[] = [];
+  if (includeLunch) {
+    const lunchBase = lunchOverride ?? pickBestMeal(db.lunch, tProtein, tCarbs, tFat, preferences, cyclePhase);
+    lunchList = lunchBase ? [scaleMeal(lunchBase, lunchTarget)] : [];
+  }
+
+  let dinnerList: MealEntry[] = [];
+  if (includeDinner) {
+    const dinnerBase = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences, cyclePhase);
+    dinnerList = dinnerBase ? [scaleMeal(dinnerBase, dinnerTarget)] : [];
+  }
 
   const snacksList: MealEntry[] = [];
-  let snackRemaining = snackBudget;
-
-  if (snackBudget >= 150 && db.snack.length > 0) {
+  if (includeSnack && snackBudget >= 150 && db.snack.length > 0) {
     const numSnacks = snackBudget >= 350 ? 2 : 1;
     const snackTargetEach = Math.round(snackBudget / numSnacks);
 
@@ -405,7 +488,6 @@ export function buildDayPlan(
       const snackBase = pickBestMeal(db.snack, tProtein, tCarbs, tFat, preferences, cyclePhase);
       if (snackBase) {
         snacksList.push(scaleMeal(snackBase, snackTargetEach));
-        snackRemaining -= snackTargetEach;
       }
     }
   }
@@ -437,8 +519,67 @@ export function buildDayPlan(
   };
 }
 
-export function generateDayPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, db: MealDb, preferences?: UserPreferences | null, cyclePhase?: string | null) {
-  return buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences, cyclePhase);
+const MEAL_SLOT_HOURS: Record<string, number> = {
+  breakfast: 8,
+  lunch: 12,
+  dinner: 19,
+  snack: 15,
+};
+
+export type FastingOverride = {
+  isFastingDay: boolean;
+  lowCalDay?: boolean;
+  omad?: boolean;
+  skipSlots: Set<string>;
+};
+
+function isHourInWindow(hour: number, windowStart: number, windowEnd: number): boolean {
+  if (windowStart < windowEnd) {
+    return hour >= windowStart && hour < windowEnd;
+  }
+  return hour >= windowStart || hour < windowEnd;
+}
+
+const VALID_FASTING_DAYS = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
+
+export function computeFastingOverride(
+  preferences: UserPreferences | null | undefined,
+  dayName?: string,
+): FastingOverride | null {
+  if (!preferences?.fastingEnabled || !preferences.fastingProtocol) return null;
+
+  const protocol = preferences.fastingProtocol;
+
+  if (protocol === '5:2') {
+    const fastDays = preferences.fastingDays ?? ['monday', 'thursday'];
+    if (dayName && VALID_FASTING_DAYS.has(dayName) && (fastDays as readonly string[]).includes(dayName)) {
+      return { isFastingDay: true, lowCalDay: true, skipSlots: new Set(['breakfast', 'dinner', 'snack']) };
+    }
+    return null;
+  }
+
+  if (protocol === 'omad') {
+    return { isFastingDay: true, omad: true, skipSlots: new Set(['breakfast', 'snack']) };
+  }
+
+  const windowStart = preferences.eatingWindowStart ?? 12;
+  const windowEnd = preferences.eatingWindowEnd ?? 20;
+
+  const skipSlots = new Set<string>();
+  for (const [slot, hour] of Object.entries(MEAL_SLOT_HOURS)) {
+    if (!isHourInWindow(hour, windowStart, windowEnd)) {
+      skipSlots.add(slot);
+    }
+  }
+
+  if (skipSlots.size === 0) return null;
+
+  return { isFastingDay: true, skipSlots };
+}
+
+export function generateDayPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, db: MealDb, preferences?: UserPreferences | null, cyclePhase?: string | null, dayName?: string) {
+  const fastingOverride = computeFastingOverride(preferences, dayName);
+  return buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences, cyclePhase, fastingOverride);
 }
 
 export function addDaysToDate(dateStr: string, days: number): string {
@@ -453,6 +594,7 @@ export function generateMealPlan(
   isWeekly: boolean, db: MealDb, preferences?: UserPreferences | null,
   cyclePhase?: string | null,
   perDayPhases?: Record<string, string | null>,
+  dayName?: string,
 ) {
   const lunchTarget = Math.round(dailyCalories * 0.30);
 
@@ -474,9 +616,13 @@ export function generateMealPlan(
 
     days.forEach((day, index) => {
       const dayPhase = perDayPhases?.[day] ?? cyclePhase ?? null;
+      const dayFasting = computeFastingOverride(preferences, day);
       let dayPlan: ReturnType<typeof buildDayPlan>;
 
-      if (index === 0) {
+      if (dayFasting) {
+        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences, dayPhase, dayFasting);
+        previousDinnerBase = undefined;
+      } else if (index === 0) {
         const mondayDinnerBase = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences, dayPhase);
         if (mondayDinnerBase) {
           const mondayLunch  = scaleMeal(mondayDinnerBase, lunchTarget);
@@ -501,7 +647,7 @@ export function generateMealPlan(
         }
       } else {
         const lunchOverride = previousDinnerBase ? scaleMeal(previousDinnerBase, lunchTarget) : undefined;
-        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, lunchOverride, preferences, dayPhase);
+        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, lunchOverride, preferences, dayPhase, dayFasting);
         const dinnerBase = dayPlan.dinner.length > 0
           ? (db.dinner.find(m => m.meal === dayPlan.dinner[0].meal) ?? dayPlan.dinner[0])
           : undefined;
@@ -525,7 +671,8 @@ export function generateMealPlan(
       cyclePhaseByDay: perDayPhases ?? null,
     };
   } else {
-    const dayPlan = generateDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, preferences, cyclePhase);
+    const fastingOverride = computeFastingOverride(preferences, dayName);
+    const dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences, cyclePhase, fastingOverride);
     return {
       planType: 'daily' as const,
       ...dayPlan,

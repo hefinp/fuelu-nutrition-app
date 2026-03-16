@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type UserPreferences } from "@shared/schema";
-import { Check, Loader2, X, Sparkles, ThumbsDown, Leaf, Sprout, Fish, Moon, Star, Globe, Droplets, Users2, ShieldAlert } from "lucide-react";
+import { Check, Loader2, X, Sparkles, ThumbsDown, Leaf, Sprout, Fish, Moon, Star, Globe, Droplets, Users2, ShieldAlert, Timer } from "lucide-react";
 
 type Diet = NonNullable<UserPreferences["diet"]>;
 type Allergy = NonNullable<UserPreferences["allergies"]>[number];
@@ -248,6 +248,12 @@ export function PreferencesForm() {
   const [hydrationGoalMl, setHydrationGoalMl] = useState(2000);
   const [hydrationUnit, setHydrationUnit] = useState<"ml" | "glasses">("ml");
   const [includeCommunityMeals, setIncludeCommunityMeals] = useState(true);
+  const [fastingEnabled, setFastingEnabled] = useState(false);
+  const [fastingProtocol, setFastingProtocol] = useState<"16:8" | "18:6" | "20:4" | "5:2" | "omad">("16:8");
+  const [eatingWindowStart, setEatingWindowStart] = useState(12);
+  const [eatingWindowEnd, setEatingWindowEnd] = useState(20);
+  type FastingDay = "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
+  const [fastingDays, setFastingDays] = useState<FastingDay[]>(["monday", "thursday"]);
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -263,6 +269,11 @@ export function PreferencesForm() {
     setHydrationGoalMl(data.hydrationGoalMl ?? 2000);
     setHydrationUnit((data.hydrationUnit as "ml" | "glasses" | undefined) ?? "ml");
     setIncludeCommunityMeals((data as any).includeCommunityMeals !== false);
+    setFastingEnabled(data.fastingEnabled ?? false);
+    setFastingProtocol(data.fastingProtocol ?? "16:8");
+    setEatingWindowStart(data.eatingWindowStart ?? 12);
+    setEatingWindowEnd(data.eatingWindowEnd ?? 20);
+    setFastingDays((data.fastingDays as FastingDay[] | undefined) ?? ["monday", "thursday"]);
   }, [data]);
 
   const mutation = useMutation({
@@ -300,6 +311,11 @@ export function PreferencesForm() {
       hydrationGoalMl,
       hydrationUnit,
       includeCommunityMeals,
+      fastingEnabled,
+      fastingProtocol: fastingEnabled ? fastingProtocol : undefined,
+      eatingWindowStart: fastingEnabled ? eatingWindowStart : undefined,
+      eatingWindowEnd: fastingEnabled ? eatingWindowEnd : undefined,
+      fastingDays: fastingEnabled && fastingProtocol === '5:2' ? fastingDays : undefined,
     };
     mutation.mutate(payload);
   };
@@ -314,7 +330,12 @@ export function PreferencesForm() {
     recipeWeeklyLimit !== (data?.recipeWeeklyLimit ?? 5) ||
     hydrationGoalMl !== (data?.hydrationGoalMl ?? 2000) ||
     hydrationUnit !== (data?.hydrationUnit ?? "ml") ||
-    includeCommunityMeals !== ((data as any)?.includeCommunityMeals !== false);
+    includeCommunityMeals !== ((data as any)?.includeCommunityMeals !== false) ||
+    fastingEnabled !== (data?.fastingEnabled ?? false) ||
+    fastingProtocol !== (data?.fastingProtocol ?? "16:8") ||
+    eatingWindowStart !== (data?.eatingWindowStart ?? 12) ||
+    eatingWindowEnd !== (data?.eatingWindowEnd ?? 20) ||
+    JSON.stringify([...fastingDays].sort()) !== JSON.stringify([...((data?.fastingDays as FastingDay[] | undefined) ?? ["monday", "thursday"])].sort());
 
   if (isLoading) {
     return (
@@ -519,6 +540,164 @@ export function PreferencesForm() {
             <p className="text-xs text-zinc-400 mt-0.5">Include community-shared and AI-curated meals in your plan suggestions</p>
           </div>
         </button>
+      </div>
+
+      {/* Intermittent Fasting */}
+      <div className="mb-6">
+        <button
+          type="button"
+          onClick={() => setFastingEnabled(prev => !prev)}
+          data-testid="toggle-fasting"
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
+            fastingEnabled
+              ? "bg-zinc-100 border-zinc-300"
+              : "bg-white border-zinc-200 hover:border-zinc-400"
+          }`}
+        >
+          <div className={`w-10 h-5 rounded-full relative transition-colors ${
+            fastingEnabled ? "bg-zinc-900" : "bg-zinc-300"
+          }`}>
+            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+              fastingEnabled ? "left-5" : "left-0.5"
+            }`} />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5">
+              <Timer className={`w-3.5 h-3.5 ${fastingEnabled ? "text-zinc-600" : "text-zinc-400"}`} />
+              <span className={`text-xs font-medium ${fastingEnabled ? "text-zinc-900" : "text-zinc-600"}`}>
+                Intermittent fasting
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 mt-0.5">Adapt meal plans to fit your fasting schedule</p>
+          </div>
+        </button>
+
+        {fastingEnabled && (
+          <div className="mt-3 pl-1 space-y-4">
+            <div>
+              <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2">Protocol</p>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { value: "16:8" as const, label: "16:8", desc: "16h fast, 8h eating" },
+                  { value: "18:6" as const, label: "18:6", desc: "18h fast, 6h eating" },
+                  { value: "20:4" as const, label: "20:4", desc: "20h fast, 4h eating" },
+                  { value: "5:2" as const, label: "5:2", desc: "5 normal days, 2 low-cal" },
+                  { value: "omad" as const, label: "OMAD", desc: "One meal a day" },
+                ]).map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      setFastingProtocol(opt.value);
+                      if (opt.value === "16:8") { setEatingWindowStart(12); setEatingWindowEnd(20); }
+                      else if (opt.value === "18:6") { setEatingWindowStart(12); setEatingWindowEnd(18); }
+                      else if (opt.value === "20:4") { setEatingWindowStart(14); setEatingWindowEnd(18); }
+                    }}
+                    data-testid={`fasting-protocol-${opt.value}`}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                      fastingProtocol === opt.value
+                        ? "bg-zinc-900 text-white border-zinc-900"
+                        : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-zinc-400 mt-1.5">
+                {fastingProtocol === "16:8" && "Fast for 16 hours, eat within an 8-hour window"}
+                {fastingProtocol === "18:6" && "Fast for 18 hours, eat within a 6-hour window"}
+                {fastingProtocol === "20:4" && "Fast for 20 hours, eat within a 4-hour window"}
+                {fastingProtocol === "5:2" && "Eat normally 5 days, restrict to ~500 cal on 2 fasting days"}
+                {fastingProtocol === "omad" && "Eat one meal per day — all calories in a single sitting"}
+              </p>
+            </div>
+
+            {fastingProtocol !== "5:2" && fastingProtocol !== "omad" && (
+              <div>
+                <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2">Eating window</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-zinc-500" htmlFor="eating-window-start">Start</label>
+                    <select
+                      id="eating-window-start"
+                      value={eatingWindowStart}
+                      onChange={e => setEatingWindowStart(parseInt(e.target.value))}
+                      data-testid="select-eating-window-start"
+                      className="px-2 py-1.5 text-xs border border-zinc-200 rounded-xl focus:border-zinc-400 focus:outline-none transition-colors"
+                    >
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <option key={i} value={i}>
+                          {i === 0 ? "12:00 AM" : i < 12 ? `${i}:00 AM` : i === 12 ? "12:00 PM" : `${i - 12}:00 PM`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <span className="text-xs text-zinc-400">to</span>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-zinc-500" htmlFor="eating-window-end">End</label>
+                    <select
+                      id="eating-window-end"
+                      value={eatingWindowEnd}
+                      onChange={e => setEatingWindowEnd(parseInt(e.target.value))}
+                      data-testid="select-eating-window-end"
+                      className="px-2 py-1.5 text-xs border border-zinc-200 rounded-xl focus:border-zinc-400 focus:outline-none transition-colors"
+                    >
+                      {Array.from({ length: 24 }, (_, i) => (
+                        <option key={i} value={i}>
+                          {i === 0 ? "12:00 AM" : i < 12 ? `${i}:00 AM` : i === 12 ? "12:00 PM" : `${i - 12}:00 PM`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <p className="text-xs text-zinc-400 mt-1.5">
+                  Meals outside this window will be skipped and calories redistributed
+                </p>
+              </div>
+            )}
+
+            {fastingProtocol === "5:2" && (
+              <div>
+                <p className="text-xs font-medium text-zinc-600 uppercase tracking-wide mb-2">Fasting days (~500 cal)</p>
+                <div className="flex flex-wrap gap-2">
+                  {(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const).map(day => {
+                    const active = fastingDays.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => {
+                          setFastingDays(prev => {
+                            if (prev.includes(day)) {
+                              if (prev.length <= 2) {
+                                return prev;
+                              }
+                              return prev.filter(d => d !== day);
+                            }
+                            if (prev.length >= 2) {
+                              return [prev[1], day];
+                            }
+                            return [...prev, day];
+                          });
+                        }}
+                        data-testid={`fasting-day-${day}`}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                          active
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400"
+                        }`}
+                      >
+                        {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-zinc-400 mt-1.5">Select 2 days for low-calorie fasting meals</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Hydration goal */}

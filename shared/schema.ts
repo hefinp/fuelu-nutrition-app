@@ -80,6 +80,11 @@ export const userPreferencesSchema = z.object({
   includeCommunityMeals: z.boolean().optional(),
   vitalityInsightsEnabled: z.boolean().optional(),
   hormoneBoostingMeals: z.boolean().optional(),
+  fastingEnabled: z.boolean().optional(),
+  fastingProtocol: z.enum(["16:8", "18:6", "20:4", "5:2", "omad"]).optional(),
+  eatingWindowStart: z.number().int().min(0).max(23).optional(),
+  eatingWindowEnd: z.number().int().min(0).max(23).optional(),
+  fastingDays: z.array(z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])).optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;
