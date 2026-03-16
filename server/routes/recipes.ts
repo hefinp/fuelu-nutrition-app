@@ -255,15 +255,19 @@ router.post("/api/recipes/import-photo", async (req, res) => {
   });
 });
 
+const paginationSchema = z.object({
+  cursor: z.string().regex(/^\d{4}-.*\|\d+$/).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 router.get("/api/recipes", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
-    const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
-    const limitRaw = typeof req.query.limit === "string" ? parseInt(req.query.limit) : NaN;
-    const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 20, 1), 100);
-    const result = await storage.getUserRecipes(req.session.userId, { cursor, limit });
+    const params = paginationSchema.parse(req.query);
+    const result = await storage.getUserRecipes(req.session.userId, { cursor: params.cursor, limit: params.limit });
     res.json(result);
   } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
     res.status(500).json({ message: "Failed to fetch recipes" });
   }
 });

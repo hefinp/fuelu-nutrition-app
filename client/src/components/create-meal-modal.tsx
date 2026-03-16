@@ -25,7 +25,11 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
   const [showAddFood, setShowAddFood] = useState(false);
   const [pickerTab, setPickerTab] = useState<PickerTab>("search");
 
-  const { data: myFoods = [] } = useQuery<{ items: UserSavedFood[] }, Error, UserSavedFood[]>({ queryKey: ["/api/my-foods"], select: (d) => d.items });
+  const { data: myFoods = [] } = useQuery<{ items: UserSavedFood[] }, Error, UserSavedFood[]>({
+    queryKey: ["/api/my-foods", "all"],
+    queryFn: () => fetch("/api/my-foods?limit=100", { credentials: "include" }).then(r => r.json()),
+    select: (d) => d.items,
+  });
 
   const [selected, setSelected] = useState<Ingredient[]>([]);
 

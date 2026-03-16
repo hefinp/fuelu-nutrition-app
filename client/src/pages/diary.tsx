@@ -116,13 +116,15 @@ function DiaryContent({
   });
 
   const { data: userRecipes = [] } = useQuery<{ items: UserRecipe[] }, Error, UserRecipe[]>({
-    queryKey: ["/api/recipes"],
+    queryKey: ["/api/recipes", "all"],
+    queryFn: () => fetch("/api/recipes?limit=100", { credentials: "include" }).then(r => r.json()),
     staleTime: 60_000,
     select: (d) => d.items,
   });
 
   const { data: favourites = [] } = useQuery<{ items: { id: number; mealName: string }[] }, Error, { id: number; mealName: string }[]>({
-    queryKey: ["/api/favourites"],
+    queryKey: ["/api/favourites", "all"],
+    queryFn: () => fetch("/api/favourites?limit=100", { credentials: "include" }).then(r => r.json()),
     select: (d) => d.items,
   });
   const favouriteNames = new Set(favourites.map(f => f.mealName));

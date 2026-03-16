@@ -84,7 +84,8 @@ export function RecipeLibrary() {
   const [showCommunityBrowser, setShowCommunityBrowser] = useState(false);
 
   const { data: recipes = [], isLoading } = useQuery<{ items: UserRecipe[] }, Error, UserRecipe[]>({
-    queryKey: ["/api/recipes"],
+    queryKey: ["/api/recipes", "all"],
+    queryFn: () => fetch("/api/recipes?limit=100", { credentials: "include" }).then(r => r.json()),
     select: (d) => d.items,
   });
 

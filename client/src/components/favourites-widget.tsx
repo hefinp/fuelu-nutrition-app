@@ -16,7 +16,8 @@ export function FavouritesWidget() {
   const [loggingId, setLoggingId] = useState<number | null>(null);
 
   const { data: favourites = [], isLoading } = useQuery<{ items: FavouriteMeal[] }, Error, FavouriteMeal[]>({
-    queryKey: ["/api/favourites"],
+    queryKey: ["/api/favourites", "all"],
+    queryFn: () => fetch("/api/favourites?limit=100", { credentials: "include" }).then(r => r.json()),
     select: (d) => d.items,
   });
 
