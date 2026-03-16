@@ -31,8 +31,31 @@ router.post("/api/my-foods", async (req, res) => {
       carbs100g: z.number().min(0),
       fat100g: z.number().min(0),
       servingGrams: z.number().int().min(1).optional(),
+      confirmDuplicate: z.boolean().optional(),
     }).parse(req.body);
-    const created = await storage.addUserSavedFood({ ...body, userId: req.session.userId });
+    const { confirmDuplicate, ...foodData } = body;
+
+    if (!confirmDuplicate) {
+      const duplicates = await storage.findDuplicateUserSavedFoods(req.session.userId, foodData.name);
+      if (duplicates.length > 0) {
+        const exactMatch = duplicates.some(d =>
+          d.calories100g === foodData.calories100g &&
+          d.protein100g === foodData.protein100g &&
+          d.carbs100g === foodData.carbs100g &&
+          d.fat100g === foodData.fat100g
+        );
+        return res.status(409).json({
+          duplicateWarning: true,
+          exactMatch,
+          existingCount: duplicates.length,
+          message: exactMatch
+            ? `You already have "${duplicates[0].name}" with identical macros.`
+            : `You already have ${duplicates.length} food${duplicates.length > 1 ? "s" : ""} named "${duplicates[0].name}".`,
+        });
+      }
+    }
+
+    const created = await storage.addUserSavedFood({ ...foodData, userId: req.session.userId });
     res.status(201).json(created);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });

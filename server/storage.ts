@@ -85,11 +85,14 @@ export interface IStorage {
   updateUserMeal(id: number, userId: number, updates: Partial<Pick<UserMeal, 'name' | 'caloriesPerServing' | 'proteinPerServing' | 'carbsPerServing' | 'fatPerServing' | 'servings' | 'sourceUrl' | 'imageUrl' | 'mealSlot' | 'mealStyle' | 'ingredients' | 'ingredientsJson' | 'instructions' | 'source'>>): Promise<UserMeal | undefined>;
   deleteUserMeal(id: number, userId: number): Promise<void>;
 
+  findDuplicateUserMeals(userId: number, name: string): Promise<UserMeal[]>;
+
   // User saved foods
   getUserSavedFoods(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserSavedFood[]; nextCursor: string | null }>;
   addUserSavedFood(entry: { userId: number; name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams?: number; source?: string }): Promise<UserSavedFood>;
   updateUserSavedFood(id: number, userId: number, updates: { name?: string; calories100g?: number; protein100g?: number; carbs100g?: number; fat100g?: number; servingGrams?: number }): Promise<UserSavedFood | undefined>;
   removeUserSavedFood(id: number, userId: number): Promise<void>;
+  findDuplicateUserSavedFoods(userId: number, name: string): Promise<UserSavedFood[]>;
 
   // Community meals
   getCommunityMeals(filters?: { slot?: string; style?: string }): Promise<CommunityMeal[]>;
@@ -463,6 +466,13 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(userMeals.id, id), eq(userMeals.userId, userId)));
   }
 
+  async findDuplicateUserMeals(userId: number, name: string): Promise<UserMeal[]> {
+    const escaped = name.trim().replace(/[%_]/g, c => `\\${c}`);
+    return db.select().from(userMeals)
+      .where(and(eq(userMeals.userId, userId), ilike(userMeals.name, escaped)))
+      .limit(5);
+  }
+
   async getUserSavedFoods(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserSavedFood[]; nextCursor: string | null }> {
     const limit = opts?.limit ?? 10000;
     const fetchLimit = limit + 1;
@@ -503,6 +513,13 @@ export class DatabaseStorage implements IStorage {
       source: entry.source ?? null,
     }).returning();
     return created;
+  }
+
+  async findDuplicateUserSavedFoods(userId: number, name: string): Promise<UserSavedFood[]> {
+    const escaped = name.trim().replace(/[%_]/g, c => `\\${c}`);
+    return db.select().from(userSavedFoods)
+      .where(and(eq(userSavedFoods.userId, userId), ilike(userSavedFoods.name, escaped)))
+      .limit(5);
   }
 
   async updateUserSavedFood(id: number, userId: number, updates: { name?: string; calories100g?: number; protein100g?: number; carbs100g?: number; fat100g?: number; servingGrams?: number }): Promise<UserSavedFood | undefined> {

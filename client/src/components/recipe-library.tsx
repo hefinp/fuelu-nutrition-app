@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CommunityBrowserModal } from "@/components/community-browser-modal";
+import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
 
 type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
 type MealStyle = "simple" | "gourmet" | "michelin";
@@ -327,6 +328,7 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
   const [protein, setProtein] = useState("");
   const [carbs, setCarbs] = useState("");
   const [fat, setFat] = useState("");
+  const [dupWarning, setDupWarning] = useState<{ message: string; exactMatch: boolean; existingCount: number } | null>(null);
 
   const photo1Ref = useRef<HTMLInputElement>(null);
   const photo2Ref = useRef<HTMLInputElement>(null);
@@ -383,13 +385,33 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
   });
 
   const saveMutation = useMutation({
-    mutationFn: (body: object) => apiRequest("POST", "/api/user-meals", body),
+    mutationFn: async (body: Record<string, unknown>) => {
+      const res = await fetch("/api/user-meals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (res.status === 409 && json.duplicateWarning) {
+        throw { isDuplicate: true, warning: json };
+      }
+      if (!res.ok) throw new Error(json.message || "Failed to save recipe");
+      return json;
+    },
     onSuccess: () => {
+      setDupWarning(null);
       queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] });
       toast({ title: "Recipe saved!", description: "It will appear in your meal plan generation." });
       onClose();
     },
-    onError: () => toast({ title: "Failed to save recipe", variant: "destructive" }),
+    onError: (err: any) => {
+      if (err?.isDuplicate) {
+        setDupWarning(err.warning);
+        return;
+      }
+      toast({ title: "Failed to save recipe", variant: "destructive" });
+    },
   });
 
   function handleFetch() {
@@ -426,22 +448,28 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
     photoMutation.mutate(photos);
   }
 
-  function handleSave() {
-    if (!parsed) return;
-    saveMutation.mutate({
-      name: parsed.name,
+  function buildRecipePayload(confirm = false) {
+    return {
+      name: parsed!.name,
       source: "imported",
-      sourceUrl: parsed.sourceUrl,
-      imageUrl: parsed.imageUrl,
-      servings: parsed.servings,
+      sourceUrl: parsed!.sourceUrl,
+      imageUrl: parsed!.imageUrl,
+      servings: parsed!.servings,
       caloriesPerServing: parseInt(calories) || 0,
       proteinPerServing: parseInt(protein) || 0,
       carbsPerServing: parseInt(carbs) || 0,
       fatPerServing: parseInt(fat) || 0,
-      ingredients: JSON.stringify(parsed.ingredients),
+      ingredients: JSON.stringify(parsed!.ingredients),
       mealSlot,
       mealStyle,
-    });
+      ...(confirm ? { confirmDuplicate: true } : {}),
+    };
+  }
+
+  function handleSave() {
+    if (!parsed) return;
+    setDupWarning(null);
+    saveMutation.mutate(buildRecipePayload());
   }
 
   function goBack() {
@@ -895,14 +923,25 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
               >
                 Back
               </button>
-              <button
-                onClick={handleSave}
-                disabled={saveMutation.isPending}
-                data-testid="button-save-recipe"
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-zinc-900 text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-              >
-                {saveMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : "Save Recipe"}
-              </button>
+              {dupWarning ? (
+                <div className="flex-1">
+                  <DuplicateWarningBanner
+                    warning={dupWarning}
+                    onConfirm={() => { setDupWarning(null); saveMutation.mutate(buildRecipePayload(true)); }}
+                    onCancel={() => setDupWarning(null)}
+                    testPrefix="recipe-dup"
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={handleSave}
+                  disabled={saveMutation.isPending}
+                  data-testid="button-save-recipe"
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-zinc-900 text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                >
+                  {saveMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : "Save Recipe"}
+                </button>
+              )}
             </div>
           )}
         </div>

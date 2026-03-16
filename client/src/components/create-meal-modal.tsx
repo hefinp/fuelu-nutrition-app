@@ -6,6 +6,7 @@ import {
   Plus, X, Loader2, ArrowLeft,
   Check, Search, Barcode, Sparkles, Wheat, UtensilsCrossed,
 } from "lucide-react";
+import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
 import type { UserSavedFood } from "@shared/schema";
 import type { ExtendedFoodResult } from "@/components/food-log-shared";
 import {
@@ -36,6 +37,7 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
   const [mealName, setMealName] = useState("");
   const [instructions, setInstructions] = useState("");
   const [mealSlot, setMealSlot] = useState<MealSlot>("dinner");
+  const [dupWarning, setDupWarning] = useState<{ message: string; exactMatch: boolean; existingCount: number } | null>(null);
 
   const picker = useFoodPicker({ activeTab: pickerTab, scanActive: step === "pick" });
 
@@ -72,33 +74,56 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
     };
   }, { cal: 0, prot: 0, carbs: 0, fat: 0 });
 
+  function buildMealPayload(confirm = false) {
+    const ingredientLines = selected.map(s => `${s.grams}g ${s.name}`).join("\n");
+    return {
+      name: mealName.trim(),
+      source: "manual" as const,
+      sourceUrl: "custom://created",
+      imageUrl: null,
+      servings: 1,
+      caloriesPerServing: totals.cal,
+      proteinPerServing: totals.prot,
+      carbsPerServing: totals.carbs,
+      fatPerServing: totals.fat,
+      ingredients: ingredientLines,
+      ingredientsJson: selected,
+      instructions: instructions.trim() || null,
+      mealSlot,
+      mealStyle: "simple",
+      ...(confirm ? { confirmDuplicate: true } : {}),
+    };
+  }
+
   const saveMutation = useMutation({
-    mutationFn: () => {
-      const ingredientLines = selected.map(s => `${s.grams}g ${s.name}`).join("\n");
-      return apiRequest("POST", "/api/user-meals", {
-        name: mealName.trim(),
-        source: "manual",
-        sourceUrl: "custom://created",
-        imageUrl: null,
-        servings: 1,
-        caloriesPerServing: totals.cal,
-        proteinPerServing: totals.prot,
-        carbsPerServing: totals.carbs,
-        fatPerServing: totals.fat,
-        ingredients: ingredientLines,
-        ingredientsJson: selected,
-        instructions: instructions.trim() || null,
-        mealSlot,
-        mealStyle: "simple",
-      }).then(r => r.json());
+    mutationFn: async (payload: ReturnType<typeof buildMealPayload>) => {
+      const res = await fetch("/api/user-meals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (res.status === 409 && json.duplicateWarning) {
+        throw { isDuplicate: true, warning: json };
+      }
+      if (!res.ok) throw new Error(json.message || "Failed to save meal");
+      return json;
     },
     onSuccess: () => {
+      setDupWarning(null);
       queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] });
       toast({ title: `${mealName} saved to My Meals` });
       onSaved();
       onClose();
     },
-    onError: () => toast({ title: "Failed to save meal", variant: "destructive" }),
+    onError: (err: any) => {
+      if (err?.isDuplicate) {
+        setDupWarning(err.warning);
+        return;
+      }
+      toast({ title: "Failed to save meal", variant: "destructive" });
+    },
   });
 
   const pickerTabs: { id: PickerTab; label: string; icon: typeof Search }[] = [
@@ -346,9 +371,16 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
             >
               Next — Add meal details ({selected.length} food{selected.length !== 1 ? "s" : ""} selected)
             </button>
+          ) : dupWarning ? (
+            <DuplicateWarningBanner
+              warning={dupWarning}
+              onConfirm={() => { setDupWarning(null); saveMutation.mutate(buildMealPayload(true)); }}
+              onCancel={() => setDupWarning(null)}
+              testPrefix="create-meal-dup"
+            />
           ) : (
             <button
-              onClick={() => saveMutation.mutate()}
+              onClick={() => saveMutation.mutate(buildMealPayload())}
               disabled={!mealName.trim() || saveMutation.isPending}
               className="w-full py-3 bg-zinc-900 text-white text-sm font-semibold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
               data-testid="button-create-meal-save"

@@ -50,9 +50,30 @@ router.post("/api/user-meals", async (req, res) => {
       ingredientsJson: z.array(ingredientItemSchema).nullable().optional(),
       instructions: z.string().nullable().optional(),
       communityMealId: z.number().int().optional(),
+      confirmDuplicate: z.boolean().optional(),
     }).parse(req.body);
 
-    const { communityMealId, ...mealData } = body;
+    const { communityMealId, confirmDuplicate, ...mealData } = body;
+
+    if (!confirmDuplicate) {
+      const duplicates = await storage.findDuplicateUserMeals(req.session.userId, mealData.name);
+      if (duplicates.length > 0) {
+        const exactMatch = duplicates.some(d =>
+          d.caloriesPerServing === mealData.caloriesPerServing &&
+          d.proteinPerServing === mealData.proteinPerServing &&
+          d.carbsPerServing === mealData.carbsPerServing &&
+          d.fatPerServing === mealData.fatPerServing
+        );
+        return res.status(409).json({
+          duplicateWarning: true,
+          exactMatch,
+          existingCount: duplicates.length,
+          message: exactMatch
+            ? `You already have "${duplicates[0].name}" with identical macros.`
+            : `You already have ${duplicates.length} meal${duplicates.length > 1 ? "s" : ""} named "${duplicates[0].name}".`,
+        });
+      }
+    }
 
     if (communityMealId && (!mealData.ingredients || !mealData.instructions)) {
       const cm = await storage.getCommunityMealById(communityMealId).catch(() => undefined);

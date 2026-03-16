@@ -155,6 +155,7 @@ function DiaryContent({
         carbsPerServing: entry.carbs,
         fatPerServing: entry.fat,
         mealSlot: entry.mealSlot ?? null,
+        confirmDuplicate: true,
       }).then(r => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] });

@@ -145,6 +145,7 @@ export function EditMealModal({
         fat100g: Math.round((food.fat100g ?? 0) * 10) / 10,
         servingGrams: Math.round(ing.grams),
         source: "user-added",
+        confirmDuplicate: true,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/my-foods"] });
     } catch {

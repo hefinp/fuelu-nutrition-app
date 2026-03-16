@@ -7,6 +7,7 @@ import {
   X, Loader2, UtensilsCrossed, Check, Users2, Heart, ShieldAlert,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
 
 type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
 type MealStyle = "simple" | "gourmet" | "michelin";
@@ -70,6 +71,7 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
   const [savingId, setSavingId] = useState<number | null>(null);
   const [mealDetails, setMealDetails] = useState<Record<number, CommunityMeal | "loading" | "error">>({});
   const [allergyWarning, setAllergyWarning] = useState<{ meal: CommunityMeal; conflicts: string[] } | null>(null);
+  const [dupWarning, setDupWarning] = useState<{ mealId: number; message: string; exactMatch: boolean; existingCount: number } | null>(null);
 
   const { data: meals = [], isLoading } = useQuery<CommunityMeal[]>({
     queryKey: ["/api/community-meals", selectedStyle, selectedSlot],
@@ -114,16 +116,17 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const doSave = async (meal: CommunityMeal) => {
+  const doSave = async (meal: CommunityMeal, confirmDuplicate = false) => {
     if (savedMealIds.has(meal.id) || savingId === meal.id) return;
     setSavingId(meal.id);
     setAllergyWarning(null);
+    setDupWarning(null);
     try {
       const detail = mealDetails[meal.id];
       const detailData = (detail && detail !== "loading" && detail !== "error") ? detail : null;
       const ingredientsArr = detailData?.ingredients ?? meal.ingredients;
       const instructionsText = detailData?.instructions ?? meal.instructions;
-      await apiRequest("POST", "/api/user-meals", {
+      const payload: Record<string, unknown> = {
         name: meal.name,
         source: "community",
         caloriesPerServing: meal.caloriesPerServing,
@@ -133,7 +136,20 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
         mealSlot: meal.slot,
         ingredients: ingredientsArr && ingredientsArr.length > 0 ? ingredientsArr.join("\n") : undefined,
         instructions: instructionsText || undefined,
+      };
+      if (confirmDuplicate) payload.confirmDuplicate = true;
+      const res = await fetch("/api/user-meals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
       });
+      const json = await res.json();
+      if (res.status === 409 && json.duplicateWarning) {
+        setDupWarning({ mealId: meal.id, ...json });
+        return;
+      }
+      if (!res.ok) throw new Error(json.message || "Failed to save");
       setSavedMealIds(prev => new Set(prev).add(meal.id));
       queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] });
       toast({ title: "Saved to my meals", description: `${meal.name} added to your library.` });
@@ -416,7 +432,18 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                           </div>
                         )}
 
-                        {!isAllergyWarningOpen && (
+                        {dupWarning && dupWarning.mealId === meal.id && (
+                          <div className="mt-3" data-testid={`dup-warning-community-${meal.id}`}>
+                            <DuplicateWarningBanner
+                              warning={dupWarning}
+                              onConfirm={() => { setDupWarning(null); doSave(meal, true); }}
+                              onCancel={() => setDupWarning(null)}
+                              testPrefix={`community-dup-${meal.id}`}
+                            />
+                          </div>
+                        )}
+
+                        {!isAllergyWarningOpen && !(dupWarning && dupWarning.mealId === meal.id) && (
                           <button
                             type="button"
                             onClick={() => handleSave(meal)}

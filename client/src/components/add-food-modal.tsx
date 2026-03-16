@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
-  X, Loader2, Pencil, Check, Search, Barcode, Sparkles,
+  X, Loader2, Pencil, Check, Search, Barcode, Sparkles, AlertTriangle,
 } from "lucide-react";
 import type { UserSavedFood } from "@shared/schema";
 import type { FoodResult, ExtendedFoodResult } from "@/components/food-log-shared";
@@ -11,8 +11,9 @@ import { type AddFoodTab } from "@/components/meals-food-shared";
 import {
   useFoodPicker, MacroGrid, SearchPanel, ScannerView, ScannedFoodPanel, AiPanel,
 } from "@/components/food-picker-tabs";
+import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
 
-function ConfirmPanel({ food, servGrams, setServGrams, onSave, onReset, testPrefix, saving }: {
+function ConfirmPanel({ food, servGrams, setServGrams, onSave, onReset, testPrefix, saving, dupWarning, onConfirmDuplicate, onCancelDuplicate }: {
   food: FoodResult | ExtendedFoodResult;
   servGrams: string;
   setServGrams: (v: string) => void;
@@ -20,6 +21,9 @@ function ConfirmPanel({ food, servGrams, setServGrams, onSave, onReset, testPref
   onReset: () => void;
   testPrefix: string;
   saving: boolean;
+  dupWarning?: DuplicateWarning | null;
+  onConfirmDuplicate?: () => void;
+  onCancelDuplicate?: () => void;
 }) {
   return (
     <div className="space-y-3">
@@ -46,18 +50,29 @@ function ConfirmPanel({ food, servGrams, setServGrams, onSave, onReset, testPref
         <input type="number" min={1} value={servGrams} onChange={e => setServGrams(e.target.value)} className="w-20 text-sm font-semibold text-zinc-900 bg-transparent border-none outline-none text-right" data-testid={`input-${testPrefix}-serving`} />
       </div>
       <MacroGrid food={food} servingGrams={servGrams} />
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={saving}
-        className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
-        data-testid={`button-${testPrefix}-save`}
-      >
-        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" />Save to My Foods</>}
-      </button>
+      {dupWarning ? (
+        <DuplicateWarningBanner
+          warning={dupWarning}
+          onConfirm={onConfirmDuplicate!}
+          onCancel={onCancelDuplicate!}
+          testPrefix={`${testPrefix}-dup`}
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
+          data-testid={`button-${testPrefix}-save`}
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" />Save to My Foods</>}
+        </button>
+      )}
     </div>
   );
 }
+
+type DuplicateWarning = { message: string; exactMatch: boolean; existingCount: number };
 
 export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSaved: (food: UserSavedFood) => void }) {
   const { toast } = useToast();
@@ -73,23 +88,52 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
 
   const [selectedResult, setSelectedResult] = useState<FoodResult | ExtendedFoodResult | null>(null);
   const [resultServing, setResultServing] = useState("100");
+  const [dupWarning, setDupWarning] = useState<DuplicateWarning | null>(null);
+  const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null);
 
   const picker = useFoodPicker({ activeTab: tab, scanActive: true });
 
   const saveMutation = useMutation({
-    mutationFn: (payload: { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams: number }) =>
-      apiRequest("POST", "/api/my-foods", payload).then(r => r.json()),
+    mutationFn: async (payload: { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams: number; confirmDuplicate?: boolean }) => {
+      const res = await fetch("/api/my-foods", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (res.status === 409 && json.duplicateWarning) {
+        throw { isDuplicate: true, warning: json };
+      }
+      if (!res.ok) throw new Error(json.message || "Failed to save food");
+      return json;
+    },
     onSuccess: (data) => {
+      setDupWarning(null);
+      setPendingPayload(null);
       queryClient.invalidateQueries({ queryKey: ["/api/my-foods"] });
       toast({ title: `${data.name} added to My Foods` });
       onSaved(data);
       onClose();
     },
-    onError: () => toast({ title: "Failed to save food", variant: "destructive" }),
+    onError: (err: any) => {
+      if (err?.isDuplicate) {
+        setDupWarning(err.warning);
+        return;
+      }
+      toast({ title: "Failed to save food", variant: "destructive" });
+    },
   });
 
+  function doSave(payload: Record<string, unknown>, confirm = false) {
+    const p = { ...payload, ...(confirm ? { confirmDuplicate: true } : {}) };
+    setPendingPayload(payload);
+    saveMutation.mutate(p as any);
+  }
+
   function saveFromResult(food: FoodResult | ExtendedFoodResult, servGrams: string) {
-    saveMutation.mutate({
+    setDupWarning(null);
+    doSave({
       name: food.name,
       calories100g: food.calories100g,
       protein100g: food.protein100g,
@@ -100,7 +144,8 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
   }
 
   function saveManual() {
-    saveMutation.mutate({
+    setDupWarning(null);
+    doSave({
       name: name.trim(),
       calories100g: parseInt(cal) || 0,
       protein100g: parseFloat(prot) || 0,
@@ -151,9 +196,12 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
                     servGrams={resultServing}
                     setServGrams={setResultServing}
                     onSave={() => saveFromResult(selectedResult, resultServing)}
-                    onReset={() => setSelectedResult(null)}
+                    onReset={() => { setSelectedResult(null); setDupWarning(null); }}
                     testPrefix="addfood-search"
                     saving={saveMutation.isPending}
+                    dupWarning={dupWarning}
+                    onConfirmDuplicate={() => { setDupWarning(null); if (pendingPayload) doSave(pendingPayload, true); }}
+                    onCancelDuplicate={() => { setDupWarning(null); setPendingPayload(null); }}
                   />
                 ) : (
                   <SearchPanel
@@ -180,9 +228,12 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
                     servGrams={picker.scanServingGrams}
                     setServGrams={picker.setScanServingGrams}
                     onSave={() => saveFromResult(picker.scannedFood!, picker.scanServingGrams)}
-                    onReset={picker.resetScan}
+                    onReset={() => { picker.resetScan(); setDupWarning(null); }}
                     testPrefix="addfood-scan"
                     saving={saveMutation.isPending}
+                    dupWarning={dupWarning}
+                    onConfirmDuplicate={() => { setDupWarning(null); if (pendingPayload) doSave(pendingPayload, true); }}
+                    onCancelDuplicate={() => { setDupWarning(null); setPendingPayload(null); }}
                   />
                 ) : (
                   <ScannerView picker={picker} testPrefix="addfood" />
@@ -198,9 +249,12 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
                     servGrams={picker.aiServingGrams}
                     setServGrams={picker.setAiServingGrams}
                     onSave={() => saveFromResult(picker.aiResult!, picker.aiServingGrams)}
-                    onReset={picker.resetAi}
+                    onReset={() => { picker.resetAi(); setDupWarning(null); }}
                     testPrefix="addfood-ai"
                     saving={saveMutation.isPending}
+                    dupWarning={dupWarning}
+                    onConfirmDuplicate={() => { setDupWarning(null); if (pendingPayload) doSave(pendingPayload, true); }}
+                    onCancelDuplicate={() => { setDupWarning(null); setPendingPayload(null); }}
                   />
                 ) : (
                   <AiPanel picker={picker} testPrefix="addfood" actionLabel="Save to My Foods" onAction={(food, grams) => saveFromResult(food, String(grams))} />
@@ -237,14 +291,24 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
                   <input type="number" value={serving} onChange={e => setServing(e.target.value)} min={1}
                     className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300" data-testid="input-food-serving" />
                 </div>
-                <button
-                  onClick={saveManual}
-                  disabled={!manualValid || saveMutation.isPending}
-                  className="w-full py-3 bg-zinc-900 text-white text-sm font-semibold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
-                  data-testid="button-add-food-save"
-                >
-                  {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Food"}
-                </button>
+                {dupWarning && (
+                  <DuplicateWarningBanner
+                    warning={dupWarning}
+                    onConfirm={() => { setDupWarning(null); if (pendingPayload) doSave(pendingPayload, true); }}
+                    onCancel={() => { setDupWarning(null); setPendingPayload(null); }}
+                    testPrefix="addfood-dup"
+                  />
+                )}
+                {!dupWarning && (
+                  <button
+                    onClick={saveManual}
+                    disabled={!manualValid || saveMutation.isPending}
+                    className="w-full py-3 bg-zinc-900 text-white text-sm font-semibold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
+                    data-testid="button-add-food-save"
+                  >
+                    {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Food"}
+                  </button>
+                )}
               </div>
             )}
           </div>

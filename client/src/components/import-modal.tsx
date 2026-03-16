@@ -6,6 +6,7 @@ import {
   Plus, X, Loader2, ArrowLeft, ImagePlus,
   AlertCircle, Globe, BookOpen, Camera,
 } from "lucide-react";
+import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
 import {
   type MealSlot, type ImportStep, type ParsedRecipe,
   SLOT_OPTIONS, fileToBase64,
@@ -24,6 +25,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
   const [urlError, setUrlError] = useState("");
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const photoRef = useRef<HTMLInputElement>(null);
+  const [dupWarning, setDupWarning] = useState<{ message: string; exactMatch: boolean; existingCount: number } | null>(null);
 
   const importMutation = useMutation({
     mutationFn: (u: string) => apiRequest("POST", "/api/recipes/import", { url: u }).then(r => r.json()),
@@ -61,10 +63,10 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
     onError: () => toast({ title: "Failed to extract recipe from photo", variant: "destructive" }),
   });
 
-  const saveMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/user-meals", {
+  function buildImportPayload(confirm = false) {
+    return {
       name: parsed!.name,
-      source: "imported",
+      source: "imported" as const,
       sourceUrl: parsed!.sourceUrl,
       imageUrl: parsed!.imageUrl,
       servings: parsed!.servings,
@@ -75,13 +77,38 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       ingredients: parsed!.ingredients.join("\n"),
       mealSlot: slot,
       mealStyle: "simple",
-    }).then(r => r.json()),
+      ...(confirm ? { confirmDuplicate: true } : {}),
+    };
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async (payload: ReturnType<typeof buildImportPayload>) => {
+      const res = await fetch("/api/user-meals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (res.status === 409 && json.duplicateWarning) {
+        throw { isDuplicate: true, warning: json };
+      }
+      if (!res.ok) throw new Error(json.message || "Failed to save recipe");
+      return json;
+    },
     onSuccess: () => {
+      setDupWarning(null);
       toast({ title: `${parsed!.name} saved to Meals` });
       onSaved();
       onClose();
     },
-    onError: () => toast({ title: "Failed to save recipe", variant: "destructive" }),
+    onError: (err: any) => {
+      if (err?.isDuplicate) {
+        setDupWarning(err.warning);
+        return;
+      }
+      toast({ title: "Failed to save recipe", variant: "destructive" });
+    },
   });
 
   return (
@@ -254,14 +281,23 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
 
         {step === "confirm" && parsed && (
           <div className="px-6 pb-6 pt-4 border-t border-zinc-100 shrink-0">
-            <button
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending}
-              className="w-full py-3 bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-semibold rounded-2xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-              data-testid="button-import-save"
-            >
-              {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><BookOpen className="w-4 h-4" />Save to My Meals</>}
-            </button>
+            {dupWarning ? (
+              <DuplicateWarningBanner
+                warning={dupWarning}
+                onConfirm={() => { setDupWarning(null); saveMutation.mutate(buildImportPayload(true)); }}
+                onCancel={() => setDupWarning(null)}
+                testPrefix="import-dup"
+              />
+            ) : (
+              <button
+                onClick={() => saveMutation.mutate(buildImportPayload())}
+                disabled={saveMutation.isPending}
+                className="w-full py-3 bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-semibold rounded-2xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                data-testid="button-import-save"
+              >
+                {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><BookOpen className="w-4 h-4" />Save to My Meals</>}
+              </button>
+            )}
           </div>
         )}
       </div>
