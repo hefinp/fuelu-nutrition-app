@@ -14,6 +14,160 @@ function parseNutrientValue(raw: string | number | undefined): number | null {
   return match ? Math.round(parseFloat(match[0])) : null;
 }
 
+function isRecipeType(obj: any): boolean {
+  if (!obj || typeof obj !== "object") return false;
+  const t = obj["@type"];
+  return t === "Recipe" || (Array.isArray(t) && t.includes("Recipe"));
+}
+
+function findRecipeInObject(obj: any, depth = 0): any {
+  if (!obj || typeof obj !== "object" || depth > 5) return null;
+  if (isRecipeType(obj)) return obj;
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      const found = findRecipeInObject(item, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (obj["@graph"]) {
+    const found = findRecipeInObject(obj["@graph"], depth + 1);
+    if (found) return found;
+  }
+  for (const key of ["mainEntity", "mainEntityOfPage"]) {
+    if (obj[key]) {
+      const found = findRecipeInObject(obj[key], depth + 1);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function extractMicrodataRecipe(html: string): any | null {
+  const recipeMatch = html.match(/<[^>]+itemtype=["']https?:\/\/schema\.org\/Recipe["'][^>]*>([\s\S]*?)(?=<[^>]+itemtype=["']https?:\/\/schema\.org\/|$)/i);
+  if (!recipeMatch) return null;
+  const block = recipeMatch[0];
+
+  function extractProp(propName: string): string | null {
+    const patterns = [
+      new RegExp(`itemprop=["']${propName}["'][^>]*content=["']([^"']+)["']`, "i"),
+      new RegExp(`itemprop=["']${propName}["'][^>]*>([^<]+)<`, "i"),
+    ];
+    for (const p of patterns) {
+      const m = block.match(p);
+      if (m) return m[1].trim();
+    }
+    return null;
+  }
+
+  function extractAllProps(propName: string): string[] {
+    const results: string[] = [];
+    const regex = new RegExp(`itemprop=["']${propName}["'][^>]*>([\\s\\S]*?)(?:<\\/[^>]+>)`, "gi");
+    let m;
+    while ((m = regex.exec(block)) !== null) {
+      const text = m[1].replace(/<[^>]+>/g, "").trim();
+      if (text) results.push(text);
+    }
+    if (results.length === 0) {
+      const altRegex = new RegExp(`itemprop=["']${propName}["'][^>]*content=["']([^"']+)["']`, "gi");
+      while ((m = altRegex.exec(block)) !== null) {
+        if (m[1].trim()) results.push(m[1].trim());
+      }
+    }
+    return results;
+  }
+
+  const name = extractProp("name");
+  if (!name) return null;
+
+  return {
+    name,
+    image: extractProp("image"),
+    recipeIngredient: extractAllProps("recipeIngredient").length > 0
+      ? extractAllProps("recipeIngredient")
+      : extractAllProps("ingredients"),
+    recipeInstructions: extractAllProps("recipeInstructions").length > 0
+      ? extractAllProps("recipeInstructions")
+      : extractAllProps("step"),
+    recipeYield: extractProp("recipeYield"),
+    nutrition: {
+      calories: extractProp("calories"),
+      proteinContent: extractProp("proteinContent"),
+      carbohydrateContent: extractProp("carbohydrateContent"),
+      fatContent: extractProp("fatContent"),
+    },
+    recipeCategory: extractProp("recipeCategory"),
+  };
+}
+
+function extractNextDataRecipe(html: string): any | null {
+  const nextDataMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+  if (!nextDataMatch) return null;
+  try {
+    const nd = JSON.parse(nextDataMatch[1]);
+    const str = JSON.stringify(nd);
+    if (!str.includes("recipeIngredient") && !str.includes("recipeInstructions")) return null;
+    const deepFind = (obj: any, depth: number): any => {
+      if (!obj || typeof obj !== "object" || depth > 15) return null;
+      if (isRecipeType(obj)) return obj;
+      if (Array.isArray(obj)) {
+        for (const item of obj) { const f = deepFind(item, depth + 1); if (f) return f; }
+        return null;
+      }
+      for (const key of Object.keys(obj)) {
+        const f = deepFind(obj[key], depth + 1);
+        if (f) return f;
+      }
+      return null;
+    };
+    return deepFind(nd, 0);
+  } catch { return null; }
+}
+
+function extractInlineScriptRecipe(html: string): any | null {
+  const scripts = Array.from(html.matchAll(/<script(?![^>]*type=["']application\/ld\+json["'])[^>]*>([\s\S]*?)<\/script>/gi));
+  for (const s of scripts) {
+    const content = s[1];
+    if (!content.includes('"Recipe"') || !content.includes("recipeInstructions")) continue;
+    const jsonMatches = Array.from(content.matchAll(/\{[^{}]*"@type"\s*:\s*"Recipe"[\s\S]*?\}/g));
+    for (const m of jsonMatches) {
+      let depth = 0, end = m.index!;
+      for (let i = m.index!; i < content.length; i++) {
+        if (content[i] === "{") depth++;
+        else if (content[i] === "}") { depth--; if (depth === 0) { end = i + 1; break; } }
+      }
+      try {
+        const obj = JSON.parse(content.slice(m.index!, end));
+        if (isRecipeType(obj) && (obj.recipeInstructions || obj.recipeIngredient)) return obj;
+      } catch { continue; }
+    }
+  }
+  return null;
+}
+
+function extractSmartPageText(html: string, maxLen = 12000): string {
+  const cleaned = html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
+    .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
+    .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "");
+
+  const recipeArea = cleaned.match(/<(?:div|article|section|main)[^>]*class="[^"]*(?:recipe|wprm|tasty)[^"]*"[^>]*>[\s\S]*$/i);
+  const textSource = recipeArea ? recipeArea[0] : cleaned;
+
+  const text = textSource
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  if (text.length <= maxLen) return text;
+
+  const head = text.slice(0, Math.floor(maxLen * 0.6));
+  const tail = text.slice(-Math.floor(maxLen * 0.4));
+  return head + "\n...\n" + tail;
+}
+
 router.post("/api/recipes/import", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const { url } = z.object({ url: z.string().url() }).parse(req.body);
@@ -54,17 +208,22 @@ router.post("/api/recipes/import", async (req, res) => {
 
   for (const block of ldJsonBlocks) {
     try {
-      let parsed = JSON.parse(block[1].trim());
-      if (Array.isArray(parsed)) {
-        parsed = parsed.find((p: any) => p["@type"] === "Recipe" || (Array.isArray(p["@type"]) && p["@type"].includes("Recipe")));
-      } else if (parsed["@graph"]) {
-        parsed = parsed["@graph"].find((p: any) => p["@type"] === "Recipe" || (Array.isArray(p["@type"]) && p["@type"].includes("Recipe")));
-      }
-      if (parsed && (parsed["@type"] === "Recipe" || (Array.isArray(parsed["@type"]) && parsed["@type"].includes("Recipe")))) {
-        recipe = parsed;
-        break;
-      }
+      const parsed = JSON.parse(block[1].trim());
+      recipe = findRecipeInObject(parsed);
+      if (recipe) break;
     } catch { continue; }
+  }
+
+  if (!recipe) {
+    recipe = extractNextDataRecipe(html);
+  }
+
+  if (!recipe) {
+    recipe = extractInlineScriptRecipe(html);
+  }
+
+  if (!recipe) {
+    recipe = extractMicrodataRecipe(html);
   }
 
   if (!recipe) {
@@ -73,13 +232,7 @@ router.post("/api/recipes/import", async (req, res) => {
       return res.status(422).json({ message: "No structured recipe data found on that page. The site may not support recipe imports." });
     }
     try {
-      const pageText = html
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s{2,}/g, " ")
-        .trim()
-        .slice(0, 6000);
+      const pageText = extractSmartPageText(html);
 
       const aiRes = await openai.chat.completions.create({
         model: "gpt-4o-mini",
