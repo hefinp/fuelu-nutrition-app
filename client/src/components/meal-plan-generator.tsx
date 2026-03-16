@@ -88,6 +88,24 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
       setMealPlan(planData);
       setPlanSaved(false);
     },
+    onError: (error: Error) => {
+      let title = "Failed to generate meal plan";
+      let description = "Something went wrong. Please try again.";
+      try {
+        const match = error.message.match(/^(\d+):\s*(.*)/s);
+        if (match) {
+          const status = parseInt(match[1], 10);
+          const body = JSON.parse(match[2]);
+          if (status === 403 && body.message) {
+            title = "Plan upgrade required";
+            description = body.message;
+          } else if (body.message) {
+            description = body.message;
+          }
+        }
+      } catch {}
+      toast({ title, description, variant: "destructive" });
+    },
   });
 
   const savePlanMutation = useMutation({
