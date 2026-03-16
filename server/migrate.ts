@@ -124,6 +124,28 @@ export async function runMigrations(): Promise<void> {
       ADD COLUMN IF NOT EXISTS community_meal_id INTEGER REFERENCES community_meals(id)
     `);
 
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'user_saved_foods' AND column_name = 'protein_100g' AND data_type = 'numeric'
+        ) THEN
+          ALTER TABLE user_saved_foods ALTER COLUMN protein_100g TYPE real USING protein_100g::real;
+          ALTER TABLE user_saved_foods ALTER COLUMN carbs_100g TYPE real USING carbs_100g::real;
+          ALTER TABLE user_saved_foods ALTER COLUMN fat_100g TYPE real USING fat_100g::real;
+        END IF;
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'user_meals' AND column_name = 'protein_per_serving' AND data_type = 'integer'
+        ) THEN
+          ALTER TABLE user_meals ALTER COLUMN protein_per_serving TYPE real USING protein_per_serving::real;
+          ALTER TABLE user_meals ALTER COLUMN carbs_per_serving TYPE real USING carbs_per_serving::real;
+          ALTER TABLE user_meals ALTER COLUMN fat_per_serving TYPE real USING fat_per_serving::real;
+        END IF;
+      END $$;
+    `);
+
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
   } finally {
     client.release();
