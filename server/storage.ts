@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, favouriteMeals, communityMeals, userSavedFoods, userMeals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type FavouriteMeal, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 
@@ -50,11 +50,6 @@ export interface IStorage {
   deleteCustomFood(id: number, userId: number): Promise<void>;
   updateCustomFoodBarcode(id: number, barcode: string): Promise<void>;
 
-  // User recipes
-  getUserRecipes(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserRecipe[]; nextCursor: string | null }>;
-  createUserRecipe(recipe: InsertUserRecipe & { userId: number }): Promise<UserRecipe>;
-  updateUserRecipe(id: number, userId: number, updates: { name?: string; caloriesPerServing?: number; proteinPerServing?: number; carbsPerServing?: number; fatPerServing?: number; mealSlot?: string; instructions?: string | null; ingredients?: string | null; ingredientsJson?: unknown }): Promise<UserRecipe | undefined>;
-  deleteUserRecipe(id: number, userId: number): Promise<void>;
 
   // Hydration
   getHydrationLogs(userId: number, date: string): Promise<HydrationLog[]>;
@@ -83,12 +78,6 @@ export interface IStorage {
   // AI insights cache
   getAiInsightsCache(userId: number, cacheKey: string): Promise<AiInsightsCache | undefined>;
   upsertAiInsightsCache(userId: number, cacheKey: string, narrativeJson: object, expiresAt: Date): Promise<void>;
-
-  // Favourite meals (deprecated — kept for backward compat)
-  getFavouriteMeals(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: FavouriteMeal[]; nextCursor: string | null }>;
-  addFavouriteMeal(entry: { userId: number; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null; ingredients?: string | null; ingredientsJson?: unknown; instructions?: string | null }): Promise<FavouriteMeal>;
-  updateFavouriteMeal(id: number, userId: number, updates: { mealName?: string; calories?: number; protein?: number; carbs?: number; fat?: number; mealSlot?: string | null; ingredients?: string | null; ingredientsJson?: unknown; instructions?: string | null }): Promise<FavouriteMeal | undefined>;
-  removeFavouriteMeal(id: number, userId: number): Promise<void>;
 
   // Unified user meals
   getUserMeals(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserMeal[]; nextCursor: string | null }>;
@@ -320,52 +309,6 @@ export class DatabaseStorage implements IStorage {
     await db.update(customFoods).set({ barcode }).where(eq(customFoods.id, id));
   }
 
-  async getUserRecipes(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserRecipe[]; nextCursor: string | null }> {
-    const limit = opts?.limit ?? 10000;
-    const fetchLimit = limit + 1;
-    const conditions = [eq(userRecipes.userId, userId)];
-    if (opts?.cursor) {
-      const [ts, idStr] = opts.cursor.split("|");
-      const cursorDate = new Date(ts);
-      const cursorId = parseInt(idStr);
-      conditions.push(
-        or(
-          lt(userRecipes.createdAt, cursorDate),
-          and(eq(userRecipes.createdAt, cursorDate), lt(userRecipes.id, cursorId))
-        )!
-      );
-    }
-    const rows = await db.select().from(userRecipes)
-      .where(and(...conditions))
-      .orderBy(desc(userRecipes.createdAt), desc(userRecipes.id))
-      .limit(fetchLimit);
-    const hasMore = rows.length > limit;
-    const items = hasMore ? rows.slice(0, limit) : rows;
-    const last = items[items.length - 1];
-    const nextCursor = hasMore && last
-      ? `${(last.createdAt as Date).toISOString()}|${last.id}`
-      : null;
-    return { items, nextCursor };
-  }
-
-  async createUserRecipe(recipe: InsertUserRecipe & { userId: number }): Promise<UserRecipe> {
-    const [created] = await db.insert(userRecipes).values(recipe).returning();
-    return created;
-  }
-
-  async updateUserRecipe(id: number, userId: number, updates: { name?: string; caloriesPerServing?: number; proteinPerServing?: number; carbsPerServing?: number; fatPerServing?: number; mealSlot?: string; instructions?: string | null; ingredients?: string | null; ingredientsJson?: unknown }): Promise<UserRecipe | undefined> {
-    const [updated] = await db.update(userRecipes)
-      .set(updates)
-      .where(and(eq(userRecipes.id, id), eq(userRecipes.userId, userId)))
-      .returning();
-    return updated;
-  }
-
-  async deleteUserRecipe(id: number, userId: number): Promise<void> {
-    await db.delete(userRecipes)
-      .where(and(eq(userRecipes.id, id), eq(userRecipes.userId, userId)));
-  }
-
   async getHydrationLogs(userId: number, date: string): Promise<HydrationLog[]> {
     return await db.select().from(hydrationLogs)
       .where(and(eq(hydrationLogs.userId, userId), eq(hydrationLogs.date, date)))
@@ -472,52 +415,6 @@ export class DatabaseStorage implements IStorage {
         target: [aiInsightsCache.userId, aiInsightsCache.cacheKey],
         set: { narrativeJson, expiresAt, createdAt: new Date() },
       });
-  }
-
-  async getFavouriteMeals(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: FavouriteMeal[]; nextCursor: string | null }> {
-    const limit = opts?.limit ?? 10000;
-    const fetchLimit = limit + 1;
-    const conditions = [eq(favouriteMeals.userId, userId)];
-    if (opts?.cursor) {
-      const [ts, idStr] = opts.cursor.split("|");
-      const cursorDate = new Date(ts);
-      const cursorId = parseInt(idStr);
-      conditions.push(
-        or(
-          lt(favouriteMeals.createdAt, cursorDate),
-          and(eq(favouriteMeals.createdAt, cursorDate), lt(favouriteMeals.id, cursorId))
-        )!
-      );
-    }
-    const rows = await db.select().from(favouriteMeals)
-      .where(and(...conditions))
-      .orderBy(desc(favouriteMeals.createdAt), desc(favouriteMeals.id))
-      .limit(fetchLimit);
-    const hasMore = rows.length > limit;
-    const items = hasMore ? rows.slice(0, limit) : rows;
-    const last = items[items.length - 1];
-    const nextCursor = hasMore && last
-      ? `${(last.createdAt as Date).toISOString()}|${last.id}`
-      : null;
-    return { items, nextCursor };
-  }
-
-  async addFavouriteMeal(entry: { userId: number; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null; ingredients?: string | null; ingredientsJson?: unknown; instructions?: string | null }): Promise<FavouriteMeal> {
-    const [created] = await db.insert(favouriteMeals).values(entry).returning();
-    return created;
-  }
-
-  async updateFavouriteMeal(id: number, userId: number, updates: { mealName?: string; calories?: number; protein?: number; carbs?: number; fat?: number; mealSlot?: string | null; ingredients?: string | null; ingredientsJson?: unknown; instructions?: string | null }): Promise<FavouriteMeal | undefined> {
-    const [updated] = await db.update(favouriteMeals)
-      .set(updates)
-      .where(and(eq(favouriteMeals.id, id), eq(favouriteMeals.userId, userId)))
-      .returning();
-    return updated;
-  }
-
-  async removeFavouriteMeal(id: number, userId: number): Promise<void> {
-    await db.delete(favouriteMeals)
-      .where(and(eq(favouriteMeals.id, id), eq(favouriteMeals.userId, userId)));
   }
 
   async getUserMeals(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserMeal[]; nextCursor: string | null }> {

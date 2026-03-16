@@ -46,7 +46,10 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, isLo
           <div className="flex items-center gap-1.5 flex-wrap">
             <p className="text-sm font-medium text-zinc-900 truncate">{meal.name}</p>
             {slot && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${SLOT_COLOURS[slot]}`}>{slot}</span>}
-            {isCustom && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-zinc-100 text-zinc-500">custom</span>}
+            {meal.source === "manual" && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-zinc-100 text-zinc-500">custom</span>}
+            {meal.source === "imported" && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-blue-50 text-blue-500">imported</span>}
+            {meal.source === "logged" && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-amber-50 text-amber-500">logged</span>}
+            {meal.source === "community" && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-purple-50 text-purple-500">community</span>}
           </div>
           <p className="text-xs text-zinc-400 mt-0.5">{meal.caloriesPerServing} kcal · P:{meal.proteinPerServing}g · C:{meal.carbsPerServing}g · F:{meal.fatPerServing}g</p>
         </div>
