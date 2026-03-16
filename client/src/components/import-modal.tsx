@@ -48,11 +48,16 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
 
   const photoMutation = useMutation({
     mutationFn: async (files: File[]) => {
+      setUploadedPhotoUrls([]);
       const images = await Promise.all(files.map(async f => ({
         base64: await fileToBase64(f),
         mimeType: f.type || "image/jpeg",
       })));
-      return apiRequest("POST", "/api/recipes/import-photo", { images }).then(r => r.json());
+      const [recipeData, uploadData] = await Promise.all([
+        apiRequest("POST", "/api/recipes/import-photo", { images }).then(r => r.json()),
+        apiRequest("POST", "/api/recipes/upload-photos", { images }).then(r => r.json()).catch(() => null),
+      ]);
+      return { ...recipeData, _uploadedUrls: uploadData?.urls || [], _uploadFailed: !uploadData };
     },
     onSuccess: (data) => {
       if (data.message) { toast({ title: data.message, variant: "destructive" }); return; }
@@ -63,6 +68,12 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       setFat(data.fat != null ? String(data.fat) : "");
       setInstructions(Array.isArray(data.instructions) && data.instructions.length > 0 ? data.instructions.join("\n") : "");
       setSlot((data.suggestedSlot as MealSlot) || "dinner");
+      if (data._uploadedUrls && data._uploadedUrls.length > 0) {
+        setUploadedPhotoUrls(data._uploadedUrls);
+      }
+      if (data._uploadFailed) {
+        toast({ title: "Recipe extracted, but source photos could not be saved" });
+      }
       setStep("confirm");
     },
     onError: () => toast({ title: "Failed to extract recipe from photo", variant: "destructive" }),
@@ -91,6 +102,8 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
     },
   });
 
+  const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([]);
+
   function buildImportPayload(confirm = false) {
     return {
       name: parsed!.name,
@@ -106,6 +119,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       instructions: instructions.trim() || null,
       mealSlot: slot,
       mealStyle: "simple",
+      ...(uploadedPhotoUrls.length > 0 ? { sourcePhotos: uploadedPhotoUrls } : {}),
       ...(confirm ? { confirmDuplicate: true } : {}),
     };
   }
@@ -147,7 +161,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
           <div className="flex items-center gap-2">
             {step !== "method" && (
-              <button onClick={() => setStep("method")} className="p-1 text-zinc-400 hover:text-zinc-700 mr-1" data-testid="button-import-back">
+              <button onClick={() => { setStep("method"); setUploadedPhotoUrls([]); }} className="p-1 text-zinc-400 hover:text-zinc-700 mr-1" data-testid="button-import-back">
                 <ArrowLeft className="w-4 h-4" />
               </button>
             )}

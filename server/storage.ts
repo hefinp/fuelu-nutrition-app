@@ -88,7 +88,7 @@ export interface IStorage {
   // Unified user meals
   getUserMeals(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserMeal[]; nextCursor: string | null }>;
   createUserMeal(meal: InsertUserMeal & { userId: number }): Promise<UserMeal>;
-  updateUserMeal(id: number, userId: number, updates: Partial<Pick<UserMeal, 'name' | 'caloriesPerServing' | 'proteinPerServing' | 'carbsPerServing' | 'fatPerServing' | 'servings' | 'sourceUrl' | 'imageUrl' | 'mealSlot' | 'mealStyle' | 'ingredients' | 'ingredientsJson' | 'instructions' | 'source'>>): Promise<UserMeal | undefined>;
+  updateUserMeal(id: number, userId: number, updates: Partial<Pick<UserMeal, 'name' | 'caloriesPerServing' | 'proteinPerServing' | 'carbsPerServing' | 'fatPerServing' | 'servings' | 'sourceUrl' | 'imageUrl' | 'mealSlot' | 'mealStyle' | 'ingredients' | 'ingredientsJson' | 'instructions' | 'source' | 'sourcePhotos'>>): Promise<UserMeal | undefined>;
   deleteUserMeal(id: number, userId: number): Promise<void>;
 
   findDuplicateUserMeals(userId: number, name: string): Promise<UserMeal[]>;
@@ -533,7 +533,7 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateUserMeal(id: number, userId: number, updates: Partial<Pick<UserMeal, 'name' | 'caloriesPerServing' | 'proteinPerServing' | 'carbsPerServing' | 'fatPerServing' | 'servings' | 'sourceUrl' | 'imageUrl' | 'mealSlot' | 'mealStyle' | 'ingredients' | 'ingredientsJson' | 'instructions' | 'source'>>): Promise<UserMeal | undefined> {
+  async updateUserMeal(id: number, userId: number, updates: Partial<Pick<UserMeal, 'name' | 'caloriesPerServing' | 'proteinPerServing' | 'carbsPerServing' | 'fatPerServing' | 'servings' | 'sourceUrl' | 'imageUrl' | 'mealSlot' | 'mealStyle' | 'ingredients' | 'ingredientsJson' | 'instructions' | 'source' | 'sourcePhotos'>>): Promise<UserMeal | undefined> {
     const [updated] = await db.update(userMeals)
       .set(updates)
       .where(and(eq(userMeals.id, id), eq(userMeals.userId, userId)))

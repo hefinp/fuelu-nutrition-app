@@ -456,6 +456,7 @@ export const userMeals = pgTable("user_meals", {
   ingredients: text("ingredients"),
   ingredientsJson: jsonb("ingredients_json"),
   instructions: text("instructions"),
+  sourcePhotos: text("source_photos").array(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

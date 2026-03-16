@@ -281,6 +281,8 @@ export async function runMigrations(): Promise<void> {
       ON CONFLICT (feature_key) DO NOTHING
     `);
 
+    await client.query(`ALTER TABLE user_meals ADD COLUMN IF NOT EXISTS source_photos TEXT[]`);
+
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
   } finally {
     client.release();

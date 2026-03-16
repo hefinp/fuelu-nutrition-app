@@ -1,7 +1,7 @@
 import {
   Utensils, Wheat, Trash2, Loader2, Pencil,
   ChevronDown, ChevronUp, Globe, Repeat,
-  ScanBarcode, Sparkles, Search,
+  ScanBarcode, Sparkles, Search, Link, Camera,
 } from "lucide-react";
 import type { UserMeal, UserSavedFood } from "@shared/schema";
 import { type MealSlot, SLOT_COLOURS, MacroBar, MacroChips } from "@/components/meals-food-shared";
@@ -14,8 +14,21 @@ export function getMealSlot(meal: UserMeal): MealSlot | null {
   return meal.mealSlot as MealSlot | null;
 }
 
+export function isWebImportedMeal(meal: UserMeal) {
+  return meal.source === "imported" && meal.sourceUrl && meal.sourceUrl !== "custom://created" && meal.sourceUrl !== "photo://recipe-book" && !isVideoImportedMeal(meal);
+}
+
+export function isVideoImportedMeal(meal: UserMeal) {
+  if (meal.source !== "imported" || !meal.sourceUrl) return false;
+  return /^https?:\/\/.*(youtube|youtu\.be|instagram|tiktok)/i.test(meal.sourceUrl);
+}
+
+export function isPhotoImportedMeal(meal: UserMeal) {
+  return meal.source === "imported" && meal.sourceUrl === "photo://recipe-book";
+}
+
 export function isImportedMeal(meal: UserMeal) {
-  return meal.source === "imported" && meal.sourceUrl && meal.sourceUrl !== "custom://created" && meal.sourceUrl !== "photo://recipe-book";
+  return isWebImportedMeal(meal);
 }
 
 interface MealCardProps {
@@ -33,7 +46,9 @@ interface MealCardProps {
 export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTemplate, isLogging, hasTemplate }: MealCardProps) {
   const slot = getMealSlot(meal);
   const isCustom = meal.source === "manual";
-  const hasSourceLink = isImportedMeal(meal);
+  const hasSourceLink = isWebImportedMeal(meal);
+  const isVideo = isVideoImportedMeal(meal);
+  const isPhoto = isPhotoImportedMeal(meal);
 
   return (
     <div className="group relative rounded-xl border border-zinc-100 overflow-hidden">
@@ -51,6 +66,9 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
             {slot && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${SLOT_COLOURS[slot]}`}>{slot}</span>}
             {meal.source === "manual" && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-zinc-100 text-zinc-500">custom</span>}
             {meal.source === "imported" && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-blue-50 text-blue-500">imported</span>}
+            {isVideo && <Link className="w-3 h-3 text-violet-400" data-testid={`icon-video-source-${meal.id}`} />}
+            {isPhoto && <Camera className="w-3 h-3 text-rose-400" data-testid={`icon-photo-source-${meal.id}`} />}
+            {hasSourceLink && <Globe className="w-3 h-3 text-blue-400" data-testid={`icon-web-source-${meal.id}`} />}
             {meal.source === "logged" && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-amber-50 text-amber-500">logged</span>}
             {meal.source === "community" && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-purple-50 text-purple-500">community</span>}
           </div>
@@ -110,9 +128,39 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 mt-2"
+              data-testid={`link-web-source-${meal.id}`}
             >
               <Globe className="w-3 h-3" />View original
             </a>
+          )}
+
+          {isVideo && meal.sourceUrl && (
+            <a
+              href={meal.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-violet-500 hover:text-violet-700 mt-2"
+              data-testid={`link-video-source-${meal.id}`}
+            >
+              <Link className="w-3 h-3" />Watch video
+            </a>
+          )}
+
+          {isPhoto && meal.sourcePhotos && meal.sourcePhotos.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {meal.sourcePhotos.map((photoUrl, i) => (
+                <a
+                  key={i}
+                  href={photoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-rose-500 hover:text-rose-700"
+                  data-testid={`link-photo-source-${meal.id}-${i}`}
+                >
+                  <Camera className="w-3 h-3" />View source photo{meal.sourcePhotos!.length > 1 ? ` ${i + 1}` : ""}
+                </a>
+              ))}
+            </div>
           )}
 
           <div className="flex gap-2 mt-3">

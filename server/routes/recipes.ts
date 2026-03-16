@@ -443,6 +443,45 @@ router.post("/api/recipes/import-photo", async (req, res) => {
   });
 });
 
+const UPLOADS_DIR = path.join(process.cwd(), "uploads", "recipe-photos");
+
+router.post("/api/recipes/upload-photos", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const bodySchema = z.object({
+    images: z.array(z.object({
+      base64: z.string().min(1),
+      mimeType: z.string().default("image/jpeg"),
+    })).min(1).max(2),
+  });
+
+  let parsed;
+  try {
+    parsed = bodySchema.parse(req.body);
+  } catch {
+    return res.status(400).json({ message: "Invalid request" });
+  }
+
+  try {
+    await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
+
+    const urls: string[] = [];
+    for (const img of parsed.images) {
+      const ext = img.mimeType.includes("png") ? "png" : img.mimeType.includes("webp") ? "webp" : "jpg";
+      const filename = `${req.session.userId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const filePath = path.join(UPLOADS_DIR, filename);
+      const buffer = Buffer.from(img.base64, "base64");
+      await fs.promises.writeFile(filePath, buffer);
+      urls.push(`/uploads/recipe-photos/${filename}`);
+    }
+
+    res.json({ urls });
+  } catch (e: any) {
+    console.error("Photo upload failed:", e);
+    res.status(500).json({ message: "Failed to save photos" });
+  }
+});
+
 const VIDEO_URL_PATTERNS = [
   { platform: "youtube", patterns: [/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]+)/i] },
   { platform: "instagram", patterns: [/instagram\.com\/(?:reel|p|tv)\/([\w-]+)/i] },

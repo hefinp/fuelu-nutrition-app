@@ -49,6 +49,7 @@ router.post("/api/user-meals", async (req, res) => {
       ingredients: z.string().nullable().optional(),
       ingredientsJson: z.array(ingredientItemSchema).nullable().optional(),
       instructions: z.string().nullable().optional(),
+      sourcePhotos: z.array(z.string()).nullable().optional(),
       communityMealId: z.number().int().optional(),
       confirmDuplicate: z.boolean().optional(),
     }).parse(req.body);
