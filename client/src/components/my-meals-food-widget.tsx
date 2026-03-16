@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -19,6 +19,18 @@ import { EditFoodModal } from "@/components/edit-food-modal";
 import { AddFoodModal } from "@/components/add-food-modal";
 import { CreateMealModal } from "@/components/create-meal-modal";
 
+const PAGE_SIZE = 20;
+
+type PaginatedResponse<T> = { items: T[]; nextCursor: string | null };
+
+async function fetchPaginated<T>(url: string, cursor?: string): Promise<PaginatedResponse<T>> {
+  const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+  if (cursor) params.set("cursor", cursor);
+  const res = await fetch(`${url}?${params}`, { credentials: "include" });
+  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
 export function MyMealsFoodWidget() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -34,10 +46,32 @@ export function MyMealsFoodWidget() {
   const [editTarget, setEditTarget] = useState<{ type: "favourite" | "recipe"; item: FavouriteMeal | UserRecipe } | null>(null);
   const [editFoodTarget, setEditFoodTarget] = useState<UserSavedFood | null>(null);
 
-  const { data: favourites = [], isLoading: favsLoading } = useQuery<FavouriteMeal[]>({ queryKey: ["/api/favourites"] });
-  const { data: recipes = [], isLoading: recsLoading } = useQuery<UserRecipe[]>({ queryKey: ["/api/recipes"] });
-  const { data: myFoods = [], isLoading: foodsLoading } = useQuery<UserSavedFood[]>({ queryKey: ["/api/my-foods"] });
+  const favsQuery = useInfiniteQuery<PaginatedResponse<FavouriteMeal>>({
+    queryKey: ["/api/favourites", "paginated"],
+    queryFn: ({ pageParam }) => fetchPaginated<FavouriteMeal>("/api/favourites", pageParam as string | undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+  const recsQuery = useInfiniteQuery<PaginatedResponse<UserRecipe>>({
+    queryKey: ["/api/recipes", "paginated"],
+    queryFn: ({ pageParam }) => fetchPaginated<UserRecipe>("/api/recipes", pageParam as string | undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+  const foodsQuery = useInfiniteQuery<PaginatedResponse<UserSavedFood>>({
+    queryKey: ["/api/my-foods", "paginated"],
+    queryFn: ({ pageParam }) => fetchPaginated<UserSavedFood>("/api/my-foods", pageParam as string | undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
 
+  const favourites = favsQuery.data?.pages.flatMap(p => p.items) ?? [];
+  const recipes = recsQuery.data?.pages.flatMap(p => p.items) ?? [];
+  const myFoods = foodsQuery.data?.pages.flatMap(p => p.items) ?? [];
+
+  const favsLoading = favsQuery.isLoading;
+  const recsLoading = recsQuery.isLoading;
+  const foodsLoading = foodsQuery.isLoading;
   const mealsLoading = favsLoading || recsLoading;
 
   type MealEntry =
@@ -86,21 +120,25 @@ export function MyMealsFoodWidget() {
     onError: () => toast({ title: "Failed to log meal", variant: "destructive" }),
   });
 
+  const invalidateFavs = () => { queryClient.invalidateQueries({ queryKey: ["/api/favourites"] }); };
+  const invalidateRecs = () => { queryClient.invalidateQueries({ queryKey: ["/api/recipes"] }); };
+  const invalidateFoods = () => { queryClient.invalidateQueries({ queryKey: ["/api/my-foods"] }); };
+
   const deleteFavMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/favourites/${id}`, undefined),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/favourites"] }); toast({ title: "Removed" }); },
+    onSuccess: () => { invalidateFavs(); toast({ title: "Removed" }); },
     onError: () => toast({ title: "Failed to remove", variant: "destructive" }),
   });
 
   const deleteRecMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/recipes/${id}`, undefined),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/recipes"] }); toast({ title: "Removed" }); },
+    onSuccess: () => { invalidateRecs(); toast({ title: "Removed" }); },
     onError: () => toast({ title: "Failed to remove", variant: "destructive" }),
   });
 
   const deleteFoodMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/my-foods/${id}`, undefined),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/my-foods"] }); toast({ title: "Removed from My Foods" }); },
+    onSuccess: () => { invalidateFoods(); toast({ title: "Removed from My Foods" }); },
     onError: () => toast({ title: "Failed to remove", variant: "destructive" }),
   });
 
@@ -354,6 +392,21 @@ export function MyMealsFoodWidget() {
                 })}
               </div>
                 )}
+                {(favsQuery.hasNextPage || recsQuery.hasNextPage) && (
+                  <button
+                    onClick={() => {
+                      if (favsQuery.hasNextPage) favsQuery.fetchNextPage();
+                      if (recsQuery.hasNextPage) recsQuery.fetchNextPage();
+                    }}
+                    disabled={favsQuery.isFetchingNextPage || recsQuery.isFetchingNextPage}
+                    className="w-full mt-3 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 rounded-xl border border-zinc-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    data-testid="button-load-more-meals"
+                  >
+                    {(favsQuery.isFetchingNextPage || recsQuery.isFetchingNextPage)
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : "Load more meals"}
+                  </button>
+                )}
               </>
             )}
 
@@ -474,6 +527,18 @@ export function MyMealsFoodWidget() {
                   );
                 })}
               </div>
+            )}
+            {foodsQuery.hasNextPage && (
+              <button
+                onClick={() => foodsQuery.fetchNextPage()}
+                disabled={foodsQuery.isFetchingNextPage}
+                className="w-full mt-3 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 rounded-xl border border-zinc-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
+                data-testid="button-load-more-foods"
+              >
+                {foodsQuery.isFetchingNextPage
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : "Load more foods"}
+              </button>
             )}
           </div>
         )}

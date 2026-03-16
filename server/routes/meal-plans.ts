@@ -29,7 +29,8 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
       const dislikedSet = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
 
       if (prefs?.recipeWebsitesEnabled) {
-        const userRecipesList = await storage.getUserRecipes(req.session.userId);
+        const userRecipesResult = await storage.getUserRecipes(req.session.userId);
+        const userRecipesList = userRecipesResult.items;
         const style = input.mealStyle ?? 'simple';
         const limit = (prefs as any).recipeWeeklyLimit ?? 5;
         const enabledSlots: string[] = (prefs as any).recipeEnabledSlots ?? ["breakfast", "lunch", "dinner", "snack"];
@@ -145,7 +146,8 @@ router.post("/api/meal-plans/replace-meal", async (req, res) => {
       const dislikedSet = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
 
       if (prefs?.recipeWebsitesEnabled) {
-        const userRecipesList = await storage.getUserRecipes(req.session.userId);
+        const userRecipesResult = await storage.getUserRecipes(req.session.userId);
+        const userRecipesList = userRecipesResult.items;
         const style = input.mealStyle ?? 'simple';
         const limit = (prefs as any).recipeWeeklyLimit ?? 5;
         const enabledSlots: string[] = (prefs as any).recipeEnabledSlots ?? ["breakfast", "lunch", "dinner", "snack"];
