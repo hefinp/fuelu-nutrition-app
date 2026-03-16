@@ -291,14 +291,14 @@ function RecipeCard({ recipe, sharedMeal }: { recipe: UserMeal; sharedMeal: Comm
         </div>
 
         <a
-          href={recipe.sourceUrl}
+          href={recipe.sourceUrl ?? undefined}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-700 transition-colors mt-auto"
           data-testid={`link-recipe-source-${recipe.id}`}
         >
           <Globe className="w-3 h-3" />
-          {sourceDomain(recipe.sourceUrl)}
+          {sourceDomain(recipe.sourceUrl ?? "")}
           <ExternalLink className="w-3 h-3" />
         </a>
       </div>

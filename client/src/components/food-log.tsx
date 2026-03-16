@@ -146,7 +146,7 @@ export function FoodLog({
                   data-testid={`button-expand-slot-${slotKey}`}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-zinc-100/60 transition-colors"
                 >
-                  {SlotIcon && slotColor ? (
+                  {SlotIcon != null && slotColor ? (
                     <div className={`p-1.5 rounded-lg ${slotColor}`}>
                       <SlotIcon className="w-3.5 h-3.5" />
                     </div>

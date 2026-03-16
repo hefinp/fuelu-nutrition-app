@@ -329,7 +329,7 @@ export function LoggedMealModal({
           <div className="bg-zinc-50 p-4 rounded-xl mb-4">
             <h4 className="text-sm font-semibold text-zinc-900 mb-2">Recipe source</h4>
             <a
-              href={webRecipe.sourceUrl}
+              href={webRecipe.sourceUrl ?? undefined}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline break-all"

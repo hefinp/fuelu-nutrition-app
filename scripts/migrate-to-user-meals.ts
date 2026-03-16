@@ -20,18 +20,19 @@ async function migrate() {
       f.fat,
       1,
       f.meal_slot,
-      COALESCE(f.meal_slot, 'simple'),
+      'simple',
       f.ingredients,
       f.ingredients_json,
       f.instructions,
       f.created_at
     FROM favourite_meals f
-    WHERE NOT EXISTS (
-      SELECT 1 FROM user_meals um
-      WHERE um.user_id = f.user_id
-        AND um.name = f.meal_name
-        AND um.source = 'logged'
-    )
+    LEFT JOIN user_meals um
+      ON um.user_id = f.user_id
+      AND um.name = f.meal_name
+      AND um.source = 'logged'
+      AND um.calories_per_serving = f.calories
+      AND um.created_at = f.created_at
+    WHERE um.id IS NULL
   `);
   console.log("Migrated favourite_meals rows");
 
@@ -55,12 +56,13 @@ async function migrate() {
       r.instructions,
       r.created_at
     FROM user_recipes r
-    WHERE NOT EXISTS (
-      SELECT 1 FROM user_meals um
-      WHERE um.user_id = r.user_id
-        AND um.name = r.name
-        AND um.source = 'imported'
-    )
+    LEFT JOIN user_meals um
+      ON um.user_id = r.user_id
+      AND um.name = r.name
+      AND um.source = 'imported'
+      AND um.calories_per_serving = r.calories_per_serving
+      AND um.created_at = r.created_at
+    WHERE um.id IS NULL
   `);
   console.log("Migrated user_recipes rows");
 

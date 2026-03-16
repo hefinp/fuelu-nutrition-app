@@ -78,6 +78,28 @@ export async function runMigrations(): Promise<void> {
     `);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS user_meals (
+        id                   SERIAL PRIMARY KEY,
+        user_id              INTEGER NOT NULL REFERENCES users(id),
+        name                 TEXT NOT NULL,
+        source               TEXT NOT NULL DEFAULT 'manual',
+        calories_per_serving INTEGER NOT NULL DEFAULT 0,
+        protein_per_serving  INTEGER NOT NULL DEFAULT 0,
+        carbs_per_serving    INTEGER NOT NULL DEFAULT 0,
+        fat_per_serving      INTEGER NOT NULL DEFAULT 0,
+        servings             INTEGER NOT NULL DEFAULT 1,
+        source_url           TEXT,
+        image_url            TEXT,
+        meal_slot            TEXT,
+        meal_style           TEXT NOT NULL DEFAULT 'simple',
+        ingredients          TEXT,
+        ingredients_json     JSONB,
+        instructions         TEXT,
+        created_at           TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS community_meals (
         id                   SERIAL PRIMARY KEY,
         source_recipe_id     INTEGER,

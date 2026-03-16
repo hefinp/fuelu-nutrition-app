@@ -493,7 +493,12 @@ export class DatabaseStorage implements IStorage {
 
   async addUserSavedFood(entry: { userId: number; name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams?: number; source?: string }): Promise<UserSavedFood> {
     const [created] = await db.insert(userSavedFoods).values({
-      ...entry,
+      userId: entry.userId,
+      name: entry.name,
+      calories100g: entry.calories100g,
+      protein100g: String(entry.protein100g),
+      carbs100g: String(entry.carbs100g),
+      fat100g: String(entry.fat100g),
       servingGrams: entry.servingGrams ?? 100,
       source: entry.source ?? null,
     }).returning();
