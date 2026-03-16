@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, ChevronUp, ChevronDown, Send, Check, Loader2 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
@@ -15,6 +15,7 @@ const CATEGORIES: { value: Category; label: string; emoji: string }[] = [
 ];
 
 export function FeedbackWidget() {
+  const widgetRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<Category>("general");
   const [message, setMessage] = useState("");
@@ -47,11 +48,19 @@ export function FeedbackWidget() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 mb-20 sm:mb-0">
+    <div ref={widgetRef} className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 mb-20 sm:mb-0 snap-start">
       <div className="border border-zinc-100 rounded-2xl overflow-hidden bg-white shadow-sm">
         <button
           data-testid="button-feedback-toggle"
-          onClick={() => { setOpen(o => !o); setError(""); }}
+          onClick={() => {
+            setOpen(o => {
+              if (!o) {
+                setTimeout(() => widgetRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 250);
+              }
+              return !o;
+            });
+            setError("");
+          }}
           className="w-full flex items-center justify-between px-5 py-3.5 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors"
         >
           <span className="flex items-center gap-2">
@@ -71,7 +80,7 @@ export function FeedbackWidget() {
               transition={{ duration: 0.2, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="px-5 pb-5 pt-1 border-t border-zinc-100">
+              <div className="px-5 pb-24 sm:pb-5 pt-1 border-t border-zinc-100">
                 <AnimatePresence mode="wait">
                   {submitted ? (
                     <motion.div
