@@ -1,5 +1,9 @@
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
-  Coffee, Salad, Moon, Apple, X, ExternalLink,
+  Coffee, Salad, Moon, Apple, X, ExternalLink, Pencil, Loader2,
 } from "lucide-react";
 import type { SavedMealPlan, UserMeal } from "@shared/schema";
 
@@ -264,6 +268,61 @@ export function LoggedMealModal({
     r => r.name.toLowerCase() === entry.mealName.toLowerCase()
   );
 
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    mealName: entry.mealName,
+    calories: entry.calories,
+    protein: entry.protein,
+    carbs: entry.carbs,
+    fat: entry.fat,
+    fibre: entry.fibre ?? 0,
+    sugar: entry.sugar ?? 0,
+    saturatedFat: entry.saturatedFat ?? 0,
+    mealSlot: entry.mealSlot,
+  });
+
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const updateMutation = useMutation({
+    mutationFn: async (updates: typeof form) => {
+      const res = await apiRequest("PATCH", `/api/food-log/${entry.id}`, updates);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
+      toast({ title: "Entry updated" });
+      setEditing(false);
+      onClose();
+    },
+    onError: () => {
+      toast({ title: "Failed to update entry", variant: "destructive" });
+    },
+  });
+
+  const setField = (key: keyof typeof form, value: string | number | null) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+  };
+
+  const numField = (label: string, key: keyof typeof form, color: string) => (
+    <div className={`${color} p-2.5 rounded-lg`}>
+      <label className="text-xs font-medium block mb-1">{label}</label>
+      {editing ? (
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={form[key] as number}
+          onChange={e => setField(key, Math.max(0, parseInt(e.target.value) || 0))}
+          className="w-full bg-white/80 rounded-lg px-2 py-1.5 text-sm font-bold border border-zinc-200 min-h-[44px]"
+          data-testid={`input-edit-${key}`}
+        />
+      ) : (
+        <p className="text-lg font-bold">{entry[key] as number}{key !== "calories" ? "g" : ""}</p>
+      )}
+    </div>
+  );
+
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
@@ -274,7 +333,17 @@ export function LoggedMealModal({
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-4">
-          <h3 className="text-xl font-bold text-zinc-900 pr-4">{entry.mealName}</h3>
+          {editing ? (
+            <input
+              type="text"
+              value={form.mealName}
+              onChange={e => setField("mealName", e.target.value)}
+              className="text-xl font-bold text-zinc-900 pr-4 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-1.5 w-full min-h-[44px]"
+              data-testid="input-edit-mealName"
+            />
+          ) : (
+            <h3 className="text-xl font-bold text-zinc-900 pr-4">{entry.mealName}</h3>
+          )}
           <button
             onClick={onClose}
             className="p-1 hover:bg-zinc-100 rounded-lg transition-colors shrink-0"
@@ -284,70 +353,120 @@ export function LoggedMealModal({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mb-5">
-          <div className="bg-orange-50 p-2.5 rounded-lg">
-            <p className="text-xs text-orange-600 font-medium">Calories</p>
-            <p className="text-lg font-bold text-orange-700">{entry.calories}</p>
-          </div>
-          <div className="bg-red-50 p-2.5 rounded-lg">
-            <p className="text-xs text-red-600 font-medium">Protein</p>
-            <p className="text-lg font-bold text-red-700">{entry.protein}g</p>
-          </div>
-          <div className="bg-blue-50 p-2.5 rounded-lg">
-            <p className="text-xs text-blue-600 font-medium">Carbs</p>
-            <p className="text-lg font-bold text-blue-700">{entry.carbs}g</p>
-          </div>
-          <div className="bg-yellow-50 p-2.5 rounded-lg">
-            <p className="text-xs text-yellow-600 font-medium">Fat</p>
-            <p className="text-lg font-bold text-yellow-700">{entry.fat}g</p>
-          </div>
-        </div>
-
-        {recipe ? (
-          <>
-            <div className="bg-zinc-50 p-4 rounded-xl mb-4">
-              <h4 className="text-sm font-semibold text-zinc-900 mb-3">Ingredients</h4>
-              <ul className="space-y-2">
-                {recipe.ingredients.map((ing, idx) => (
-                  <li key={idx} className="flex justify-between text-sm text-zinc-700">
-                    <span>{ing.item}</span>
-                    <span className="font-medium text-zinc-900">{ing.quantity}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="bg-zinc-50 p-4 rounded-xl mb-4">
-              <h4 className="text-sm font-semibold text-zinc-900 mb-2">Instructions</h4>
-              <p className="text-sm text-zinc-600 leading-relaxed">{recipe.instructions}</p>
-            </div>
-          </>
-        ) : !webRecipe ? (
-          <p className="text-zinc-500 text-sm mb-4">No recipe details available for this meal.</p>
-        ) : null}
-
-        {webRecipe && (
-          <div className="bg-zinc-50 p-4 rounded-xl mb-4">
-            <h4 className="text-sm font-semibold text-zinc-900 mb-2">Recipe source</h4>
-            <a
-              href={webRecipe.sourceUrl ?? undefined}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline break-all"
-              data-testid="link-recipe-source"
+        {editing && (
+          <div className="mb-4">
+            <label className="text-xs font-medium text-zinc-600 block mb-1">Meal slot</label>
+            <select
+              value={form.mealSlot ?? ""}
+              onChange={e => setField("mealSlot", e.target.value || null)}
+              className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 text-sm min-h-[44px]"
+              data-testid="select-edit-mealSlot"
             >
-              <ExternalLink className="w-4 h-4 shrink-0" />
-              {webRecipe.sourceUrl}
-            </a>
+              <option value="">No slot</option>
+              <option value="breakfast">Breakfast</option>
+              <option value="lunch">Lunch</option>
+              <option value="dinner">Dinner</option>
+              <option value="snack">Snack</option>
+            </select>
           </div>
         )}
 
-        <button
-          onClick={onClose}
-          className="w-full px-4 py-2 bg-zinc-900 text-white rounded-xl font-medium hover:bg-zinc-800 transition-colors"
-          data-testid="button-close-meal-detail-bottom"
-        >
-          Close
-        </button>
+        <div className="grid grid-cols-2 gap-2 mb-5">
+          {numField("Calories", "calories", "bg-orange-50 text-orange-700")}
+          {numField("Protein", "protein", "bg-red-50 text-red-700")}
+          {numField("Carbs", "carbs", "bg-blue-50 text-blue-700")}
+          {numField("Fat", "fat", "bg-yellow-50 text-yellow-700")}
+        </div>
+
+        {editing && (
+          <div className="grid grid-cols-3 gap-2 mb-5">
+            {numField("Fibre", "fibre", "bg-green-50 text-green-700")}
+            {numField("Sugar", "sugar", "bg-pink-50 text-pink-700")}
+            {numField("Sat. Fat", "saturatedFat", "bg-purple-50 text-purple-700")}
+          </div>
+        )}
+
+        {!editing && (
+          <>
+            {recipe ? (
+              <>
+                <div className="bg-zinc-50 p-4 rounded-xl mb-4">
+                  <h4 className="text-sm font-semibold text-zinc-900 mb-3">Ingredients</h4>
+                  <ul className="space-y-2">
+                    {recipe.ingredients.map((ing, idx) => (
+                      <li key={idx} className="flex justify-between text-sm text-zinc-700">
+                        <span>{ing.item}</span>
+                        <span className="font-medium text-zinc-900">{ing.quantity}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="bg-zinc-50 p-4 rounded-xl mb-4">
+                  <h4 className="text-sm font-semibold text-zinc-900 mb-2">Instructions</h4>
+                  <p className="text-sm text-zinc-600 leading-relaxed">{recipe.instructions}</p>
+                </div>
+              </>
+            ) : !webRecipe ? (
+              <p className="text-zinc-500 text-sm mb-4">No recipe details available for this meal.</p>
+            ) : null}
+
+            {webRecipe && (
+              <div className="bg-zinc-50 p-4 rounded-xl mb-4">
+                <h4 className="text-sm font-semibold text-zinc-900 mb-2">Recipe source</h4>
+                <a
+                  href={webRecipe.sourceUrl ?? undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline break-all"
+                  data-testid="link-recipe-source"
+                >
+                  <ExternalLink className="w-4 h-4 shrink-0" />
+                  {webRecipe.sourceUrl}
+                </a>
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="flex gap-2">
+          {editing ? (
+            <>
+              <button
+                onClick={() => setEditing(false)}
+                className="flex-1 px-4 py-2 bg-zinc-100 text-zinc-700 rounded-xl font-medium hover:bg-zinc-200 transition-colors min-h-[48px]"
+                data-testid="button-cancel-edit"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => updateMutation.mutate(form)}
+                disabled={updateMutation.isPending || !form.mealName.trim()}
+                className="flex-1 px-4 py-2 bg-zinc-900 text-white rounded-xl font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 min-h-[48px]"
+                data-testid="button-save-edit"
+              >
+                {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Save"}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setEditing(true)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-zinc-100 text-zinc-700 rounded-xl font-medium hover:bg-zinc-200 transition-colors min-h-[48px]"
+                data-testid="button-edit-entry"
+              >
+                <Pencil className="w-4 h-4" />
+                Edit
+              </button>
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2 bg-zinc-900 text-white rounded-xl font-medium hover:bg-zinc-800 transition-colors min-h-[48px]"
+                data-testid="button-close-meal-detail-bottom"
+              >
+                Close
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

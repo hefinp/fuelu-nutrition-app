@@ -35,6 +35,7 @@ export interface IStorage {
   getRecentFoodEntries(userId: number, limit: number): Promise<FoodLogEntry[]>;
   createFoodLogEntry(entry: InsertFoodLogEntry & { userId: number }): Promise<FoodLogEntry>;
   deleteFoodLogEntry(id: number, userId: number): Promise<void>;
+  updateFoodLogEntry(id: number, userId: number, updates: Partial<Pick<FoodLogEntry, 'mealName' | 'calories' | 'protein' | 'carbs' | 'fat' | 'fibre' | 'sugar' | 'saturatedFat' | 'mealSlot'>>): Promise<FoodLogEntry | undefined>;
 
   // Password reset tokens
   createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void>;
@@ -286,6 +287,14 @@ export class DatabaseStorage implements IStorage {
   async deleteFoodLogEntry(id: number, userId: number): Promise<void> {
     await db.delete(foodLogEntries)
       .where(and(eq(foodLogEntries.id, id), eq(foodLogEntries.userId, userId)));
+  }
+
+  async updateFoodLogEntry(id: number, userId: number, updates: Partial<Pick<FoodLogEntry, 'mealName' | 'calories' | 'protein' | 'carbs' | 'fat' | 'fibre' | 'sugar' | 'saturatedFat' | 'mealSlot'>>): Promise<FoodLogEntry | undefined> {
+    const [updated] = await db.update(foodLogEntries)
+      .set(updates)
+      .where(and(eq(foodLogEntries.id, id), eq(foodLogEntries.userId, userId)))
+      .returning();
+    return updated;
   }
 
   async confirmFoodLogEntry(id: number, userId: number): Promise<FoodLogEntry | undefined> {

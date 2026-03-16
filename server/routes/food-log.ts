@@ -499,6 +499,30 @@ router.patch("/api/food-log/:id/confirm", async (req, res) => {
   res.json(updated);
 });
 
+router.patch("/api/food-log/:id", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const id = parseInt(req.params.id);
+    const body = z.object({
+      mealName: z.string().min(1).optional(),
+      calories: z.number().int().min(0).optional(),
+      protein: z.number().int().min(0).optional(),
+      carbs: z.number().int().min(0).optional(),
+      fat: z.number().int().min(0).optional(),
+      fibre: z.number().int().min(0).nullable().optional(),
+      sugar: z.number().int().min(0).nullable().optional(),
+      saturatedFat: z.number().int().min(0).nullable().optional(),
+      mealSlot: z.enum(["breakfast", "lunch", "dinner", "snack"]).nullable().optional(),
+    }).parse(req.body);
+    const updated = await storage.updateFoodLogEntry(id, req.session.userId, body);
+    if (!updated) return res.status(404).json({ message: "Entry not found" });
+    res.json(updated);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+    throw err;
+  }
+});
+
 router.delete("/api/food-log/:id", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const id = parseInt(req.params.id);
