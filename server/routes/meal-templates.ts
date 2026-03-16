@@ -85,7 +85,6 @@ router.get("/api/meal-templates/suggestions", async (req, res) => {
 
   const existingEntries = await storage.getFoodLogEntries(req.session.userId, date);
 
-  const mealIds = Array.from(new Set(active.map(t => t.userMealId)));
   const mealsResult = await storage.getUserMeals(req.session.userId, { limit: 10000 });
   const mealsMap = new Map(mealsResult.items.map(m => [m.id, m]));
 
