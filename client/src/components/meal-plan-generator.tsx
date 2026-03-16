@@ -659,22 +659,42 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: an
 
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-zinc-900 text-white rounded-2xl p-4 text-center">
-          <p className="text-2xl font-bold">{plan.dayTotalCalories ?? 0}</p>
-          <p className="text-xs text-zinc-400">Total kcal</p>
-        </div>
-        <div className="bg-zinc-100 rounded-2xl p-4 text-center">
-          <p className="text-2xl font-bold text-zinc-900">{plan.dayTotalProtein ?? 0}<span className="text-sm font-normal text-zinc-400">g</span></p>
-          <p className="text-xs text-zinc-500">Protein</p>
-        </div>
-        <div className="bg-zinc-100 rounded-2xl p-4 text-center">
-          <p className="text-2xl font-bold text-zinc-900">{plan.dayTotalCarbs ?? 0}<span className="text-sm font-normal text-zinc-400">g</span></p>
-          <p className="text-xs text-zinc-500">Carbs</p>
-        </div>
-        <div className="bg-zinc-100 rounded-2xl p-4 text-center">
-          <p className="text-2xl font-bold text-zinc-900">{plan.dayTotalFat ?? 0}<span className="text-sm font-normal text-zinc-400">g</span></p>
-          <p className="text-xs text-zinc-500">Fat</p>
+      <div className="bg-zinc-900 text-white rounded-3xl shadow-2xl relative overflow-hidden mb-8">
+        <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 p-5 sm:p-6">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h3 className="text-lg font-bold" data-testid="text-daily-macro-title">Daily Totals</h3>
+              <p className="text-zinc-400 text-xs mt-0.5">Meal plan summary</p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold leading-none" data-testid="text-daily-calories">{plan.dayTotalCalories ?? 0}</p>
+              <p className="text-zinc-400 text-xs mt-0.5">Total kcal</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white/10 rounded-xl p-3" data-testid="tile-daily-protein">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-1))" }} />
+                <span className="text-xs text-zinc-400 font-medium">Protein</span>
+              </div>
+              <p className="text-xl font-bold leading-none">{plan.dayTotalProtein ?? 0}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3" data-testid="tile-daily-carbs">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-2))" }} />
+                <span className="text-xs text-zinc-400 font-medium">Carbs</span>
+              </div>
+              <p className="text-xl font-bold leading-none">{plan.dayTotalCarbs ?? 0}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3" data-testid="tile-daily-fat">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-3))" }} />
+                <span className="text-xs text-zinc-400 font-medium">Fat</span>
+              </div>
+              <p className="text-xl font-bold leading-none">{plan.dayTotalFat ?? 0}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -780,22 +800,42 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: a
 
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="bg-zinc-900 text-white rounded-2xl p-3 text-center">
-          <p className="text-xl font-bold">{plan.weekTotalCalories ?? 0}</p>
-          <p className="text-[10px] text-zinc-400">Week kcal</p>
-        </div>
-        <div className="bg-zinc-100 rounded-2xl p-3 text-center">
-          <p className="text-xl font-bold text-zinc-900">{plan.weekTotalProtein ?? 0}<span className="text-xs font-normal text-zinc-400">g</span></p>
-          <p className="text-[10px] text-zinc-500">Protein</p>
-        </div>
-        <div className="bg-zinc-100 rounded-2xl p-3 text-center">
-          <p className="text-xl font-bold text-zinc-900">{plan.weekTotalCarbs ?? 0}<span className="text-xs font-normal text-zinc-400">g</span></p>
-          <p className="text-[10px] text-zinc-500">Carbs</p>
-        </div>
-        <div className="bg-zinc-100 rounded-2xl p-3 text-center">
-          <p className="text-xl font-bold text-zinc-900">{plan.weekTotalFat ?? 0}<span className="text-xs font-normal text-zinc-400">g</span></p>
-          <p className="text-[10px] text-zinc-500">Fat</p>
+      <div className="bg-zinc-900 text-white rounded-3xl shadow-2xl relative overflow-hidden mb-6">
+        <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 p-5 sm:p-6">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h3 className="text-lg font-bold" data-testid="text-weekly-macro-title">Weekly Totals</h3>
+              <p className="text-zinc-400 text-xs mt-0.5">Meal plan summary</p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold leading-none" data-testid="text-weekly-calories">{plan.weekTotalCalories ?? 0}</p>
+              <p className="text-zinc-400 text-xs mt-0.5">Week kcal</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white/10 rounded-xl p-3" data-testid="tile-weekly-protein">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-1))" }} />
+                <span className="text-xs text-zinc-400 font-medium">Protein</span>
+              </div>
+              <p className="text-xl font-bold leading-none">{plan.weekTotalProtein ?? 0}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3" data-testid="tile-weekly-carbs">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-2))" }} />
+                <span className="text-xs text-zinc-400 font-medium">Carbs</span>
+              </div>
+              <p className="text-xl font-bold leading-none">{plan.weekTotalCarbs ?? 0}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3" data-testid="tile-weekly-fat">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-3))" }} />
+                <span className="text-xs text-zinc-400 font-medium">Fat</span>
+              </div>
+              <p className="text-xl font-bold leading-none">{plan.weekTotalFat ?? 0}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
+            </div>
+          </div>
         </div>
       </div>
 
