@@ -3,7 +3,7 @@ import type { FoodResult, ExtendedFoodResult } from "@/components/food-log-share
 
 export type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
 export type ActiveTab = "meals" | "foods" | "templates";
-export type ImportStep = "method" | "url" | "photo" | "confirm";
+export type ImportStep = "method" | "url" | "photo" | "video" | "confirm";
 export type AddFoodTab = "search" | "scan" | "ai" | "manual";
 export type PickerTab = "myfoods" | "search" | "scan" | "ai";
 

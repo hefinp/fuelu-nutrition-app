@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, X, Loader2, ArrowLeft, ImagePlus,
-  AlertCircle, Globe, BookOpen, Camera,
+  AlertCircle, Globe, BookOpen, Camera, Play,
 } from "lucide-react";
 import { DuplicateWarningBanner, type DuplicateWarning } from "@/components/duplicate-warning-banner";
 import {
@@ -23,6 +23,8 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
   const [carbs, setCarbs] = useState("");
   const [fat, setFat] = useState("");
   const [urlError, setUrlError] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [videoError, setVideoError] = useState("");
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const photoRef = useRef<HTMLInputElement>(null);
   const [dupWarning, setDupWarning] = useState<{ message: string; exactMatch: boolean; existingCount: number } | null>(null);
@@ -64,6 +66,29 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       setStep("confirm");
     },
     onError: () => toast({ title: "Failed to extract recipe from photo", variant: "destructive" }),
+  });
+
+  const videoMutation = useMutation({
+    mutationFn: (u: string) => apiRequest("POST", "/api/recipes/import-video", { url: u }).then(r => r.json()),
+    onSuccess: (data) => {
+      if (data.message) { setVideoError(data.message); return; }
+      setParsed(data);
+      setCalories(data.calories != null ? String(data.calories) : "");
+      setProtein(data.protein != null ? String(data.protein) : "");
+      setCarbs(data.carbs != null ? String(data.carbs) : "");
+      setFat(data.fat != null ? String(data.fat) : "");
+      setInstructions(Array.isArray(data.instructions) && data.instructions.length > 0 ? data.instructions.join("\n") : "");
+      setSlot((data.suggestedSlot as MealSlot) || "dinner");
+      setStep("confirm");
+    },
+    onError: (err: Error) => {
+      try {
+        const body = err.message.replace(/^\d+:\s*/, "");
+        const parsed = JSON.parse(body);
+        if (parsed.message) { setVideoError(parsed.message); return; }
+      } catch {}
+      setVideoError("Could not process that video. Make sure it's a public video from Instagram, TikTok, or YouTube.");
+    },
   });
 
   function buildImportPayload(confirm = false) {
@@ -161,6 +186,19 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
                   <p className="text-xs text-zinc-400 mt-0.5">Take or upload a photo of a recipe book page</p>
                 </div>
               </button>
+              <button
+                onClick={() => setStep("video")}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all text-left"
+                data-testid="button-import-method-video"
+              >
+                <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center shrink-0">
+                  <Play className="w-5 h-5 text-violet-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">From a video</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">Paste a link from Instagram, TikTok, or YouTube</p>
+                </div>
+              </button>
             </div>
           )}
 
@@ -235,6 +273,38 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {step === "video" && (
+            <div className="space-y-4">
+              <p className="text-sm text-zinc-500">Paste a link to a cooking video from Instagram, TikTok, or YouTube. AI will extract the recipe from the video frames.</p>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 mb-1.5">Video URL</label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={videoUrl}
+                    onChange={e => { setVideoUrl(e.target.value); setVideoError(""); }}
+                    placeholder="https://www.instagram.com/reel/... or https://www.tiktok.com/..."
+                    className="flex-1 text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300"
+                    data-testid="input-import-video-url"
+                    onKeyDown={e => { if (e.key === "Enter" && videoUrl.trim()) videoMutation.mutate(videoUrl.trim()); }}
+                  />
+                  <button
+                    onClick={() => { setVideoError(""); videoMutation.mutate(videoUrl.trim()); }}
+                    disabled={!videoUrl.trim() || videoMutation.isPending}
+                    className="px-4 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-xl disabled:opacity-50 flex items-center gap-1.5"
+                    data-testid="button-import-video-fetch"
+                  >
+                    {videoMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Extract"}
+                  </button>
+                </div>
+                {videoError && <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1" data-testid="text-import-video-error"><AlertCircle className="w-3 h-3" />{videoError}</p>}
+                {videoMutation.isPending && (
+                  <p className="text-xs text-zinc-400 mt-2">Extracting frames and analysing the video... this may take up to 30 seconds.</p>
+                )}
+              </div>
             </div>
           )}
 

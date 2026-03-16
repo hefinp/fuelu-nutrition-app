@@ -28,7 +28,7 @@ Core components include:
 -   **MyMealsFoodWidget**: Dashboard widget for saved meals and custom foods, split into modular files:
     -   `meals-food-shared.tsx`: Shared types (MealSlot, Ingredient, etc.), constants (SLOT_OPTIONS, SLOT_COLOURS), and reusable components (MacroBar, MacroChips).
     -   `community-browser-modal.tsx`: Community meals browser modal with allergen detection. Also used by RecipeLibrary.
-    -   `import-modal.tsx`: Recipe import modal (URL or photo).
+    -   `import-modal.tsx`: Recipe import modal (URL, photo, or video). Supports importing recipes from websites, photos of recipe books, and video links from Instagram, TikTok, and YouTube (extracts key frames via ffmpeg and uses GPT-4o vision to identify the recipe).
     -   `edit-meal-modal.tsx`: Edit meal/favourite modal.
     -   `food-picker-tabs.tsx`: Shared `useFoodPicker` hook and reusable UI panels (SearchPanel, ScannerView, ScannedFoodPanel, AiPanel, MacroGrid) used by both AddFoodModal and CreateMealModal.
     -   `add-food-modal.tsx`: Add custom food modal with barcode scan, AI estimate, and manual entry.
