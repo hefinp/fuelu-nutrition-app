@@ -106,7 +106,12 @@ export function CalculatorForm({
   });
 
   const cycleTrackingEnabled = prefs?.cycleTrackingEnabled ?? false;
+  const vitalityInsightsEnabled = prefs?.vitalityInsightsEnabled ?? false;
   const [cycleReenableDialog, setCycleReenableDialog] = useState(false);
+
+  function handleVitalityToggle(enabled: boolean) {
+    updatePrefsMutation.mutate({ vitalityInsightsEnabled: enabled });
+  }
 
   function handleCycleToggle(enabled: boolean) {
     if (enabled && prefs?.lastPeriodDate) {
@@ -185,6 +190,12 @@ export function CalculatorForm({
       updatePrefsMutation.mutate({ cycleTrackingEnabled: false });
     }
   }, [watched.gender, cycleTrackingEnabled, prefilled]);
+
+  useEffect(() => {
+    if (prefilled && watched.gender !== "male" && vitalityInsightsEnabled) {
+      updatePrefsMutation.mutate({ vitalityInsightsEnabled: false });
+    }
+  }, [watched.gender, vitalityInsightsEnabled, prefilled]);
 
   if (compact) {
     const metricsSummary = [
@@ -319,6 +330,36 @@ export function CalculatorForm({
                       </div>
                     </div>
                   )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence initial={false}>
+            {watched.gender === "male" && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-zinc-50 border border-zinc-200">
+                  <div className="flex items-start gap-2.5">
+                    <Zap className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-zinc-800">Vitality Insights</p>
+                      <p className="text-xs text-zinc-500 leading-relaxed mt-0.5">
+                        Optimises meal plans with hormone-supporting nutrients like zinc, magnesium and vitamin D for male vitality.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={vitalityInsightsEnabled}
+                    onCheckedChange={handleVitalityToggle}
+                    data-testid="toggle-vitality-insights"
+                    className="flex-shrink-0 mt-0.5"
+                  />
                 </div>
               </motion.div>
             )}
@@ -572,6 +613,36 @@ export function CalculatorForm({
                     </div>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence initial={false}>
+          {watched.gender === "male" && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="flex items-start justify-between gap-4 p-4 rounded-xl bg-zinc-50 border border-zinc-200">
+                <div className="flex items-start gap-3">
+                  <Zap className="w-4 h-4 text-zinc-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-800">Vitality Insights</p>
+                    <p className="text-sm text-zinc-500 leading-relaxed mt-0.5">
+                      Optimises meal plans with hormone-supporting nutrients like zinc, magnesium and vitamin D for male vitality.
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={vitalityInsightsEnabled}
+                  onCheckedChange={handleVitalityToggle}
+                  data-testid="toggle-vitality-insights-full"
+                  className="flex-shrink-0 mt-0.5"
+                />
               </div>
             </motion.div>
           )}
