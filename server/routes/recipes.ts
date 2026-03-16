@@ -192,7 +192,7 @@ router.post("/api/recipes/import", async (req, res) => {
     });
     if (!response.ok) {
       const msg = [401, 402, 403].includes(response.status)
-        ? "That site blocked the import request. Try BBC Good Food, Serious Eats, Cookie and Kate, or another recipe site."
+        ? "That site blocked the import request. Try Once Upon a Chef, Sally's Baking Addiction, Pinch of Yum, or another recipe blog."
         : response.status === 404
         ? "That page wasn't found (404). Double-check the URL and try again."
         : `Could not load that page (HTTP ${response.status}). Try a different URL.`;
@@ -279,7 +279,7 @@ router.post("/api/recipes/import", async (req, res) => {
         suggestedSlot: aiSlot,
       });
     } catch (e: any) {
-      return res.status(422).json({ message: "Could not extract recipe data from that page. Try a different URL or a site like AllRecipes, BBC Good Food, or Serious Eats." });
+      return res.status(422).json({ message: "Could not extract recipe data from that page. Try a different URL or a site like Once Upon a Chef, Sally's Baking Addiction, or Pinch of Yum." });
     }
   }
 
