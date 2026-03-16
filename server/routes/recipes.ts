@@ -2,7 +2,6 @@ import { Router } from "express";
 import { z } from "zod";
 import OpenAI from "openai";
 import { storage } from "../storage";
-import { insertUserRecipeSchema } from "@shared/schema";
 
 const router = Router();
 
@@ -253,71 +252,6 @@ router.post("/api/recipes/import-photo", async (req, res) => {
     hasNutrition: typeof aiJson.calories === "number",
     suggestedSlot: photoSlot,
   });
-});
-
-const paginationSchema = z.object({
-  cursor: z.string().regex(/^\d{4}-.*\|\d+$/).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-});
-
-router.get("/api/recipes", async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
-  try {
-    const params = paginationSchema.parse(req.query);
-    const result = await storage.getUserRecipes(req.session.userId, { cursor: params.cursor, limit: params.limit });
-    res.json(result);
-  } catch (err) {
-    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-    res.status(500).json({ message: "Failed to fetch recipes" });
-  }
-});
-
-router.post("/api/recipes", async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
-  const body = insertUserRecipeSchema.parse(req.body);
-  const recipe = await storage.createUserRecipe({ ...body, userId: req.session.userId });
-  res.status(201).json(recipe);
-});
-
-const ingredientItemSchema = z.object({
-  key: z.string(),
-  name: z.string(),
-  calories100g: z.number(),
-  protein100g: z.number(),
-  carbs100g: z.number(),
-  fat100g: z.number(),
-  grams: z.number(),
-});
-
-router.patch("/api/recipes/:id", async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
-  try {
-    const id = parseInt(req.params.id);
-    const body = z.object({
-      name: z.string().min(1).optional(),
-      caloriesPerServing: z.number().int().min(0).optional(),
-      proteinPerServing: z.number().int().min(0).optional(),
-      carbsPerServing: z.number().int().min(0).optional(),
-      fatPerServing: z.number().int().min(0).optional(),
-      mealSlot: z.string().optional(),
-      instructions: z.string().nullable().optional(),
-      ingredients: z.string().nullable().optional(),
-      ingredientsJson: z.array(ingredientItemSchema).nullable().optional(),
-    }).parse(req.body);
-    const updated = await storage.updateUserRecipe(id, req.session.userId, body);
-    if (!updated) return res.status(404).json({ message: "Not found" });
-    res.json(updated);
-  } catch (err) {
-    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-    res.status(500).json({ message: "Failed to update recipe" });
-  }
-});
-
-router.delete("/api/recipes/:id", async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
-  const id = parseInt(req.params.id);
-  await storage.deleteUserRecipe(id, req.session.userId);
-  res.json({ message: "Deleted" });
 });
 
 export default router;

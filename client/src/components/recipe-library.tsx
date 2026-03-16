@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { type UserRecipe, type UserPreferences, type CommunityMeal } from "@shared/schema";
+import { type UserMeal, type UserPreferences, type CommunityMeal } from "@shared/schema";
 import {
   BookOpen, Plus, X, Loader2, ExternalLink, Trash2, ChefHat,
   UtensilsCrossed, Globe, AlertCircle, Check, AlertTriangle,
@@ -60,7 +60,7 @@ function sourceDomain(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
 }
 
-function isMacrosComplete(recipe: UserRecipe): boolean {
+function isMacrosComplete(recipe: UserMeal): boolean {
   return recipe.caloriesPerServing > 0 && recipe.proteinPerServing > 0 &&
     recipe.carbsPerServing > 0 && recipe.fatPerServing > 0;
 }
@@ -83,9 +83,9 @@ export function RecipeLibrary() {
   const [showModal, setShowModal] = useState(false);
   const [showCommunityBrowser, setShowCommunityBrowser] = useState(false);
 
-  const { data: recipes = [], isLoading } = useQuery<{ items: UserRecipe[] }, Error, UserRecipe[]>({
-    queryKey: ["/api/recipes", "all"],
-    queryFn: () => fetch("/api/recipes?limit=100", { credentials: "include" }).then(r => r.json()),
+  const { data: recipes = [], isLoading } = useQuery<{ items: UserMeal[] }, Error, UserMeal[]>({
+    queryKey: ["/api/user-meals", "all"],
+    queryFn: () => fetch("/api/user-meals?limit=100", { credentials: "include" }).then(r => r.json()),
     select: (d) => d.items,
   });
 
@@ -171,16 +171,16 @@ export function RecipeLibrary() {
   );
 }
 
-function RecipeCard({ recipe, sharedMeal }: { recipe: UserRecipe; sharedMeal: CommunityMeal | null }) {
+function RecipeCard({ recipe, sharedMeal }: { recipe: UserMeal; sharedMeal: CommunityMeal | null }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const complete = isMacrosComplete(recipe);
   const isShared = !!sharedMeal;
 
   const deleteMutation = useMutation({
-    mutationFn: () => apiRequest("DELETE", `/api/recipes/${recipe.id}`, undefined),
+    mutationFn: () => apiRequest("DELETE", `/api/user-meals/${recipe.id}`, undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/community-meals/my"] });
       toast({ title: "Recipe removed" });
     },
@@ -383,9 +383,9 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
   });
 
   const saveMutation = useMutation({
-    mutationFn: (body: object) => apiRequest("POST", "/api/recipes", body),
+    mutationFn: (body: object) => apiRequest("POST", "/api/user-meals", body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] });
       toast({ title: "Recipe saved!", description: "It will appear in your meal plan generation." });
       onClose();
     },
@@ -430,6 +430,7 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
     if (!parsed) return;
     saveMutation.mutate({
       name: parsed.name,
+      source: "imported",
       sourceUrl: parsed.sourceUrl,
       imageUrl: parsed.imageUrl,
       servings: parsed.servings,

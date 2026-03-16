@@ -11,7 +11,6 @@ import cycleRouter from "./routes/cycle";
 import hydrationRouter from "./routes/hydration";
 import foodLogRouter from "./routes/food-log";
 import recipesRouter from "./routes/recipes";
-import favouritesRouter from "./routes/favourites";
 import myFoodsRouter from "./routes/my-foods";
 import communityRouter from "./routes/community";
 import adminRouter from "./routes/admin";
@@ -125,7 +124,6 @@ export async function registerRoutes(
   app.use(hydrationRouter);
   app.use(foodLogRouter);
   app.use(recipesRouter);
-  app.use(favouritesRouter);
   app.use(myFoodsRouter);
   app.use(communityRouter);
   app.use(adminRouter);
