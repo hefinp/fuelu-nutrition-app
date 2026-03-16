@@ -422,3 +422,22 @@ export const insertUserMealSchema = createInsertSchema(userMeals).omit({
 
 export type InsertUserMeal = z.infer<typeof insertUserMealSchema>;
 export type UserMeal = typeof userMeals.$inferSelect;
+
+export const mealTemplates = pgTable("meal_templates", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  userMealId: integer("user_meal_id").notNull().references(() => userMeals.id),
+  mealSlot: text("meal_slot").notNull(),
+  daysOfWeek: text("days_of_week").array().notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMealTemplateSchema = createInsertSchema(mealTemplates).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
+export type InsertMealTemplate = z.infer<typeof insertMealTemplateSchema>;
+export type MealTemplate = typeof mealTemplates.$inferSelect;

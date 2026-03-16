@@ -1,6 +1,6 @@
 import {
   Utensils, Wheat, Trash2, Loader2, Pencil,
-  ChevronDown, ChevronUp, Globe,
+  ChevronDown, ChevronUp, Globe, Repeat,
 } from "lucide-react";
 import type { UserMeal, UserSavedFood } from "@shared/schema";
 import { type MealSlot, SLOT_COLOURS, MacroBar, MacroChips } from "@/components/meals-food-shared";
@@ -24,10 +24,12 @@ interface MealCardProps {
   onLog: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onTemplate?: () => void;
   isLogging?: boolean;
+  hasTemplate?: boolean;
 }
 
-export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, isLogging }: MealCardProps) {
+export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTemplate, isLogging, hasTemplate }: MealCardProps) {
   const slot = getMealSlot(meal);
   const isCustom = meal.source === "manual";
   const hasSourceLink = isImportedMeal(meal);
@@ -112,14 +114,30 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, isLo
             </a>
           )}
 
-          <button
-            onClick={onLog}
-            disabled={isLogging}
-            className="w-full mt-3 py-2.5 bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-            data-testid={`button-log-meal-${meal.id}`}
-          >
-            {isLogging ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Utensils className="w-3.5 h-3.5" />Log today</>}
-          </button>
+          <div className="flex gap-2 mt-3">
+            {onTemplate && (
+              <button
+                onClick={onTemplate}
+                className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium border transition-colors ${
+                  hasTemplate
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                    : "border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300"
+                }`}
+                data-testid={`button-template-meal-${meal.id}`}
+              >
+                <Repeat className="w-3.5 h-3.5" />
+                {hasTemplate ? "Recurring" : "Set recurring"}
+              </button>
+            )}
+            <button
+              onClick={onLog}
+              disabled={isLogging}
+              className="flex-1 py-2.5 bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+              data-testid={`button-log-meal-${meal.id}`}
+            >
+              {isLogging ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Utensils className="w-3.5 h-3.5" />Log today</>}
+            </button>
+          </div>
         </div>
       )}
     </div>

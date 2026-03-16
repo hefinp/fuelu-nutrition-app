@@ -19,6 +19,7 @@ import {
   MacroGrid, LoggedMealModal,
 } from "@/components/food-log-shared";
 import { FoodLogDrawer } from "@/components/food-log-drawer";
+import { TemplateSuggestions } from "@/components/template-suggestions";
 
 interface DiaryProps {
   dailyCaloriesTarget?: number;
@@ -421,6 +422,8 @@ function DiaryContent({
                   {plannedDaily.length} planned meal{plannedDaily.length !== 1 ? "s" : ""} ({plannedCal} kcal) awaiting confirmation
                 </p>
               )}
+
+              <TemplateSuggestions date={selectedDate} />
 
               {dailyLoading ? (
                 <div className="flex justify-center py-6">

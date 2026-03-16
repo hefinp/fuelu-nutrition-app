@@ -11,6 +11,7 @@ import {
   MacroGrid,
 } from "@/components/food-log-shared";
 import { FoodLogDrawer } from "@/components/food-log-drawer";
+import { TemplateSuggestions } from "@/components/template-suggestions";
 
 export type { PrefillEntry } from "@/components/food-log-shared";
 
@@ -105,6 +106,8 @@ export function FoodLog({
           {plannedDaily.length} planned meal{plannedDaily.length !== 1 ? "s" : ""} ({plannedCal} kcal) awaiting confirmation
         </p>
       )}
+
+      <TemplateSuggestions date={today} />
 
       {dailyLoading ? (
         <div className="flex justify-center py-6">

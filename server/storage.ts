@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 
@@ -104,6 +104,12 @@ export interface IStorage {
   getCommunityMealBalance(): Promise<{ style: string; slot: string; total: number; userContributed: number; aiGenerated: number }[]>;
   getCommunityMealByRecipeId(recipeId: number): Promise<CommunityMeal | undefined>;
   updateCommunityMealIngredients(id: number, ingredients: string[], instructions: string): Promise<CommunityMeal>;
+
+  // Meal templates
+  getMealTemplates(userId: number): Promise<MealTemplate[]>;
+  createMealTemplate(entry: { userId: number; userMealId: number; mealSlot: string; daysOfWeek: string[] }): Promise<MealTemplate>;
+  updateMealTemplate(id: number, userId: number, updates: { mealSlot?: string; daysOfWeek?: string[]; active?: boolean }): Promise<MealTemplate | undefined>;
+  deleteMealTemplate(id: number, userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -462,6 +468,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUserMeal(id: number, userId: number): Promise<void> {
+    await db.delete(mealTemplates)
+      .where(and(eq(mealTemplates.userMealId, id), eq(mealTemplates.userId, userId)));
     await db.delete(userMeals)
       .where(and(eq(userMeals.id, id), eq(userMeals.userId, userId)));
   }
@@ -624,6 +632,35 @@ export class DatabaseStorage implements IStorage {
       }
     }
     return result;
+  }
+
+  async getMealTemplates(userId: number): Promise<MealTemplate[]> {
+    return db.select().from(mealTemplates)
+      .where(eq(mealTemplates.userId, userId))
+      .orderBy(desc(mealTemplates.createdAt));
+  }
+
+  async createMealTemplate(entry: { userId: number; userMealId: number; mealSlot: string; daysOfWeek: string[] }): Promise<MealTemplate> {
+    const [created] = await db.insert(mealTemplates).values(entry).returning();
+    return created;
+  }
+
+  async updateMealTemplate(id: number, userId: number, updates: { mealSlot?: string; daysOfWeek?: string[]; active?: boolean }): Promise<MealTemplate | undefined> {
+    const setObj: Record<string, unknown> = {};
+    if (updates.mealSlot !== undefined) setObj.mealSlot = updates.mealSlot;
+    if (updates.daysOfWeek !== undefined) setObj.daysOfWeek = updates.daysOfWeek;
+    if (updates.active !== undefined) setObj.active = updates.active;
+    if (Object.keys(setObj).length === 0) return undefined;
+    const [updated] = await db.update(mealTemplates)
+      .set(setObj)
+      .where(and(eq(mealTemplates.id, id), eq(mealTemplates.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteMealTemplate(id: number, userId: number): Promise<void> {
+    await db.delete(mealTemplates)
+      .where(and(eq(mealTemplates.id, id), eq(mealTemplates.userId, userId)));
   }
 }
 

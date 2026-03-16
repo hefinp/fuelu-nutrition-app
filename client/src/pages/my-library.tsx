@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -8,7 +8,7 @@ import {
   UtensilsCrossed, Wheat, Plus, Loader2, X,
   Link2, Search, Users2, ArrowLeft,
 } from "lucide-react";
-import type { UserMeal, UserSavedFood } from "@shared/schema";
+import type { UserMeal, UserSavedFood, MealTemplate } from "@shared/schema";
 import {
   type MealSlot, type ActiveTab,
   SLOT_OPTIONS, todayStr,
@@ -22,6 +22,7 @@ import { EditMealModal } from "@/components/edit-meal-modal";
 import { EditFoodModal } from "@/components/edit-food-modal";
 import { AddFoodModal } from "@/components/add-food-modal";
 import { CreateMealModal } from "@/components/create-meal-modal";
+import { MealTemplateModal } from "@/components/meal-template-modal";
 
 const PAGE_SIZE = 20;
 
@@ -51,6 +52,12 @@ export default function MyLibraryPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<UserMeal | null>(null);
   const [editFoodTarget, setEditFoodTarget] = useState<UserSavedFood | null>(null);
+  const [templateTarget, setTemplateTarget] = useState<UserMeal | null>(null);
+
+  const { data: templates = [] } = useQuery<MealTemplate[]>({
+    queryKey: ["/api/meal-templates"],
+  });
+  const templateMealIds = new Set(templates.map(t => t.userMealId));
 
   const mealsQuery = useInfiniteQuery<PaginatedResponse<UserMeal>>({
     queryKey: ["/api/user-meals", "paginated"],
@@ -272,6 +279,8 @@ export default function MyLibraryPage() {
                         onLog={() => logMeal(meal)}
                         onEdit={() => setEditTarget(meal)}
                         onDelete={() => deleteMealMutation.mutate(meal.id)}
+                        onTemplate={() => setTemplateTarget(meal)}
+                        hasTemplate={templateMealIds.has(meal.id)}
                         isLogging={logMutation.isPending}
                       />
                     ))}
@@ -420,6 +429,13 @@ export default function MyLibraryPage() {
           food={editFoodTarget}
           onClose={() => setEditFoodTarget(null)}
           onSaved={() => setEditFoodTarget(null)}
+        />
+      )}
+      {templateTarget && (
+        <MealTemplateModal
+          meal={templateTarget}
+          existingTemplate={templates.find(t => t.userMealId === templateTarget.id) ?? null}
+          onClose={() => setTemplateTarget(null)}
         />
       )}
     </div>

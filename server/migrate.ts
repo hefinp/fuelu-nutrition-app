@@ -125,6 +125,18 @@ export async function runMigrations(): Promise<void> {
     `);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS meal_templates (
+        id              SERIAL PRIMARY KEY,
+        user_id         INTEGER NOT NULL REFERENCES users(id),
+        user_meal_id    INTEGER NOT NULL REFERENCES user_meals(id),
+        meal_slot       TEXT NOT NULL,
+        days_of_week    TEXT[] NOT NULL,
+        active          BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at      TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
       DO $$
       BEGIN
         IF EXISTS (
