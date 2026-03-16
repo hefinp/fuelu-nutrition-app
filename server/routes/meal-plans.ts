@@ -33,6 +33,9 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
     if (req.session.userId) {
       const user = await storage.getUserById(req.session.userId);
       prefs = (user?.preferences as UserPreferences | null) ?? null;
+      if (prefs?.hormoneBoostingMeals && user && !(user.betaUser || user.tier !== "free")) {
+        prefs = { ...prefs, hormoneBoostingMeals: false };
+      }
       baseDb = filterMealDbByPreferences(baseDb, prefs);
       const excludeKws = buildExcludeKeywords(prefs);
       const dislikedSet = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
@@ -153,6 +156,9 @@ router.post("/api/meal-plans/replace-meal", async (req, res) => {
     if (req.session.userId) {
       const user = await storage.getUserById(req.session.userId);
       prefs = (user?.preferences as UserPreferences | null) ?? null;
+      if (prefs?.hormoneBoostingMeals && user && !(user.betaUser || user.tier !== "free")) {
+        prefs = { ...prefs, hormoneBoostingMeals: false };
+      }
       baseDb = filterMealDbByPreferences(baseDb, prefs);
       const excludeKws = buildExcludeKeywords(prefs);
       const dislikedSet = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));

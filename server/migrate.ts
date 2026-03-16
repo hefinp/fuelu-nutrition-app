@@ -244,6 +244,22 @@ export async function runMigrations(): Promise<void> {
     `);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS vitality_symptoms (
+        id              SERIAL PRIMARY KEY,
+        user_id         INTEGER NOT NULL REFERENCES users(id),
+        date            TEXT NOT NULL,
+        energy          TEXT,
+        motivation      TEXT,
+        focus           TEXT,
+        stress          TEXT,
+        sleep_quality   TEXT,
+        libido          TEXT,
+        created_at      TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, date)
+      )
+    `);
+
+    await client.query(`
       INSERT INTO feature_gates (feature_key, required_tier, credit_cost, description) VALUES
         ('ai_insights', 'simple', 5, 'AI-powered nutrition insights'),
         ('ai_meal_plan', 'simple', 10, 'AI meal plan generation'),
@@ -253,6 +269,7 @@ export async function runMigrations(): Promise<void> {
         ('community_meals', 'free', 0, 'Community meal sharing'),
         ('meal_templates', 'simple', 0, 'Recurring meal templates'),
         ('cycle_tracking', 'simple', 0, 'Cycle-aware nutrition'),
+        ('vitality_tracking', 'simple', 0, 'Male vitality tracking'),
         ('advanced_analytics', 'advanced', 0, 'Advanced analytics dashboard'),
         ('export_data', 'advanced', 0, 'Export nutrition data'),
         ('priority_support', 'advanced', 0, 'Priority support access')

@@ -11,7 +11,8 @@ export type WidgetId =
   | "meal-plan"
   | "hydration"
   | "weight"
-  | "cycle";
+  | "cycle"
+  | "vitality";
 
 // Widgets that span the wide (left) desktop column
 export const WIDE_WIDGETS = new Set<WidgetId>(["nutrition", "my-meals-food"]);
@@ -21,6 +22,7 @@ export const WIDE_WIDGETS = new Set<WidgetId>(["nutrition", "my-meals-food"]);
 export const DEFAULT_ORDER: WidgetId[] = [
   "food-log",
   "cycle",
+  "vitality",
   "hydration",
   "meal-plan",
   "nutrition",

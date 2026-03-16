@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences } from "@shared/schema";
@@ -7,6 +7,7 @@ import { getCyclePhase } from "@/lib/cycle";
 import type { Calculation } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { RECIPES } from "./results-recipes";
 import { toDateStr, addDays, getMonday, formatShort, DAY_LABELS } from "./results-pdf";
 import { exportMealPlanToPDF, exportShoppingListToPDF } from "./results-pdf";
@@ -17,6 +18,7 @@ export interface Meal {
   protein: number;
   carbs: number;
   fat: number;
+  vitalityRationale?: string;
 }
 
 interface DayMealPlan {
@@ -33,6 +35,8 @@ interface DayMealPlan {
 type MealPlan = any;
 
 export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLogMeal?: (meal: Meal) => void }) {
+  const { user } = useAuth();
+  const isMealPremium = !!(user?.betaUser || (user?.tier && user.tier !== "free"));
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [planMode, setPlanMode] = useState<'daily' | 'weekly'>('daily');
   const [mealStyle, setMealStyle] = useState<'simple' | 'gourmet' | 'michelin'>('simple');
@@ -56,6 +60,7 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
   const { data: mealPlanPrefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
   const hasCycleData = !!(mealPlanPrefs?.cycleTrackingEnabled && mealPlanPrefs?.lastPeriodDate && data.gender === "female");
   const cycleEnabledButMissing = !!(mealPlanPrefs?.cycleTrackingEnabled && !mealPlanPrefs?.lastPeriodDate && data.gender === "female");
+  const hasVitalityBoost = !!(mealPlanPrefs?.vitalityInsightsEnabled && mealPlanPrefs?.hormoneBoostingMeals && data.gender === "male");
   const dailyRef = selectedDates[0] || toDateStr(new Date());
   const cycleInfo = hasCycleData
     ? getCyclePhase(mealPlanPrefs!.lastPeriodDate!, mealPlanPrefs!.cycleLength ?? 28, dailyRef)
@@ -318,6 +323,45 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
             {weekCycleInfo.name} phase from {formatShort(weekStart)} · {weekCycleInfo.shortTip}
           </p>
         </div>
+      )}
+
+      {mealPlanPrefs?.vitalityInsightsEnabled && data.gender === "male" && (
+        isMealPremium ? (
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 mb-4" data-testid="vitality-hormone-boost-toggle">
+            <div className="flex items-center gap-2">
+              <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-amber-800">Hormone-boosting meals</p>
+                <p className="text-[10px] text-amber-600">Prioritise zinc, magnesium, vitamin D-rich foods</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                await apiRequest("PUT", "/api/user/preferences", {
+                  ...mealPlanPrefs,
+                  hormoneBoostingMeals: !mealPlanPrefs?.hormoneBoostingMeals,
+                });
+                queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+              }}
+              className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${mealPlanPrefs?.hormoneBoostingMeals ? "bg-amber-500" : "bg-zinc-200"}`}
+              data-testid="button-toggle-hormone-boost"
+            >
+              <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${mealPlanPrefs?.hormoneBoostingMeals ? "translate-x-5" : "translate-x-1"}`} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 mb-4 opacity-75" data-testid="vitality-hormone-boost-locked">
+            <div className="flex items-center gap-2">
+              <Lock className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-zinc-500">Hormone-boosting meals</p>
+                <p className="text-[10px] text-zinc-400">Upgrade to premium to unlock</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Premium</span>
+          </div>
+        )
       )}
 
       <button
@@ -634,6 +678,12 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: an
                   <div className="flex-1">
                     <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
                     <p className="text-xs text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+                    {meal.vitalityRationale && (
+                      <p className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1" data-testid={`vitality-rationale-daily-${slotKey}-${idx}`}>
+                        <Zap className="w-2.5 h-2.5 flex-shrink-0" />
+                        {meal.vitalityRationale}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right ml-4">
                     <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
@@ -778,6 +828,12 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: a
                                   <div className="flex-1">
                                     <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
                                     <p className="text-xs text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+                                    {meal.vitalityRationale && (
+                                      <p className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1" data-testid={`vitality-rationale-${day}-${slotKey}-${idx}`}>
+                                        <Zap className="w-2.5 h-2.5 flex-shrink-0" />
+                                        {meal.vitalityRationale}
+                                      </p>
+                                    )}
                                   </div>
                                   <div className="text-right ml-4">
                                     <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>

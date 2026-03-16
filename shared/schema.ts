@@ -74,6 +74,8 @@ export const userPreferencesSchema = z.object({
   periodLength: z.number().int().min(2).max(8).optional(),
   onboardingComplete: z.boolean().optional(),
   includeCommunityMeals: z.boolean().optional(),
+  vitalityInsightsEnabled: z.boolean().optional(),
+  hormoneBoostingMeals: z.boolean().optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;
@@ -328,6 +330,28 @@ export const insertCycleSymptomSchema = createInsertSchema(cycleSymptoms).omit({
 
 export type InsertCycleSymptom = z.infer<typeof insertCycleSymptomSchema>;
 export type CycleSymptom = typeof cycleSymptoms.$inferSelect;
+
+export const vitalitySymptoms = pgTable("vitality_symptoms", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  date: text("date").notNull(),
+  energy: text("energy"),
+  motivation: text("motivation"),
+  focus: text("focus"),
+  stress: text("stress"),
+  sleepQuality: text("sleep_quality"),
+  libido: text("libido"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertVitalitySymptomSchema = createInsertSchema(vitalitySymptoms).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+});
+
+export type InsertVitalitySymptom = z.infer<typeof insertVitalitySymptomSchema>;
+export type VitalitySymptom = typeof vitalitySymptoms.$inferSelect;
 
 export const aiInsightsCache = pgTable("ai_insights_cache", {
   id: serial("id").primaryKey(),

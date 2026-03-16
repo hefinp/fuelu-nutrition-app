@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 
@@ -74,6 +74,11 @@ export interface IStorage {
   updateCyclePeriodLog(id: number, userId: number, updates: { periodEndDate?: string | null; notes?: string | null }): Promise<CyclePeriodLog | undefined>;
   deleteCyclePeriodLog(id: number, userId: number): Promise<void>;
   deleteAllCycleData(userId: number): Promise<void>;
+
+  // Vitality symptoms
+  getVitalitySymptoms(userId: number, from: string, to: string): Promise<VitalitySymptom[]>;
+  upsertVitalitySymptom(entry: { userId: number; date: string; energy?: string | null; motivation?: string | null; focus?: string | null; stress?: string | null; sleepQuality?: string | null; libido?: string | null }): Promise<VitalitySymptom>;
+  deleteAllVitalityData(userId: number): Promise<void>;
 
   // AI insights cache
   getAiInsightsCache(userId: number, cacheKey: string): Promise<AiInsightsCache | undefined>;
@@ -433,6 +438,37 @@ export class DatabaseStorage implements IStorage {
       delete prefs.lastPeriodDate;
       delete prefs.cycleLength;
       delete prefs.periodLength;
+      await db.update(users).set({ preferences: prefs }).where(eq(users.id, userId));
+    }
+  }
+
+  async getVitalitySymptoms(userId: number, from: string, to: string): Promise<VitalitySymptom[]> {
+    return await db.select().from(vitalitySymptoms)
+      .where(and(eq(vitalitySymptoms.userId, userId), gte(vitalitySymptoms.date, from), lte(vitalitySymptoms.date, to)))
+      .orderBy(desc(vitalitySymptoms.date));
+  }
+
+  async upsertVitalitySymptom(entry: { userId: number; date: string; energy?: string | null; motivation?: string | null; focus?: string | null; stress?: string | null; sleepQuality?: string | null; libido?: string | null }): Promise<VitalitySymptom> {
+    const [existing] = await db.select().from(vitalitySymptoms)
+      .where(and(eq(vitalitySymptoms.userId, entry.userId), eq(vitalitySymptoms.date, entry.date)));
+    if (existing) {
+      const [updated] = await db.update(vitalitySymptoms)
+        .set({ energy: entry.energy, motivation: entry.motivation, focus: entry.focus, stress: entry.stress, sleepQuality: entry.sleepQuality, libido: entry.libido })
+        .where(eq(vitalitySymptoms.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(vitalitySymptoms).values(entry).returning();
+    return created;
+  }
+
+  async deleteAllVitalityData(userId: number): Promise<void> {
+    await db.delete(vitalitySymptoms).where(eq(vitalitySymptoms.userId, userId));
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (user?.preferences) {
+      const prefs = user.preferences as Record<string, unknown>;
+      delete prefs.vitalityInsightsEnabled;
+      delete prefs.hormoneBoostingMeals;
       await db.update(users).set({ preferences: prefs }).where(eq(users.id, userId));
     }
   }

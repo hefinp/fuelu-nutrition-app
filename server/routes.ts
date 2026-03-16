@@ -20,6 +20,7 @@ import mealIngredientsRouter from "./routes/meal-ingredients";
 import userMealsRouter from "./routes/user-meals";
 import mealTemplatesRouter from "./routes/meal-templates";
 import stripeRouter from "./routes/stripe";
+import vitalityRouter from "./routes/vitality";
 
 function setupPassportStrategies() {
   const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -134,6 +135,7 @@ export async function registerRoutes(
   app.use(userMealsRouter);
   app.use(mealTemplatesRouter);
   app.use(stripeRouter);
+  app.use(vitalityRouter);
   if (process.env.NODE_ENV !== "production") {
     app.use(testSetupRouter);
   }

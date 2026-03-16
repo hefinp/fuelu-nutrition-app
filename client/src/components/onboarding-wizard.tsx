@@ -6,7 +6,7 @@ import { useCreateCalculation } from "@/hooks/use-calculations";
 import type { UserPreferences } from "@shared/schema";
 import {
   X, ChevronRight, ChevronLeft, Loader2,
-  Target, TrendingDown, Dumbbell, Flame,
+  Target, TrendingDown, Dumbbell, Flame, Zap,
 } from "lucide-react";
 
 type Goal = "lose" | "maintain" | "muscle";
@@ -53,6 +53,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
   const [age, setAge] = useState("");
   const [sex, setSex] = useState<"male" | "female">("male");
   const [cycleTracking, setCycleTracking] = useState(false);
+  const [vitalityTracking, setVitalityTracking] = useState(false);
   const [lastPeriodDate, setLastPeriodDate] = useState("");
   const [wizardCycleLength, setWizardCycleLength] = useState("28");
   const [wizardPeriodLength, setWizardPeriodLength] = useState("5");
@@ -139,6 +140,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
       const dietValue = diets[0] ?? null;
 
       const cycleEnabled = sex === "female" ? cycleTracking : false;
+      const vitalityEnabled = sex === "male" ? vitalityTracking : false;
       await apiRequest("PUT", "/api/user/preferences", {
         ...userPrefs,
         diet: dietValue,
@@ -150,6 +152,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
           cycleLength: parseInt(wizardCycleLength) || 28,
           periodLength: parseInt(wizardPeriodLength) || 5,
         } : {}),
+        ...(vitalityEnabled ? { vitalityInsightsEnabled: true } : {}),
       });
 
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
@@ -158,11 +161,11 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
       setSaving(false);
       setSaveError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     }
-  }, [macros, goal, selectedChips, userPrefs, weightKg, heightCm, parsedAge, sex, cycleTracking, createCalc, queryClient, onComplete]);
+  }, [macros, goal, selectedChips, userPrefs, weightKg, heightCm, parsedAge, sex, cycleTracking, vitalityTracking, lastPeriodDate, wizardCycleLength, wizardPeriodLength, createCalc, queryClient, onComplete]);
 
   const stepContent = [
     <StepGoal key="goal" goal={goal} setGoal={setGoal} />,
-    <StepAboutYou key="about" age={age} setAge={setAge} sex={sex} setSex={(v) => { setSex(v); if (v === "male") setCycleTracking(false); }} cycleTracking={cycleTracking} setCycleTracking={setCycleTracking} lastPeriodDate={lastPeriodDate} setLastPeriodDate={setLastPeriodDate} wizardCycleLength={wizardCycleLength} setWizardCycleLength={setWizardCycleLength} wizardPeriodLength={wizardPeriodLength} setWizardPeriodLength={setWizardPeriodLength} heightCm={heightCm} setHeightCm={setHeightCm} weightKg={weightKg} setWeightKg={setWeightKg} />,
+    <StepAboutYou key="about" age={age} setAge={setAge} sex={sex} setSex={(v) => { setSex(v); if (v === "male") setCycleTracking(false); if (v === "female") setVitalityTracking(false); }} cycleTracking={cycleTracking} setCycleTracking={setCycleTracking} vitalityTracking={vitalityTracking} setVitalityTracking={setVitalityTracking} lastPeriodDate={lastPeriodDate} setLastPeriodDate={setLastPeriodDate} wizardCycleLength={wizardCycleLength} setWizardCycleLength={setWizardCycleLength} wizardPeriodLength={wizardPeriodLength} setWizardPeriodLength={setWizardPeriodLength} heightCm={heightCm} setHeightCm={setHeightCm} weightKg={weightKg} setWeightKg={setWeightKg} />,
     <StepDiet key="diet" selectedChips={selectedChips} toggleChip={toggleChip} />,
     <StepSummary key="summary" macros={macros} goal={goal} loading={macrosLoading} />,
   ];
@@ -301,6 +304,7 @@ function StepGoal({ goal, setGoal }: { goal: Goal | null; setGoal: (g: Goal) => 
 
 function StepAboutYou({
   age, setAge, sex, setSex, cycleTracking, setCycleTracking,
+  vitalityTracking, setVitalityTracking,
   lastPeriodDate, setLastPeriodDate, wizardCycleLength, setWizardCycleLength,
   wizardPeriodLength, setWizardPeriodLength,
   heightCm, setHeightCm, weightKg, setWeightKg,
@@ -308,6 +312,7 @@ function StepAboutYou({
   age: string; setAge: (v: string) => void;
   sex: "male" | "female"; setSex: (v: "male" | "female") => void;
   cycleTracking: boolean; setCycleTracking: (v: boolean) => void;
+  vitalityTracking: boolean; setVitalityTracking: (v: boolean) => void;
   lastPeriodDate: string; setLastPeriodDate: (v: string) => void;
   wizardCycleLength: string; setWizardCycleLength: (v: string) => void;
   wizardPeriodLength: string; setWizardPeriodLength: (v: string) => void;
@@ -384,6 +389,30 @@ function StepAboutYou({
             />
           </div>
         </div>
+        {sex === "male" && (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setVitalityTracking(!vitalityTracking)}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all ${
+                vitalityTracking ? "border-amber-500 bg-amber-50" : "border-zinc-200 hover:border-zinc-300"
+              }`}
+              data-testid="wizard-toggle-vitality-tracking"
+            >
+              <div className="text-left">
+                <div className="flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  <p className="text-sm font-medium text-zinc-900">Vitality Insights</p>
+                  <span className="px-1.5 py-0.5 bg-amber-100 text-amber-600 text-[10px] font-semibold rounded-full">Premium</span>
+                </div>
+                <p className="text-xs text-zinc-400 mt-0.5">Track energy, focus & motivation with hormone-optimised nutrition tips</p>
+              </div>
+              <div className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${vitalityTracking ? "bg-amber-500" : "bg-zinc-200"}`}>
+                <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${vitalityTracking ? "translate-x-5" : "translate-x-1"}`} />
+              </div>
+            </button>
+          </div>
+        )}
         {sex === "female" && (
           <div className="space-y-3">
             <button

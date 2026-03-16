@@ -1,5 +1,5 @@
 import type { UserPreferences } from "@shared/schema";
-import { ALLERGEN_KEYWORDS, MEAT_KEYWORDS, PORK_KEYWORDS, FOOD_CATEGORY_KEYWORDS, CYCLE_PHASE_KEYWORDS } from "./constants";
+import { ALLERGEN_KEYWORDS, MEAT_KEYWORDS, PORK_KEYWORDS, FOOD_CATEGORY_KEYWORDS, CYCLE_PHASE_KEYWORDS, VITALITY_BOOST_KEYWORDS, VITALITY_RATIONALE } from "./constants";
 
 export type MealEntry = { meal: string; calories: number; protein: number; carbs: number; fat: number; microScore: number };
 export type MealDb = { breakfast: MealEntry[]; lunch: MealEntry[]; dinner: MealEntry[]; snack: MealEntry[] };
@@ -351,6 +351,12 @@ export function pickBestMeal(
       if (isPhaseMatch) score -= 0.15;
     }
 
+    if (preferences?.hormoneBoostingMeals) {
+      const mealLower = m.meal.toLowerCase();
+      const isVitalityMatch = VITALITY_BOOST_KEYWORDS.some(kw => mealLower.includes(kw));
+      if (isVitalityMatch) score -= 0.12;
+    }
+
     return { meal: m, score };
   });
 
@@ -410,11 +416,20 @@ export function buildDayPlan(
   const dayTotalCarbs    = allMeals.reduce((s, m) => s + m.carbs,    0);
   const dayTotalFat      = allMeals.reduce((s, m) => s + m.fat,      0);
 
+  const addRationale = (meals: MealEntry[]) => {
+    if (!preferences?.hormoneBoostingMeals) return meals;
+    return meals.map(m => {
+      const lower = m.meal.toLowerCase();
+      const matched = Object.entries(VITALITY_RATIONALE).find(([kw]) => lower.includes(kw));
+      return matched ? { ...m, vitalityRationale: matched[1] } : m;
+    });
+  };
+
   return {
-    breakfast: breakfastList,
-    lunch: lunchList,
-    dinner: dinnerList,
-    snacks: snacksList,
+    breakfast: addRationale(breakfastList),
+    lunch: addRationale(lunchList),
+    dinner: addRationale(dinnerList),
+    snacks: addRationale(snacksList),
     dayTotalCalories,
     dayTotalProtein,
     dayTotalCarbs,

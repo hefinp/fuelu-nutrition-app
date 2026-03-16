@@ -39,6 +39,8 @@ Core components include:
 -   **GoalPreview** (`goal-preview.tsx`): Pre-log nutritional goal preview component. Shows how adding a food will impact daily calorie/macro goals before logging. Displays current totals, added amounts, projected totals vs targets with color-coded progress bars (blue=under, green=on target, amber=slightly over, red=significantly over). Integrated into manual form, food search, and barcode scan flows in the FoodLogDrawer.
 -   **DiaryPage** (`/diary`): Full food diary with daily/weekly views, date navigation, entry management (confirm/star/delete), weekly AI insights, and the FoodLogDrawer for logging.
 -   **CycleTracker**: (For female users) Tracks menstrual cycles, predicts phases, provides cycle-phase-specific nutrition tips (via AI with web search), and logs symptoms and period history.
+-   **VitalityTracker**: (For male users, premium) The male counterpart to CycleTracker. Tracks daily energy, motivation, focus, stress, sleep quality, and libido. Displays time-of-day testosterone phase context (morning peak / afternoon plateau / evening recovery) with phase-specific nutrition callouts. Includes AI-powered daily tips sourced from PubMed.
+-   **VitalityInsightsPage** (`/vitality-insights`): Premium page with 30/60/90-day trend charts (energy, focus, motivation by day of week), food-energy correlations, AI-powered personalised narrative analysis, and Research Pulse (weekly PubMed/NIH findings on male hormonal nutrition).
 -   **Insights**: Offers wellbeing insights, including symptom trends, food correlations, AI-powered narrative analysis, and research summaries based on user data and external research (PubMed/NIH).
 
 ### Backend
@@ -46,7 +48,7 @@ The backend runs on **Node.js** with **TypeScript** using **Express 5**. It inte
 
 **Route architecture** (split into domain modules under `server/routes/`):
 -   `server/routes.ts` — Thin entry point: imports all routers, sets up Passport OAuth strategies, mounts routers via `app.use()`.
--   `server/constants.ts` — Shared constants: ALLERGEN_KEYWORDS, FOOD_CATEGORY_KEYWORDS, MEAT/PORK_KEYWORDS, CYCLE_PHASE_KEYWORDS, authRateLimiter.
+-   `server/constants.ts` — Shared constants: ALLERGEN_KEYWORDS, FOOD_CATEGORY_KEYWORDS, MEAT/PORK_KEYWORDS, CYCLE_PHASE_KEYWORDS, VITALITY_BOOST_KEYWORDS, authRateLimiter.
 -   `server/meal-data.ts` — Meal databases (Simple, Gourmet, Michelin), types (MealEntry, MealDb), helper functions (filtering, scaling, scoring, cycle phase computation, plan generation, macro calculation).
 -   `server/routes/auth.ts` — Auth (register, login, logout, OAuth callbacks, password reset, invite check).
 -   `server/routes/calculations.ts` — Calculation preview/create/list + user preferences get/put.
@@ -54,6 +56,7 @@ The backend runs on **Node.js** with **TypeScript** using **Express 5**. It inte
 -   `server/routes/weight.ts` — Weight entries CRUD.
 -   `server/routes/cycle.ts` — Cycle daily-tip, period logs, symptoms CRUD.
 -   `server/routes/insights.ts` — All AI insight endpoints: cycle insights, phase-evidence, AI insights, research-pulse, weight insights, food-log weekly insights.
+-   `server/routes/vitality.ts` — Male vitality endpoints: vitality symptom CRUD, daily tip, insights (trend analysis + food correlations), AI insights narrative, research pulse.
 -   `server/routes/hydration.ts` — Hydration CRUD.
 -   `server/routes/food-log.ts` — Food log CRUD, food search, barcode lookup, label scan, AI food recognition, daily nudge, custom foods, disliked meals.
 -   `server/routes/user-meals.ts` — Unified user meals CRUD (replaces old favourites + recipes endpoints for user-facing meal management).
@@ -85,6 +88,7 @@ Key tables include:
 -   `password_reset_tokens`: Manages password reset requests.
 -   `session`: Stores `express-session` data.
 -   `cycle_symptoms`: Logs menstrual cycle symptoms.
+-   `vitality_symptoms`: Logs daily male vitality check-ins (energy, motivation, focus, stress, sleep quality, libido) with UNIQUE(user_id, date) for upsert pattern.
 -   `cycle_period_logs`: Stores menstrual period start/end dates and computed cycle lengths.
 -   `ai_insights_cache`: Caches AI-generated insights to optimize performance.
 -   `feature_gates`: Maps feature keys to required tier levels and credit costs for tier-gated access control.
