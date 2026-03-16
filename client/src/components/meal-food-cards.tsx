@@ -1,6 +1,7 @@
 import {
   Utensils, Wheat, Trash2, Loader2, Pencil,
   ChevronDown, ChevronUp, Globe, Repeat,
+  ScanBarcode, Sparkles, Search,
 } from "lucide-react";
 import type { UserMeal, UserSavedFood } from "@shared/schema";
 import { type MealSlot, SLOT_COLOURS, MacroBar, MacroChips } from "@/components/meals-food-shared";
@@ -154,6 +155,24 @@ interface FoodCardProps {
   isLogging?: boolean;
 }
 
+function FoodSourceBadge({ source }: { source?: string | null }) {
+  if (!source) return null;
+  const config: Record<string, { label: string; icon: typeof Pencil; bg: string; text: string }> = {
+    manual: { label: "Manual", icon: Pencil, bg: "bg-zinc-100", text: "text-zinc-500" },
+    search: { label: "Database", icon: Search, bg: "bg-blue-50", text: "text-blue-600" },
+    barcode: { label: "Scanned", icon: ScanBarcode, bg: "bg-emerald-50", text: "text-emerald-600" },
+    ai: { label: "AI estimate", icon: Sparkles, bg: "bg-violet-50", text: "text-violet-600" },
+  };
+  const c = config[source];
+  if (!c) return null;
+  const Icon = c.icon;
+  return (
+    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-medium ${c.bg} ${c.text}`} data-testid="badge-food-source">
+      <Icon className="w-2.5 h-2.5" />{c.label}
+    </span>
+  );
+}
+
 export function FoodCard({ food, isOpen, onToggle, onLog, onEdit, onDelete, isLogging }: FoodCardProps) {
   return (
     <div className="group relative rounded-xl border border-zinc-100 overflow-hidden">
@@ -166,7 +185,10 @@ export function FoodCard({ food, isOpen, onToggle, onLog, onEdit, onDelete, isLo
           <Wheat className="w-3.5 h-3.5 text-amber-500" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-zinc-900 truncate">{food.name}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-medium text-zinc-900 truncate">{food.name}</p>
+            <FoodSourceBadge source={food.source} />
+          </div>
           <p className="text-xs text-zinc-400 mt-0.5">{food.calories100g} kcal / 100g · {food.servingGrams}g serving</p>
         </div>
         <div className="flex items-center gap-1 shrink-0">

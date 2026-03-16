@@ -31,6 +31,7 @@ router.post("/api/my-foods", async (req, res) => {
       carbs100g: z.number().min(0),
       fat100g: z.number().min(0),
       servingGrams: z.number().int().min(1).optional(),
+      source: z.enum(["manual", "search", "barcode", "ai"]).optional(),
       confirmDuplicate: z.boolean().optional(),
     }).parse(req.body);
     const { confirmDuplicate, ...foodData } = body;

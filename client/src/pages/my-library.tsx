@@ -321,23 +321,31 @@ export default function MyLibraryPage() {
 
         {activeTab === "foods" && (
           <div>
+            <p className="text-xs text-zinc-400 mb-3" data-testid="text-library-foods-subtitle">Your personal nutrition database — save custom brands, home recipes, and staples with your own verified macros.</p>
             <button
               onClick={() => setShowAddFood(true)}
               className="w-full flex items-center justify-center gap-1.5 py-2.5 mb-4 rounded-xl bg-zinc-900 text-sm font-medium text-white hover:bg-zinc-700 transition-all"
               data-testid="button-library-add-food"
             >
-              <Plus className="w-4 h-4" />Add Food
+              <Plus className="w-4 h-4" />Add Custom Food
             </button>
 
             {foodsLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>
             ) : myFoods.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-14 h-14 bg-zinc-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Wheat className="w-6 h-6 text-zinc-300" />
+              <div className="text-center py-16" data-testid="text-library-foods-empty">
+                <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Wheat className="w-6 h-6 text-amber-400" />
                 </div>
-                <p className="text-sm font-medium text-zinc-500 mb-1">No foods saved yet</p>
-                <p className="text-xs text-zinc-400">Add individual foods here to use them when building meals.</p>
+                <p className="text-sm font-medium text-zinc-700 mb-1">Your personal food list</p>
+                <p className="text-xs text-zinc-400 leading-relaxed max-w-[280px] mx-auto">Save foods you eat regularly that aren't in our database, or items with your own verified macros.</p>
+                <button
+                  onClick={() => setShowAddFood(true)}
+                  className="mt-4 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-zinc-900 text-sm font-medium text-white hover:bg-zinc-700 transition-all"
+                  data-testid="button-library-add-first-food"
+                >
+                  <Plus className="w-4 h-4" />Add your first custom food
+                </button>
               </div>
             ) : (
               <>

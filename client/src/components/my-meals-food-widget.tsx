@@ -288,23 +288,31 @@ export function MyMealsFoodWidget() {
 
         {activeTab === "foods" && (
           <div>
+            <p className="text-xs text-zinc-400 mb-3" data-testid="text-my-foods-subtitle">Your personal nutrition database — custom brands, home recipes & staples with your own verified macros.</p>
             <button
               onClick={() => setShowAddFood(true)}
               className="w-full flex items-center justify-center gap-1.5 py-2 mb-4 rounded-xl bg-zinc-900 text-xs font-medium text-white hover:bg-zinc-700 transition-all"
               data-testid="button-add-food"
             >
-              <Plus className="w-3.5 h-3.5" />Add Food
+              <Plus className="w-3.5 h-3.5" />Add Custom Food
             </button>
 
             {foodsLoading ? (
               <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
             ) : myFoods.length === 0 ? (
-              <div className="text-center py-10">
-                <div className="w-12 h-12 bg-zinc-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                  <Wheat className="w-5 h-5 text-zinc-300" />
+              <div className="text-center py-10" data-testid="text-my-foods-empty">
+                <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <Wheat className="w-5 h-5 text-amber-400" />
                 </div>
-                <p className="text-sm font-medium text-zinc-500 mb-1">No foods saved yet</p>
-                <p className="text-xs text-zinc-400">Add individual foods here to use them when building meals.</p>
+                <p className="text-sm font-medium text-zinc-700 mb-1">Your personal food list</p>
+                <p className="text-xs text-zinc-400 leading-relaxed max-w-[260px] mx-auto">Save foods you eat regularly that aren't in our database, or items with your own verified macros.</p>
+                <button
+                  onClick={() => setShowAddFood(true)}
+                  className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 text-xs font-medium text-white hover:bg-zinc-700 transition-all"
+                  data-testid="button-add-first-food"
+                >
+                  <Plus className="w-3.5 h-3.5" />Add your first custom food
+                </button>
               </div>
             ) : (
               <div className="space-y-1.5">

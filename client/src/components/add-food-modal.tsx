@@ -73,7 +73,7 @@ function ConfirmPanel({ food, servGrams, setServGrams, onSave, onReset, testPref
 }
 
 type DuplicateWarning = { message: string; exactMatch: boolean; existingCount: number };
-type FoodPayload = { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams: number; confirmDuplicate?: boolean };
+type FoodPayload = { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams: number; source?: string; confirmDuplicate?: boolean };
 
 export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSaved: (food: UserSavedFood) => void }) {
   const { toast } = useToast();
@@ -132,7 +132,7 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
     saveMutation.mutate(confirm ? { ...payload, confirmDuplicate: true } : payload);
   }
 
-  function saveFromResult(food: FoodResult | ExtendedFoodResult, servGrams: string) {
+  function saveFromResult(food: FoodResult | ExtendedFoodResult, servGrams: string, sourceOverride?: string) {
     setDupWarning(null);
     doSave({
       name: food.name,
@@ -141,6 +141,7 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
       carbs100g: food.carbs100g,
       fat100g: food.fat100g,
       servingGrams: parseInt(servGrams) || 100,
+      source: sourceOverride || tab,
     });
   }
 
@@ -153,6 +154,7 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
       carbs100g: parseFloat(carbs) || 0,
       fat100g: parseFloat(fat) || 0,
       servingGrams: parseInt(serving) || 100,
+      source: "manual",
     });
   }
 
@@ -169,7 +171,10 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm pb-16 sm:pb-0" onClick={onClose}>
       <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
-          <h3 className="text-base font-semibold text-zinc-900">Add Food to My Foods</h3>
+          <div>
+            <h3 className="text-base font-semibold text-zinc-900" data-testid="text-addfood-title">Add Custom Food</h3>
+            <p className="text-[11px] text-zinc-400 mt-0.5">Save brands, staples & home-cooked items with your own macros</p>
+          </div>
           <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-700" data-testid="button-add-food-close"><X className="w-4 h-4" /></button>
         </div>
 
@@ -228,7 +233,7 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
                     food={picker.scannedFood}
                     servGrams={picker.scanServingGrams}
                     setServGrams={picker.setScanServingGrams}
-                    onSave={() => saveFromResult(picker.scannedFood!, picker.scanServingGrams)}
+                    onSave={() => saveFromResult(picker.scannedFood!, picker.scanServingGrams, "barcode")}
                     onReset={() => { picker.resetScan(); setDupWarning(null); }}
                     testPrefix="addfood-scan"
                     saving={saveMutation.isPending}
@@ -249,7 +254,7 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
                     food={picker.aiResult}
                     servGrams={picker.aiServingGrams}
                     setServGrams={picker.setAiServingGrams}
-                    onSave={() => saveFromResult(picker.aiResult!, picker.aiServingGrams)}
+                    onSave={() => saveFromResult(picker.aiResult!, picker.aiServingGrams, "ai")}
                     onReset={() => { picker.resetAi(); setDupWarning(null); }}
                     testPrefix="addfood-ai"
                     saving={saveMutation.isPending}
@@ -267,7 +272,7 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-zinc-600 mb-1.5">Food name</label>
-                  <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Brown Rice"
+                  <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Aldi Protein Bread, Mum's Dal"
                     className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300" data-testid="input-food-name" />
                 </div>
                 <div>
