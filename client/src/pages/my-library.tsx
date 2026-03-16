@@ -6,12 +6,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import {
   UtensilsCrossed, Wheat, Plus, Loader2, X,
-  Link2, Search, Users2, ArrowLeft,
+  Link2, Search, Users2, ArrowLeft, Repeat,
 } from "lucide-react";
 import type { UserMeal, UserSavedFood, MealTemplate } from "@shared/schema";
 import {
   type MealSlot, type ActiveTab,
-  SLOT_OPTIONS, todayStr,
+  SLOT_OPTIONS, SLOT_COLOURS, todayStr,
 } from "@/components/meals-food-shared";
 import {
   MealCard, FoodCard, getMealKey, getMealSlot,
@@ -195,6 +195,13 @@ export default function MyLibraryPage() {
             data-testid="button-library-tab-foods"
           >
             My Foods ({foodCount})
+          </button>
+          <button
+            onClick={() => setActiveTab("templates")}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "templates" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-library-tab-templates"
+          >
+            Templates ({templates.length})
           </button>
         </div>
 
@@ -391,6 +398,60 @@ export default function MyLibraryPage() {
                   </button>
                 )}
               </>
+            )}
+          </div>
+        )}
+
+        {activeTab === "templates" && (
+          <div>
+            {templates.length === 0 ? (
+              <div className="text-center py-16" data-testid="text-library-no-templates">
+                <Repeat className="w-10 h-10 mx-auto mb-3 text-zinc-200" />
+                <p className="text-sm text-zinc-400">No recurring templates yet</p>
+                <p className="text-xs text-zinc-300 mt-1">Set a meal as recurring from the Meals tab</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {templates.map(t => {
+                  const meal = meals.find(m => m.id === t.userMealId);
+                  return (
+                    <div
+                      key={t.id}
+                      className={`rounded-xl border p-4 transition-colors ${t.active ? "border-zinc-200 bg-white" : "border-zinc-100 bg-zinc-50 opacity-60"}`}
+                      data-testid={`template-card-${t.id}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-zinc-900 truncate">{meal?.name ?? "Unknown meal"}</p>
+                          <div className="flex items-center gap-2 mt-1.5">
+                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${SLOT_COLOURS[t.mealSlot as MealSlot] ?? "bg-zinc-100 text-zinc-600"}`}>
+                              {t.mealSlot}
+                            </span>
+                            <span className="text-xs text-zinc-400">
+                              {t.daysOfWeek.length === 7 ? "Every day" : t.daysOfWeek.map(d => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(", ")}
+                            </span>
+                            {!t.active && (
+                              <span className="text-[10px] text-amber-500 font-medium">Paused</span>
+                            )}
+                          </div>
+                          {meal && (
+                            <p className="text-xs text-zinc-400 mt-1">
+                              {meal.caloriesPerServing} kcal · P:{meal.proteinPerServing}g · C:{meal.carbsPerServing}g · F:{meal.fatPerServing}g
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => { if (meal) setTemplateTarget(meal); }}
+                          className="p-2 hover:bg-zinc-100 rounded-xl transition-colors shrink-0"
+                          data-testid={`button-edit-template-${t.id}`}
+                        >
+                          <Repeat className="w-4 h-4 text-zinc-400" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}

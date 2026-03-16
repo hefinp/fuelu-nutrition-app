@@ -5,12 +5,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import {
   UtensilsCrossed, Wheat, Plus, Loader2, X,
-  Link2, Search, Users2, ArrowRight,
+  Link2, Search, Users2, ArrowRight, Repeat,
 } from "lucide-react";
 import type { UserMeal, UserSavedFood, MealTemplate } from "@shared/schema";
 import {
   type MealSlot, type ActiveTab,
-  SLOT_OPTIONS, todayStr,
+  SLOT_OPTIONS, SLOT_COLOURS, todayStr,
 } from "@/components/meals-food-shared";
 import {
   MealCard, FoodCard, getMealKey, getMealSlot,
@@ -158,6 +158,13 @@ export function MyMealsFoodWidget() {
             data-testid="button-tab-foods"
           >
             My Foods
+          </button>
+          <button
+            onClick={() => setActiveTab("templates")}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "templates" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-tab-templates"
+          >
+            Templates
           </button>
         </div>
       </div>
@@ -336,6 +343,59 @@ export function MyMealsFoodWidget() {
                   ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   : "Load more foods"}
               </button>
+            )}
+          </div>
+        )}
+
+        {activeTab === "templates" && (
+          <div>
+            {templates.length === 0 ? (
+              <div className="text-center py-12" data-testid="text-no-templates">
+                <Repeat className="w-8 h-8 mx-auto mb-2 text-zinc-200" />
+                <p className="text-sm text-zinc-400">No recurring templates yet</p>
+                <p className="text-xs text-zinc-300 mt-1">Set a meal as recurring from the Meals tab</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {templates.map(t => {
+                  const meal = meals.find(m => m.id === t.userMealId);
+                  return (
+                    <div
+                      key={t.id}
+                      className={`rounded-xl border p-3 transition-colors ${t.active ? "border-zinc-200 bg-white" : "border-zinc-100 bg-zinc-50 opacity-60"}`}
+                      data-testid={`template-card-${t.id}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-zinc-900 truncate">{meal?.name ?? "Unknown meal"}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${SLOT_COLOURS[t.mealSlot as MealSlot] ?? "bg-zinc-100 text-zinc-600"}`}>
+                              {t.mealSlot}
+                            </span>
+                            <span className="text-[10px] text-zinc-400">
+                              {t.daysOfWeek.length === 7 ? "Every day" : t.daysOfWeek.map(d => d.charAt(0).toUpperCase() + d.slice(1, 3)).join(", ")}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {!t.active && (
+                            <span className="text-[10px] text-zinc-400 font-medium">Paused</span>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (meal) setTemplateTarget(meal);
+                            }}
+                            className="p-1.5 hover:bg-zinc-100 rounded-lg transition-colors"
+                            data-testid={`button-edit-template-${t.id}`}
+                          >
+                            <UtensilsCrossed className="w-3.5 h-3.5 text-zinc-400" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}

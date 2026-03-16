@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { X, Loader2, Calendar, Repeat, Trash2 } from "lucide-react";
+import { X, Loader2, Calendar, Repeat, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import type { UserMeal, MealTemplate } from "@shared/schema";
 import { type MealSlot, SLOT_OPTIONS, SLOT_COLOURS } from "@/components/meals-food-shared";
 
@@ -32,6 +32,7 @@ export function MealTemplateModal({ meal, existingTemplate, onClose }: Props) {
   const [selectedDays, setSelectedDays] = useState<Set<string>>(
     new Set(existingTemplate?.daysOfWeek ?? [])
   );
+  const [isActive, setIsActive] = useState(existingTemplate?.active !== false);
 
   function toggleDay(day: string) {
     setSelectedDays(prev => {
@@ -55,6 +56,7 @@ export function MealTemplateModal({ meal, existingTemplate, onClose }: Props) {
         return apiRequest("PATCH", `/api/meal-templates/${existingTemplate.id}`, {
           mealSlot: selectedSlot,
           daysOfWeek: Array.from(selectedDays),
+          active: isActive,
         }).then(r => r.json());
       }
       return apiRequest("POST", "/api/meal-templates", {
@@ -106,6 +108,27 @@ export function MealTemplateModal({ meal, existingTemplate, onClose }: Props) {
               {meal.caloriesPerServing} kcal · P:{meal.proteinPerServing}g · C:{meal.carbsPerServing}g · F:{meal.fatPerServing}g
             </p>
           </div>
+
+          {existingTemplate && (
+            <div className="flex items-center justify-between bg-zinc-50 rounded-xl p-3">
+              <div>
+                <p className="text-sm font-medium text-zinc-900">Active</p>
+                <p className="text-xs text-zinc-400">Suggestions appear when active</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsActive(!isActive)}
+                className="text-zinc-900"
+                data-testid="button-template-toggle-active"
+              >
+                {isActive ? (
+                  <ToggleRight className="w-8 h-8 text-emerald-500" />
+                ) : (
+                  <ToggleLeft className="w-8 h-8 text-zinc-300" />
+                )}
+              </button>
+            </div>
+          )}
 
           <div>
             <label className="text-xs font-medium text-zinc-700 mb-2 block">Meal slot</label>

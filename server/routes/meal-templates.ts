@@ -95,7 +95,7 @@ router.get("/api/meal-templates/suggestions", async (req, res) => {
       if (!meal) return null;
 
       const alreadyLogged = existingEntries.some(
-        e => e.mealSlot === t.mealSlot && e.mealName === meal.name
+        e => e.mealSlot === t.mealSlot
       );
       if (alreadyLogged) return null;
 
