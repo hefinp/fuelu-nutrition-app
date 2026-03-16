@@ -291,6 +291,7 @@ export function LoggedMealModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log-week"] });
       toast({ title: "Entry updated" });
       setEditing(false);
       onClose();
@@ -432,7 +433,20 @@ export function LoggedMealModal({
           {editing ? (
             <>
               <button
-                onClick={() => setEditing(false)}
+                onClick={() => {
+                  setForm({
+                    mealName: entry.mealName,
+                    calories: entry.calories,
+                    protein: entry.protein,
+                    carbs: entry.carbs,
+                    fat: entry.fat,
+                    fibre: entry.fibre ?? 0,
+                    sugar: entry.sugar ?? 0,
+                    saturatedFat: entry.saturatedFat ?? 0,
+                    mealSlot: entry.mealSlot,
+                  });
+                  setEditing(false);
+                }}
                 className="flex-1 px-4 py-2 bg-zinc-100 text-zinc-700 rounded-xl font-medium hover:bg-zinc-200 transition-colors min-h-[48px]"
                 data-testid="button-cancel-edit"
               >
