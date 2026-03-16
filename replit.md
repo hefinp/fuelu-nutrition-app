@@ -33,7 +33,9 @@ Core components include:
     -   `food-picker-tabs.tsx`: Shared `useFoodPicker` hook and reusable UI panels (SearchPanel, ScannerView, ScannedFoodPanel, AiPanel, MacroGrid) used by both AddFoodModal and CreateMealModal.
     -   `add-food-modal.tsx`: Add custom food modal with barcode scan, AI estimate, and manual entry.
     -   `create-meal-modal.tsx`: Create meal modal with food picker (search, barcode, AI, My Foods tabs).
-    -   `my-meals-food-widget.tsx`: Slim dashboard widget (~500 lines) importing all modals.
+    -   `meal-food-cards.tsx`: Shared MealCard and FoodCard components with helper functions (getMealKey, getMealName, getMealSlot, getMealMacros, isCustomMeal). Used by both the dashboard widget and the full-page library.
+    -   `my-meals-food-widget.tsx`: Slim dashboard widget (~415 lines) importing shared cards and all modals.
+-   **MyLibraryPage** (`/my-library`): Full-page view of meals and foods with responsive grid (2-col on desktop), search filtering, slot filters, pagination, and all CRUD actions. Linked from the widget via "View all".
 -   **DiaryPage** (`/diary`): Full food diary with daily/weekly views, date navigation, entry management (confirm/star/delete), weekly AI insights, and the FoodLogDrawer for logging.
 -   **CycleTracker**: (For female users) Tracks menstrual cycles, predicts phases, provides cycle-phase-specific nutrition tips (via AI with web search), and logs symptoms and period history.
 -   **Insights**: Offers wellbeing insights, including symptom trends, food correlations, AI-powered narrative analysis, and research summaries based on user data and external research (PubMed/NIH).
