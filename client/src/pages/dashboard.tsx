@@ -812,20 +812,63 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
-            {/* Dashboard header */}
-            <div className="flex items-start justify-between mb-6 gap-4">
-              <div>
-                <h2 className="text-2xl font-display font-bold text-zinc-900 tracking-tight">
-                  {user ? `Welcome back, ${user.name.split(" ")[0]}` : "Your Dashboard"}
-                </h2>
-                <p className="text-zinc-500 text-sm mt-0.5">
-                  Your current nutrition targets and weight progress.
-                </p>
-              </div>
+            {/* Dashboard welcome widget — permanent, non-dismissable, non-sortable */}
+            <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5 mb-6" data-testid="widget-welcome">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-display font-bold text-zinc-900 tracking-tight">
+                    {user ? `Welcome back, ${user.name.split(" ")[0]}` : "Your Dashboard"}
+                  </h2>
+                  <p className="text-zinc-500 text-sm mt-0.5">
+                    Your current nutrition targets and weight progress.
+                  </p>
+                </div>
 
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {user && !isEditing && (
-                  <>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {user && !isEditing && (
+                    <>
+                      <button
+                        onClick={handleOpenMetrics}
+                        className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+                        data-testid="button-edit-metrics"
+                      >
+                        <SlidersHorizontal className="w-4 h-4" />
+                        <span className="hidden sm:inline">Edit Metrics</span>
+                      </button>
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+                        data-testid="button-edit-layout"
+                      >
+                        <LayoutDashboard className="w-4 h-4" />
+                        <span className="hidden sm:inline">Edit Layout</span>
+                      </button>
+                    </>
+                  )}
+
+                  {isEditing && (
+                    <>
+                      <button
+                        onClick={cancelEdit}
+                        className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-500 hover:bg-zinc-50 transition-colors"
+                        data-testid="button-cancel-layout"
+                      >
+                        <X className="w-4 h-4" />
+                        Cancel
+                      </button>
+                      <button
+                        onClick={saveLayout}
+                        disabled={isSaving}
+                        className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-zinc-900 text-white rounded-xl hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                        data-testid="button-save-layout"
+                      >
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        Done
+                      </button>
+                    </>
+                  )}
+
+                  {!user && (
                     <button
                       onClick={handleOpenMetrics}
                       className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
@@ -834,63 +877,22 @@ export default function Dashboard() {
                       <SlidersHorizontal className="w-4 h-4" />
                       <span className="hidden sm:inline">Edit Metrics</span>
                     </button>
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
-                      data-testid="button-edit-layout"
-                    >
-                      <LayoutDashboard className="w-4 h-4" />
-                      <span className="hidden sm:inline">Edit Layout</span>
-                    </button>
-                  </>
-                )}
-
-                {isEditing && (
-                  <>
-                    <button
-                      onClick={cancelEdit}
-                      className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-500 hover:bg-zinc-50 transition-colors"
-                      data-testid="button-cancel-layout"
-                    >
-                      <X className="w-4 h-4" />
-                      Cancel
-                    </button>
-                    <button
-                      onClick={saveLayout}
-                      disabled={isSaving}
-                      className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-zinc-900 text-white rounded-xl hover:bg-zinc-700 disabled:opacity-50 transition-colors"
-                      data-testid="button-save-layout"
-                    >
-                      {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                      Done
-                    </button>
-                  </>
-                )}
-
-                {!user && (
-                  <button
-                    onClick={handleOpenMetrics}
-                    className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
-                    data-testid="button-edit-metrics"
-                  >
-                    <SlidersHorizontal className="w-4 h-4" />
-                    <span className="hidden sm:inline">Edit Metrics</span>
-                  </button>
-                )}
+                  )}
+                </div>
               </div>
+
+              {isEditing && (
+                <div className="flex items-center gap-2 mt-4 px-4 py-3 bg-blue-50 border border-blue-100 rounded-2xl text-sm text-blue-700">
+                  <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+                  <span>
+                    {isDesktop
+                      ? <>Drag the <strong>⠿</strong> handle on any card to reorder it within its column. Click <strong>Done</strong> to save.</>
+                      : <>Tap the <strong>↑↓</strong> arrows on any card to reorder it. Tap <strong>Done</strong> to save.</>
+                    }
+                  </span>
+                </div>
+              )}
             </div>
-
-            {isEditing && (
-              <div className="flex items-center gap-2 mb-4 px-4 py-3 bg-blue-50 border border-blue-100 rounded-2xl text-sm text-blue-700">
-                <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
-                <span>
-                  {isDesktop
-                    ? <>Drag the <strong>⠿</strong> handle on any card to reorder it within its column. Click <strong>Done</strong> to save.</>
-                    : <>Tap the <strong>↑↓</strong> arrows on any card to reorder it. Tap <strong>Done</strong> to save.</>
-                  }
-                </span>
-              </div>
-            )}
 
             {/* ── MOBILE layout: single column, flat order ── */}
             <div className="flex flex-col gap-6 xl:hidden">
