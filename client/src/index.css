@@ -111,6 +111,13 @@
   }
 }
 
+@media (max-width: 1279px) {
+  html.dashboard-snap {
+    scroll-snap-type: y proximity;
+    scroll-padding-top: 4.5rem;
+  }
+}
+
 /* Custom Utilities for aesthetic depth */
 @layer utilities {
   .glass-card {

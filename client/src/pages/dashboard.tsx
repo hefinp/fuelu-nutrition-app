@@ -351,6 +351,11 @@ export default function Dashboard() {
   // Visible widgets in order (nulls removed)
   const visibleMobileOrder = widgetOrder.filter(id => renderWidget(id) !== null);
 
+  useEffect(() => {
+    document.documentElement.classList.add("dashboard-snap");
+    return () => document.documentElement.classList.remove("dashboard-snap");
+  }, []);
+
   return (
     <div className="min-h-screen bg-zinc-50/50 pb-36 sm:pb-20">
       {/* Header */}
