@@ -123,20 +123,20 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
       const detailData = (detail && detail !== "loading" && detail !== "error") ? detail : null;
       const ingredientsArr = detailData?.ingredients ?? meal.ingredients;
       const instructionsText = detailData?.instructions ?? meal.instructions;
-      await apiRequest("POST", "/api/favourites", {
-        mealName: meal.name,
-        calories: meal.caloriesPerServing,
-        protein: meal.proteinPerServing,
-        carbs: meal.carbsPerServing,
-        fat: meal.fatPerServing,
+      await apiRequest("POST", "/api/user-meals", {
+        name: meal.name,
+        source: "community",
+        caloriesPerServing: meal.caloriesPerServing,
+        proteinPerServing: meal.proteinPerServing,
+        carbsPerServing: meal.carbsPerServing,
+        fatPerServing: meal.fatPerServing,
         mealSlot: meal.slot,
-        communityMealId: meal.id,
         ingredients: ingredientsArr && ingredientsArr.length > 0 ? ingredientsArr.join("\n") : undefined,
         instructions: instructionsText || undefined,
       });
       setSavedMealIds(prev => new Set(prev).add(meal.id));
-      queryClient.invalidateQueries({ queryKey: ["/api/favourites"] });
-      toast({ title: "Saved to my meals", description: `${meal.name} added to your favourites.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] });
+      toast({ title: "Saved to my meals", description: `${meal.name} added to your library.` });
     } catch {
       toast({ title: "Failed to save", variant: "destructive" });
     } finally {

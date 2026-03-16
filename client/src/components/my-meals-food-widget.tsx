@@ -7,14 +7,13 @@ import {
   UtensilsCrossed, Wheat, Plus, Loader2, X,
   Link2, Search, Users2, ArrowRight,
 } from "lucide-react";
-import type { FavouriteMeal, UserRecipe, UserSavedFood } from "@shared/schema";
+import type { UserMeal, UserSavedFood } from "@shared/schema";
 import {
   type MealSlot, type ActiveTab,
   SLOT_OPTIONS, todayStr,
 } from "@/components/meals-food-shared";
 import {
-  type MealEntry, MealCard, FoodCard,
-  getMealKey, getMealName, getMealSlot,
+  MealCard, FoodCard, getMealKey, getMealSlot,
 } from "@/components/meal-food-cards";
 import { CommunityBrowserModal } from "@/components/community-browser-modal";
 import { ImportModal } from "@/components/import-modal";
@@ -47,18 +46,12 @@ export function MyMealsFoodWidget() {
   const [mealSearch, setMealSearch] = useState("");
   const [mealSlotFilter, setMealSlotFilter] = useState<MealSlot | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [editTarget, setEditTarget] = useState<{ type: "favourite" | "recipe"; item: FavouriteMeal | UserRecipe } | null>(null);
+  const [editTarget, setEditTarget] = useState<UserMeal | null>(null);
   const [editFoodTarget, setEditFoodTarget] = useState<UserSavedFood | null>(null);
 
-  const favsQuery = useInfiniteQuery<PaginatedResponse<FavouriteMeal>>({
-    queryKey: ["/api/favourites", "paginated"],
-    queryFn: ({ pageParam }) => fetchPaginated<FavouriteMeal>("/api/favourites", pageParam as string | undefined),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-  });
-  const recsQuery = useInfiniteQuery<PaginatedResponse<UserRecipe>>({
-    queryKey: ["/api/recipes", "paginated"],
-    queryFn: ({ pageParam }) => fetchPaginated<UserRecipe>("/api/recipes", pageParam as string | undefined),
+  const mealsQuery = useInfiniteQuery<PaginatedResponse<UserMeal>>({
+    queryKey: ["/api/user-meals", "paginated"],
+    queryFn: ({ pageParam }) => fetchPaginated<UserMeal>("/api/user-meals", pageParam as string | undefined),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
@@ -69,32 +62,19 @@ export function MyMealsFoodWidget() {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
-  const favourites = favsQuery.data?.pages.flatMap(p => p.items) ?? [];
-  const recipes = recsQuery.data?.pages.flatMap(p => p.items) ?? [];
+  const meals = mealsQuery.data?.pages.flatMap(p => p.items) ?? [];
   const myFoods = foodsQuery.data?.pages.flatMap(p => p.items) ?? [];
 
-  const favsLoading = favsQuery.isLoading;
-  const recsLoading = recsQuery.isLoading;
+  const mealsLoading = mealsQuery.isLoading;
   const foodsLoading = foodsQuery.isLoading;
-  const mealsLoading = favsLoading || recsLoading;
 
-  const mealEntries: MealEntry[] = [
-    ...favourites.map(f => ({ kind: "favourite" as const, item: f })),
-    ...recipes.map(r => ({ kind: "recipe" as const, item: r })),
-  ].sort((a, b) => {
-    const aTime = new Date(a.item.createdAt ?? 0).getTime();
-    const bTime = new Date(b.item.createdAt ?? 0).getTime();
-    return bTime - aTime;
-  });
-
-  const filteredMealEntries = mealEntries.filter(entry => {
+  const filteredMeals = meals.filter(meal => {
     if (mealSlotFilter !== "all") {
-      const slot = getMealSlot(entry);
+      const slot = getMealSlot(meal);
       if (slot !== mealSlotFilter) return false;
     }
     if (mealSearch.trim()) {
-      const name = getMealName(entry).toLowerCase();
-      if (!name.includes(mealSearch.trim().toLowerCase())) return false;
+      if (!meal.name.toLowerCase().includes(mealSearch.trim().toLowerCase())) return false;
     }
     return true;
   });
@@ -120,19 +100,12 @@ export function MyMealsFoodWidget() {
     onError: () => toast({ title: "Failed to log meal", variant: "destructive" }),
   });
 
-  const invalidateFavs = () => { queryClient.invalidateQueries({ queryKey: ["/api/favourites"] }); };
-  const invalidateRecs = () => { queryClient.invalidateQueries({ queryKey: ["/api/recipes"] }); };
+  const invalidateMeals = () => { queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] }); };
   const invalidateFoods = () => { queryClient.invalidateQueries({ queryKey: ["/api/my-foods"] }); };
 
-  const deleteFavMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/favourites/${id}`, undefined),
-    onSuccess: () => { invalidateFavs(); toast({ title: "Removed" }); },
-    onError: () => toast({ title: "Failed to remove", variant: "destructive" }),
-  });
-
-  const deleteRecMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/recipes/${id}`, undefined),
-    onSuccess: () => { invalidateRecs(); toast({ title: "Removed" }); },
+  const deleteMealMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/user-meals/${id}`, undefined),
+    onSuccess: () => { invalidateMeals(); toast({ title: "Removed" }); },
     onError: () => toast({ title: "Failed to remove", variant: "destructive" }),
   });
 
@@ -142,19 +115,8 @@ export function MyMealsFoodWidget() {
     onError: () => toast({ title: "Failed to remove", variant: "destructive" }),
   });
 
-  function logMeal(entry: MealEntry) {
-    if (entry.kind === "favourite") {
-      const f = entry.item as FavouriteMeal;
-      logMutation.mutate({ name: f.mealName, cal: f.calories, prot: f.protein, carbs: f.carbs, fat: f.fat, slot: f.mealSlot });
-    } else {
-      const r = entry.item as UserRecipe;
-      logMutation.mutate({ name: r.name, cal: r.caloriesPerServing, prot: r.proteinPerServing, carbs: r.carbsPerServing, fat: r.fatPerServing, slot: r.mealSlot });
-    }
-  }
-
-  function deleteMeal(entry: MealEntry) {
-    if (entry.kind === "favourite") deleteFavMutation.mutate(entry.item.id);
-    else deleteRecMutation.mutate(entry.item.id);
+  function logMeal(meal: UserMeal) {
+    logMutation.mutate({ name: meal.name, cal: meal.caloriesPerServing, prot: meal.proteinPerServing, carbs: meal.carbsPerServing, fat: meal.fatPerServing, slot: meal.mealSlot });
   }
 
   return (
@@ -215,7 +177,7 @@ export function MyMealsFoodWidget() {
 
             {mealsLoading ? (
               <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
-            ) : mealEntries.length === 0 ? (
+            ) : meals.length === 0 ? (
               <div className="text-center py-10">
                 <div className="w-12 h-12 bg-zinc-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <UtensilsCrossed className="w-5 h-5 text-zinc-300" />
@@ -256,7 +218,7 @@ export function MyMealsFoodWidget() {
                   </div>
                 </div>
 
-                {filteredMealEntries.length === 0 ? (
+                {filteredMeals.length === 0 ? (
                   <div className="text-center py-8" data-testid="text-no-meals-match">
                     <Search className="w-8 h-8 mx-auto mb-2 text-zinc-200" />
                     <p className="text-sm text-zinc-400">No meals match your filters</p>
@@ -266,34 +228,31 @@ export function MyMealsFoodWidget() {
                   </div>
                 ) : (
                 <div className="space-y-1.5">
-                  {filteredMealEntries.map(entry => {
-                    const key = getMealKey(entry);
+                  {filteredMeals.map(meal => {
+                    const key = getMealKey(meal);
                     return (
                       <MealCard
                         key={key}
-                        entry={entry}
+                        meal={meal}
                         isOpen={expandedId === key}
                         onToggle={() => setExpandedId(expandedId === key ? null : key)}
-                        onLog={() => logMeal(entry)}
-                        onEdit={() => setEditTarget({ type: entry.kind, item: entry.item })}
-                        onDelete={() => deleteMeal(entry)}
+                        onLog={() => logMeal(meal)}
+                        onEdit={() => setEditTarget(meal)}
+                        onDelete={() => deleteMealMutation.mutate(meal.id)}
                         isLogging={logMutation.isPending}
                       />
                     );
                   })}
                 </div>
                 )}
-                {(favsQuery.hasNextPage || recsQuery.hasNextPage) && (
+                {mealsQuery.hasNextPage && (
                   <button
-                    onClick={() => {
-                      if (favsQuery.hasNextPage) favsQuery.fetchNextPage();
-                      if (recsQuery.hasNextPage) recsQuery.fetchNextPage();
-                    }}
-                    disabled={favsQuery.isFetchingNextPage || recsQuery.isFetchingNextPage}
+                    onClick={() => mealsQuery.fetchNextPage()}
+                    disabled={mealsQuery.isFetchingNextPage}
                     className="w-full mt-3 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 rounded-xl border border-zinc-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
                     data-testid="button-load-more-meals"
                   >
-                    {(favsQuery.isFetchingNextPage || recsQuery.isFetchingNextPage)
+                    {mealsQuery.isFetchingNextPage
                       ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       : "Load more meals"}
                   </button>
@@ -376,13 +335,13 @@ export function MyMealsFoodWidget() {
       {showImport && (
         <ImportModal
           onClose={() => setShowImport(false)}
-          onSaved={() => queryClient.invalidateQueries({ queryKey: ["/api/recipes"] })}
+          onSaved={() => invalidateMeals()}
         />
       )}
       {showCreateMeal && (
         <CreateMealModal
           onClose={() => setShowCreateMeal(false)}
-          onSaved={() => queryClient.invalidateQueries({ queryKey: ["/api/recipes"] })}
+          onSaved={() => invalidateMeals()}
         />
       )}
       {showAddFood && (
@@ -396,8 +355,7 @@ export function MyMealsFoodWidget() {
       )}
       {editTarget && (
         <EditMealModal
-          type={editTarget.type}
-          item={editTarget.item}
+          meal={editTarget}
           onClose={() => setEditTarget(null)}
           onSaved={() => setEditTarget(null)}
         />

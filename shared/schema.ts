@@ -393,3 +393,32 @@ export const insertFeedbackSchema = createInsertSchema(feedbackEntries).omit({
 
 export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;
 export type FeedbackEntry = typeof feedbackEntries.$inferSelect;
+
+export const userMeals = pgTable("user_meals", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  source: text("source").notNull().default("manual"),
+  caloriesPerServing: integer("calories_per_serving").notNull(),
+  proteinPerServing: integer("protein_per_serving").notNull(),
+  carbsPerServing: integer("carbs_per_serving").notNull(),
+  fatPerServing: integer("fat_per_serving").notNull(),
+  servings: integer("servings").notNull().default(1),
+  sourceUrl: text("source_url"),
+  imageUrl: text("image_url"),
+  mealSlot: text("meal_slot"),
+  mealStyle: text("meal_style").notNull().default("simple"),
+  ingredients: text("ingredients"),
+  ingredientsJson: jsonb("ingredients_json"),
+  instructions: text("instructions"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserMealSchema = createInsertSchema(userMeals).omit({
+  id: true,
+  createdAt: true,
+  userId: true,
+});
+
+export type InsertUserMeal = z.infer<typeof insertUserMealSchema>;
+export type UserMeal = typeof userMeals.$inferSelect;

@@ -9,7 +9,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, Check, Star,
   Sparkles, X, ArrowLeft,
 } from "lucide-react";
-import type { UserRecipe, Calculation } from "@shared/schema";
+import type { UserMeal, Calculation } from "@shared/schema";
 import { RECIPES } from "@/components/results-display";
 import {
   type MealSlot, type FoodLogEntry,
@@ -115,19 +115,13 @@ function DiaryContent({
     enabled: view === "weekly",
   });
 
-  const { data: userRecipes = [] } = useQuery<{ items: UserRecipe[] }, Error, UserRecipe[]>({
-    queryKey: ["/api/recipes", "all"],
-    queryFn: () => fetch("/api/recipes?limit=100", { credentials: "include" }).then(r => r.json()),
+  const { data: userRecipes = [] } = useQuery<{ items: UserMeal[] }, Error, UserMeal[]>({
+    queryKey: ["/api/user-meals", "all"],
+    queryFn: () => fetch("/api/user-meals?limit=100", { credentials: "include" }).then(r => r.json()),
     staleTime: 60_000,
     select: (d) => d.items,
   });
-
-  const { data: favourites = [] } = useQuery<{ items: { id: number; mealName: string }[] }, Error, { id: number; mealName: string }[]>({
-    queryKey: ["/api/favourites", "all"],
-    queryFn: () => fetch("/api/favourites?limit=100", { credentials: "include" }).then(r => r.json()),
-    select: (d) => d.items,
-  });
-  const favouriteNames = new Set(favourites.map(f => f.mealName));
+  const favouriteNames = new Set(userRecipes.map(f => f.name));
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/food-log/${id}`, undefined),
@@ -153,12 +147,20 @@ function DiaryContent({
 
   const starMutation = useMutation({
     mutationFn: (entry: { mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null }) =>
-      apiRequest("POST", "/api/favourites", entry).then(r => r.json()),
+      apiRequest("POST", "/api/user-meals", {
+        name: entry.mealName,
+        source: "logged",
+        caloriesPerServing: entry.calories,
+        proteinPerServing: entry.protein,
+        carbsPerServing: entry.carbs,
+        fatPerServing: entry.fat,
+        mealSlot: entry.mealSlot ?? null,
+      }).then(r => r.json()),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/favourites"] });
-      toast({ title: "Saved to favourites" });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] });
+      toast({ title: "Saved to My Meals" });
     },
-    onError: () => toast({ title: "Failed to save favourite", variant: "destructive" }),
+    onError: () => toast({ title: "Failed to save meal", variant: "destructive" }),
   });
 
   const confirmedDaily = dailyEntries.filter(e => e.confirmed !== false);

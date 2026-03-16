@@ -29,15 +29,15 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
       const dislikedSet = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
 
       if (prefs?.recipeWebsitesEnabled) {
-        const userRecipesResult = await storage.getUserRecipes(req.session.userId);
-        const userRecipesList = userRecipesResult.items;
+        const userMealsResult = await storage.getUserMeals(req.session.userId);
+        const userMealsList = userMealsResult.items;
         const style = input.mealStyle ?? 'simple';
         const limit = (prefs as any).recipeWeeklyLimit ?? 5;
         const enabledSlots: string[] = (prefs as any).recipeEnabledSlots ?? ["breakfast", "lunch", "dinner", "snack"];
-        const eligible = userRecipesList.filter(r =>
+        const eligible = userMealsList.filter(r =>
           r.caloriesPerServing > 0 && r.proteinPerServing > 0 && r.carbsPerServing > 0 && r.fatPerServing > 0 &&
           r.mealStyle === style &&
-          enabledSlots.includes(r.mealSlot) &&
+          r.mealSlot && enabledSlots.includes(r.mealSlot) &&
           !containsExcludedKeyword(r.name, excludeKws) &&
           !dislikedSet.has(r.name.toLowerCase())
         );
@@ -146,15 +146,15 @@ router.post("/api/meal-plans/replace-meal", async (req, res) => {
       const dislikedSet = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
 
       if (prefs?.recipeWebsitesEnabled) {
-        const userRecipesResult = await storage.getUserRecipes(req.session.userId);
-        const userRecipesList = userRecipesResult.items;
+        const userMealsResult = await storage.getUserMeals(req.session.userId);
+        const userMealsList = userMealsResult.items;
         const style = input.mealStyle ?? 'simple';
         const limit = (prefs as any).recipeWeeklyLimit ?? 5;
         const enabledSlots: string[] = (prefs as any).recipeEnabledSlots ?? ["breakfast", "lunch", "dinner", "snack"];
-        const eligible = userRecipesList.filter(r =>
+        const eligible = userMealsList.filter(r =>
           r.caloriesPerServing > 0 && r.proteinPerServing > 0 && r.carbsPerServing > 0 && r.fatPerServing > 0 &&
           r.mealStyle === style &&
-          enabledSlots.includes(r.mealSlot) &&
+          r.mealSlot && enabledSlots.includes(r.mealSlot) &&
           !containsExcludedKeyword(r.name, excludeKws) &&
           !dislikedSet.has(r.name.toLowerCase())
         );

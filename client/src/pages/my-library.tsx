@@ -8,14 +8,13 @@ import {
   UtensilsCrossed, Wheat, Plus, Loader2, X,
   Link2, Search, Users2, ArrowLeft,
 } from "lucide-react";
-import type { FavouriteMeal, UserRecipe, UserSavedFood } from "@shared/schema";
+import type { UserMeal, UserSavedFood } from "@shared/schema";
 import {
   type MealSlot, type ActiveTab,
   SLOT_OPTIONS, todayStr,
 } from "@/components/meals-food-shared";
 import {
-  type MealEntry, MealCard, FoodCard,
-  getMealKey, getMealName, getMealSlot,
+  MealCard, FoodCard, getMealKey, getMealSlot,
 } from "@/components/meal-food-cards";
 import { CommunityBrowserModal } from "@/components/community-browser-modal";
 import { ImportModal } from "@/components/import-modal";
@@ -50,18 +49,12 @@ export default function MyLibraryPage() {
   const [foodSearch, setFoodSearch] = useState("");
   const [mealSlotFilter, setMealSlotFilter] = useState<MealSlot | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [editTarget, setEditTarget] = useState<{ type: "favourite" | "recipe"; item: FavouriteMeal | UserRecipe } | null>(null);
+  const [editTarget, setEditTarget] = useState<UserMeal | null>(null);
   const [editFoodTarget, setEditFoodTarget] = useState<UserSavedFood | null>(null);
 
-  const favsQuery = useInfiniteQuery<PaginatedResponse<FavouriteMeal>>({
-    queryKey: ["/api/favourites", "paginated"],
-    queryFn: ({ pageParam }) => fetchPaginated<FavouriteMeal>("/api/favourites", pageParam as string | undefined),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-  });
-  const recsQuery = useInfiniteQuery<PaginatedResponse<UserRecipe>>({
-    queryKey: ["/api/recipes", "paginated"],
-    queryFn: ({ pageParam }) => fetchPaginated<UserRecipe>("/api/recipes", pageParam as string | undefined),
+  const mealsQuery = useInfiniteQuery<PaginatedResponse<UserMeal>>({
+    queryKey: ["/api/user-meals", "paginated"],
+    queryFn: ({ pageParam }) => fetchPaginated<UserMeal>("/api/user-meals", pageParam as string | undefined),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
@@ -72,30 +65,19 @@ export default function MyLibraryPage() {
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 
-  const favourites = favsQuery.data?.pages.flatMap(p => p.items) ?? [];
-  const recipes = recsQuery.data?.pages.flatMap(p => p.items) ?? [];
+  const meals = mealsQuery.data?.pages.flatMap(p => p.items) ?? [];
   const myFoods = foodsQuery.data?.pages.flatMap(p => p.items) ?? [];
 
-  const mealsLoading = favsQuery.isLoading || recsQuery.isLoading;
+  const mealsLoading = mealsQuery.isLoading;
   const foodsLoading = foodsQuery.isLoading;
 
-  const mealEntries: MealEntry[] = [
-    ...favourites.map(f => ({ kind: "favourite" as const, item: f })),
-    ...recipes.map(r => ({ kind: "recipe" as const, item: r })),
-  ].sort((a, b) => {
-    const aTime = new Date(a.item.createdAt ?? 0).getTime();
-    const bTime = new Date(b.item.createdAt ?? 0).getTime();
-    return bTime - aTime;
-  });
-
-  const filteredMealEntries = mealEntries.filter(entry => {
+  const filteredMeals = meals.filter(meal => {
     if (mealSlotFilter !== "all") {
-      const slot = getMealSlot(entry);
+      const slot = getMealSlot(meal);
       if (slot !== mealSlotFilter) return false;
     }
     if (mealSearch.trim()) {
-      const name = getMealName(entry).toLowerCase();
-      if (!name.includes(mealSearch.trim().toLowerCase())) return false;
+      if (!meal.name.toLowerCase().includes(mealSearch.trim().toLowerCase())) return false;
     }
     return true;
   });
@@ -128,18 +110,12 @@ export default function MyLibraryPage() {
     onError: () => toast({ title: "Failed to log meal", variant: "destructive" }),
   });
 
-  const invalidateFavs = () => { queryClient.invalidateQueries({ queryKey: ["/api/favourites"] }); };
-  const invalidateRecs = () => { queryClient.invalidateQueries({ queryKey: ["/api/recipes"] }); };
+  const invalidateMeals = () => { queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] }); };
   const invalidateFoods = () => { queryClient.invalidateQueries({ queryKey: ["/api/my-foods"] }); };
 
-  const deleteFavMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/favourites/${id}`, undefined),
-    onSuccess: () => { invalidateFavs(); toast({ title: "Removed" }); },
-    onError: () => toast({ title: "Failed to remove", variant: "destructive" }),
-  });
-  const deleteRecMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/recipes/${id}`, undefined),
-    onSuccess: () => { invalidateRecs(); toast({ title: "Removed" }); },
+  const deleteMealMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/user-meals/${id}`, undefined),
+    onSuccess: () => { invalidateMeals(); toast({ title: "Removed" }); },
     onError: () => toast({ title: "Failed to remove", variant: "destructive" }),
   });
   const deleteFoodMutation = useMutation({
@@ -148,14 +124,8 @@ export default function MyLibraryPage() {
     onError: () => toast({ title: "Failed to remove", variant: "destructive" }),
   });
 
-  function logMeal(entry: MealEntry) {
-    if (entry.kind === "favourite") {
-      const f = entry.item as FavouriteMeal;
-      logMutation.mutate({ name: f.mealName, cal: f.calories, prot: f.protein, carbs: f.carbs, fat: f.fat, slot: f.mealSlot });
-    } else {
-      const r = entry.item as UserRecipe;
-      logMutation.mutate({ name: r.name, cal: r.caloriesPerServing, prot: r.proteinPerServing, carbs: r.carbsPerServing, fat: r.fatPerServing, slot: r.mealSlot });
-    }
+  function logMeal(meal: UserMeal) {
+    logMutation.mutate({ name: meal.name, cal: meal.caloriesPerServing, prot: meal.proteinPerServing, carbs: meal.carbsPerServing, fat: meal.fatPerServing, slot: meal.mealSlot });
   }
 
   function logFood(food: UserSavedFood) {
@@ -170,11 +140,6 @@ export default function MyLibraryPage() {
     });
   }
 
-  function deleteMeal(entry: MealEntry) {
-    if (entry.kind === "favourite") deleteFavMutation.mutate(entry.item.id);
-    else deleteRecMutation.mutate(entry.item.id);
-  }
-
   if (!user) {
     return (
       <div className="min-h-screen bg-zinc-50/50 flex items-center justify-center">
@@ -186,7 +151,7 @@ export default function MyLibraryPage() {
     );
   }
 
-  const mealCount = mealEntries.length;
+  const mealCount = meals.length;
   const foodCount = myFoods.length;
 
   return (
@@ -247,7 +212,7 @@ export default function MyLibraryPage() {
 
             {mealsLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>
-            ) : mealEntries.length === 0 ? (
+            ) : meals.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-14 h-14 bg-zinc-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <UtensilsCrossed className="w-6 h-6 text-zinc-300" />
@@ -288,7 +253,7 @@ export default function MyLibraryPage() {
                   </div>
                 </div>
 
-                {filteredMealEntries.length === 0 ? (
+                {filteredMeals.length === 0 ? (
                   <div className="text-center py-12" data-testid="text-library-no-meals-match">
                     <Search className="w-8 h-8 mx-auto mb-2 text-zinc-200" />
                     <p className="text-sm text-zinc-400">No meals match your filters</p>
@@ -298,32 +263,29 @@ export default function MyLibraryPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {filteredMealEntries.map(entry => (
+                    {filteredMeals.map(meal => (
                       <MealCard
-                        key={getMealKey(entry)}
-                        entry={entry}
-                        isOpen={expandedId === getMealKey(entry)}
-                        onToggle={() => setExpandedId(expandedId === getMealKey(entry) ? null : getMealKey(entry))}
-                        onLog={() => logMeal(entry)}
-                        onEdit={() => setEditTarget({ type: entry.kind, item: entry.item })}
-                        onDelete={() => deleteMeal(entry)}
+                        key={getMealKey(meal)}
+                        meal={meal}
+                        isOpen={expandedId === getMealKey(meal)}
+                        onToggle={() => setExpandedId(expandedId === getMealKey(meal) ? null : getMealKey(meal))}
+                        onLog={() => logMeal(meal)}
+                        onEdit={() => setEditTarget(meal)}
+                        onDelete={() => deleteMealMutation.mutate(meal.id)}
                         isLogging={logMutation.isPending}
                       />
                     ))}
                   </div>
                 )}
 
-                {(favsQuery.hasNextPage || recsQuery.hasNextPage) && (
+                {mealsQuery.hasNextPage && (
                   <button
-                    onClick={() => {
-                      if (favsQuery.hasNextPage) favsQuery.fetchNextPage();
-                      if (recsQuery.hasNextPage) recsQuery.fetchNextPage();
-                    }}
-                    disabled={favsQuery.isFetchingNextPage || recsQuery.isFetchingNextPage}
+                    onClick={() => mealsQuery.fetchNextPage()}
+                    disabled={mealsQuery.isFetchingNextPage}
                     className="w-full mt-4 py-2.5 text-sm font-medium text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 rounded-xl border border-zinc-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
                     data-testid="button-library-load-more-meals"
                   >
-                    {(favsQuery.isFetchingNextPage || recsQuery.isFetchingNextPage)
+                    {mealsQuery.isFetchingNextPage
                       ? <Loader2 className="w-4 h-4 animate-spin" />
                       : "Load more meals"}
                   </button>
@@ -428,13 +390,13 @@ export default function MyLibraryPage() {
       {showImport && (
         <ImportModal
           onClose={() => setShowImport(false)}
-          onSaved={() => queryClient.invalidateQueries({ queryKey: ["/api/recipes"] })}
+          onSaved={() => invalidateMeals()}
         />
       )}
       {showCreateMeal && (
         <CreateMealModal
           onClose={() => setShowCreateMeal(false)}
-          onSaved={() => queryClient.invalidateQueries({ queryKey: ["/api/recipes"] })}
+          onSaved={() => invalidateMeals()}
         />
       )}
       {showAddFood && (
@@ -448,8 +410,7 @@ export default function MyLibraryPage() {
       )}
       {editTarget && (
         <EditMealModal
-          type={editTarget.type}
-          item={editTarget.item}
+          meal={editTarget}
           onClose={() => setEditTarget(null)}
           onSaved={() => setEditTarget(null)}
         />

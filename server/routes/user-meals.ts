@@ -1,0 +1,118 @@
+import { Router } from "express";
+import { z } from "zod";
+import { storage } from "../storage";
+
+const router = Router();
+
+const paginationSchema = z.object({
+  cursor: z.string().regex(/^\d{4}-.*\|\d+$/).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+const ingredientItemSchema = z.object({
+  key: z.string(),
+  name: z.string(),
+  calories100g: z.number(),
+  protein100g: z.number(),
+  carbs100g: z.number(),
+  fat100g: z.number(),
+  grams: z.number(),
+});
+
+router.get("/api/user-meals", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const params = paginationSchema.parse(req.query);
+    const result = await storage.getUserMeals(req.session.userId, { cursor: params.cursor, limit: params.limit });
+    res.json(result);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+    res.status(500).json({ message: "Failed to fetch meals" });
+  }
+});
+
+router.post("/api/user-meals", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const body = z.object({
+      name: z.string().min(1),
+      source: z.enum(["logged", "imported", "community", "manual"]).default("manual"),
+      caloriesPerServing: z.number().int().min(0),
+      proteinPerServing: z.number().int().min(0),
+      carbsPerServing: z.number().int().min(0),
+      fatPerServing: z.number().int().min(0),
+      servings: z.number().int().min(1).default(1),
+      sourceUrl: z.string().nullable().optional(),
+      imageUrl: z.string().nullable().optional(),
+      mealSlot: z.string().nullable().optional(),
+      mealStyle: z.string().default("simple"),
+      ingredients: z.string().nullable().optional(),
+      ingredientsJson: z.array(ingredientItemSchema).nullable().optional(),
+      instructions: z.string().nullable().optional(),
+      communityMealId: z.number().int().optional(),
+    }).parse(req.body);
+
+    const { communityMealId, ...mealData } = body;
+
+    if (communityMealId && (!mealData.ingredients || !mealData.instructions)) {
+      const cm = await storage.getCommunityMealById(communityMealId).catch(() => undefined);
+      if (cm) {
+        if (!mealData.ingredients && cm.ingredients && cm.ingredients.length > 0) {
+          mealData.ingredients = cm.ingredients.join("\n");
+        }
+        if (!mealData.instructions && cm.instructions) {
+          mealData.instructions = cm.instructions;
+        }
+      }
+    }
+
+    const created = await storage.createUserMeal({ ...mealData, userId: req.session.userId });
+
+    if (communityMealId) {
+      await storage.incrementCommunityMealFavourite(communityMealId).catch(() => {});
+    }
+
+    res.status(201).json(created);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+    res.status(500).json({ message: "Failed to create meal" });
+  }
+});
+
+router.patch("/api/user-meals/:id", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const id = parseInt(req.params.id);
+    const body = z.object({
+      name: z.string().min(1).optional(),
+      caloriesPerServing: z.number().int().min(0).optional(),
+      proteinPerServing: z.number().int().min(0).optional(),
+      carbsPerServing: z.number().int().min(0).optional(),
+      fatPerServing: z.number().int().min(0).optional(),
+      servings: z.number().int().min(1).optional(),
+      mealSlot: z.string().nullable().optional(),
+      mealStyle: z.string().optional(),
+      instructions: z.string().nullable().optional(),
+      ingredients: z.string().nullable().optional(),
+      ingredientsJson: z.array(ingredientItemSchema).nullable().optional(),
+    }).parse(req.body);
+    const updated = await storage.updateUserMeal(id, req.session.userId, body);
+    if (!updated) return res.status(404).json({ message: "Not found" });
+    res.json(updated);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+    res.status(500).json({ message: "Failed to update meal" });
+  }
+});
+
+router.delete("/api/user-meals/:id", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    await storage.deleteUserMeal(parseInt(req.params.id), req.session.userId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete meal" });
+  }
+});
+
+export default router;

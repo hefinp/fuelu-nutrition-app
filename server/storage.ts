@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, favouriteMeals, communityMeals, userSavedFoods, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type FavouriteMeal, type CommunityMeal, type UserSavedFood } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, userRecipes, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, favouriteMeals, communityMeals, userSavedFoods, userMeals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type UserRecipe, type InsertUserRecipe, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type FavouriteMeal, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 
@@ -84,11 +84,17 @@ export interface IStorage {
   getAiInsightsCache(userId: number, cacheKey: string): Promise<AiInsightsCache | undefined>;
   upsertAiInsightsCache(userId: number, cacheKey: string, narrativeJson: object, expiresAt: Date): Promise<void>;
 
-  // Favourite meals
+  // Favourite meals (deprecated — kept for backward compat)
   getFavouriteMeals(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: FavouriteMeal[]; nextCursor: string | null }>;
   addFavouriteMeal(entry: { userId: number; mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null; ingredients?: string | null; ingredientsJson?: unknown; instructions?: string | null }): Promise<FavouriteMeal>;
   updateFavouriteMeal(id: number, userId: number, updates: { mealName?: string; calories?: number; protein?: number; carbs?: number; fat?: number; mealSlot?: string | null; ingredients?: string | null; ingredientsJson?: unknown; instructions?: string | null }): Promise<FavouriteMeal | undefined>;
   removeFavouriteMeal(id: number, userId: number): Promise<void>;
+
+  // Unified user meals
+  getUserMeals(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserMeal[]; nextCursor: string | null }>;
+  createUserMeal(meal: InsertUserMeal & { userId: number }): Promise<UserMeal>;
+  updateUserMeal(id: number, userId: number, updates: Partial<Pick<UserMeal, 'name' | 'caloriesPerServing' | 'proteinPerServing' | 'carbsPerServing' | 'fatPerServing' | 'servings' | 'sourceUrl' | 'imageUrl' | 'mealSlot' | 'mealStyle' | 'ingredients' | 'ingredientsJson' | 'instructions' | 'source'>>): Promise<UserMeal | undefined>;
+  deleteUserMeal(id: number, userId: number): Promise<void>;
 
   // User saved foods
   getUserSavedFoods(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserSavedFood[]; nextCursor: string | null }>;
@@ -512,6 +518,52 @@ export class DatabaseStorage implements IStorage {
   async removeFavouriteMeal(id: number, userId: number): Promise<void> {
     await db.delete(favouriteMeals)
       .where(and(eq(favouriteMeals.id, id), eq(favouriteMeals.userId, userId)));
+  }
+
+  async getUserMeals(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserMeal[]; nextCursor: string | null }> {
+    const limit = opts?.limit ?? 10000;
+    const fetchLimit = limit + 1;
+    const conditions = [eq(userMeals.userId, userId)];
+    if (opts?.cursor) {
+      const [ts, idStr] = opts.cursor.split("|");
+      const cursorDate = new Date(ts);
+      const cursorId = parseInt(idStr);
+      conditions.push(
+        or(
+          lt(userMeals.createdAt, cursorDate),
+          and(eq(userMeals.createdAt, cursorDate), lt(userMeals.id, cursorId))
+        )!
+      );
+    }
+    const rows = await db.select().from(userMeals)
+      .where(and(...conditions))
+      .orderBy(desc(userMeals.createdAt), desc(userMeals.id))
+      .limit(fetchLimit);
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    const last = items[items.length - 1];
+    const nextCursor = hasMore && last
+      ? `${(last.createdAt as Date).toISOString()}|${last.id}`
+      : null;
+    return { items, nextCursor };
+  }
+
+  async createUserMeal(meal: InsertUserMeal & { userId: number }): Promise<UserMeal> {
+    const [created] = await db.insert(userMeals).values(meal).returning();
+    return created;
+  }
+
+  async updateUserMeal(id: number, userId: number, updates: Partial<Pick<UserMeal, 'name' | 'caloriesPerServing' | 'proteinPerServing' | 'carbsPerServing' | 'fatPerServing' | 'servings' | 'sourceUrl' | 'imageUrl' | 'mealSlot' | 'mealStyle' | 'ingredients' | 'ingredientsJson' | 'instructions' | 'source'>>): Promise<UserMeal | undefined> {
+    const [updated] = await db.update(userMeals)
+      .set(updates)
+      .where(and(eq(userMeals.id, id), eq(userMeals.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteUserMeal(id: number, userId: number): Promise<void> {
+    await db.delete(userMeals)
+      .where(and(eq(userMeals.id, id), eq(userMeals.userId, userId)));
   }
 
   async getUserSavedFoods(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserSavedFood[]; nextCursor: string | null }> {

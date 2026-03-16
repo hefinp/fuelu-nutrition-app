@@ -75,8 +75,9 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
   const saveMutation = useMutation({
     mutationFn: () => {
       const ingredientLines = selected.map(s => `${s.grams}g ${s.name}`).join("\n");
-      return apiRequest("POST", "/api/recipes", {
+      return apiRequest("POST", "/api/user-meals", {
         name: mealName.trim(),
+        source: "manual",
         sourceUrl: "custom://created",
         imageUrl: null,
         servings: 1,
@@ -92,7 +93,7 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
       }).then(r => r.json());
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] });
       toast({ title: `${mealName} saved to My Meals` });
       onSaved();
       onClose();

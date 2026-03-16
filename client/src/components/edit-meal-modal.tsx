@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { FavouriteMeal, UserRecipe, UserSavedFood } from "@shared/schema";
+import type { UserMeal, UserSavedFood } from "@shared/schema";
 import {
   X, Loader2, Check, Plus, Sparkles, Wheat, Search, Barcode,
   ChevronDown, ChevronUp, Wand2,
@@ -76,29 +76,23 @@ function AutoGrowTextarea({
 }
 
 export function EditMealModal({
-  type,
-  item,
+  meal,
   onClose,
   onSaved,
 }: {
-  type: "favourite" | "recipe";
-  item: FavouriteMeal | UserRecipe;
+  meal: UserMeal;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isFav = type === "favourite";
-  const fav = isFav ? (item as FavouriteMeal) : null;
-  const rec = !isFav ? (item as UserRecipe) : null;
 
-  const rawJson = isFav ? fav!.ingredientsJson : rec!.ingredientsJson;
-  const plainIngredients = isFav ? (fav!.ingredients ?? "") : (rec!.ingredients ?? "");
-  const parsedInitial = parseIngredientsJson(rawJson);
+  const plainIngredients = meal.ingredients ?? "";
+  const parsedInitial = parseIngredientsJson(meal.ingredientsJson);
 
-  const [name, setName] = useState(isFav ? fav!.mealName : rec!.name);
-  const [mealSlot, setMealSlot] = useState<MealSlot>((isFav ? fav!.mealSlot : rec!.mealSlot) as MealSlot ?? "dinner");
-  const [instructions, setInstructions] = useState(isFav ? fav!.instructions ?? "" : rec?.instructions ?? "");
+  const [name, setName] = useState(meal.name);
+  const [mealSlot, setMealSlot] = useState<MealSlot>((meal.mealSlot as MealSlot) ?? "dinner");
+  const [instructions, setInstructions] = useState(meal.instructions ?? "");
 
   const [selected, setSelected] = useState<Ingredient[]>(parsedInitial ?? []);
   const [hasStructured, setHasStructured] = useState(parsedInitial !== null);
@@ -106,13 +100,12 @@ export function EditMealModal({
   const [showPicker, setShowPicker] = useState(false);
   const [pickerTab, setPickerTab] = useState<PickerTab>("search");
 
-  const initInstructions = isFav ? fav!.instructions ?? "" : rec?.instructions ?? "";
-  const [showInstructions, setShowInstructions] = useState(!!initInstructions.trim());
+  const [showInstructions, setShowInstructions] = useState(!!instructions.trim());
 
-  const [manualCal, setManualCal] = useState(String(isFav ? fav!.calories : rec!.caloriesPerServing));
-  const [manualProt, setManualProt] = useState(String(isFav ? fav!.protein : rec!.proteinPerServing));
-  const [manualCarbs, setManualCarbs] = useState(String(isFav ? fav!.carbs : rec!.carbsPerServing));
-  const [manualFat, setManualFat] = useState(String(isFav ? fav!.fat : rec!.fatPerServing));
+  const [manualCal, setManualCal] = useState(String(meal.caloriesPerServing));
+  const [manualProt, setManualProt] = useState(String(meal.proteinPerServing));
+  const [manualCarbs, setManualCarbs] = useState(String(meal.carbsPerServing));
+  const [manualFat, setManualFat] = useState(String(meal.fatPerServing));
 
   const { data: myFoods = [] } = useQuery<{ items: UserSavedFood[] }, Error, UserSavedFood[]>({
     queryKey: ["/api/my-foods", "all"],
@@ -207,33 +200,20 @@ export function EditMealModal({
         ? selected.map(s => `${s.grams}g ${s.name}`).join("\n")
         : plainIngredients;
 
-      if (isFav) {
-        return apiRequest("PATCH", `/api/favourites/${fav!.id}`, {
-          mealName: name.trim(),
-          calories: cal,
-          protein: prot,
-          carbs,
-          fat,
-          mealSlot,
-          ingredients: ingredientsText || null,
-          ingredientsJson,
-          instructions: instructions.trim() || null,
-        }).then(r => r.json());
-      }
-      return apiRequest("PATCH", `/api/recipes/${rec!.id}`, {
+      return apiRequest("PATCH", `/api/user-meals/${meal.id}`, {
         name: name.trim(),
         caloriesPerServing: cal,
         proteinPerServing: prot,
         carbsPerServing: carbs,
         fatPerServing: fat,
         mealSlot,
-        instructions: instructions.trim() || null,
         ingredients: ingredientsText || null,
         ingredientsJson,
+        instructions: instructions.trim() || null,
       }).then(r => r.json());
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [isFav ? "/api/favourites" : "/api/recipes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] });
       toast({ title: "Updated" });
       onSaved();
       onClose();
@@ -252,7 +232,7 @@ export function EditMealModal({
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm pb-16 sm:pb-0" onClick={onClose} onWheel={stopScrollLeak} onTouchMove={stopScrollLeak}>
       <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-zinc-100 shrink-0">
-          <h3 className="text-base font-semibold text-zinc-900">Edit {isFav ? "Favourite" : "Meal"}</h3>
+          <h3 className="text-base font-semibold text-zinc-900">Edit Meal</h3>
           <button onClick={onClose} className="p-2 -mr-1 text-zinc-400 hover:text-zinc-700" data-testid="button-edit-meal-close"><X className="w-5 h-5" /></button>
         </div>
 
@@ -480,17 +460,15 @@ export function EditMealModal({
                 ) : (
                   <div className="bg-zinc-50 rounded-xl p-4 text-center space-y-2">
                     <p className="text-xs text-zinc-500">
-                      {isFav
-                        ? "No ingredients recorded \u2014 this meal was saved from your food log without ingredient details."
-                        : "No ingredients added yet."}
+                      No ingredients recorded.
                     </p>
                     <button
                       type="button"
                       onClick={() => { setHasStructured(true); setShowPicker(true); }}
-                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-dashed border-zinc-300 text-xs font-medium text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors min-h-[44px] sm:min-h-0"
-                      data-testid="button-edit-start-structured"
+                      className="text-xs text-violet-600 hover:text-violet-800 font-medium"
+                      data-testid="button-edit-add-ingredients"
                     >
-                      <Plus className="w-3.5 h-3.5" />Add ingredients
+                      Add ingredients
                     </button>
                   </div>
                 )}

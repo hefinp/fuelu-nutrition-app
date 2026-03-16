@@ -2,42 +2,23 @@ import {
   Utensils, Wheat, Trash2, Loader2, Pencil,
   ChevronDown, ChevronUp, Globe,
 } from "lucide-react";
-import type { FavouriteMeal, UserRecipe, UserSavedFood } from "@shared/schema";
+import type { UserMeal, UserSavedFood } from "@shared/schema";
 import { type MealSlot, SLOT_COLOURS, MacroBar, MacroChips } from "@/components/meals-food-shared";
 
-export type MealEntry =
-  | { kind: "favourite"; item: FavouriteMeal }
-  | { kind: "recipe"; item: UserRecipe };
-
-export function getMealKey(entry: MealEntry) {
-  return `${entry.kind}-${entry.item.id}`;
+export function getMealKey(meal: UserMeal) {
+  return `meal-${meal.id}`;
 }
 
-export function getMealName(entry: MealEntry) {
-  if (entry.kind === "favourite") return (entry.item as FavouriteMeal).mealName;
-  return (entry.item as UserRecipe).name;
+export function getMealSlot(meal: UserMeal): MealSlot | null {
+  return meal.mealSlot as MealSlot | null;
 }
 
-export function getMealSlot(entry: MealEntry): MealSlot | null {
-  if (entry.kind === "favourite") return (entry.item as FavouriteMeal).mealSlot as MealSlot | null;
-  return (entry.item as UserRecipe).mealSlot as MealSlot;
-}
-
-export function getMealMacros(entry: MealEntry) {
-  if (entry.kind === "favourite") {
-    const f = entry.item as FavouriteMeal;
-    return { cal: f.calories, prot: f.protein, carbs: f.carbs, fat: f.fat };
-  }
-  const r = entry.item as UserRecipe;
-  return { cal: r.caloriesPerServing, prot: r.proteinPerServing, carbs: r.carbsPerServing, fat: r.fatPerServing };
-}
-
-export function isCustomMeal(entry: MealEntry) {
-  return entry.kind === "recipe" && (entry.item as UserRecipe).sourceUrl === "custom://created";
+export function isImportedMeal(meal: UserMeal) {
+  return meal.source === "imported" && meal.sourceUrl && meal.sourceUrl !== "custom://created" && meal.sourceUrl !== "photo://recipe-book";
 }
 
 interface MealCardProps {
-  entry: MealEntry;
+  meal: UserMeal;
   isOpen: boolean;
   onToggle: () => void;
   onLog: () => void;
@@ -46,37 +27,34 @@ interface MealCardProps {
   isLogging?: boolean;
 }
 
-export function MealCard({ entry, isOpen, onToggle, onLog, onEdit, onDelete, isLogging }: MealCardProps) {
-  const macros = getMealMacros(entry);
-  const slot = getMealSlot(entry);
-  const name = getMealName(entry);
-  const custom = isCustomMeal(entry);
-  const recipe = entry.kind === "recipe" ? (entry.item as UserRecipe) : null;
-  const favItem = entry.kind === "favourite" ? (entry.item as FavouriteMeal) : null;
+export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, isLogging }: MealCardProps) {
+  const slot = getMealSlot(meal);
+  const isCustom = meal.source === "manual";
+  const hasSourceLink = isImportedMeal(meal);
 
   return (
     <div className="group relative rounded-xl border border-zinc-100 overflow-hidden">
       <button
         onClick={onToggle}
         className="w-full flex items-center gap-3 p-3 hover:bg-zinc-50 transition-colors text-left"
-        data-testid={`button-meal-${entry.kind}-${entry.item.id}`}
+        data-testid={`button-meal-${meal.id}`}
       >
         <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0">
           <Utensils className="w-3.5 h-3.5 text-emerald-600" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="text-sm font-medium text-zinc-900 truncate">{name}</p>
+            <p className="text-sm font-medium text-zinc-900 truncate">{meal.name}</p>
             {slot && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${SLOT_COLOURS[slot]}`}>{slot}</span>}
-            {custom && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-zinc-100 text-zinc-500">custom</span>}
+            {isCustom && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-zinc-100 text-zinc-500">custom</span>}
           </div>
-          <p className="text-xs text-zinc-400 mt-0.5">{macros.cal} kcal · P:{macros.prot}g · C:{macros.carbs}g · F:{macros.fat}g</p>
+          <p className="text-xs text-zinc-400 mt-0.5">{meal.caloriesPerServing} kcal · P:{meal.proteinPerServing}g · C:{meal.carbsPerServing}g · F:{meal.fatPerServing}g</p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={e => { e.stopPropagation(); onEdit(); }}
             className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
-            data-testid={`button-edit-meal-${entry.kind}-${entry.item.id}`}
+            data-testid={`button-edit-meal-${meal.id}`}
             title="Edit"
           >
             <Pencil className="w-3 h-3" />
@@ -84,7 +62,7 @@ export function MealCard({ entry, isOpen, onToggle, onLog, onEdit, onDelete, isL
           <button
             onClick={e => { e.stopPropagation(); onDelete(); }}
             className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            data-testid={`button-delete-meal-${entry.kind}-${entry.item.id}`}
+            data-testid={`button-delete-meal-${meal.id}`}
             title="Remove"
           >
             <Trash2 className="w-3 h-3" />
@@ -97,14 +75,14 @@ export function MealCard({ entry, isOpen, onToggle, onLog, onEdit, onDelete, isL
 
       {isOpen && (
         <div className="px-4 pb-4 bg-zinc-50 border-t border-zinc-100">
-          <MacroChips cal={macros.cal} p={macros.prot} c={macros.carbs} f={macros.fat} />
-          <MacroBar p={macros.prot} c={macros.carbs} f={macros.fat} />
+          <MacroChips cal={meal.caloriesPerServing} p={meal.proteinPerServing} c={meal.carbsPerServing} f={meal.fatPerServing} />
+          <MacroBar p={meal.proteinPerServing} c={meal.carbsPerServing} f={meal.fatPerServing} />
 
-          {(recipe?.ingredients || favItem?.ingredients) && (
+          {meal.ingredients && (
             <div className="mt-3">
               <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Ingredients</p>
               <ul className="text-xs text-zinc-600 space-y-0.5 max-h-28 overflow-y-auto">
-                {(recipe?.ingredients || favItem?.ingredients || "").split("\n").filter(Boolean).map((ing, i) => (
+                {meal.ingredients.split("\n").filter(Boolean).map((ing, i) => (
                   <li key={i} className="flex items-start gap-1.5">
                     <span className="mt-1.5 w-1 h-1 rounded-full bg-zinc-300 shrink-0" />{ing}
                   </li>
@@ -113,16 +91,16 @@ export function MealCard({ entry, isOpen, onToggle, onLog, onEdit, onDelete, isL
             </div>
           )}
 
-          {(recipe?.instructions || favItem?.instructions) && (
+          {meal.instructions && (
             <div className="mt-3">
               <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Instructions</p>
-              <p className="text-xs text-zinc-600 leading-relaxed line-clamp-4">{recipe?.instructions || favItem?.instructions}</p>
+              <p className="text-xs text-zinc-600 leading-relaxed line-clamp-4">{meal.instructions}</p>
             </div>
           )}
 
-          {recipe && !custom && recipe.sourceUrl && recipe.sourceUrl !== "photo://recipe-book" && (
+          {hasSourceLink && (
             <a
-              href={recipe.sourceUrl}
+              href={meal.sourceUrl!}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 mt-2"
@@ -135,7 +113,7 @@ export function MealCard({ entry, isOpen, onToggle, onLog, onEdit, onDelete, isL
             onClick={onLog}
             disabled={isLogging}
             className="w-full mt-3 py-2.5 bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-            data-testid={`button-log-meal-${entry.kind}-${entry.item.id}`}
+            data-testid={`button-log-meal-${meal.id}`}
           >
             {isLogging ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Utensils className="w-3.5 h-3.5" />Log today</>}
           </button>

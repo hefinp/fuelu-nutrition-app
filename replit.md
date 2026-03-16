@@ -33,7 +33,7 @@ Core components include:
     -   `food-picker-tabs.tsx`: Shared `useFoodPicker` hook and reusable UI panels (SearchPanel, ScannerView, ScannedFoodPanel, AiPanel, MacroGrid) used by both AddFoodModal and CreateMealModal.
     -   `add-food-modal.tsx`: Add custom food modal with barcode scan, AI estimate, and manual entry.
     -   `create-meal-modal.tsx`: Create meal modal with food picker (search, barcode, AI, My Foods tabs).
-    -   `meal-food-cards.tsx`: Shared MealCard and FoodCard components with helper functions (getMealKey, getMealName, getMealSlot, getMealMacros, isCustomMeal). Used by both the dashboard widget and the full-page library.
+    -   `meal-food-cards.tsx`: Shared MealCard and FoodCard components using unified `UserMeal` type, with helper functions (getMealKey, getMealSlot, isImportedMeal). Used by both the dashboard widget and the full-page library.
     -   `my-meals-food-widget.tsx`: Slim dashboard widget (~415 lines) importing shared cards and all modals.
 -   **MyLibraryPage** (`/my-library`): Full-page view of meals and foods with responsive grid (2-col on desktop), search filtering, slot filters, pagination, and all CRUD actions. Linked from the widget via "View all".
 -   **DiaryPage** (`/diary`): Full food diary with daily/weekly views, date navigation, entry management (confirm/star/delete), weekly AI insights, and the FoodLogDrawer for logging.
@@ -55,8 +55,9 @@ The backend runs on **Node.js** with **TypeScript** using **Express 5**. It inte
 -   `server/routes/insights.ts` — All AI insight endpoints: cycle insights, phase-evidence, AI insights, research-pulse, weight insights, food-log weekly insights.
 -   `server/routes/hydration.ts` — Hydration CRUD.
 -   `server/routes/food-log.ts` — Food log CRUD, food search, barcode lookup, label scan, AI food recognition, daily nudge, custom foods, disliked meals.
--   `server/routes/recipes.ts` — User recipes CRUD, URL import, photo import.
--   `server/routes/favourites.ts` — Favourite meals CRUD.
+-   `server/routes/user-meals.ts` — Unified user meals CRUD (replaces old favourites + recipes endpoints for user-facing meal management).
+-   `server/routes/recipes.ts` — Recipe import (URL/photo parse) and community recipe sharing.
+-   `server/routes/favourites.ts` — Legacy favourites endpoint (retained for backward compatibility).
 -   `server/routes/community.ts` — Community meals CRUD + startup gap-fill.
 -   `server/routes/admin.ts` — Admin invite codes, beta feedback, community meal balance.
 
@@ -78,6 +79,7 @@ Key tables include:
 -   `saved_meal_plans`: Stores user-saved meal plans.
 -   `weight_entries`: Logs user weight over time.
 -   `food_log_entries`: Records daily food intake.
+-   `user_meals`: Unified meal storage replacing separate `favourite_meals` and `user_recipes` tables. Each meal has a `source` field ('logged'|'imported'|'community'|'manual') indicating origin.
 -   `password_reset_tokens`: Manages password reset requests.
 -   `session`: Stores `express-session` data.
 -   `cycle_symptoms`: Logs menstrual cycle symptoms.

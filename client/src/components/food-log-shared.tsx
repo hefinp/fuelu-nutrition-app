@@ -1,7 +1,7 @@
 import {
   Coffee, Salad, Moon, Apple, X, ExternalLink,
 } from "lucide-react";
-import type { SavedMealPlan, UserRecipe } from "@shared/schema";
+import type { SavedMealPlan, UserMeal } from "@shared/schema";
 
 export interface RecipeDetail {
   instructions: string;
@@ -255,7 +255,7 @@ export function LoggedMealModal({
   onClose,
 }: {
   entry: FoodLogEntry;
-  userRecipes: UserRecipe[];
+  userRecipes: UserMeal[];
   recipes?: Record<string, RecipeDetail>;
   onClose: () => void;
 }) {

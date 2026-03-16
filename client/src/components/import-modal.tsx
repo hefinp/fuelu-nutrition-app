@@ -62,8 +62,9 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
   });
 
   const saveMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/recipes", {
+    mutationFn: () => apiRequest("POST", "/api/user-meals", {
       name: parsed!.name,
+      source: "imported",
       sourceUrl: parsed!.sourceUrl,
       imageUrl: parsed!.imageUrl,
       servings: parsed!.servings,
