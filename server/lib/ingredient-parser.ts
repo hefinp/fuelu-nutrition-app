@@ -42,9 +42,99 @@ const BARE_COUNT_PATTERN = /^(\d+(?:[./]\d+)?)\s+(.+)$/i;
 
 export interface ParsedLine {
   name: string;
+  cleanedName: string;
+  quantity: number;
+  unit: string;
   grams: number;
   needsAiConversion: boolean;
   originalLine: string;
+}
+
+const UNIT_TO_GRAMS: Record<string, number> = {
+  tbsp: 15,
+  tablespoon: 15,
+  tablespoons: 15,
+  tsp: 5,
+  teaspoon: 5,
+  teaspoons: 5,
+  cup: 240,
+  cups: 240,
+  oz: 28,
+  ounce: 28,
+  ounces: 28,
+  ml: 1,
+  milliliter: 1,
+  milliliters: 1,
+  millilitre: 1,
+  millilitres: 1,
+  l: 1000,
+  liter: 1000,
+  liters: 1000,
+  litre: 1000,
+  litres: 1000,
+  lb: 454,
+  lbs: 454,
+  pound: 454,
+  pounds: 454,
+  kg: 1000,
+  kilogram: 1000,
+  kilograms: 1000,
+  pinch: 1,
+  pinches: 1,
+  dash: 1,
+  dashes: 1,
+  handful: 30,
+  handfuls: 30,
+  sprig: 2,
+  sprigs: 2,
+};
+
+const COUNT_ITEM_GRAMS: Record<string, number> = {
+  piece: 100,
+  pieces: 100,
+  pc: 100,
+  pcs: 100,
+  slice: 30,
+  slices: 30,
+  clove: 5,
+  cloves: 5,
+  stalk: 60,
+  stalks: 60,
+  stick: 10,
+  sticks: 10,
+  head: 500,
+  heads: 500,
+  bunch: 150,
+  bunches: 150,
+  can: 400,
+  cans: 400,
+  bottle: 500,
+  bottles: 500,
+};
+
+function parseSingleQuantity(q: string): number {
+  if (q.includes("/")) {
+    const parts = q.split("/");
+    return parseFloat(parts[0]) / parseFloat(parts[1]);
+  }
+  return parseFloat(q);
+}
+
+function parseQuantity(q: string): number {
+  if (q.includes("-")) {
+    const parts = q.split("-").map(p => parseSingleQuantity(p.trim()));
+    return (parts[0] + parts[1]) / 2;
+  }
+  return parseSingleQuantity(q);
+}
+
+function fallbackConvertToGrams(quantity: number, unit: string): number | null {
+  const lower = unit.toLowerCase().replace(/s$/, "");
+  const gramsPerUnit = UNIT_TO_GRAMS[lower] ?? UNIT_TO_GRAMS[unit.toLowerCase()];
+  if (gramsPerUnit != null) return Math.round(quantity * gramsPerUnit);
+  const countGrams = COUNT_ITEM_GRAMS[lower] ?? COUNT_ITEM_GRAMS[unit.toLowerCase()];
+  if (countGrams != null) return Math.round(quantity * countGrams);
+  return null;
 }
 
 export function parseIngredientLine(line: string): ParsedLine {
@@ -52,26 +142,35 @@ export function parseIngredientLine(line: string): ParsedLine {
 
   const gramsMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*g(?:rams?)?\s+(.+)$/i);
   if (gramsMatch) {
-    return { grams: parseFloat(gramsMatch[1]), name: gramsMatch[2].trim(), needsAiConversion: false, originalLine: trimmed };
+    const cleanedName = gramsMatch[2].trim();
+    return { grams: parseFloat(gramsMatch[1]), name: cleanedName, cleanedName, quantity: parseFloat(gramsMatch[1]), unit: "g", needsAiConversion: false, originalLine: trimmed };
   }
   const revMatch = trimmed.match(/^(.+?)[,\s]+(\d+(?:\.\d+)?)\s*g(?:rams?)?$/i);
   if (revMatch) {
-    return { grams: parseFloat(revMatch[2]), name: revMatch[1].trim(), needsAiConversion: false, originalLine: trimmed };
+    const cleanedName = revMatch[1].trim();
+    return { grams: parseFloat(revMatch[2]), name: cleanedName, cleanedName, quantity: parseFloat(revMatch[2]), unit: "g", needsAiConversion: false, originalLine: trimmed };
   }
 
-  if (NON_GRAM_UNIT_PATTERN.test(trimmed)) {
-    return { name: trimmed, grams: 100, needsAiConversion: true, originalLine: trimmed };
+  const unitMatch = trimmed.match(NON_GRAM_UNIT_PATTERN);
+  if (unitMatch) {
+    const quantity = parseQuantity(unitMatch[1]);
+    const unit = unitMatch[2];
+    const cleanedName = unitMatch[3].trim();
+    return { name: trimmed, cleanedName, quantity, unit, grams: 100, needsAiConversion: true, originalLine: trimmed };
   }
 
-  if (BARE_COUNT_PATTERN.test(trimmed)) {
-    return { name: trimmed, grams: 100, needsAiConversion: true, originalLine: trimmed };
+  const bareMatch = trimmed.match(BARE_COUNT_PATTERN);
+  if (bareMatch) {
+    const quantity = parseQuantity(bareMatch[1]);
+    const cleanedName = bareMatch[2].trim();
+    return { name: trimmed, cleanedName, quantity, unit: "", grams: 100, needsAiConversion: true, originalLine: trimmed };
   }
 
   if (!/\d/.test(trimmed)) {
-    return { name: trimmed, grams: 100, needsAiConversion: true, originalLine: trimmed };
+    return { name: trimmed, cleanedName: trimmed, quantity: 1, unit: "", grams: 100, needsAiConversion: true, originalLine: trimmed };
   }
 
-  return { name: trimmed, grams: 100, needsAiConversion: false, originalLine: trimmed };
+  return { name: trimmed, cleanedName: trimmed, quantity: 0, unit: "", grams: 100, needsAiConversion: false, originalLine: trimmed };
 }
 
 const aiGramsSchema = z.object({
@@ -115,7 +214,8 @@ Respond ONLY with JSON.`,
       name: validated.name,
       grams: Math.max(1, Math.round(validated.grams)),
     };
-  } catch {
+  } catch (err) {
+    console.error("[aiConvertToGrams] Failed to convert:", description, err);
     return null;
   }
 }
@@ -208,18 +308,36 @@ export async function parseIngredients(ingredientText: string, userId?: number):
 
   for (const line of lines) {
     const parsed = parseIngredientLine(line);
-    let { name, grams } = parsed;
+    let { grams } = parsed;
+    let name = parsed.cleanedName;
 
-    if (parsed.needsAiConversion && process.env.OPENAI_API_KEY) {
-      const cacheKey = parsed.originalLine.toLowerCase();
-      let converted: { name: string; grams: number } | null | undefined = gramsCache.get(cacheKey);
-      if (converted === undefined) {
-        converted = await aiConvertToGrams(parsed.originalLine);
-        gramsCache.set(cacheKey, converted);
+    if (parsed.needsAiConversion) {
+      let aiSucceeded = false;
+      if (process.env.OPENAI_API_KEY) {
+        const cacheKey = parsed.originalLine.toLowerCase();
+        let converted: { name: string; grams: number } | null | undefined = gramsCache.get(cacheKey);
+        if (converted === undefined) {
+          converted = await aiConvertToGrams(parsed.originalLine);
+          gramsCache.set(cacheKey, converted);
+        }
+        if (converted) {
+          name = converted.name;
+          grams = converted.grams;
+          aiSucceeded = true;
+        }
       }
-      if (converted) {
-        name = converted.name;
-        grams = converted.grams;
+
+      if (!aiSucceeded && parsed.unit) {
+        const fallbackGrams = fallbackConvertToGrams(parsed.quantity, parsed.unit);
+        if (fallbackGrams != null) {
+          grams = fallbackGrams;
+          console.log(`[ingredient-parser] Fallback conversion: ${parsed.originalLine} → ${grams}g of "${name}"`);
+        } else {
+          console.warn(`[ingredient-parser] No conversion available for unit "${parsed.unit}" in: ${parsed.originalLine}`);
+        }
+      } else if (!aiSucceeded && !parsed.unit && parsed.quantity > 0) {
+        grams = Math.round(parsed.quantity * 100);
+        console.log(`[ingredient-parser] Bare count fallback: ${parsed.originalLine} → ${grams}g of "${name}"`);
       }
     }
 
