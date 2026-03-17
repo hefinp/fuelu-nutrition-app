@@ -192,14 +192,15 @@ router.post("/api/stripe/confirm-subscription", async (req, res) => {
     }
 
     const tier = session.metadata?.tier || "simple";
-    const subscription = session.subscription as Stripe.Subscription | null;
+    const subscription = (typeof session.subscription === "object" && session.subscription !== null)
+      ? session.subscription as Stripe.Subscription
+      : null;
+    const periodEnd = subscription ? (subscription as any).current_period_end : null;
 
     await storage.updateUserTier(userId, {
       tier,
       stripeSubscriptionId: subscription?.id ?? null,
-      tierExpiresAt: subscription
-        ? new Date((subscription as unknown as { current_period_end: number }).current_period_end * 1000)
-        : null,
+      tierExpiresAt: periodEnd ? new Date(periodEnd * 1000) : null,
       paymentFailedAt: null,
       pendingTier: null,
     });
