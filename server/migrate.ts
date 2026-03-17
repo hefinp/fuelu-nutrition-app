@@ -321,6 +321,78 @@ export async function runMigrations(): Promise<void> {
     await client.query(`CREATE INDEX IF NOT EXISTS meal_ingredients_user_meal_idx ON meal_ingredients (user_meal_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS meal_ingredients_canonical_food_idx ON meal_ingredients (canonical_food_id)`);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS community_meal_ingredients (
+        id SERIAL PRIMARY KEY,
+        community_meal_id INTEGER NOT NULL REFERENCES community_meals(id) ON DELETE CASCADE,
+        canonical_food_id INTEGER REFERENCES canonical_foods(id),
+        name TEXT NOT NULL,
+        grams REAL NOT NULL,
+        calories_100g REAL NOT NULL,
+        protein_100g REAL NOT NULL,
+        carbs_100g REAL NOT NULL,
+        fat_100g REAL NOT NULL,
+        order_index INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS community_meal_ingredients_meal_idx ON community_meal_ingredients (community_meal_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS community_meal_ingredients_canonical_food_idx ON community_meal_ingredients (canonical_food_id)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS recipe_ingredients (
+        id SERIAL PRIMARY KEY,
+        user_recipe_id INTEGER NOT NULL REFERENCES user_recipes(id) ON DELETE CASCADE,
+        canonical_food_id INTEGER REFERENCES canonical_foods(id),
+        name TEXT NOT NULL,
+        grams REAL NOT NULL,
+        calories_100g REAL NOT NULL,
+        protein_100g REAL NOT NULL,
+        carbs_100g REAL NOT NULL,
+        fat_100g REAL NOT NULL,
+        order_index INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS recipe_ingredients_recipe_idx ON recipe_ingredients (user_recipe_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS recipe_ingredients_canonical_food_idx ON recipe_ingredients (canonical_food_id)`);
+
+    // Backfill community_meal_ingredients from existing community_meals with ingredientsJson
+    const cmRows = await client.query(`SELECT id, ingredients_json FROM community_meals WHERE ingredients_json IS NOT NULL`);
+    for (const row of cmRows.rows) {
+      const existing = await client.query(`SELECT 1 FROM community_meal_ingredients WHERE community_meal_id = $1 LIMIT 1`, [row.id]);
+      if (existing.rowCount && existing.rowCount > 0) continue;
+      const ingredients = row.ingredients_json;
+      if (!Array.isArray(ingredients)) continue;
+      for (let i = 0; i < ingredients.length; i++) {
+        const ing = ingredients[i];
+        if (!ing || !ing.name || !ing.calories100g) continue;
+        await client.query(
+          `INSERT INTO community_meal_ingredients (community_meal_id, name, grams, calories_100g, protein_100g, carbs_100g, fat_100g, order_index) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [row.id, ing.name, ing.grams || 100, ing.calories100g, ing.protein100g || 0, ing.carbs100g || 0, ing.fat100g || 0, i]
+        );
+      }
+    }
+
+    // Backfill recipe_ingredients from existing user_recipes with ingredientsJson
+    const recipeRows = await client.query(`SELECT id, ingredients_json FROM user_recipes WHERE ingredients_json IS NOT NULL`);
+    for (const row of recipeRows.rows) {
+      const existing = await client.query(`SELECT 1 FROM recipe_ingredients WHERE user_recipe_id = $1 LIMIT 1`, [row.id]);
+      if (existing.rowCount && existing.rowCount > 0) continue;
+      const ingredients = row.ingredients_json;
+      if (!Array.isArray(ingredients)) continue;
+      for (let i = 0; i < ingredients.length; i++) {
+        const ing = ingredients[i];
+        if (!ing || !ing.name || !ing.calories100g) continue;
+        await client.query(
+          `INSERT INTO recipe_ingredients (user_recipe_id, name, grams, calories_100g, protein_100g, carbs_100g, fat_100g, order_index) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [row.id, ing.name, ing.grams || 100, ing.calories100g, ing.protein100g || 0, ing.carbs100g || 0, ing.fat100g || 0, i]
+        );
+      }
+    }
+
     await client.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_foods_name_trgm ON canonical_foods USING gin (canonical_name gin_trgm_ops)`);
 

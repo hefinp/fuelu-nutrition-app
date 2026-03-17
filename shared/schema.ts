@@ -602,3 +602,47 @@ export const creditPacks = pgTable("credit_packs", {
 });
 
 export type CreditPack = typeof creditPacks.$inferSelect;
+
+export const communityMealIngredients = pgTable("community_meal_ingredients", {
+  id: serial("id").primaryKey(),
+  communityMealId: integer("community_meal_id").notNull().references(() => communityMeals.id, { onDelete: "cascade" }),
+  canonicalFoodId: integer("canonical_food_id").references(() => canonicalFoods.id),
+  name: text("name").notNull(),
+  grams: real("grams").notNull(),
+  calories100g: real("calories_100g").notNull(),
+  protein100g: real("protein_100g").notNull(),
+  carbs100g: real("carbs_100g").notNull(),
+  fat100g: real("fat_100g").notNull(),
+  orderIndex: integer("order_index").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCommunityMealIngredientSchema = createInsertSchema(communityMealIngredients).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCommunityMealIngredient = z.infer<typeof insertCommunityMealIngredientSchema>;
+export type CommunityMealIngredient = typeof communityMealIngredients.$inferSelect;
+
+export const recipeIngredients = pgTable("recipe_ingredients", {
+  id: serial("id").primaryKey(),
+  userRecipeId: integer("user_recipe_id").notNull().references(() => userRecipes.id, { onDelete: "cascade" }),
+  canonicalFoodId: integer("canonical_food_id").references(() => canonicalFoods.id),
+  name: text("name").notNull(),
+  grams: real("grams").notNull(),
+  calories100g: real("calories_100g").notNull(),
+  protein100g: real("protein_100g").notNull(),
+  carbs100g: real("carbs_100g").notNull(),
+  fat100g: real("fat_100g").notNull(),
+  orderIndex: integer("order_index").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertRecipeIngredientSchema = createInsertSchema(recipeIngredients).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertRecipeIngredient = z.infer<typeof insertRecipeIngredientSchema>;
+export type RecipeIngredient = typeof recipeIngredients.$inferSelect;

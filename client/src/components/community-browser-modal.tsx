@@ -70,6 +70,7 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
   const [savedMealIds, setSavedMealIds] = useState<Set<number>>(new Set());
   const [savingId, setSavingId] = useState<number | null>(null);
   const [mealDetails, setMealDetails] = useState<Record<number, CommunityMeal | "loading" | "error">>({});
+  const [junctionIngredients, setJunctionIngredients] = useState<Record<number, Array<{ name: string; canonicalFood: { id: number } | null }>>>({});
   const [allergyWarning, setAllergyWarning] = useState<{ meal: CommunityMeal; conflicts: string[] } | null>(null);
   const [dupWarning, setDupWarning] = useState<{ mealId: number; message: string; exactMatch: boolean; existingCount: number } | null>(null);
 
@@ -107,10 +108,17 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
     if (mealDetails[id]) return;
     setMealDetails(prev => ({ ...prev, [id]: "loading" }));
     try {
-      const res = await fetch(`/api/community-meals/${id}/details`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed");
-      const detail: CommunityMeal = await res.json();
+      const [detailRes, junctionRes] = await Promise.all([
+        fetch(`/api/community-meals/${id}/details`, { credentials: "include" }),
+        fetch(`/api/community-meals/${id}/ingredients`, { credentials: "include" }),
+      ]);
+      if (!detailRes.ok) throw new Error("Failed");
+      const detail: CommunityMeal = await detailRes.json();
       setMealDetails(prev => ({ ...prev, [id]: detail }));
+      if (junctionRes.ok) {
+        const jRows = await junctionRes.json();
+        setJunctionIngredients(prev => ({ ...prev, [id]: jRows }));
+      }
     } catch {
       setMealDetails(prev => ({ ...prev, [id]: "error" }));
     }
@@ -387,13 +395,20 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                               <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Ingredients</p>
                               {Array.isArray(detailData!.ingredientsJson) && detailData!.ingredientsJson.length > 0 ? (
                                 <ul className="space-y-1" data-testid={`list-community-ingredients-${meal.id}`}>
-                                  {(detailData!.ingredientsJson as Array<{ name: string; grams: number; calories100g: number }>).map((ing, i) => (
-                                    <li key={i} className="flex items-start gap-1.5 text-xs text-zinc-700" data-testid={`community-ingredient-${meal.id}-${i}`}>
-                                      <span className="mt-0.5 w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
-                                      <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
-                                      <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
-                                    </li>
-                                  ))}
+                                  {(detailData!.ingredientsJson as Array<{ name: string; grams: number; calories100g: number }>).map((ing, i) => {
+                                    const jRows = junctionIngredients[meal.id];
+                                    const hasCanonical = jRows?.some(j => j.name === ing.name && j.canonicalFood);
+                                    return (
+                                      <li key={i} className="flex items-start gap-1.5 text-xs text-zinc-700" data-testid={`community-ingredient-${meal.id}-${i}`}>
+                                        <span className="mt-0.5 w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
+                                        <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
+                                        {hasCanonical && (
+                                          <span className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0" data-testid={`badge-fuelu-db-${meal.id}-${i}`}>FuelU DB</span>
+                                        )}
+                                        <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
+                                      </li>
+                                    );
+                                  })}
                                 </ul>
                               ) : detailData!.ingredients && detailData!.ingredients.length > 0 ? (
                                 <ul className="space-y-1">

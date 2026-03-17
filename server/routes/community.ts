@@ -43,6 +43,12 @@ router.post("/api/community-meals", async (req, res) => {
       source: "user",
       ingredientsJson: ingredientsJson ?? null,
     });
+
+    if (meal.ingredientsJson && Array.isArray(meal.ingredientsJson) && (meal.ingredientsJson as any[]).length > 0) {
+      storage.syncCommunityMealIngredientsFromJson(meal.id, meal.ingredientsJson as any[])
+        .catch(err => console.error("[community-meals] Failed to sync junction on create:", err));
+    }
+
     res.status(201).json(meal);
   } catch (err) {
     res.status(500).json({ message: "Failed to share meal" });
@@ -66,6 +72,17 @@ router.get("/api/community-meals/my", async (req, res) => {
     res.json(meals);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch shared meals" });
+  }
+});
+
+router.get("/api/community-meals/:id/ingredients", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const id = Number(req.params.id);
+    const rows = await storage.getCommunityMealIngredients(id);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch community meal ingredients" });
   }
 });
 
@@ -119,6 +136,11 @@ Macros: ${meal.caloriesPerServing} kcal, ${meal.proteinPerServing}g protein, ${m
           console.error("[community-meals] Failed to parse ingredients:", e);
         }
         meal = await storage.updateCommunityMealIngredients(meal.id, ingredients, instructions, parsedJson);
+
+        if (parsedJson && parsedJson.length > 0) {
+          storage.syncCommunityMealIngredientsFromJson(meal.id, parsedJson as any[])
+            .catch(err => console.error("[community-meals] Failed to sync junction on detail update:", err));
+        }
       }
     }
 
