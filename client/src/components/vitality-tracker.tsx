@@ -202,10 +202,10 @@ export function VitalityTracker() {
           <p className="text-xs text-zinc-500 mb-3 max-w-xs mx-auto">
             Track energy, focus, and motivation daily. Get AI-powered insights on how your diet affects your vitality, backed by research.
           </p>
-          <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-xs font-medium">
+          <Link href="/pricing" className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-xs font-medium hover:bg-amber-200 transition-colors cursor-pointer" data-testid="link-vitality-upgrade">
             <Shield className="w-3 h-3" />
             Upgrade to unlock
-          </span>
+          </Link>
         </div>
       </div>
     );

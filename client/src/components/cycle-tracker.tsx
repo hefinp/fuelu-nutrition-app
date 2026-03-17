@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Circle, CalendarDays, Info, Lightbulb, Loader2, ChevronDown, ChevronUp,
   Sparkles, Heart, CheckCircle2, ExternalLink, Plus, X, Droplet, TrendingUp,
+  Lock, Shield,
 } from "lucide-react";
 import { Link } from "wouter";
 import type { UserPreferences, CycleSymptom, CyclePeriodLog } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
 import {
   getCyclePhase, getCyclePredictions, getUpcomingPhases,
   PHASE_NUTRITION_CALLOUTS, formatShortDate, type CyclePhase,
@@ -106,6 +108,39 @@ function hasAnySymptom(s: CycleSymptom): boolean {
 
 export function CycleTracker() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isPremium = !!(user?.betaUser || (user?.tier && user.tier !== "free"));
+
+  if (!isPremium) {
+    return (
+      <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
+        <div className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4 border-b border-zinc-50">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
+              <Heart className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900">Cycle Tracker</h3>
+              <p className="text-xs text-zinc-400">Cycle-aware nutrition insights</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 sm:p-6 text-center">
+          <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-3">
+            <Lock className="w-5 h-5 text-rose-500" />
+          </div>
+          <h4 className="text-sm font-semibold text-zinc-800 mb-1" data-testid="cycle-premium-gate">Premium Feature</h4>
+          <p className="text-xs text-zinc-500 mb-3 max-w-xs mx-auto">
+            Adapt your meal plans and macros to each phase of your cycle. Get phase-specific food recommendations and research-backed insights.
+          </p>
+          <Link href="/pricing" className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-100 text-rose-700 rounded-lg text-xs font-medium hover:bg-rose-200 transition-colors cursor-pointer" data-testid="link-cycle-upgrade">
+            <Shield className="w-3 h-3" />
+            Upgrade to unlock
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const today = todayStr();
   const sevenDaysAgo = nDaysAgoStr(6);
