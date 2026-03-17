@@ -9,8 +9,9 @@ import { Link, useLocation } from "wouter";
 import {
   Loader2, Plus, Trash2, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, Check, Star,
-  Sparkles, X, ArrowLeft,
+  Sparkles, X, ArrowLeft, Lock, Shield,
 } from "lucide-react";
+import { useTierStatus } from "@/hooks/use-tier";
 import type { UserMeal, Calculation } from "@shared/schema";
 import { RECIPES } from "@/components/results-display";
 import {
@@ -79,6 +80,8 @@ function DiaryContent({
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: tierStatus } = useTierStatus();
+  const isAdvanced = !tierStatus || tierStatus.betaUser || tierStatus.tier === "advanced";
   const today = todayStr();
 
   const [view, setView] = useState<"daily" | "weekly">("daily");
@@ -677,6 +680,30 @@ function DiaryContent({
             </>
           )}
         </div>
+
+        {!isAdvanced && (
+          <div
+            className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-6 mt-4 text-center"
+            data-testid="card-export-data-locked"
+          >
+            <div className="w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-6 h-6 text-amber-500" />
+            </div>
+            <h3 className="text-sm font-semibold text-zinc-800 mb-1">Export your nutrition data</h3>
+            <p className="text-sm text-zinc-500 max-w-xs mx-auto mb-4">
+              Download a full CSV or PDF of your food diary, macros, and weight history.
+            </p>
+            <Link href="/pricing">
+              <button
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-medium hover:bg-zinc-800 transition-colors"
+                data-testid="button-export-data-upgrade"
+              >
+                <Shield className="w-4 h-4" />
+                Upgrade to Advanced
+              </button>
+            </Link>
+          </div>
+        )}
       </main>
 
       <FoodLogDrawer
