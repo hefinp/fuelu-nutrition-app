@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -43,7 +43,7 @@ export interface IStorage {
   getPasswordResetToken(token: string): Promise<{ id: number; userId: number; expiresAt: Date; usedAt: Date | null } | undefined>;
   markPasswordResetTokenUsed(id: number): Promise<void>;
 
-  // Custom foods
+  // Custom foods (legacy — kept for backward compat)
   getCustomFoodByBarcode(barcode: string): Promise<CustomFood | undefined>;
   searchCustomFoodsByName(query: string): Promise<CustomFood[]>;
   customFoodExistsByName(name: string): Promise<boolean>;
@@ -51,6 +51,32 @@ export interface IStorage {
   getCustomFoods(): Promise<CustomFood[]>;
   deleteCustomFood(id: number, userId: number): Promise<void>;
   updateCustomFoodBarcode(id: number, barcode: string): Promise<void>;
+
+  // Canonical foods (shared food database)
+  searchCanonicalFoods(query: string, limit?: number): Promise<CanonicalFood[]>;
+  getCanonicalFoodByBarcode(barcode: string): Promise<CanonicalFood | undefined>;
+  getCanonicalFoodByFdcId(fdcId: string): Promise<CanonicalFood | undefined>;
+  canonicalFoodExistsByName(name: string): Promise<CanonicalFood | undefined>;
+  upsertCanonicalFood(food: {
+    name: string;
+    calories100g: number;
+    protein100g: number;
+    carbs100g: number;
+    fat100g: number;
+    servingGrams?: number;
+    barcode?: string | null;
+    fdcId?: string | null;
+    source?: string;
+    contributedByUserId?: number | null;
+  }): Promise<CanonicalFood>;
+  getCanonicalFoodById(id: number): Promise<CanonicalFood | undefined>;
+
+  // User food bookmarks
+  getUserFoodBookmarks(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: (UserFoodBookmark & { food: CanonicalFood })[]; nextCursor: string | null }>;
+  addUserFoodBookmark(entry: { userId: number; canonicalFoodId: number; servingGrams?: number; nickname?: string }): Promise<UserFoodBookmark & { food: CanonicalFood }>;
+  removeUserFoodBookmark(id: number, userId: number): Promise<void>;
+  updateUserFoodBookmark(id: number, userId: number, updates: { servingGrams?: number; nickname?: string }): Promise<(UserFoodBookmark & { food: CanonicalFood }) | undefined>;
+  findDuplicateUserFoodBookmarks(userId: number, canonicalFoodId: number): Promise<UserFoodBookmark[]>;
 
 
   // Hydration
@@ -360,6 +386,135 @@ export class DatabaseStorage implements IStorage {
 
   async updateCustomFoodBarcode(id: number, barcode: string): Promise<void> {
     await db.update(customFoods).set({ barcode }).where(eq(customFoods.id, id));
+  }
+
+  async searchCanonicalFoods(query: string, limit = 10): Promise<CanonicalFood[]> {
+    return db.select().from(canonicalFoods)
+      .where(ilike(canonicalFoods.name, `%${query}%`))
+      .orderBy(desc(canonicalFoods.createdAt))
+      .limit(limit);
+  }
+
+  async getCanonicalFoodByBarcode(barcode: string): Promise<CanonicalFood | undefined> {
+    const [row] = await db.select().from(canonicalFoods)
+      .where(eq(canonicalFoods.barcode, barcode))
+      .limit(1);
+    return row;
+  }
+
+  async getCanonicalFoodByFdcId(fdcId: string): Promise<CanonicalFood | undefined> {
+    const [row] = await db.select().from(canonicalFoods)
+      .where(eq(canonicalFoods.fdcId, fdcId))
+      .limit(1);
+    return row;
+  }
+
+  async canonicalFoodExistsByName(name: string): Promise<CanonicalFood | undefined> {
+    const canonical = name.toLowerCase().replace(/\s+/g, " ").trim();
+    const [row] = await db.select().from(canonicalFoods)
+      .where(eq(canonicalFoods.canonicalName, canonical))
+      .limit(1);
+    return row;
+  }
+
+  async upsertCanonicalFood(food: {
+    name: string;
+    calories100g: number;
+    protein100g: number;
+    carbs100g: number;
+    fat100g: number;
+    servingGrams?: number;
+    barcode?: string | null;
+    fdcId?: string | null;
+    source?: string;
+    contributedByUserId?: number | null;
+  }): Promise<CanonicalFood> {
+    const canonical = food.name.toLowerCase().replace(/\s+/g, " ").trim();
+
+    if (food.fdcId) {
+      const existing = await this.getCanonicalFoodByFdcId(food.fdcId);
+      if (existing) return existing;
+    }
+    if (food.barcode) {
+      const existing = await this.getCanonicalFoodByBarcode(food.barcode);
+      if (existing) return existing;
+    }
+    const existing = await this.canonicalFoodExistsByName(food.name);
+    if (existing) return existing;
+
+    const [created] = await db.insert(canonicalFoods).values({
+      name: food.name,
+      canonicalName: canonical,
+      calories100g: food.calories100g,
+      protein100g: food.protein100g,
+      carbs100g: food.carbs100g,
+      fat100g: food.fat100g,
+      servingGrams: food.servingGrams ?? 100,
+      barcode: food.barcode ?? null,
+      fdcId: food.fdcId ?? null,
+      source: food.source ?? "user_manual",
+      contributedByUserId: food.contributedByUserId ?? null,
+    }).returning();
+    return created;
+  }
+
+  async getCanonicalFoodById(id: number): Promise<CanonicalFood | undefined> {
+    const [row] = await db.select().from(canonicalFoods).where(eq(canonicalFoods.id, id));
+    return row;
+  }
+
+  async getUserFoodBookmarks(userId: number, opts: { cursor?: string; limit?: number } = {}): Promise<{ items: (UserFoodBookmark & { food: CanonicalFood })[]; nextCursor: string | null }> {
+    const limit = opts.limit ?? 50;
+    const rows = await db.select({
+      bookmark: userFoodBookmarks,
+      food: canonicalFoods,
+    }).from(userFoodBookmarks)
+      .innerJoin(canonicalFoods, eq(userFoodBookmarks.canonicalFoodId, canonicalFoods.id))
+      .where(and(
+        eq(userFoodBookmarks.userId, userId),
+        opts.cursor ? lt(userFoodBookmarks.id, parseInt(opts.cursor)) : undefined,
+      ))
+      .orderBy(desc(userFoodBookmarks.createdAt))
+      .limit(limit + 1);
+
+    const hasMore = rows.length > limit;
+    const items = rows.slice(0, limit).map(r => ({ ...r.bookmark, food: r.food }));
+    return {
+      items,
+      nextCursor: hasMore ? String(items[items.length - 1].id) : null,
+    };
+  }
+
+  async addUserFoodBookmark(entry: { userId: number; canonicalFoodId: number; servingGrams?: number; nickname?: string }): Promise<UserFoodBookmark & { food: CanonicalFood }> {
+    const [created] = await db.insert(userFoodBookmarks).values({
+      userId: entry.userId,
+      canonicalFoodId: entry.canonicalFoodId,
+      servingGrams: entry.servingGrams ?? null,
+      nickname: entry.nickname ?? null,
+    }).returning();
+    const food = (await this.getCanonicalFoodById(created.canonicalFoodId))!;
+    return { ...created, food };
+  }
+
+  async removeUserFoodBookmark(id: number, userId: number): Promise<void> {
+    await db.delete(userFoodBookmarks)
+      .where(and(eq(userFoodBookmarks.id, id), eq(userFoodBookmarks.userId, userId)));
+  }
+
+  async updateUserFoodBookmark(id: number, userId: number, updates: { servingGrams?: number; nickname?: string }): Promise<(UserFoodBookmark & { food: CanonicalFood }) | undefined> {
+    const [updated] = await db.update(userFoodBookmarks)
+      .set(updates)
+      .where(and(eq(userFoodBookmarks.id, id), eq(userFoodBookmarks.userId, userId)))
+      .returning();
+    if (!updated) return undefined;
+    const food = (await this.getCanonicalFoodById(updated.canonicalFoodId))!;
+    return { ...updated, food };
+  }
+
+  async findDuplicateUserFoodBookmarks(userId: number, canonicalFoodId: number): Promise<UserFoodBookmark[]> {
+    return db.select().from(userFoodBookmarks)
+      .where(and(eq(userFoodBookmarks.userId, userId), eq(userFoodBookmarks.canonicalFoodId, canonicalFoodId)))
+      .limit(5);
   }
 
   async getHydrationLogs(userId: number, date: string): Promise<HydrationLog[]> {

@@ -375,7 +375,7 @@ export function ScannedFoodPanel({ picker, testPrefix, actionLabel, actionIcon, 
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-zinc-900 leading-snug" data-testid={`text-${testPrefix}-scan-product`}>{picker.scannedFood.name}</p>
           <p className="text-[10px] text-zinc-400 mt-0.5">
-            {picker.scannedFood.source === "community" ? "Community database" :
+            {(picker.scannedFood.source === "community" || picker.scannedFood.source === "canonical") ? "FuelU database" :
              picker.scannedFood.source === "open_food_facts" ? "Open Food Facts" : "USDA database"}
           </p>
         </div>

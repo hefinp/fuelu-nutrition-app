@@ -222,17 +222,19 @@ Respond ONLY with JSON.`,
 
 export async function searchFoodDb(name: string): Promise<{ calories100g: number; protein100g: number; carbs100g: number; fat100g: number } | null> {
   try {
-    const communityHits = await storage.searchCustomFoodsByName(name);
-    if (communityHits.length > 0) {
-      const hit = communityHits[0];
+    // 1. Check canonical foods DB first
+    const canonicalHits = await storage.searchCanonicalFoods(name, 3);
+    if (canonicalHits.length > 0) {
+      const hit = canonicalHits[0];
       return {
         calories100g: hit.calories100g,
-        protein100g: parseFloat(String(hit.protein100g)),
-        carbs100g: parseFloat(String(hit.carbs100g)),
-        fat100g: parseFloat(String(hit.fat100g)),
+        protein100g: hit.protein100g,
+        carbs100g: hit.carbs100g,
+        fat100g: hit.fat100g,
       };
     }
 
+    // 2. Fall back to USDA, cache into canonical DB
     const apiKey = process.env.USDA_API_KEY || "DEMO_KEY";
     const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(name)}&pageSize=3&api_key=${apiKey}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
@@ -244,12 +246,20 @@ export async function searchFoodDb(name: string): Promise<{ calories100g: number
     const nutrients = food.foodNutrients ?? [];
     const calories = getNutrient(nutrients, 1008) || getNutrient(nutrients, 2047) || getNutrient(nutrients, 2048);
     if (!calories) return null;
-    return {
+    const result = {
       calories100g: Math.round(calories),
       protein100g: Math.round(getNutrient(nutrients, 1003) * 10) / 10,
       carbs100g: Math.round(getNutrient(nutrients, 1005) * 10) / 10,
       fat100g: Math.round(getNutrient(nutrients, 1004) * 10) / 10,
     };
+    // Cache into canonical DB asynchronously
+    storage.upsertCanonicalFood({
+      name: food.description ? food.description.charAt(0).toUpperCase() + food.description.slice(1).toLowerCase() : name,
+      ...result,
+      fdcId: food.fdcId ? String(food.fdcId) : null,
+      source: "usda_cached",
+    }).catch(() => {});
+    return result;
   } catch {
     return null;
   }
@@ -373,21 +383,17 @@ export async function parseIngredients(ingredientText: string, userId?: number):
 
     const aiResult = await aiEstimateIngredient(name);
     if (aiResult) {
-      if (userId) {
-        try {
-          await storage.addUserSavedFood({
-            userId,
-            name: aiResult.name,
-            calories100g: aiResult.calories100g,
-            protein100g: aiResult.protein100g,
-            carbs100g: aiResult.carbs100g,
-            fat100g: aiResult.fat100g,
-            servingGrams: Math.round(grams) || 100,
-            source: "ai-estimated",
-          });
-        } catch {
-        }
-      }
+      // Cache AI-estimated results into canonical DB (not just per user)
+      storage.upsertCanonicalFood({
+        name: aiResult.name,
+        calories100g: aiResult.calories100g,
+        protein100g: aiResult.protein100g,
+        carbs100g: aiResult.carbs100g,
+        fat100g: aiResult.fat100g,
+        servingGrams: Math.round(grams) || 100,
+        source: "ai_generated",
+        contributedByUserId: userId ?? null,
+      }).catch(() => {});
       results.push({
         key: `parsed-ai-${Date.now()}-${Math.random()}`,
         name: aiResult.name,

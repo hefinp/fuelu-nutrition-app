@@ -1084,7 +1084,7 @@ export function FoodLogDrawer({
                             <p className="text-[10px] text-zinc-400 mt-0.5">
                               {scannedFood.sourceType === "label" ? "Nutrition label scan" :
                                scannedFood.sourceType === "estimated" ? "AI-estimated values" :
-                               scannedFood.source === "community" ? "Community database" :
+                               (scannedFood.source === "community" || scannedFood.source === "canonical") ? "FuelU database" :
                                scannedFood.source === "open_food_facts" ? "Open Food Facts" : "USDA database"}
                             </p>
                             {scannedFood.sourceType === "estimated" && (

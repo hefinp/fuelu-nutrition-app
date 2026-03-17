@@ -240,6 +240,48 @@ export const insertCustomFoodSchema = createInsertSchema(customFoods).omit({
 export type InsertCustomFood = z.infer<typeof insertCustomFoodSchema>;
 export type CustomFood = typeof customFoods.$inferSelect;
 
+export const canonicalFoods = pgTable("canonical_foods", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  canonicalName: text("canonical_name").notNull(),
+  calories100g: integer("calories_100g").notNull(),
+  protein100g: real("protein_100g").notNull(),
+  carbs100g: real("carbs_100g").notNull(),
+  fat100g: real("fat_100g").notNull(),
+  servingGrams: integer("serving_grams").notNull().default(100),
+  barcode: text("barcode"),
+  fdcId: text("fdc_id"),
+  source: text("source").notNull().default("user_manual"),
+  verifiedAt: timestamp("verified_at"),
+  contributedByUserId: integer("contributed_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCanonicalFoodSchema = createInsertSchema(canonicalFoods).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCanonicalFood = z.infer<typeof insertCanonicalFoodSchema>;
+export type CanonicalFood = typeof canonicalFoods.$inferSelect;
+
+export const userFoodBookmarks = pgTable("user_food_bookmarks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  canonicalFoodId: integer("canonical_food_id").notNull().references(() => canonicalFoods.id),
+  servingGrams: integer("serving_grams"),
+  nickname: text("nickname"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserFoodBookmarkSchema = createInsertSchema(userFoodBookmarks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUserFoodBookmark = z.infer<typeof insertUserFoodBookmarkSchema>;
+export type UserFoodBookmark = typeof userFoodBookmarks.$inferSelect;
+
 export const userRecipes = pgTable("user_recipes", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),

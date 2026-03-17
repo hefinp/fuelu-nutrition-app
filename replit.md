@@ -20,6 +20,8 @@ This layer contains Drizzle ORM schema definitions and Zod schemas for API reque
 ### Data Storage
 PostgreSQL is the primary database, managed with Drizzle ORM. Key tables store user data, calculations, saved meal plans, weight entries, food log entries, unified user meals, password reset tokens, sessions, cycle/vitality symptoms, period logs, AI insights cache, feature gates, credit transactions, tier pricing, and credit packs. Database migrations are handled automatically on server start.
 
+**Canonical Foods Database (Phase 1 — Task #157):** A shared `canonical_foods` table serves as the single source of truth for all food data. Foods enter the database via four sources: `user_manual`, `usda_cached`, `ai_generated`, and `barcode_scan`. The food search waterfall is: canonical DB → USDA API (results auto-cached) → AI estimate (results auto-cached). `user_food_bookmarks` replaces `user_saved_foods` — "My Foods" is now a personal bookmarks layer over the shared canonical DB. Existing `custom_foods` and `user_saved_foods` data has been migrated.
+
 ### Authentication
 Session-based authentication uses `express-session` and `connect-pg-simple`. Passwords are hashed with `bcryptjs`. OAuth support for Google and Apple is provided via Passport.js, conditionally enabled by environment variables. An optional invite code beta gate can restrict new registrations.
 

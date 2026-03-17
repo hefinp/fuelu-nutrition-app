@@ -36,19 +36,22 @@ router.get("/api/food-search", async (req, res) => {
   const q = (req.query.q as string | undefined)?.trim();
   if (!q || q.length < 2) return res.json([]);
   try {
-    const communityHits = await storage.searchCustomFoodsByName(q);
-    const communityResults = communityHits.map(c => ({
-      id: `community-${c.id}`,
+    // 1. Search canonical foods DB first
+    const canonicalHits = await storage.searchCanonicalFoods(q, 10);
+    const canonicalResults = canonicalHits.map(c => ({
+      id: `canonical-${c.id}`,
+      canonicalFoodId: c.id,
       name: c.name,
       calories100g: c.calories100g,
-      protein100g: parseFloat(String(c.protein100g)),
-      carbs100g: parseFloat(String(c.carbs100g)),
-      fat100g: parseFloat(String(c.fat100g)),
+      protein100g: c.protein100g,
+      carbs100g: c.carbs100g,
+      fat100g: c.fat100g,
       servingSize: `${c.servingGrams}g`,
       servingGrams: c.servingGrams,
-      source: "community",
+      source: "canonical",
     }));
 
+    // 2. Search USDA and cache results into canonical DB
     const apiKey = process.env.USDA_API_KEY || "DEMO_KEY";
     const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=25&api_key=${apiKey}`;
     const upstream = await fetch(url, { signal: AbortSignal.timeout(8000) });
@@ -60,8 +63,9 @@ router.get("/api/food-search", async (req, res) => {
         nutrients.find((n: any) => n.nutrientId === id)?.value ?? 0;
       const getEnergy = (n: any[]) =>
         getNutrient(n, 1008) || getNutrient(n, 2047) || getNutrient(n, 2048);
-      const communityNames = new Set(communityResults.map(r => r.name.toLowerCase()));
-      usdaResults = foods
+      const canonicalNames = new Set(canonicalResults.map(r => r.name.toLowerCase()));
+
+      const usdaFoods = foods
         .filter((f: any) => f.description && getEnergy(f.foodNutrients ?? []) > 0)
         .slice(0, 10)
         .map((f: any) => {
@@ -70,20 +74,44 @@ router.get("/api/food-search", async (req, res) => {
             ? Math.round(parseFloat(f.servingSize) || 100)
             : 100;
           return {
-            id: String(f.fdcId),
+            fdcId: String(f.fdcId),
             name: f.description.charAt(0).toUpperCase() + f.description.slice(1).toLowerCase(),
             calories100g: Math.round(getEnergy(n)),
             protein100g: Math.round(getNutrient(n, 1003) * 10) / 10,
             carbs100g: Math.round(getNutrient(n, 1005) * 10) / 10,
             fat100g: Math.round(getNutrient(n, 1004) * 10) / 10,
-            servingSize: servingGrams > 0 ? `${servingGrams}g` : "100g",
             servingGrams: servingGrams || 100,
           };
         })
-        .filter((f: any) => !communityNames.has(f.name.toLowerCase()));
+        .filter((f: any) => !canonicalNames.has(f.name.toLowerCase()));
+
+      // Cache USDA results into canonical DB asynchronously
+      for (const f of usdaFoods) {
+        storage.upsertCanonicalFood({
+          name: f.name,
+          calories100g: f.calories100g,
+          protein100g: f.protein100g,
+          carbs100g: f.carbs100g,
+          fat100g: f.fat100g,
+          servingGrams: f.servingGrams,
+          fdcId: f.fdcId,
+          source: "usda_cached",
+        }).catch(() => {});
+      }
+
+      usdaResults = usdaFoods.map(f => ({
+        id: f.fdcId,
+        name: f.name,
+        calories100g: f.calories100g,
+        protein100g: f.protein100g,
+        carbs100g: f.carbs100g,
+        fat100g: f.fat100g,
+        servingSize: `${f.servingGrams}g`,
+        servingGrams: f.servingGrams,
+      }));
     }
 
-    res.json([...communityResults, ...usdaResults].slice(0, 15));
+    res.json([...canonicalResults, ...usdaResults].slice(0, 15));
   } catch {
     res.json([]);
   }
@@ -306,38 +334,38 @@ router.post("/api/food-log/daily-nudge", async (req, res) => {
 router.get("/api/barcode/:barcode", async (req, res) => {
   const barcode = req.params.barcode;
 
-  const custom = await storage.getCustomFoodByBarcode(barcode);
-  if (custom) {
+  const canonical = await storage.getCanonicalFoodByBarcode(barcode);
+  if (canonical) {
     return res.json({
-      id: `custom-${custom.id}`,
-      name: custom.name,
-      calories100g: custom.calories100g,
-      protein100g: parseFloat(String(custom.protein100g)),
-      carbs100g: parseFloat(String(custom.carbs100g)),
-      fat100g: parseFloat(String(custom.fat100g)),
-      servingSize: `${custom.servingGrams}g`,
-      servingGrams: custom.servingGrams,
-      source: "community",
+      id: `canonical-${canonical.id}`,
+      canonicalFoodId: canonical.id,
+      name: canonical.name,
+      calories100g: canonical.calories100g,
+      protein100g: canonical.protein100g,
+      carbs100g: canonical.carbs100g,
+      fat100g: canonical.fat100g,
+      servingSize: `${canonical.servingGrams}g`,
+      servingGrams: canonical.servingGrams,
+      source: "canonical",
     });
   }
 
   const cacheToDb = (food: {
     name: string; calories100g: number; protein100g: number;
     carbs100g: number; fat100g: number; servingGrams: number;
+    fdcId?: string;
+    source?: string;
   }) => {
-    storage.customFoodExistsByName(food.name).then(exists => {
-      if (!exists) {
-        return storage.createCustomFood({
-          barcode,
-          name: food.name,
-          calories100g: food.calories100g,
-          protein100g: String(food.protein100g),
-          carbs100g: String(food.carbs100g),
-          fat100g: String(food.fat100g),
-          servingGrams: food.servingGrams,
-          contributedByUserId: null,
-        });
-      }
+    storage.upsertCanonicalFood({
+      name: food.name,
+      calories100g: food.calories100g,
+      protein100g: food.protein100g,
+      carbs100g: food.carbs100g,
+      fat100g: food.fat100g,
+      servingGrams: food.servingGrams,
+      barcode,
+      fdcId: food.fdcId ?? null,
+      source: food.source ?? "barcode_scan",
     }).catch(() => {});
   };
 
@@ -393,6 +421,7 @@ router.get("/api/barcode/:barcode", async (req, res) => {
             ? Math.round(parseFloat(match.servingSize) || 100) : 100;
           const result = {
             id: String(match.fdcId),
+            fdcId: String(match.fdcId),
             name: match.description.charAt(0).toUpperCase() + match.description.slice(1).toLowerCase(),
             calories100g,
             protein100g: Math.round(getNutrient(1003) * 10) / 10,
@@ -404,7 +433,7 @@ router.get("/api/barcode/:barcode", async (req, res) => {
             saturatedFat100g: Math.round(getNutrient(1258) * 10) / 10,
             servingSize: servingGrams > 0 ? `${servingGrams}g` : "100g",
             servingGrams: servingGrams || 100,
-            source: "usda",
+            source: "usda_cached",
           };
           cacheToDb(result);
           return res.json(result);

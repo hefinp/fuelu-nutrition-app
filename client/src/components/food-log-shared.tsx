@@ -16,6 +16,7 @@ export type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
 
 export interface FoodResult {
   id: string;
+  canonicalFoodId?: number;
   name: string;
   calories100g: number;
   protein100g: number;

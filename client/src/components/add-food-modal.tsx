@@ -37,7 +37,7 @@ function ConfirmPanel({ food, servGrams, setServGrams, onSave, onReset, testPref
           )}
           {"source" in food && food.source && !("sourceType" in food && food.sourceType) && (
             <p className="text-[10px] text-zinc-400 mt-0.5">
-              {food.source === "community" ? "Community database" : food.source === "open_food_facts" ? "Open Food Facts" : "USDA database"}
+              {food.source === "canonical" || food.source === "community" ? "FuelU database" : food.source === "open_food_facts" ? "Open Food Facts" : "USDA database"}
             </p>
           )}
         </div>
@@ -73,7 +73,7 @@ function ConfirmPanel({ food, servGrams, setServGrams, onSave, onReset, testPref
 }
 
 type DuplicateWarning = { message: string; exactMatch: boolean; existingCount: number };
-type FoodPayload = { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams: number; source?: string; confirmDuplicate?: boolean };
+type FoodPayload = { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams: number; source?: string; confirmDuplicate?: boolean; canonicalFoodId?: number };
 
 export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSaved: (food: UserSavedFood) => void }) {
   const { toast } = useToast();
@@ -142,6 +142,7 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
       fat100g: food.fat100g,
       servingGrams: parseInt(servGrams) || 100,
       source: sourceOverride || tab,
+      canonicalFoodId: food.canonicalFoodId,
     });
   }
 
