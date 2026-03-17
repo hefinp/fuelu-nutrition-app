@@ -323,8 +323,20 @@ export async function runMigrations(): Promise<void> {
 
     await client.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_foods_name_trgm ON canonical_foods USING gin (canonical_name gin_trgm_ops)`);
-    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_canonical_foods_barcode_uniq ON canonical_foods (barcode) WHERE barcode IS NOT NULL`);
-    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_canonical_foods_fdc_id_uniq ON canonical_foods (fdc_id) WHERE fdc_id IS NOT NULL`);
+
+    const barcodeDups = await client.query(`SELECT barcode, COUNT(*) FROM canonical_foods WHERE barcode IS NOT NULL GROUP BY barcode HAVING COUNT(*) > 1`);
+    if (barcodeDups.rowCount === 0) {
+      await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_canonical_foods_barcode_uniq ON canonical_foods (barcode) WHERE barcode IS NOT NULL`);
+    } else {
+      console.warn("[migrate] Skipping barcode unique index — duplicate barcodes found:", barcodeDups.rows);
+    }
+
+    const fdcDups = await client.query(`SELECT fdc_id, COUNT(*) FROM canonical_foods WHERE fdc_id IS NOT NULL GROUP BY fdc_id HAVING COUNT(*) > 1`);
+    if (fdcDups.rowCount === 0) {
+      await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_canonical_foods_fdc_id_uniq ON canonical_foods (fdc_id) WHERE fdc_id IS NOT NULL`);
+    } else {
+      console.warn("[migrate] Skipping fdc_id unique index — duplicate fdc_ids found:", fdcDups.rows);
+    }
 
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
   } finally {

@@ -395,8 +395,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchCanonicalFoods(query: string, limit = 10): Promise<CanonicalFood[]> {
+    const normalized = query.toLowerCase().replace(/\s+/g, " ").trim();
     return db.select().from(canonicalFoods)
-      .where(ilike(canonicalFoods.name, `%${query}%`))
+      .where(ilike(canonicalFoods.canonicalName, `%${normalized}%`))
       .orderBy(desc(canonicalFoods.createdAt))
       .limit(limit);
   }
