@@ -474,7 +474,7 @@ export class DatabaseStorage implements IStorage {
     const existing = await this.canonicalFoodExistsByName(food.name);
     if (existing) return existing;
 
-    const trustedSource = !!food.fdcId || (!!food.barcode && ["usda_cached", "barcode_scan", "openfoodfacts"].includes(food.source ?? ""));
+    const trustedSource = !!food.fdcId || (!!food.barcode && ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts"].includes(food.source ?? ""));
     try {
       const [created] = await db.insert(canonicalFoods).values({
         name: food.name,

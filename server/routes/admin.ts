@@ -303,8 +303,18 @@ router.get("/api/admin/users", async (req, res) => {
   res.json(result);
 });
 
+async function requireAdminOrAdvancedBeta(req: Request, res: Response): Promise<boolean> {
+  if (!req.session.userId) { res.status(401).json({ message: "Not authenticated" }); return false; }
+  const user = await storage.getUserById(req.session.userId);
+  if (!user) { res.status(403).json({ message: "Forbidden" }); return false; }
+  if (ADMIN_EMAILS.includes(user.email)) return true;
+  if (user.tier === "advanced" && user.betaUser) return true;
+  res.status(403).json({ message: "Forbidden" });
+  return false;
+}
+
 router.post("/api/admin/canonical-foods/:id/verify", async (req, res) => {
-  if (!await requireAdmin(req, res)) return;
+  if (!await requireAdminOrAdvancedBeta(req, res)) return;
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
   const food = await storage.verifyCanonicalFood(id);
@@ -313,7 +323,7 @@ router.post("/api/admin/canonical-foods/:id/verify", async (req, res) => {
 });
 
 router.post("/api/admin/canonical-foods/:id/unverify", async (req, res) => {
-  if (!await requireAdmin(req, res)) return;
+  if (!await requireAdminOrAdvancedBeta(req, res)) return;
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
   const food = await storage.unverifyCanonicalFood(id);
