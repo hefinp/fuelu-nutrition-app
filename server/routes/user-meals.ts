@@ -131,11 +131,11 @@ router.post("/api/user-meals", async (req, res) => {
       await storage.incrementCommunityMealFavourite(communityMealId).catch(() => {});
     }
 
-    // Sync junction table asynchronously after creation
+    // Sync junction rows then immediately recompute macros from canonical DB
     if (created.ingredientsJson && Array.isArray(created.ingredientsJson) && (created.ingredientsJson as any[]).length > 0) {
-      storage.syncMealIngredientsFromJson(created.id, created.ingredientsJson as any[]).catch(err =>
-        console.error("[user-meals] Failed to sync meal_ingredients on create:", err)
-      );
+      storage.syncMealIngredientsFromJson(created.id, created.ingredientsJson as any[])
+        .then(() => storage.recomputeMealMacros(created.id, req.session.userId!))
+        .catch(err => console.error("[user-meals] Failed to sync/recompute on create:", err));
     }
 
     res.status(201).json(created);
@@ -176,13 +176,13 @@ router.patch("/api/user-meals/:id", async (req, res) => {
     const updated = await storage.updateUserMeal(id, req.session.userId, body);
     if (!updated) return res.status(404).json({ message: "Not found" });
 
-    // Sync junction table asynchronously after update
+    // Sync junction rows then recompute macros from canonical DB
     if (body.ingredientsJson !== undefined) {
       const ingJson = body.ingredientsJson;
       if (ingJson && ingJson.length > 0) {
-        storage.syncMealIngredientsFromJson(id, ingJson).catch(err =>
-          console.error("[user-meals] Failed to sync meal_ingredients on update:", err)
-        );
+        storage.syncMealIngredientsFromJson(id, ingJson)
+          .then(() => storage.recomputeMealMacros(id, req.session.userId!))
+          .catch(err => console.error("[user-meals] Failed to sync/recompute on update:", err));
       } else {
         storage.deleteMealIngredients(id).catch(() => {});
       }

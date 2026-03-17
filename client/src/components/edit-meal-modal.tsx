@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { UserMeal, UserSavedFood } from "@shared/schema";
 import {
   X, Loader2, Check, Plus, Sparkles, Wheat, Search, Barcode,
-  ChevronDown, ChevronUp, Wand2, RefreshCw,
+  ChevronDown, ChevronUp, Wand2,
 } from "lucide-react";
 
 type JunctionIngredient = {
@@ -134,18 +134,6 @@ export function EditMealModal({
     }
     return s;
   }, [junctionIngredients]);
-
-  const syncMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/user-meals/${meal.id}/recompute-macros`).then(r => r.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user-meals", meal.id, "ingredients"] });
-      toast({ title: "Macros synced from FuelU database" });
-      onSaved();
-      onClose();
-    },
-    onError: () => toast({ title: "Sync failed — no linked ingredients found", variant: "destructive" }),
-  });
 
   const picker = useFoodPicker({ activeTab: pickerTab, scanActive: showPicker });
 
@@ -323,20 +311,6 @@ export function EditMealModal({
                     <div className="pt-1 border-t border-zinc-100">
                       <p className="text-[10px] text-zinc-400 mb-1">Meal total</p>
                       <MacroChips cal={totals.cal} p={totals.prot} c={totals.carbs} f={totals.fat} />
-                      {canonicalNames.size > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => syncMutation.mutate()}
-                          disabled={syncMutation.isPending}
-                          className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px] font-medium hover:bg-emerald-100 transition-colors disabled:opacity-50"
-                          data-testid="button-sync-macros"
-                        >
-                          {syncMutation.isPending
-                            ? <Loader2 className="w-3 h-3 animate-spin" />
-                            : <RefreshCw className="w-3 h-3" />}
-                          Sync macros from FuelU database
-                        </button>
-                      )}
                     </div>
                   </div>
                 ) : (
