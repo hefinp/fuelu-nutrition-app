@@ -117,7 +117,7 @@ export function SortableWidget({
   const help = WIDGET_HELP[id];
 
   return (
-    <div ref={setNodeRef} style={style} className={isMobile ? (id === "food-log" ? "scroll-mb-20" : "snap-start scroll-mb-20") : undefined}>
+    <div ref={setNodeRef} style={style} className={isMobile ? "snap-start scroll-mb-20" : undefined}>
       {isEditing ? (
         <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
           {isMobile ? (
