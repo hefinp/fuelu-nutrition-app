@@ -686,8 +686,8 @@ export const insertNutritionistProfileSchema = createInsertSchema(nutritionistPr
   userId: true,
 }).extend({
   tier: z.enum(nutritionistTierEnum).default("starter"),
-  bio: z.string().max(1000).optional(),
-  credentials: z.string().max(500).optional(),
+  bio: z.preprocess((val) => (val === "" ? undefined : val), z.string().max(1000).optional()),
+  credentials: z.preprocess((val) => (val === "" ? undefined : val), z.string().max(500).optional()),
   specializations: z.array(z.string()).optional(),
 });
 

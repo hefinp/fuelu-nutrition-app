@@ -54,7 +54,7 @@ export default function NutritionistRegisterPage() {
   });
 
   const registerMutation = useMutation({
-    mutationFn: (data: { tier: string; bio: string; credentials: string }) =>
+    mutationFn: (data: { tier: string; bio?: string; credentials?: string }) =>
       apiRequest("POST", "/api/nutritionist/profile", data).then(r => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/profile"] });
@@ -222,7 +222,7 @@ export default function NutritionistRegisterPage() {
 
         <button
           type="button"
-          onClick={() => registerMutation.mutate({ tier: selectedTier, bio, credentials })}
+          onClick={() => registerMutation.mutate({ tier: selectedTier, bio: bio || undefined, credentials: credentials || undefined })}
           disabled={registerMutation.isPending}
           className="w-full py-4 px-6 bg-zinc-900 text-white font-semibold rounded-xl hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
           data-testid="button-register-nutritionist"
