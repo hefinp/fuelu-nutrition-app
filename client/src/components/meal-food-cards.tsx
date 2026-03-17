@@ -102,7 +102,20 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
           <MacroChips cal={meal.caloriesPerServing} p={meal.proteinPerServing} c={meal.carbsPerServing} f={meal.fatPerServing} />
           <MacroBar p={meal.proteinPerServing} c={meal.carbsPerServing} f={meal.fatPerServing} />
 
-          {meal.ingredients && (
+          {(Array.isArray(meal.ingredientsJson) && meal.ingredientsJson.length > 0) ? (
+            <div className="mt-3">
+              <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Ingredients</p>
+              <ul className="text-xs text-zinc-600 space-y-0.5 max-h-28 overflow-y-auto" data-testid={`list-ingredients-${meal.id}`}>
+                {(meal.ingredientsJson as Array<{ name: string; grams: number; calories100g: number; protein100g: number; carbs100g: number; fat100g: number }>).map((ing, i) => (
+                  <li key={i} className="flex items-start gap-1.5" data-testid={`ingredient-item-${meal.id}-${i}`}>
+                    <span className="mt-1.5 w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
+                    <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
+                    <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : meal.ingredients ? (
             <div className="mt-3">
               <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Ingredients</p>
               <ul className="text-xs text-zinc-600 space-y-0.5 max-h-28 overflow-y-auto">
@@ -113,7 +126,7 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
                 ))}
               </ul>
             </div>
-          )}
+          ) : null}
 
           {meal.instructions && (
             <div className="mt-3">

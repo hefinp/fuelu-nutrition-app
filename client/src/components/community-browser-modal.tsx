@@ -126,6 +126,7 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
       const detailData = (detail && detail !== "loading" && detail !== "error") ? detail : null;
       const ingredientsArr = detailData?.ingredients ?? meal.ingredients;
       const instructionsText = detailData?.instructions ?? meal.instructions;
+      const ingredientsJsonData = detailData?.ingredientsJson ?? meal.ingredientsJson;
       const payload: Record<string, unknown> = {
         name: meal.name,
         source: "community",
@@ -135,6 +136,7 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
         fatPerServing: meal.fatPerServing,
         mealSlot: meal.slot,
         ingredients: ingredientsArr && ingredientsArr.length > 0 ? ingredientsArr.join("\n") : undefined,
+        ingredientsJson: Array.isArray(ingredientsJsonData) && ingredientsJsonData.length > 0 ? ingredientsJsonData : undefined,
         instructions: instructionsText || undefined,
       };
       if (confirmDuplicate) payload.confirmDuplicate = true;
@@ -163,7 +165,10 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
   const handleSave = (meal: CommunityMeal) => {
     if (savedMealIds.has(meal.id) || savingId === meal.id) return;
     const detail = mealDetails[meal.id];
-    const ingredients = (detail && detail !== "loading" && detail !== "error" && detail.ingredients) ? detail.ingredients : [];
+    const detailObj = (detail && detail !== "loading" && detail !== "error") ? detail : null;
+    const ingredientsText = detailObj?.ingredients ?? [];
+    const ingredientsJsonNames = Array.isArray(detailObj?.ingredientsJson) ? (detailObj!.ingredientsJson as Array<{ name: string }>).map(i => i.name) : [];
+    const ingredients = ingredientsText.length > 0 ? ingredientsText : ingredientsJsonNames;
     if (userAllergies.length > 0 && ingredients.length > 0) {
       const conflicts = detectAllergyConflicts(ingredients, userAllergies);
       if (conflicts.length > 0) {
@@ -274,7 +279,7 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                 const isLoadingDetails = detail === "loading";
                 const isDetailError = detail === "error";
                 const detailData = (detail && detail !== "loading" && detail !== "error") ? detail : null;
-                const hasIngredients = detailData?.ingredients && detailData.ingredients.length > 0;
+                const hasIngredients = (detailData?.ingredients && detailData.ingredients.length > 0) || (Array.isArray(detailData?.ingredientsJson) && detailData!.ingredientsJson!.length > 0);
                 const isAllergyWarningOpen = allergyWarning?.meal.id === meal.id;
 
                 return (
@@ -380,14 +385,26 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                           <div className="mt-3 space-y-3">
                             <div>
                               <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Ingredients</p>
-                              <ul className="space-y-1">
-                                {detailData!.ingredients!.map((ing, i) => (
-                                  <li key={i} className="flex items-start gap-1.5 text-xs text-zinc-700">
-                                    <span className="mt-0.5 w-1 h-1 rounded-full bg-zinc-400 shrink-0" />
-                                    {ing}
-                                  </li>
-                                ))}
-                              </ul>
+                              {Array.isArray(detailData!.ingredientsJson) && detailData!.ingredientsJson.length > 0 ? (
+                                <ul className="space-y-1" data-testid={`list-community-ingredients-${meal.id}`}>
+                                  {(detailData!.ingredientsJson as Array<{ name: string; grams: number; calories100g: number }>).map((ing, i) => (
+                                    <li key={i} className="flex items-start gap-1.5 text-xs text-zinc-700" data-testid={`community-ingredient-${meal.id}-${i}`}>
+                                      <span className="mt-0.5 w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
+                                      <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
+                                      <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : detailData!.ingredients && detailData!.ingredients.length > 0 ? (
+                                <ul className="space-y-1">
+                                  {detailData!.ingredients.map((ing, i) => (
+                                    <li key={i} className="flex items-start gap-1.5 text-xs text-zinc-700">
+                                      <span className="mt-0.5 w-1 h-1 rounded-full bg-zinc-400 shrink-0" />
+                                      {ing}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : null}
                             </div>
                             {detailData!.instructions && (
                               <div>

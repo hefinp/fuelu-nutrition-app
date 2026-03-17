@@ -116,6 +116,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       carbsPerServing: parseInt(carbs) || 0,
       fatPerServing: parseInt(fat) || 0,
       ingredients: parsed!.ingredients.join("\n"),
+      ingredientsJson: parsed!.ingredientsJson && parsed!.ingredientsJson.length > 0 ? parsed!.ingredientsJson : undefined,
       instructions: instructions.trim() || null,
       mealSlot: slot,
       mealStyle: "simple",
@@ -356,14 +357,27 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
                   ))}
                 </div>
               </div>
-              {parsed.ingredients.length > 0 && (
+              {parsed.ingredientsJson && parsed.ingredientsJson.length > 0 ? (
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">Ingredients ({parsed.ingredientsJson.length})</label>
+                  <ul className="text-xs text-zinc-600 space-y-0.5 max-h-32 overflow-y-auto" data-testid="list-import-ingredients">
+                    {parsed.ingredientsJson.map((ing, i) => (
+                      <li key={i} className="flex items-start gap-1" data-testid={`import-ingredient-${i}`}>
+                        <span className="mt-1 w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
+                        <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
+                        <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : parsed.ingredients.length > 0 ? (
                 <div>
                   <label className="block text-xs font-medium text-zinc-500 mb-1">Ingredients ({parsed.ingredients.length})</label>
                   <ul className="text-xs text-zinc-600 space-y-0.5 max-h-32 overflow-y-auto">
                     {parsed.ingredients.map((ing, i) => <li key={i} className="flex items-start gap-1"><span className="mt-1 w-1 h-1 rounded-full bg-zinc-300 shrink-0" />{ing}</li>)}
                   </ul>
                 </div>
-              )}
+              ) : null}
               <div>
                 <label className="block text-xs font-medium text-zinc-500 mb-1">Instructions</label>
                 <textarea
