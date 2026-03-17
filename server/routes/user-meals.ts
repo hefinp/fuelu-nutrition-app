@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { storage } from "../storage";
-import { parseIngredients } from "../lib/ingredient-parser";
+import { parseIngredients, type IngredientResult } from "../lib/ingredient-parser";
 
 const router = Router();
 
@@ -87,7 +87,7 @@ router.post("/api/user-meals", async (req, res) => {
           mealData.instructions = cm.instructions;
         }
         if (!mealData.ingredientsJson && cm.ingredientsJson) {
-          mealData.ingredientsJson = cm.ingredientsJson as any;
+          mealData.ingredientsJson = cm.ingredientsJson as IngredientResult[];
         }
       }
     }
@@ -95,11 +95,10 @@ router.post("/api/user-meals", async (req, res) => {
     if (!mealData.ingredientsJson && mealData.ingredients) {
       try {
         const parsed = await parseIngredients(mealData.ingredients, req.session.userId);
-        if (parsed.length > 0) {
-          mealData.ingredientsJson = parsed as any;
-        }
+        mealData.ingredientsJson = parsed.length > 0 ? parsed : [];
       } catch (e) {
         console.error("[user-meals] Failed to auto-parse ingredients:", e);
+        mealData.ingredientsJson = [];
       }
     }
 
@@ -137,11 +136,10 @@ router.patch("/api/user-meals/:id", async (req, res) => {
     if (body.ingredients && !body.ingredientsJson) {
       try {
         const parsed = await parseIngredients(body.ingredients, req.session.userId);
-        if (parsed.length > 0) {
-          body.ingredientsJson = parsed as any;
-        }
+        body.ingredientsJson = parsed.length > 0 ? parsed : [];
       } catch (e) {
         console.error("[user-meals] Failed to auto-parse ingredients on update:", e);
+        body.ingredientsJson = [];
       }
     }
 

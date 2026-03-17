@@ -1,6 +1,7 @@
 import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
+import type { IngredientResult } from "./lib/ingredient-parser";
 
 export interface IStorage {
   // Auth
@@ -104,12 +105,12 @@ export interface IStorage {
   getCommunityMeals(filters?: { slot?: string; style?: string }): Promise<CommunityMeal[]>;
   getCommunityMealsByUser(userId: number): Promise<CommunityMeal[]>;
   getCommunityMealById(id: number): Promise<CommunityMeal | undefined>;
-  createCommunityMeal(data: { sourceRecipeId?: number | null; sourceUserId?: number | null; name: string; slot: string; style: string; caloriesPerServing: number; proteinPerServing: number; carbsPerServing: number; fatPerServing: number; microScore?: number; source?: string; ingredientsJson?: any }): Promise<CommunityMeal>;
+  createCommunityMeal(data: { sourceRecipeId?: number | null; sourceUserId?: number | null; name: string; slot: string; style: string; caloriesPerServing: number; proteinPerServing: number; carbsPerServing: number; fatPerServing: number; microScore?: number; source?: string; ingredientsJson?: IngredientResult[] | null }): Promise<CommunityMeal>;
   deactivateCommunityMeal(id: number, userId: number): Promise<void>;
   incrementCommunityMealFavourite(id: number): Promise<void>;
   getCommunityMealBalance(): Promise<{ style: string; slot: string; total: number; userContributed: number; aiGenerated: number }[]>;
   getCommunityMealByRecipeId(recipeId: number): Promise<CommunityMeal | undefined>;
-  updateCommunityMealIngredients(id: number, ingredients: string[], instructions: string, ingredientsJson?: any): Promise<CommunityMeal>;
+  updateCommunityMealIngredients(id: number, ingredients: string[], instructions: string, ingredientsJson?: IngredientResult[]): Promise<CommunityMeal>;
 
   // Meal templates
   getMealTemplates(userId: number): Promise<MealTemplate[]>;
@@ -655,7 +656,7 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  async createCommunityMeal(data: { sourceRecipeId?: number | null; sourceUserId?: number | null; name: string; slot: string; style: string; caloriesPerServing: number; proteinPerServing: number; carbsPerServing: number; fatPerServing: number; microScore?: number; source?: string; ingredientsJson?: any }): Promise<CommunityMeal> {
+  async createCommunityMeal(data: { sourceRecipeId?: number | null; sourceUserId?: number | null; name: string; slot: string; style: string; caloriesPerServing: number; proteinPerServing: number; carbsPerServing: number; fatPerServing: number; microScore?: number; source?: string; ingredientsJson?: IngredientResult[] | null }): Promise<CommunityMeal> {
     const [created] = await db.insert(communityMeals).values({
       sourceRecipeId: data.sourceRecipeId ?? null,
       sourceUserId: data.sourceUserId ?? null,
@@ -685,8 +686,8 @@ export class DatabaseStorage implements IStorage {
       .where(eq(communityMeals.id, id));
   }
 
-  async updateCommunityMealIngredients(id: number, ingredients: string[], instructions: string, ingredientsJson?: any): Promise<CommunityMeal> {
-    const setData: any = { ingredients, instructions };
+  async updateCommunityMealIngredients(id: number, ingredients: string[], instructions: string, ingredientsJson?: IngredientResult[]): Promise<CommunityMeal> {
+    const setData: Record<string, unknown> = { ingredients, instructions };
     if (ingredientsJson !== undefined) {
       setData.ingredientsJson = ingredientsJson;
     }

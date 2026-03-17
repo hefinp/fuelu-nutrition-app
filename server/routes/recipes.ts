@@ -7,7 +7,7 @@ import { promisify } from "util";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { parseIngredientsFromArray } from "../lib/ingredient-parser";
+import { parseIngredientsFromArray, type IngredientResult } from "../lib/ingredient-parser";
 
 const execFileAsync = promisify(execFile);
 
@@ -273,7 +273,7 @@ router.post("/api/recipes/import", async (req, res) => {
       }
 
       const aiIngredients = Array.isArray(aiJson.ingredients) ? aiJson.ingredients : [];
-      let ingredientsJson = null;
+      let ingredientsJson: IngredientResult[] = [];
       try {
         if (aiIngredients.length > 0) {
           ingredientsJson = await parseIngredientsFromArray(aiIngredients, req.session.userId);
@@ -363,7 +363,7 @@ router.post("/api/recipes/import", async (req, res) => {
     }
   }
 
-  let ingredientsJson = null;
+  let ingredientsJson: IngredientResult[] = [];
   try {
     if (ingredients.length > 0) {
       ingredientsJson = await parseIngredientsFromArray(ingredients, req.session.userId);
@@ -450,7 +450,7 @@ router.post("/api/recipes/import-photo", async (req, res) => {
   }
 
   const photoIngredients = Array.isArray(aiJson.ingredients) ? aiJson.ingredients.map(String) : [];
-  let photoIngredientsJson = null;
+  let photoIngredientsJson: IngredientResult[] = [];
   try {
     if (photoIngredients.length > 0) {
       photoIngredientsJson = await parseIngredientsFromArray(photoIngredients, req.session.userId);
@@ -783,7 +783,7 @@ router.post("/api/recipes/import-video", async (req, res) => {
     }
 
     const videoIngredients = Array.isArray(aiJson.ingredients) ? aiJson.ingredients.map(String) : [];
-    let videoIngredientsJson = null;
+    let videoIngredientsJson: IngredientResult[] = [];
     try {
       if (videoIngredients.length > 0) {
         videoIngredientsJson = await parseIngredientsFromArray(videoIngredients, req.session.userId);

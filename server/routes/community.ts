@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import OpenAI from "openai";
 import { storage } from "../storage";
-import { parseIngredientsFromArray } from "../lib/ingredient-parser";
+import { parseIngredientsFromArray, type IngredientResult } from "../lib/ingredient-parser";
 
 const router = Router();
 
@@ -111,12 +111,10 @@ Macros: ${meal.caloriesPerServing} kcal, ${meal.proteinPerServing}g protein, ${m
       const instructions = typeof parsed.instructions === "string" ? parsed.instructions : "";
 
       if (ingredients.length > 0) {
-        let parsedJson: any = undefined;
+        let parsedJson: IngredientResult[] | undefined = undefined;
         try {
           const result = await parseIngredientsFromArray(ingredients);
-          if (result.length > 0) {
-            parsedJson = result;
-          }
+          parsedJson = result.length > 0 ? result : [];
         } catch (e) {
           console.error("[community-meals] Failed to parse ingredients:", e);
         }
