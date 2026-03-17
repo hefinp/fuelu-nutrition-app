@@ -146,6 +146,12 @@ app.use((req, res, next) => {
 
 (async () => {
   await runMigrations();
+
+  const { storage } = await import("./storage");
+  storage.cleanupBadCanonicalFoods()
+    .then(() => console.log("[init] Canonical food cleanup complete"))
+    .catch(err => console.error("[init] Canonical food cleanup failed:", err));
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

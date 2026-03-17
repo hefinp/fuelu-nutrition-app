@@ -560,9 +560,17 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Implausible calorie value (${calories100g} kcal/100g) for food "${name}" — upsert skipped`);
     }
 
-    // Macro-consistency check for non-fat, non-sugar foods (low-carb vegetables like onion, cucumber etc.):
-    // low fat (<10g/100g) and very low carbs (<15g/100g) → calories should be protein×4 + carbs×4 + fat×9 ± 10%
-    // Higher-carb foods (fruits, starchy veg) are excluded because dietary fibre reduces effective calories
+    const macroSum = protein100g + carbs100g + fat100g;
+    if (macroSum < 0.5 && calories100g > 5) {
+      console.warn(
+        `[upsertCanonicalFood] Skipping "${name}" — calories_100g=${calories100g} but all macros are effectively zero ` +
+        `(protein=${protein100g}g, carbs=${carbs100g}g, fat=${fat100g}g). Likely hallucinated value.`
+      );
+      const fallback = await this.canonicalFoodExistsByName(name);
+      if (fallback) return fallback;
+      throw new Error(`Zero-macro food "${name}" with ${calories100g} kcal/100g is implausible — upsert skipped`);
+    }
+
     const isLowFatLowSugar = fat100g < 10 && carbs100g < 15;
     if (isLowFatLowSugar) {
       const expectedCalories = protein100g * 4 + carbs100g * 4 + fat100g * 9;
@@ -596,12 +604,38 @@ export class DatabaseStorage implements IStorage {
       const existing = await this.getCanonicalFoodByBarcode(food.barcode);
       if (existing) return existing;
     }
+    const TRUSTED_SOURCES = ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts", "nzfcd", "fsanz", "nz_regional", "au_regional"];
+    const incomingIsTrusted = !!food.fdcId || (!!food.barcode && TRUSTED_SOURCES.includes(food.source ?? "")) || TRUSTED_SOURCES.includes(food.source ?? "");
+
     if (!food.barcode) {
       const existing = await this.canonicalFoodExistsByName(food.name);
-      if (existing) return existing;
+      if (existing) {
+        const existingIsTrusted = !!existing.fdcId || TRUSTED_SOURCES.includes(existing.source ?? "");
+        if (existingIsTrusted && !incomingIsTrusted) {
+          return existing;
+        }
+        if (!existingIsTrusted && !incomingIsTrusted) {
+          return existing;
+        }
+        if (incomingIsTrusted && !existingIsTrusted) {
+          await db.update(canonicalFoods).set({
+            calories100g: food.calories100g,
+            protein100g: food.protein100g,
+            carbs100g: food.carbs100g,
+            fat100g: food.fat100g,
+            fibre100g: food.fibre100g ?? existing.fibre100g,
+            sodium100g: food.sodium100g ?? existing.sodium100g,
+            fdcId: food.fdcId ?? existing.fdcId,
+            source: food.source ?? existing.source,
+            verifiedAt: new Date(),
+          }).where(eq(canonicalFoods.id, existing.id));
+          return { ...existing, calories100g: food.calories100g, protein100g: food.protein100g, carbs100g: food.carbs100g, fat100g: food.fat100g, source: food.source ?? existing.source, verifiedAt: new Date() };
+        }
+        return existing;
+      }
     }
 
-    const trustedSource = !!food.fdcId || (!!food.barcode && ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts"].includes(food.source ?? "")) || ["nzfcd", "fsanz", "nz_regional", "au_regional"].includes(food.source ?? "");
+    const trustedSource = incomingIsTrusted;
     try {
       const [created] = await db.insert(canonicalFoods).values({
         name: food.name,
@@ -928,7 +962,8 @@ export class DatabaseStorage implements IStorage {
 
     for (let i = 0; i < ingredientsJson.length; i++) {
       const ing = ingredientsJson[i];
-      if (!ing.name || ing.calories100g <= 0) continue;
+      if (!ing.name) continue;
+      if (ing.calories100g < 0) continue;
       const canonicalFood = await this.upsertCanonicalFood({
         name: ing.name,
         calories100g: Math.round(ing.calories100g),
@@ -1052,7 +1087,8 @@ export class DatabaseStorage implements IStorage {
 
     for (let i = 0; i < ingredientsJson.length; i++) {
       const ing = ingredientsJson[i];
-      if (!ing.name || ing.calories100g <= 0) continue;
+      if (!ing.name) continue;
+      if (ing.calories100g < 0) continue;
       const canonicalFood = await this.upsertCanonicalFood({
         name: ing.name,
         calories100g: Math.round(ing.calories100g),
@@ -1100,7 +1136,8 @@ export class DatabaseStorage implements IStorage {
 
     for (let i = 0; i < ingredientsJson.length; i++) {
       const ing = ingredientsJson[i];
-      if (!ing.name || ing.calories100g <= 0) continue;
+      if (!ing.name) continue;
+      if (ing.calories100g < 0) continue;
       const canonicalFood = await this.upsertCanonicalFood({
         name: ing.name,
         calories100g: Math.round(ing.calories100g),
@@ -1800,6 +1837,36 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(practiceMembers.practiceId, practiceId), eq(practiceMembers.nutritionistUserId, nutritionistUserId)))
       .returning();
     return updated;
+  }
+
+  async cleanupBadCanonicalFoods(): Promise<void> {
+    const ZERO_CAL_FOODS = [
+      "water", "tap water", "ice", "ice water",
+      "black coffee", "coffee", "espresso",
+      "tea", "green tea", "black tea", "herbal tea",
+      "sparkling water", "soda water", "mineral water", "club soda",
+      "diet soda", "diet coke", "diet pepsi", "coke zero", "pepsi max",
+      "salt", "table salt", "sea salt",
+    ];
+    for (const name of ZERO_CAL_FOODS) {
+      const canonical = name.toLowerCase().replace(/\s+/g, " ").trim();
+      const rows = await db.select().from(canonicalFoods)
+        .where(eq(canonicalFoods.canonicalName, canonical))
+        .limit(1);
+      if (rows.length > 0) {
+        const row = rows[0];
+        const isTrusted = !!row.fdcId || ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts", "nzfcd", "fsanz", "nz_regional", "au_regional"].includes(row.source ?? "");
+        if (!isTrusted && (row.calories100g > 5 || row.protein100g > 1 || row.carbs100g > 1 || row.fat100g > 1)) {
+          console.log(`[cleanupBadCanonicalFoods] Fixing "${row.name}" — had ${row.calories100g} kcal, setting to 0`);
+          await db.update(canonicalFoods).set({
+            calories100g: 0,
+            protein100g: 0,
+            carbs100g: 0,
+            fat100g: 0,
+          }).where(eq(canonicalFoods.id, row.id));
+        }
+      }
+    }
   }
 }
 

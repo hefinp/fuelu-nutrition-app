@@ -289,7 +289,7 @@ export async function aiEstimateIngredient(description: string): Promise<AiEstim
       messages: [
         {
           role: "system",
-          content: `You are a nutrition expert. Estimate nutritional values per 100g for the given food item. Return JSON with: name (string, cleaned food name), calories100g (number), protein100g (number), carbs100g (number), fat100g (number). Respond ONLY with JSON.`,
+          content: `You are a nutrition expert. Estimate nutritional values per 100g for the given food item. Return JSON with: name (string, cleaned food name), calories100g (number), protein100g (number), carbs100g (number), fat100g (number). Important: water, plain tea, black coffee, herbal tea, sparkling water, diet/zero-calorie drinks, salt, and vinegar have 0 calories and 0g of all macros per 100g. Calories must be consistent with macros: calories ≈ protein×4 + carbs×4 + fat×9. Respond ONLY with JSON.`,
         },
         { role: "user", content: `Food: ${description}` },
       ],
@@ -309,6 +309,51 @@ export async function aiEstimateIngredient(description: string): Promise<AiEstim
   } catch {
     return null;
   }
+}
+
+const KNOWN_ZERO_CALORIE_PATTERNS = [
+  /^water$/i, /^tap water$/i, /^ice$/i, /^ice water$/i,
+  /^black coffee$/i, /^coffee$/i, /^espresso$/i,
+  /^tea$/i, /^green tea$/i, /^black tea$/i, /^herbal tea$/i,
+  /^diet\s/i, /^sugar.free\s/i, /^zero.calorie\s/i,
+  /^sparkling water$/i, /^soda water$/i, /^mineral water$/i,
+  /^club soda$/i,
+  /^salt$/i, /^table salt$/i, /^sea salt$/i,
+];
+
+function isKnownZeroCalorieFood(name: string): boolean {
+  const cleaned = name.toLowerCase().trim();
+  return KNOWN_ZERO_CALORIE_PATTERNS.some(p => p.test(cleaned));
+}
+
+function sanitizeAiNutrition(est: { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number }): { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number } {
+  const { name, calories100g, protein100g, carbs100g, fat100g } = est;
+  const macroCalories = protein100g * 4 + carbs100g * 4 + fat100g * 9;
+  const macroSum = protein100g + carbs100g + fat100g;
+
+  if (isKnownZeroCalorieFood(name)) {
+    if (calories100g > 5 || macroSum > 1) {
+      console.warn(`[sanitizeAiNutrition] Forcing zero values for known zero-calorie food "${name}" (AI said ${calories100g} kcal)`);
+      return { name, calories100g: 0, protein100g: 0, carbs100g: 0, fat100g: 0 };
+    }
+    return est;
+  }
+
+  if (macroSum < 0.5 && calories100g > 5) {
+    console.warn(`[sanitizeAiNutrition] "${name}" has zero macros but ${calories100g} cal — forcing to 0`);
+    return { name, calories100g: 0, protein100g: 0, carbs100g: 0, fat100g: 0 };
+  }
+
+  if (macroCalories > 0 && calories100g > 0) {
+    const ratio = calories100g / macroCalories;
+    if (ratio < 0.5 || ratio > 2.0) {
+      const corrected = Math.round(macroCalories);
+      console.warn(`[sanitizeAiNutrition] "${name}" AI calories (${calories100g}) inconsistent with macros (expected ~${corrected}) — using macro-derived value`);
+      return { name, calories100g: corrected, protein100g, carbs100g, fat100g };
+    }
+  }
+
+  return est;
 }
 
 export async function parseIngredientsFromArray(ingredientLines: string[], userId?: number): Promise<IngredientResult[]> {
@@ -383,26 +428,26 @@ export async function parseIngredients(ingredientText: string, userId?: number):
 
     const aiResult = await aiEstimateIngredient(name);
     if (aiResult) {
-      // Cache AI-estimated results into canonical DB (not just per user)
+      const sanitized = sanitizeAiNutrition(aiResult);
       storage.upsertCanonicalFood({
-        name: aiResult.name,
-        calories100g: aiResult.calories100g,
-        protein100g: aiResult.protein100g,
-        carbs100g: aiResult.carbs100g,
-        fat100g: aiResult.fat100g,
+        name: sanitized.name,
+        calories100g: sanitized.calories100g,
+        protein100g: sanitized.protein100g,
+        carbs100g: sanitized.carbs100g,
+        fat100g: sanitized.fat100g,
         servingGrams: Math.round(grams) || 100,
         source: "ai_generated",
         contributedByUserId: userId ?? null,
       }).catch(() => {});
       results.push({
         key: `parsed-ai-${Date.now()}-${Math.random()}`,
-        name: aiResult.name,
+        name: sanitized.name,
         grams,
         source: "ai",
-        calories100g: aiResult.calories100g,
-        protein100g: aiResult.protein100g,
-        carbs100g: aiResult.carbs100g,
-        fat100g: aiResult.fat100g,
+        calories100g: sanitized.calories100g,
+        protein100g: sanitized.protein100g,
+        carbs100g: sanitized.carbs100g,
+        fat100g: sanitized.fat100g,
       });
     } else {
       results.push({
