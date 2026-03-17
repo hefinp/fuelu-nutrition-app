@@ -381,6 +381,18 @@ export default function Dashboard() {
                   <span>My Plans</span>
                 </button>
 
+                {tierStatus && (tierStatus.tier === "free" || tierStatus.tier === "simple") && (
+                  <Link
+                    href="/pricing"
+                    aria-label="Upgrade plan"
+                    className="flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 transition-all shadow-sm"
+                    data-testid="link-upgrade-cta"
+                  >
+                    <Zap className="w-4 h-4" />
+                    <span className="hidden sm:inline">Upgrade</span>
+                  </Link>
+                )}
+
                 <div className="relative">
                   <button
                     onClick={() => setShowUserMenu(v => !v)}
