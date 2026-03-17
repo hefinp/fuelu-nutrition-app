@@ -1,22 +1,17 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus, X, Loader2,
-  Check, Search, Barcode, Sparkles, Wheat, UtensilsCrossed,
-  ChevronDown, ChevronUp, AlertCircle,
+  Plus, X, Loader2, UtensilsCrossed, AlertCircle,
 } from "lucide-react";
 import { DuplicateWarningBanner, type DuplicateWarning } from "@/components/duplicate-warning-banner";
 import type { UserSavedFood } from "@shared/schema";
-import type { ExtendedFoodResult } from "@/components/food-log-shared";
 import {
-  type MealSlot, type PickerTab, type Ingredient,
+  type MealSlot, type Ingredient,
   SLOT_OPTIONS, MacroChips,
-  ingredientFromSaved, ingredientFromSearch,
+  ingredientFromSaved,
 } from "@/components/meals-food-shared";
-import {
-  useFoodPicker, SearchPanel, ScannerView, ScannedFoodPanel, AiPanel,
-} from "@/components/food-picker-tabs";
+import { IngredientPickerModal } from "@/components/ingredient-picker-modal";
 import { AddFoodModal } from "@/components/add-food-modal";
 
 function AutoGrowTextarea({
@@ -61,20 +56,12 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
   const queryClient = useQueryClient();
   const [showAddFood, setShowAddFood] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
-  const [pickerTab, setPickerTab] = useState<PickerTab>("search");
-  const { data: myFoods = [] } = useQuery<{ items: UserSavedFood[] }, Error, UserSavedFood[]>({
-    queryKey: ["/api/my-foods", "all"],
-    queryFn: () => fetch("/api/my-foods?limit=100", { credentials: "include" }).then(r => r.json()),
-    select: (d) => d.items,
-  });
 
   const [selected, setSelected] = useState<Ingredient[]>([]);
   const [mealName, setMealName] = useState("");
   const [instructions, setInstructions] = useState("");
   const [mealSlot, setMealSlot] = useState<MealSlot | null>(null);
   const [dupWarning, setDupWarning] = useState<{ message: string; exactMatch: boolean; existingCount: number } | null>(null);
-
-  const picker = useFoodPicker({ activeTab: pickerTab, scanActive: showPicker });
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -180,13 +167,6 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
     },
   });
 
-  const pickerTabs: { id: PickerTab; label: string; icon: typeof Search }[] = [
-    { id: "search", label: "Search", icon: Search },
-    { id: "scan", label: "Scan", icon: Barcode },
-    { id: "ai", label: "AI", icon: Sparkles },
-    { id: "myfoods", label: "My Foods", icon: Wheat },
-  ];
-
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={onClose} onWheel={stopScrollLeak} onTouchMove={stopScrollLeak}>
       <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -277,138 +257,13 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
 
               <button
                 type="button"
-                onClick={() => setShowPicker(v => !v)}
+                onClick={() => setShowPicker(true)}
                 className="w-full flex items-center justify-center gap-1.5 py-2.5 sm:py-2 rounded-xl border border-dashed border-zinc-300 text-xs font-medium text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors min-h-[44px] sm:min-h-0"
                 data-testid="button-create-toggle-picker"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add ingredient
-                {showPicker ? <ChevronUp className="w-3.5 h-3.5 ml-auto" /> : <ChevronDown className="w-3.5 h-3.5 ml-auto" />}
               </button>
-
-              {showPicker && (
-                <div className="border border-zinc-100 rounded-2xl p-2.5 sm:p-3 space-y-2.5 sm:space-y-3 bg-white overflow-hidden">
-                  <div className="flex bg-zinc-100 p-0.5 sm:p-1 rounded-xl overflow-hidden">
-                    {pickerTabs.map(tab => (
-                      <button
-                        key={tab.id}
-                        onClick={() => setPickerTab(tab.id)}
-                        className={`flex-1 flex items-center justify-center gap-1 py-2 sm:py-1.5 text-[11px] sm:text-xs font-semibold transition-colors rounded-lg min-h-[40px] sm:min-h-0 ${pickerTab === tab.id ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-                        data-testid={`button-create-picker-tab-${tab.id}`}
-                      >
-                        <tab.icon className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0" />
-                        <span className="hidden min-[380px]:inline truncate">{tab.label}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  {pickerTab === "search" && (
-                    <SearchPanel
-                      picker={picker}
-                      onSelectFood={(food) => addIngredient(ingredientFromSearch(food))}
-                      testPrefix="create"
-                      onSwitchToAi={() => {
-                        picker.setAiResult(null);
-                        picker.setAiDescription(picker.debouncedQuery);
-                        picker.setAiPhotoFile(null);
-                        picker.setAiMode("describe");
-                        setPickerTab("ai");
-                      }}
-                    />
-                  )}
-
-                  {pickerTab === "scan" && (
-                    picker.scannedFood ? (
-                      <ScannedFoodPanel
-                        picker={picker}
-                        testPrefix="create"
-                        actionLabel="Add to meal"
-                        onAction={(food: ExtendedFoodResult, grams: number) => {
-                          addIngredient({ ...ingredientFromSearch(food), grams });
-                          picker.resetScan();
-                        }}
-                      />
-                    ) : (
-                      <ScannerView picker={picker} testPrefix="create" />
-                    )
-                  )}
-
-                  {pickerTab === "ai" && (
-                    <AiPanel
-                      picker={picker}
-                      testPrefix="create"
-                      actionLabel="Add to meal"
-                      onAction={(food: ExtendedFoodResult, grams: number) => {
-                        addIngredient({ ...ingredientFromSearch(food), grams });
-                        picker.resetAi();
-                      }}
-                    />
-                  )}
-
-                  {pickerTab === "myfoods" && (
-                    <div className="space-y-1.5 sm:space-y-2">
-                      {myFoods.length === 0 ? (
-                        <div className="text-center py-4">
-                          <p className="text-xs text-zinc-400 mb-2">No foods saved yet</p>
-                          <button
-                            onClick={() => setShowAddFood(true)}
-                            className="text-xs text-zinc-500 hover:text-zinc-700 font-medium"
-                            data-testid="button-create-add-food"
-                          >
-                            <Plus className="w-3.5 h-3.5 inline mr-1" />Add new food to My Foods
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          {myFoods.map(food => {
-                            const key = `saved-${food.id}`;
-                            const isSelected = selected.some(s => s.key === key);
-                            const sel = selected.find(s => s.key === key);
-                            return (
-                              <div key={food.id} className={`rounded-xl border transition-all ${isSelected ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 bg-white"}`}>
-                                <button
-                                  className="w-full flex items-center gap-3 p-2.5 sm:p-3 text-left min-h-[44px]"
-                                  onClick={() => toggleSavedFood(food)}
-                                  data-testid={`button-create-pick-food-${food.id}`}
-                                >
-                                  <div className={`w-5 h-5 sm:w-4 sm:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isSelected ? "bg-zinc-900 border-zinc-900" : "border-zinc-300"}`}>
-                                    {isSelected && <Check className="w-3 h-3 sm:w-2.5 sm:h-2.5 text-white" />}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-medium text-zinc-900 truncate">{food.name}</p>
-                                    <p className="text-[10px] text-zinc-400">{food.calories100g} kcal/100g</p>
-                                  </div>
-                                </button>
-                                {isSelected && sel && (
-                                  <div className="px-2.5 pb-2.5 flex items-center gap-2">
-                                    <label className="text-[10px] text-zinc-500 shrink-0">g:</label>
-                                    <input
-                                      type="number"
-                                      value={sel.grams}
-                                      min={1}
-                                      onChange={e => updateGrams(sel.key, parseInt(e.target.value) || 1)}
-                                      className="w-20 text-xs border border-zinc-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-zinc-300"
-                                      data-testid={`input-create-myfood-grams-${food.id}`}
-                                    />
-                                    <p className="text-[10px] text-zinc-400">{"\u2248"} {Math.round(food.calories100g * sel.grams / 100)} kcal</p>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                          <button
-                            onClick={() => setShowAddFood(true)}
-                            className="w-full flex items-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 text-sm transition-colors min-h-[44px]"
-                            data-testid="button-create-add-food"
-                          >
-                            <Plus className="w-4 h-4" />Add new food to My Foods
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 
@@ -457,6 +312,18 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
           )}
         </div>
       </div>
+
+      {showPicker && (
+        <IngredientPickerModal
+          onClose={() => setShowPicker(false)}
+          onAddIngredient={(ing) => { addIngredient(ing); }}
+          selected={selected}
+          onToggleSavedFood={toggleSavedFood}
+          onUpdateGrams={updateGrams}
+          testPrefix="create"
+          onAddFoodRequest={() => setShowAddFood(true)}
+        />
+      )}
 
       {showAddFood && (
         <AddFoodModal
