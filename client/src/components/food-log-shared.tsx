@@ -389,7 +389,20 @@ export function LoggedMealModal({
 
         {!editing && (
           <>
-            {recipe ? (
+            {webRecipe && Array.isArray((webRecipe as any).ingredientsJson) && ((webRecipe as any).ingredientsJson as Array<{ name: string; grams: number; calories100g: number }>).length > 0 ? (
+              <div className="bg-zinc-50 p-4 rounded-xl mb-4">
+                <h4 className="text-sm font-semibold text-zinc-900 mb-3">Ingredients</h4>
+                <ul className="space-y-1.5">
+                  {((webRecipe as any).ingredientsJson as Array<{ name: string; grams: number; calories100g: number }>).map((ing, idx) => (
+                    <li key={idx} className="flex items-start gap-1.5 text-sm text-zinc-700" data-testid={`log-ingredient-${entry.id}-${idx}`}>
+                      <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                      <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
+                      <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : recipe ? (
               <>
                 <div className="bg-zinc-50 p-4 rounded-xl mb-4">
                   <h4 className="text-sm font-semibold text-zinc-900 mb-3">Ingredients</h4>
@@ -407,6 +420,18 @@ export function LoggedMealModal({
                   <p className="text-sm text-zinc-600 leading-relaxed">{recipe.instructions}</p>
                 </div>
               </>
+            ) : webRecipe && (webRecipe as any).ingredients ? (
+              <div className="bg-zinc-50 p-4 rounded-xl mb-4">
+                <h4 className="text-sm font-semibold text-zinc-900 mb-3">Ingredients</h4>
+                <ul className="space-y-1">
+                  {String((webRecipe as any).ingredients).split("\n").filter(Boolean).map((line, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-sm text-zinc-700">
+                      <span className="mt-1 w-1.5 h-1.5 rounded-full bg-zinc-300 shrink-0" />
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : !webRecipe ? (
               <p className="text-zinc-500 text-sm mb-4">No recipe details available for this meal.</p>
             ) : null}

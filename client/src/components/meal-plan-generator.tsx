@@ -19,6 +19,7 @@ export interface Meal {
   carbs: number;
   fat: number;
   vitalityRationale?: string;
+  ingredientsJson?: Array<{ name: string; grams: number; calories100g: number; protein100g?: number; carbs100g?: number; fat100g?: number }>;
 }
 
 interface DayMealPlan {
@@ -1027,14 +1028,26 @@ function RecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
 
         <div className="bg-zinc-50 p-4 rounded-xl mb-4">
           <h4 className="text-sm font-semibold text-zinc-900 mb-3">Ingredients</h4>
-          <ul className="space-y-2">
-            {recipe.ingredients.map((ing, idx) => (
-              <li key={idx} className="flex justify-between text-sm text-zinc-700">
-                <span>{ing.item}</span>
-                <span className="font-medium text-zinc-900">{ing.quantity}</span>
-              </li>
-            ))}
-          </ul>
+          {Array.isArray(meal.ingredientsJson) && meal.ingredientsJson.length > 0 ? (
+            <ul className="space-y-1.5">
+              {meal.ingredientsJson.map((ing, idx) => (
+                <li key={idx} className="flex items-start gap-1.5 text-sm text-zinc-700" data-testid={`plan-ingredient-${idx}`}>
+                  <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                  <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
+                  <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <ul className="space-y-2">
+              {recipe.ingredients.map((ing, idx) => (
+                <li key={idx} className="flex justify-between text-sm text-zinc-700">
+                  <span>{ing.item}</span>
+                  <span className="font-medium text-zinc-900">{ing.quantity}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div className="bg-zinc-50 p-4 rounded-xl mb-4">

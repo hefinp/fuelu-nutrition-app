@@ -1038,7 +1038,28 @@ function SavedRecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }
           </div>
         </div>
 
-        {recipe ? (
+        {Array.isArray(meal.ingredientsJson) && meal.ingredientsJson.length > 0 ? (
+          <>
+            <div className="bg-zinc-50 p-4 rounded-xl mb-4">
+              <h4 className="text-sm font-semibold text-zinc-900 mb-3">Ingredients</h4>
+              <ul className="space-y-1.5">
+                {(meal.ingredientsJson as Array<{ name: string; grams: number; calories100g: number }>).map((ing, idx) => (
+                  <li key={idx} className="flex items-start gap-1.5 text-sm text-zinc-700" data-testid={`saved-ingredient-${idx}`}>
+                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                    <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
+                    <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {recipe?.instructions && (
+              <div className="bg-zinc-50 p-4 rounded-xl mb-4">
+                <h4 className="text-sm font-semibold text-zinc-900 mb-2">Instructions</h4>
+                <p className="text-sm text-zinc-600 leading-relaxed">{recipe.instructions}</p>
+              </div>
+            )}
+          </>
+        ) : recipe ? (
           <>
             <div className="bg-zinc-50 p-4 rounded-xl mb-4">
               <h4 className="text-sm font-semibold text-zinc-900 mb-3">Ingredients</h4>
