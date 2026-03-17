@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -12,24 +12,52 @@ export default function BillingPage() {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
   const { data: tierStatus, isLoading: tierLoading } = useTierStatus();
+  const [upgradedTier, setUpgradedTier] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(4);
+  const confirmedRef = useRef(false);
 
   const searchParams = new URLSearchParams(location.split("?")[1] || "");
   const success = searchParams.get("success");
   const cancelled = searchParams.get("cancelled");
+  const sessionId = searchParams.get("session_id");
+
+  const confirmMutation = useMutation({
+    mutationFn: (sid: string) => apiRequest("POST", "/api/stripe/confirm-subscription", { sessionId: sid }).then(r => r.json()),
+    onSuccess: (data: { tier: string }) => {
+      setUpgradedTier(data.tier);
+      queryClient.invalidateQueries({ queryKey: ["/api/tier/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tier/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+  });
 
   useEffect(() => {
-    if (success) {
-      toast({
-        title: success === "credits" ? "Credits added!" : "Subscription activated!",
-        description: success === "credits" ? "Your credit balance has been updated." : "Welcome to your new plan.",
-      });
+    if (success === "subscription" && sessionId && !confirmedRef.current) {
+      confirmedRef.current = true;
+      confirmMutation.mutate(sessionId);
+    }
+    if (success === "credits") {
+      toast({ title: "Credits added!", description: "Your credit balance has been updated." });
       queryClient.invalidateQueries({ queryKey: ["/api/tier/status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     }
     if (cancelled) {
       toast({ title: "Checkout cancelled", description: "No changes were made to your account." });
     }
-  }, [success, cancelled]);
+  }, []);
+
+  useEffect(() => {
+    if (!upgradedTier) return;
+    if (countdown <= 0) {
+      navigate("/dashboard");
+      return;
+    }
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [upgradedTier, countdown]);
 
   const { data: transactions = [] } = useQuery<{ id: number; amount: number; type: string; featureKey: string | null; description: string | null; createdAt: string }[]>({
     queryKey: ["/api/tier/credit-transactions"],
@@ -107,6 +135,37 @@ export default function BillingPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+        {success === "subscription" && confirmMutation.isPending && (
+          <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl" data-testid="banner-confirming-upgrade">
+            <Loader2 className="w-5 h-5 text-emerald-600 animate-spin shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-800">Confirming your subscription…</p>
+              <p className="text-xs text-emerald-600 mt-0.5">Just a moment while we activate your account.</p>
+            </div>
+          </div>
+        )}
+
+        {upgradedTier && (
+          <div className="flex items-start gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl" data-testid="banner-upgrade-success">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-emerald-800">
+                Your account has been upgraded to {upgradedTier.charAt(0).toUpperCase() + upgradedTier.slice(1)}!
+              </p>
+              <p className="text-xs text-emerald-600 mt-0.5">
+                Redirecting you to the dashboard in {countdown}s…
+              </p>
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="mt-2 text-xs font-medium text-emerald-700 underline hover:text-emerald-900"
+                data-testid="link-go-to-dashboard"
+              >
+                Go now
+              </button>
+            </div>
+          </div>
+        )}
+
         {paymentFailed && (
           <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl" data-testid="banner-payment-failed">
             <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />

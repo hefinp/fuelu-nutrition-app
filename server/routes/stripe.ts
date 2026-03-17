@@ -155,7 +155,7 @@ router.post("/api/stripe/create-checkout", async (req, res) => {
       customer: customerId,
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${appUrl}/billing?success=subscription`,
+      success_url: `${appUrl}/billing?success=subscription&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/pricing?cancelled=true`,
       metadata: { userId: String(user.id), type: "subscription", tier },
       subscription_data: { metadata: { userId: String(user.id), tier } },
@@ -165,6 +165,49 @@ router.post("/api/stripe/create-checkout", async (req, res) => {
   } catch (err: any) {
     console.error("[stripe] Checkout error:", err.message);
     res.status(500).json({ message: "Failed to create checkout session" });
+  }
+});
+
+router.post("/api/stripe/confirm-subscription", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ message: "Stripe is not configured" });
+
+  const { sessionId } = z.object({ sessionId: z.string() }).parse(req.body);
+
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ["subscription"],
+    });
+
+    const userId = parseInt(session.metadata?.userId || "0");
+    if (userId !== req.session.userId) {
+      return res.status(403).json({ message: "Session does not belong to this user" });
+    }
+
+    if (session.payment_status !== "paid" && session.status !== "complete") {
+      return res.status(400).json({ message: "Payment not completed" });
+    }
+
+    const tier = session.metadata?.tier || "simple";
+    const subscription = session.subscription as Stripe.Subscription | null;
+
+    await storage.updateUserTier(userId, {
+      tier,
+      stripeSubscriptionId: subscription?.id ?? null,
+      tierExpiresAt: subscription
+        ? new Date((subscription as unknown as { current_period_end: number }).current_period_end * 1000)
+        : null,
+      paymentFailedAt: null,
+      pendingTier: null,
+    });
+
+    console.log(`[stripe] Subscription confirmed for user ${userId}: tier=${tier}`);
+    res.json({ tier, message: `Upgraded to ${tier}` });
+  } catch (err: any) {
+    console.error("[stripe] Confirm subscription error:", err.message);
+    res.status(500).json({ message: "Failed to confirm subscription" });
   }
 });
 
