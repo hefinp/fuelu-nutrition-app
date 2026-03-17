@@ -13,6 +13,10 @@ type JunctionIngredient = {
   canonicalFoodId: number | null;
   name: string;
   grams: number;
+  calories100g: number;
+  protein100g: number;
+  carbs100g: number;
+  fat100g: number;
 };
 
 import {
@@ -136,6 +140,22 @@ export function EditMealModal({
   }, [junctionIngredients]);
 
   const picker = useFoodPicker({ activeTab: pickerTab, scanActive: showPicker });
+
+  const junctionApplied = useRef(false);
+  useEffect(() => {
+    if (junctionApplied.current || junctionIngredients.length === 0) return;
+    junctionApplied.current = true;
+    const fromJunction: Ingredient[] = junctionIngredients.map((j, i) => ({
+      key: `junction-${j.id}-${i}`,
+      name: j.name,
+      calories100g: j.calories100g,
+      protein100g: j.protein100g,
+      carbs100g: j.carbs100g,
+      fat100g: j.fat100g,
+      grams: j.grams,
+    }));
+    setSelected(fromJunction);
+  }, [junctionIngredients]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
