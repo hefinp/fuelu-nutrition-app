@@ -449,40 +449,27 @@ export default function AccountPage() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {!isPaid && !betaUser && (
-                  <Link
-                    href="/pricing"
-                    className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors"
-                    data-testid="link-upgrade"
+                <Link
+                  href="/pricing"
+                  className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors"
+                  data-testid="link-change-plan"
+                >
+                  Change plan
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                {isPaid && !pendingTier && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Switch to the Free tier? You'll keep access to your current plan until the end of your billing period.")) {
+                        downgradeMutation.mutate();
+                      }
+                    }}
+                    disabled={downgradeMutation.isPending}
+                    className="flex items-center gap-1.5 px-4 py-2 border border-zinc-200 text-zinc-600 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors disabled:opacity-40"
+                    data-testid="button-downgrade-free"
                   >
-                    Upgrade
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                )}
-                {isPaid && (
-                  <>
-                    <Link
-                      href="/pricing"
-                      className="flex items-center gap-1.5 px-4 py-2 border border-zinc-200 text-zinc-700 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors"
-                      data-testid="link-change-plan"
-                    >
-                      Change plan
-                    </Link>
-                    {!pendingTier && (
-                      <button
-                        onClick={() => {
-                          if (window.confirm("Switch to the Free tier? You'll keep access to your current plan until the end of your billing period.")) {
-                            downgradeMutation.mutate();
-                          }
-                        }}
-                        disabled={downgradeMutation.isPending}
-                        className="flex items-center gap-1.5 px-4 py-2 border border-zinc-200 text-zinc-600 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors disabled:opacity-40"
-                        data-testid="button-downgrade-free"
-                      >
-                        {downgradeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Switch to Free"}
-                      </button>
-                    )}
-                  </>
+                    {downgradeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Switch to Free"}
+                  </button>
                 )}
               </div>
             </div>
