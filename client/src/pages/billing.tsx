@@ -216,34 +216,23 @@ export default function BillingPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {!isPaid && !betaUser && (
-              <Link
-                href="/pricing"
-                className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors"
-                data-testid="link-upgrade"
-              >
-                Upgrade
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            )}
+            <Link
+              href="/pricing"
+              className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors"
+              data-testid="link-change-plan"
+            >
+              Change plan
+              <ArrowRight className="w-4 h-4" />
+            </Link>
             {isPaid && (
-              <>
-                <Link
-                  href="/pricing"
-                  className="flex items-center gap-1.5 px-4 py-2 border border-zinc-200 text-zinc-700 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors"
-                  data-testid="link-change-plan"
-                >
-                  Change plan
-                </Link>
-                <button
-                  onClick={() => cancelMutation.mutate()}
-                  disabled={cancelMutation.isPending}
-                  className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-xl hover:bg-red-50 transition-colors disabled:opacity-40"
-                  data-testid="button-cancel-subscription"
-                >
-                  {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Cancel subscription"}
-                </button>
-              </>
+              <button
+                onClick={() => cancelMutation.mutate()}
+                disabled={cancelMutation.isPending}
+                className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-xl hover:bg-red-50 transition-colors disabled:opacity-40"
+                data-testid="button-cancel-subscription"
+              >
+                {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Cancel subscription"}
+              </button>
             )}
           </div>
         </div>

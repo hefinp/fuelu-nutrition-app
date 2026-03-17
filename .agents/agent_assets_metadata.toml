@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "v8nHUiX0Vw_0grjBvkhva"
+uri = "file://.local/docs/fuelu-business-case.md"
+type = "text"
+title = "FuelU — Business Case"
