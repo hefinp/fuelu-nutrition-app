@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -193,23 +193,35 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
     doSave(meal);
   };
 
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  const stopScrollLeak = useCallback((e: React.TouchEvent | React.WheelEvent) => {
+    e.stopPropagation();
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm pb-16 sm:pb-0"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      onWheel={stopScrollLeak}
+      onTouchMove={stopScrollLeak}
     >
       <motion.div
         initial={{ y: 40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 40, opacity: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 350 }}
-        className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[85vh] flex flex-col overflow-hidden"
+        className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
         data-testid="modal-community-browser"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-zinc-100 shrink-0">
           <div className="flex items-center gap-2">
             <Users2 className="w-5 h-5 text-zinc-600" />
             <h2 className="text-base font-bold text-zinc-900">Community Meals</h2>
@@ -217,20 +229,20 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={onClose}
             data-testid="button-close-community-browser"
-            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
+            className="p-2 -mr-1 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 rounded-xl transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="px-5 py-3 border-b border-zinc-100 space-y-3 shrink-0">
+        <div className="px-4 sm:px-5 py-3 border-b border-zinc-100 space-y-2.5 sm:space-y-3 shrink-0">
           <div className="flex gap-1.5">
             {MEAL_STYLE_OPTIONS.map(opt => (
               <button
                 key={opt.value}
                 onClick={() => handleStyleChange(opt.value)}
                 data-testid={`community-style-${opt.value}`}
-                className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex-1 px-3 py-2.5 sm:py-2 rounded-xl text-xs font-semibold transition-all min-h-[44px] sm:min-h-0 ${
                   selectedStyle === opt.value
                     ? "bg-zinc-900 text-white"
                     : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
@@ -247,7 +259,7 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                 key={opt.value}
                 onClick={() => handleSlotChange(opt.value)}
                 data-testid={`community-slot-${opt.value}`}
-                className={`flex-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                className={`flex-1 px-2 py-2.5 sm:py-1.5 rounded-lg text-xs font-medium transition-all border min-h-[44px] sm:min-h-0 ${
                   selectedSlot === opt.value
                     ? SLOT_COLOURS[opt.value]
                     : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
@@ -259,7 +271,7 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-3">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-3" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
           {isLoading ? (
             <div className="flex flex-col gap-2">
               {[1, 2, 3].map(i => (
