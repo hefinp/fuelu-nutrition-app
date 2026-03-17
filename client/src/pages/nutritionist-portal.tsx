@@ -6,7 +6,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Users, Plus, Search, X, FileText, ArrowLeft,
-  Mail, Calendar, ChevronRight, Trash2, Edit2, Check, AlertCircle, ClipboardList
+  Mail, Calendar, ChevronRight, Trash2, Edit2, Check, AlertCircle, ClipboardList,
+  Activity, BarChart2, Bell, Building2, UserMinus, UserPlus, RefreshCw,
+  TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings
 } from "lucide-react";
 
 interface ClientWithUser {
@@ -25,6 +27,19 @@ interface ClientWithUser {
     preferences: Record<string, unknown> | null;
     isManagedClient: boolean;
     createdAt: string;
+  };
+}
+
+interface ClientWithMonitoring extends ClientWithUser {
+  monitoring: {
+    daysLogged: number;
+    daysInactive: number;
+    lastLogDate: string | null;
+    adherenceScore: number | null;
+    avgCalories: number | null;
+    targetCalories: number | null;
+    alerts: string[];
+    recentWeight: number | null;
   };
 }
 
@@ -84,15 +99,411 @@ interface NutritionistProfile {
   updatedAt: string;
 }
 
+interface Alert {
+  clientId: number;
+  clientName: string;
+  type: string;
+  severity: "high" | "medium" | "low";
+  message: string;
+  date: string;
+}
+
+interface AdherenceData {
+  clientId: number;
+  fromDate: string;
+  toDate: string;
+  dailyBreakdown: Array<{
+    date: string;
+    logged: boolean;
+    actual: { calories: number; protein: number; carbs: number; fat: number };
+    target: { calories: number; protein: number; carbs: number; fat: number } | null;
+    adherencePct: number | null;
+  }>;
+  weightTrend: Array<{ date: string; weight: number }>;
+  targets: { calories: number; protein: number; carbs: number; fat: number } | null;
+}
+
+interface PracticeData {
+  id: number;
+  name: string;
+  adminUserId: number;
+  maxSeats: number;
+  createdAt: string;
+  role: string;
+}
+
+interface PracticeMember {
+  id: number;
+  practiceId: number;
+  nutritionistUserId: number;
+  role: string;
+  createdAt: string;
+  nutritionist: {
+    id: number;
+    name: string;
+    email: string;
+    profile: NutritionistProfile | null;
+  };
+}
+
+interface PracticeClientsGroup {
+  nutritionistId: number;
+  nutritionistName: string;
+  clients: ClientWithUser[];
+}
+
 const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
   onboarding: { label: "Onboarding", classes: "bg-blue-50 text-blue-700" },
   active: { label: "Active", classes: "bg-emerald-50 text-emerald-700" },
   paused: { label: "Paused", classes: "bg-zinc-100 text-zinc-500" },
 };
 
+const ALERT_SEVERITY_COLORS: Record<string, { bg: string; text: string; border: string; icon: string }> = {
+  high: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200", icon: "text-red-500" },
+  medium: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", icon: "text-amber-500" },
+  low: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", icon: "text-emerald-500" },
+};
+
+const ALERT_TYPE_LABELS: Record<string, string> = {
+  inactive: "Inactive",
+  over_fueling: "Over-fueling",
+  under_fueling: "Under-fueling",
+  missed_targets: "Missed targets",
+  milestone: "Milestone",
+};
+
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatDateShort(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
+function AdherenceBar({ pct }: { pct: number | null }) {
+  if (pct === null) return <div className="w-full h-1.5 bg-zinc-100 rounded-full" />;
+  const color = pct >= 80 ? "bg-emerald-400" : pct >= 60 ? "bg-amber-400" : "bg-red-400";
+  return (
+    <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+      <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(100, pct)}%` }} />
+    </div>
+  );
+}
+
+function MonitoringDashboard({
+  onSelectClient,
+}: {
+  onSelectClient: (c: ClientWithUser) => void;
+}) {
+  const [sortBy, setSortBy] = useState<"urgency" | "name" | "adherence">("urgency");
+  const [statusFilter, setStatusFilter] = useState("active");
+  const [search, setSearch] = useState("");
+
+  const { data: dashboardData = [], isLoading } = useQuery<ClientWithMonitoring[]>({
+    queryKey: ["/api/nutritionist/monitoring/dashboard"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/monitoring/dashboard").then(r => r.json()),
+    refetchInterval: 60000,
+  });
+
+  const { data: alerts = [] } = useQuery<Alert[]>({
+    queryKey: ["/api/nutritionist/monitoring/alerts"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/monitoring/alerts").then(r => r.json()),
+  });
+
+  const highAlerts = alerts.filter(a => a.severity === "high");
+
+  let filtered = dashboardData.filter(c => {
+    const matchStatus = statusFilter === "all" || c.status === statusFilter;
+    const matchSearch = !search ||
+      c.client.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.client.email.toLowerCase().includes(search.toLowerCase());
+    return matchStatus && matchSearch;
+  });
+
+  if (sortBy === "name") filtered = [...filtered].sort((a, b) => a.client.name.localeCompare(b.client.name));
+  else if (sortBy === "adherence") filtered = [...filtered].sort((a, b) => (b.monitoring.adherenceScore ?? -1) - (a.monitoring.adherenceScore ?? -1));
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-xl font-display font-bold text-zinc-900 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-zinc-500" />
+            Monitoring Dashboard
+          </h2>
+          <p className="text-sm text-zinc-500 mt-0.5">{dashboardData.length} clients tracked</p>
+        </div>
+        {highAlerts.length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-200 rounded-xl" data-testid="banner-high-alerts">
+            <Bell className="w-4 h-4 text-red-500" />
+            <span className="text-sm font-medium text-red-700">{highAlerts.length} urgent alert{highAlerts.length !== 1 ? "s" : ""}</span>
+          </div>
+        )}
+      </div>
+
+      {alerts.length > 0 && (
+        <div className="mb-4 space-y-2">
+          {alerts.slice(0, 3).map((alert, i) => {
+            const c = ALERT_SEVERITY_COLORS[alert.severity];
+            return (
+              <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border ${c.bg} ${c.border}`} data-testid={`alert-${alert.type}-${alert.clientId}`}>
+                <AlertCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${c.icon}`} />
+                <div className="flex-1 min-w-0">
+                  <span className={`text-xs font-semibold ${c.text}`}>{ALERT_TYPE_LABELS[alert.type] ?? alert.type}</span>
+                  <p className={`text-xs ${c.text} mt-0.5`}>{alert.message}</p>
+                </div>
+              </div>
+            );
+          })}
+          {alerts.length > 3 && (
+            <p className="text-xs text-zinc-400 pl-1">+{alerts.length - 3} more alerts</p>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search clients..."
+            className="w-full pl-9 pr-3 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 focus:border-zinc-400"
+            data-testid="input-search-monitoring"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="px-3 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none text-zinc-700 bg-white"
+          data-testid="select-monitoring-status"
+        >
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="onboarding">Onboarding</option>
+          <option value="paused">Paused</option>
+        </select>
+        <select
+          value={sortBy}
+          onChange={e => setSortBy(e.target.value as typeof sortBy)}
+          className="px-3 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none text-zinc-700 bg-white"
+          data-testid="select-monitoring-sort"
+        >
+          <option value="urgency">Sort by urgency</option>
+          <option value="name">Sort by name</option>
+          <option value="adherence">Sort by adherence</option>
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-zinc-100 p-12 text-center">
+          <Activity className="w-10 h-10 text-zinc-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-zinc-600 mb-1">No clients match this filter</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(c => {
+            const s = STATUS_LABELS[c.status] ?? STATUS_LABELS.onboarding;
+            const m = c.monitoring;
+            const hasAlerts = m.alerts.length > 0;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onSelectClient(c)}
+                className={`w-full bg-white rounded-2xl border p-4 flex items-center gap-4 hover:shadow-sm transition-all text-left ${hasAlerts ? "border-amber-200" : "border-zinc-100 hover:border-zinc-300"}`}
+                data-testid={`card-monitoring-${c.id}`}
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ${hasAlerts ? "bg-amber-500" : "bg-zinc-900"}`}>
+                  {c.client.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-semibold text-zinc-900">{c.client.name}</span>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${s.classes}`}>{s.label}</span>
+                    {m.alerts.filter(a => a.startsWith("inactive")).map((a, i) => (
+                      <span key={i} className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-50 text-red-700">
+                        {a.replace("inactive_", "").replace("d", "d inactive")}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-24">
+                      <AdherenceBar pct={m.adherenceScore} />
+                    </div>
+                    <span className="text-xs text-zinc-400">
+                      {m.adherenceScore !== null ? `${m.adherenceScore}% adherence` : "No targets set"}
+                    </span>
+                    <span className="text-xs text-zinc-400">
+                      {m.daysLogged}/7 days logged
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0 hidden sm:block">
+                  <p className="text-xs text-zinc-400">Last log</p>
+                  <p className="text-xs font-medium text-zinc-600">{m.lastLogDate ? formatDateShort(m.lastLogDate) : "Never"}</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-zinc-300 flex-shrink-0" />
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdherenceView({ clientRecord, onBack }: { clientRecord: ClientWithUser; onBack: () => void }) {
+  const [days, setDays] = useState(14);
+
+  const { data, isLoading } = useQuery<AdherenceData>({
+    queryKey: ["/api/nutritionist/monitoring/clients", clientRecord.clientId, "adherence", days],
+    queryFn: () => apiRequest("GET", `/api/nutritionist/monitoring/clients/${clientRecord.clientId}/adherence?days=${days}`).then(r => r.json()),
+  });
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-900 mb-6 transition-colors"
+        data-testid="button-back-adherence"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back to client profile
+      </button>
+
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-bold text-zinc-900">{clientRecord.client.name} — Planned vs Actual</h2>
+          <p className="text-sm text-zinc-500">Daily nutrition breakdown</p>
+        </div>
+        <div className="flex gap-1">
+          {[7, 14, 30].map(d => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setDays(d)}
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${days === d ? "bg-zinc-900 text-white" : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
+              data-testid={`button-days-${d}`}
+            >
+              {d}d
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>
+      ) : !data ? null : (
+        <div className="space-y-4">
+          {data.targets && (
+            <div className="bg-white rounded-2xl border border-zinc-100 p-4">
+              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Daily Targets</h3>
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { label: "Calories", value: data.targets.calories, unit: "kcal" },
+                  { label: "Protein", value: data.targets.protein, unit: "g" },
+                  { label: "Carbs", value: data.targets.carbs, unit: "g" },
+                  { label: "Fat", value: data.targets.fat, unit: "g" },
+                ].map(item => (
+                  <div key={item.label} className="text-center">
+                    <p className="text-lg font-bold text-zinc-900">{item.value}</p>
+                    <p className="text-xs text-zinc-400">{item.label} ({item.unit})</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+            <div className="px-4 py-3 border-b border-zinc-100">
+              <h3 className="text-sm font-semibold text-zinc-900">Daily Log</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-100 bg-zinc-50">
+                    <th className="text-left px-4 py-2 font-medium text-zinc-500">Date</th>
+                    <th className="text-right px-3 py-2 font-medium text-zinc-500">Calories</th>
+                    <th className="text-right px-3 py-2 font-medium text-zinc-500 hidden sm:table-cell">Protein</th>
+                    <th className="text-right px-3 py-2 font-medium text-zinc-500 hidden sm:table-cell">Carbs</th>
+                    <th className="text-right px-3 py-2 font-medium text-zinc-500 hidden sm:table-cell">Fat</th>
+                    <th className="text-right px-4 py-2 font-medium text-zinc-500">Adherence</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.dailyBreakdown.slice().reverse().map((day, i) => {
+                    const calDiff = data.targets ? day.actual.calories - data.targets.calories : 0;
+                    return (
+                      <tr key={day.date} className={`border-b border-zinc-50 ${i % 2 === 0 ? "" : "bg-zinc-50/50"}`} data-testid={`row-adherence-${day.date}`}>
+                        <td className="px-4 py-2.5 font-medium text-zinc-700">{formatDateShort(day.date)}</td>
+                        <td className="px-3 py-2.5 text-right">
+                          {day.logged ? (
+                            <span className={day.actual.calories > 0 && data.targets ? (calDiff > 200 ? "text-red-600" : calDiff < -200 ? "text-amber-600" : "text-emerald-600") : "text-zinc-700"}>
+                              {day.actual.calories}
+                              {data.targets && <span className="text-zinc-400 font-normal"> / {data.targets.calories}</span>}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-300 italic">Not logged</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-right hidden sm:table-cell text-zinc-600">
+                          {day.logged ? `${day.actual.protein}g` : "—"}
+                        </td>
+                        <td className="px-3 py-2.5 text-right hidden sm:table-cell text-zinc-600">
+                          {day.logged ? `${day.actual.carbs}g` : "—"}
+                        </td>
+                        <td className="px-3 py-2.5 text-right hidden sm:table-cell text-zinc-600">
+                          {day.logged ? `${day.actual.fat}g` : "—"}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          {day.adherencePct !== null ? (
+                            <span className={`font-medium ${day.adherencePct >= 80 ? "text-emerald-600" : day.adherencePct >= 60 ? "text-amber-600" : "text-red-600"}`}>
+                              {day.adherencePct}%
+                            </span>
+                          ) : (
+                            <span className="text-zinc-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {data.weightTrend.length > 0 && (
+            <div className="bg-white rounded-2xl border border-zinc-100 p-4">
+              <h3 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2">
+                <TrendingDown className="w-4 h-4 text-zinc-400" />
+                Weight Trend
+              </h3>
+              <div className="flex gap-4 overflow-x-auto pb-1">
+                {data.weightTrend.slice(-14).map(w => (
+                  <div key={w.date} className="text-center flex-shrink-0">
+                    <p className="text-sm font-bold text-zinc-900">{w.weight}</p>
+                    <p className="text-[10px] text-zinc-400">{formatDateShort(w.date)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ClientRoster({
@@ -227,7 +638,15 @@ function ClientRoster({
   );
 }
 
-function ClientProfile({ clientRecord, onBack }: { clientRecord: ClientWithUser; onBack: () => void }) {
+function ClientProfile({
+  clientRecord,
+  onBack,
+  onViewAdherence,
+}: {
+  clientRecord: ClientWithUser;
+  onBack: () => void;
+  onViewAdherence: () => void;
+}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -315,15 +734,26 @@ function ClientProfile({ clientRecord, onBack }: { clientRecord: ClientWithUser;
               <p className="text-sm text-zinc-500" data-testid="text-client-email">{clientRecord.client.email}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => { setEditMode(v => !v); setEditingStatus(clientRecord.status); setEditingGoal(clientRecord.goalSummary ?? ""); setEditingHealthNotes(clientRecord.healthNotes ?? ""); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-xl text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
-            data-testid="button-edit-client"
-          >
-            <Edit2 className="w-3.5 h-3.5" />
-            Edit
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onViewAdherence}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-xl text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
+              data-testid="button-view-adherence"
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              Adherence
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEditMode(v => !v); setEditingStatus(clientRecord.status); setEditingGoal(clientRecord.goalSummary ?? ""); setEditingHealthNotes(clientRecord.healthNotes ?? ""); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-xl text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
+              data-testid="button-edit-client"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              Edit
+            </button>
+          </div>
         </div>
 
         {editMode ? (
@@ -568,6 +998,283 @@ function ClientProfile({ clientRecord, onBack }: { clientRecord: ClientWithUser;
   );
 }
 
+function PracticeAdminPanel({ profile }: { profile: NutritionistProfile }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [newPracticeName, setNewPracticeName] = useState("");
+  const [newMemberEmail, setNewMemberEmail] = useState("");
+  const [expandedNutritionist, setExpandedNutritionist] = useState<number | null>(null);
+
+  const { data: practice, isLoading: practiceLoading } = useQuery<PracticeData | null>({
+    queryKey: ["/api/practice"],
+    queryFn: () => apiRequest("GET", "/api/practice").then(r => r.json()),
+    enabled: !!user,
+  });
+
+  const createPracticeMutation = useMutation({
+    mutationFn: (name: string) =>
+      apiRequest("POST", "/api/practice", { name }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/practice"] });
+      toast({ title: "Practice account created" });
+      setNewPracticeName("");
+    },
+    onError: (err: Error) => toast({ title: "Failed to create practice", description: err.message, variant: "destructive" }),
+  });
+
+  const { data: members = [], isLoading: membersLoading } = useQuery<PracticeMember[]>({
+    queryKey: ["/api/practice", practice?.id, "members"],
+    queryFn: () => apiRequest("GET", `/api/practice/${practice!.id}/members`).then(r => r.json()),
+    enabled: !!practice,
+  });
+
+  const { data: practiceClients = [], isLoading: practiceClientsLoading } = useQuery<PracticeClientsGroup[]>({
+    queryKey: ["/api/practice", practice?.id, "clients"],
+    queryFn: () => apiRequest("GET", `/api/practice/${practice!.id}/clients`).then(r => r.json()),
+    enabled: !!practice,
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: (nutritionistUserId: number) =>
+      apiRequest("DELETE", `/api/practice/${practice!.id}/members/${nutritionistUserId}`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/practice", practice!.id, "members"] });
+      toast({ title: "Member removed" });
+    },
+    onError: (err: Error) => toast({ title: "Failed to remove member", description: err.message, variant: "destructive" }),
+  });
+
+  const addMemberByEmailMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const found = await apiRequest("GET", `/api/practice/lookup-nutritionist?email=${encodeURIComponent(email)}`).then(r => r.json());
+      if (!found || found.message) throw new Error(found.message ?? "User not found");
+      return apiRequest("POST", `/api/practice/${practice!.id}/members`, { nutritionistUserId: found.id }).then(r => r.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/practice", practice!.id, "members"] });
+      toast({ title: "Member added to practice" });
+      setNewMemberEmail("");
+    },
+    onError: (err: Error) => toast({ title: "Failed to add member", description: err.message, variant: "destructive" }),
+  });
+
+  if (practiceLoading) {
+    return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>;
+  }
+
+  if (!practice) {
+    if (profile.tier !== "practice") {
+      return (
+        <div className="bg-white rounded-2xl border border-zinc-100 p-8 text-center">
+          <Building2 className="w-12 h-12 text-zinc-300 mx-auto mb-4" />
+          <h3 className="text-base font-bold text-zinc-900 mb-2">Practice Tier Required</h3>
+          <p className="text-sm text-zinc-500 mb-4">
+            Upgrade to the Practice tier to create a shared practice account with multiple nutritionist seats.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-white rounded-2xl border border-zinc-100 p-8">
+        <div className="text-center mb-6">
+          <Building2 className="w-12 h-12 text-zinc-400 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-zinc-900 mb-1">Create Your Practice</h3>
+          <p className="text-sm text-zinc-500">Set up a shared practice account to manage multiple nutritionists and their clients.</p>
+        </div>
+        <div className="max-w-sm mx-auto space-y-3">
+          <input
+            type="text"
+            value={newPracticeName}
+            onChange={e => setNewPracticeName(e.target.value)}
+            placeholder="Practice name (e.g. Wellness Clinic)"
+            className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+            data-testid="input-practice-name"
+          />
+          <button
+            type="button"
+            onClick={() => newPracticeName.trim() && createPracticeMutation.mutate(newPracticeName.trim())}
+            disabled={!newPracticeName.trim() || createPracticeMutation.isPending}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+            data-testid="button-create-practice"
+          >
+            {createPracticeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building2 className="w-4 h-4" />}
+            Create Practice
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const isAdmin = practice.adminUserId === user?.id || practice.role === "admin";
+  const totalClients = practiceClients.reduce((s, g) => s + g.clients.length, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-2xl border border-zinc-100 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-zinc-900" data-testid="text-practice-name">{practice.name}</h2>
+              <p className="text-xs text-zinc-500">{members.length} nutritionist{members.length !== 1 ? "s" : ""} · {totalClients} client{totalClients !== 1 ? "s" : ""} · {practice.maxSeats} seat{practice.maxSeats !== 1 ? "s" : ""}</p>
+            </div>
+          </div>
+          {isAdmin && (
+            <span className="text-xs font-medium px-2 py-1 bg-zinc-900 text-white rounded-lg">Admin</span>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-zinc-100 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+            <Users className="w-4 h-4 text-zinc-400" />
+            Nutritionist Seats ({members.length}/{practice.maxSeats})
+          </h3>
+        </div>
+
+        {membersLoading ? (
+          <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-zinc-400" /></div>
+        ) : (
+          <div className="space-y-2 mb-4">
+            {members.map(member => {
+              const group = practiceClients.find(g => g.nutritionistId === member.nutritionistUserId);
+              const clientCount = group?.clients.length ?? 0;
+              const isExpanded = expandedNutritionist === member.nutritionistUserId;
+              return (
+                <div key={member.id} className="border border-zinc-100 rounded-xl" data-testid={`member-${member.nutritionistUserId}`}>
+                  <div className="flex items-center gap-3 p-3">
+                    <div className="w-8 h-8 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-600 text-sm font-bold flex-shrink-0">
+                      {member.nutritionist.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-zinc-900">{member.nutritionist.name}</p>
+                      <p className="text-xs text-zinc-400">{member.nutritionist.email} · {clientCount} client{clientCount !== 1 ? "s" : ""}</p>
+                    </div>
+                    {member.role === "admin" && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 bg-zinc-100 text-zinc-600 rounded-full">Admin</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setExpandedNutritionist(isExpanded ? null : member.nutritionistUserId)}
+                      className="p-1 text-zinc-400 hover:text-zinc-700"
+                      data-testid={`button-expand-nutritionist-${member.nutritionistUserId}`}
+                    >
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                    {isAdmin && member.nutritionistUserId !== user?.id && (
+                      <button
+                        type="button"
+                        onClick={() => removeMemberMutation.mutate(member.nutritionistUserId)}
+                        disabled={removeMemberMutation.isPending}
+                        className="p-1 text-zinc-400 hover:text-red-600 transition-colors"
+                        data-testid={`button-remove-member-${member.nutritionistUserId}`}
+                      >
+                        <UserMinus className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {isExpanded && group && group.clients.length > 0 && (
+                    <div className="border-t border-zinc-100 px-3 py-2 space-y-1">
+                      {group.clients.map(c => (
+                        <div key={c.id} className="flex items-center gap-2 py-1" data-testid={`practice-client-${c.id}`}>
+                          <div className="w-5 h-5 bg-zinc-100 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-500">
+                            {c.client.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-xs text-zinc-700">{c.client.name}</span>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${STATUS_LABELS[c.status]?.classes ?? ""}`}>
+                            {STATUS_LABELS[c.status]?.label ?? c.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {isAdmin && members.length < practice.maxSeats && (
+          <div className="border-t border-zinc-100 pt-4">
+            <p className="text-xs font-medium text-zinc-500 mb-2">Add nutritionist by email (they must have a nutritionist profile)</p>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={newMemberEmail}
+                onChange={e => setNewMemberEmail(e.target.value)}
+                placeholder="nutritionist@example.com"
+                className="flex-1 px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-add-member-email"
+              />
+              <button
+                type="button"
+                onClick={() => newMemberEmail.trim() && addMemberByEmailMutation.mutate(newMemberEmail.trim())}
+                disabled={!newMemberEmail.trim() || addMemberByEmailMutation.isPending}
+                className="flex items-center gap-1.5 px-3 py-2 bg-zinc-900 text-white text-sm rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                data-testid="button-add-member"
+              >
+                {addMemberByEmailMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+                Add
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isAdmin && members.length >= practice.maxSeats && (
+          <div className="text-xs text-zinc-400 text-center py-2">
+            All {practice.maxSeats} seats filled. Contact support to increase your seat limit.
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-zinc-100 p-5">
+        <h3 className="text-sm font-semibold text-zinc-900 mb-4 flex items-center gap-2">
+          <Users className="w-4 h-4 text-zinc-400" />
+          All Practice Clients
+        </h3>
+        {practiceClientsLoading ? (
+          <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-zinc-400" /></div>
+        ) : practiceClients.length === 0 ? (
+          <p className="text-sm text-zinc-400 text-center py-4">No clients in practice yet</p>
+        ) : (
+          <div className="space-y-4">
+            {practiceClients.map(group => (
+              <div key={group.nutritionistId}>
+                <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">{group.nutritionistName}</h4>
+                {group.clients.length === 0 ? (
+                  <p className="text-xs text-zinc-400 italic">No clients</p>
+                ) : (
+                  <div className="space-y-1">
+                    {group.clients.map(c => (
+                      <div key={c.id} className="flex items-center gap-3 p-2 rounded-xl bg-zinc-50" data-testid={`practice-all-client-${c.id}`}>
+                        <div className="w-7 h-7 bg-zinc-200 rounded-full flex items-center justify-center text-xs font-bold text-zinc-600">
+                          {c.client.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-zinc-900">{c.client.name}</p>
+                          <p className="text-xs text-zinc-400">{c.client.email}</p>
+                        </div>
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${STATUS_LABELS[c.status]?.classes ?? ""}`}>
+                          {STATUS_LABELS[c.status]?.label ?? c.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function InviteModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -613,7 +1320,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
 
         <div className="p-6">
           <p className="text-sm text-zinc-500 mb-4">
-            Enter your client's email address. They will receive an invitation link to create their FuelU account pre-linked to your practice.
+            Enter your client's email address. They will receive an invitation link to create their account pre-linked to your practice.
           </p>
 
           <div className="flex gap-2 mb-6">
@@ -675,10 +1382,17 @@ function InviteModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+type Tab = "monitoring" | "clients" | "practice";
+type ViewState =
+  | { kind: "list" }
+  | { kind: "profile"; client: ClientWithUser }
+  | { kind: "adherence"; client: ClientWithUser };
+
 export default function NutritionistPortalPage() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
-  const [selectedClient, setSelectedClient] = useState<ClientWithUser | null>(null);
+  const [tab, setTab] = useState<Tab>("monitoring");
+  const [view, setView] = useState<ViewState>({ kind: "list" });
   const [showInviteModal, setShowInviteModal] = useState(false);
 
   const { data: profile, isLoading: profileLoading } = useQuery<NutritionistProfile | null>({
@@ -741,67 +1455,92 @@ export default function NutritionistPortalPage() {
     );
   }
 
+  const TABS: { id: Tab; label: string; icon: typeof Activity }[] = [
+    { id: "monitoring", label: "Monitoring", icon: Activity },
+    { id: "clients", label: "Clients", icon: Users },
+    { id: "practice", label: "Practice", icon: Building2 },
+  ];
+
   return (
     <div className="min-h-screen bg-zinc-50 pb-16">
       <header className="bg-white border-b border-zinc-100 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center relative">
-              <div className="w-3 h-3 bg-white rounded-full" />
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[3px] h-[calc(50%-6px)] bg-white rounded-t-sm" />
+            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">F</span>
             </div>
-            <h1 className="font-display font-bold text-xl tracking-tight text-zinc-900">FuelU</h1>
+            <span className="font-display font-semibold text-zinc-900 hidden sm:block">Professional Portal</span>
           </Link>
-          <span className="hidden sm:block text-xs font-medium text-zinc-400 bg-zinc-100 px-2.5 py-1 rounded-full capitalize">
-            {profile.tier} Plan
-          </span>
+          <div className="flex items-center gap-1">
+            {TABS.map(t => {
+              const Icon = t.icon;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => { setTab(t.id); setView({ kind: "list" }); }}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${tab === t.id ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"}`}
+                  data-testid={`tab-${t.id}`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="hidden sm:block">{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </header>
 
-      {/* Personal / Professional tab strip */}
-      <div className="bg-white border-b border-zinc-100" data-testid="tab-strip-professional-portal">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-1 h-11">
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-colors"
-              data-testid="tab-personal"
-            >
-              Personal
-            </Link>
-            <span
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg text-zinc-900 bg-zinc-100"
-              data-testid="tab-professional-active"
-            >
-              Professional
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-        {clientsLoading || capacityLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-          </div>
-        ) : selectedClient ? (
-          <ClientProfile
-            clientRecord={selectedClient}
-            onBack={() => setSelectedClient(null)}
-          />
-        ) : (
-          <ClientRoster
-            clients={clients}
-            capacity={capacity!}
-            onSelectClient={setSelectedClient}
-            onInvite={() => setShowInviteModal(true)}
-          />
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {tab === "monitoring" && (
+          view.kind === "adherence" ? (
+            <AdherenceView
+              clientRecord={view.client}
+              onBack={() => setView({ kind: "profile", client: view.client })}
+            />
+          ) : view.kind === "profile" ? (
+            <ClientProfile
+              clientRecord={view.client}
+              onBack={() => setView({ kind: "list" })}
+              onViewAdherence={() => setView({ kind: "adherence", client: view.client })}
+            />
+          ) : (
+            <MonitoringDashboard
+              onSelectClient={(c) => setView({ kind: "profile", client: c })}
+            />
+          )
         )}
-      </div>
 
-      {showInviteModal && (
-        <InviteModal onClose={() => setShowInviteModal(false)} />
-      )}
+        {tab === "clients" && (
+          view.kind === "adherence" && tab === "clients" ? (
+            <AdherenceView
+              clientRecord={view.client}
+              onBack={() => setView({ kind: "profile", client: view.client })}
+            />
+          ) : view.kind === "profile" ? (
+            <ClientProfile
+              clientRecord={view.client}
+              onBack={() => setView({ kind: "list" })}
+              onViewAdherence={() => setView({ kind: "adherence", client: view.client })}
+            />
+          ) : (
+            capacity && (
+              <ClientRoster
+                clients={clients}
+                capacity={capacity}
+                onSelectClient={(c) => setView({ kind: "profile", client: c })}
+                onInvite={() => setShowInviteModal(true)}
+              />
+            )
+          )
+        )}
+
+        {tab === "practice" && (
+          <PracticeAdminPanel profile={profile} />
+        )}
+      </main>
+
+      {showInviteModal && <InviteModal onClose={() => setShowInviteModal(false)} />}
     </div>
   );
 }

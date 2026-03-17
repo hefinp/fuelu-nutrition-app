@@ -473,6 +473,31 @@ export async function runMigrations(): Promise<void> {
 
     await client.query(`CREATE INDEX IF NOT EXISTS idx_nutritionist_notes_nutritionist_client ON nutritionist_notes (nutritionist_id, client_id)`);
 
+    // Practice account tables (for practice tier)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS practice_accounts (
+        id              SERIAL PRIMARY KEY,
+        name            TEXT NOT NULL,
+        admin_user_id   INTEGER NOT NULL REFERENCES users(id),
+        max_seats       INTEGER NOT NULL DEFAULT 5,
+        created_at      TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS practice_members (
+        id                    SERIAL PRIMARY KEY,
+        practice_id           INTEGER NOT NULL REFERENCES practice_accounts(id) ON DELETE CASCADE,
+        nutritionist_user_id  INTEGER NOT NULL REFERENCES users(id),
+        role                  TEXT NOT NULL DEFAULT 'member',
+        created_at            TIMESTAMP DEFAULT NOW(),
+        UNIQUE(practice_id, nutritionist_user_id)
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_practice_members_practice ON practice_members (practice_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_practice_members_nutritionist ON practice_members (nutritionist_user_id)`);
+
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;

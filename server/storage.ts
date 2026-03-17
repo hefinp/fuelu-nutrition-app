@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -245,6 +245,18 @@ export interface IStorage {
   createPlanTemplate(template: InsertPlanTemplate): Promise<PlanTemplate>;
   updatePlanTemplate(id: number, nutritionistId: number, updates: Partial<Pick<PlanTemplate, 'name' | 'description' | 'planData'>>): Promise<PlanTemplate | undefined>;
   deletePlanTemplate(id: number, nutritionistId: number): Promise<void>;
+
+  // Practice accounts
+  getPracticeByAdmin(adminUserId: number): Promise<PracticeAccount | undefined>;
+  getPracticeById(id: number): Promise<PracticeAccount | undefined>;
+  createPracticeAccount(adminUserId: number, name: string, maxSeats?: number): Promise<PracticeAccount>;
+  updatePracticeAccount(id: number, updates: { name?: string; maxSeats?: number }): Promise<PracticeAccount | undefined>;
+  getPracticeMembers(practiceId: number): Promise<(PracticeMember & { nutritionist: Pick<User, "id" | "name" | "email"> & { profile: NutritionistProfile | null } })[]>;
+  getPracticeMemberByNutritionist(practiceId: number, nutritionistUserId: number): Promise<PracticeMember | undefined>;
+  getPracticeByMember(nutritionistUserId: number): Promise<PracticeAccount | undefined>;
+  addPracticeMember(practiceId: number, nutritionistUserId: number, role?: string): Promise<PracticeMember>;
+  removePracticeMember(practiceId: number, nutritionistUserId: number): Promise<void>;
+  updatePracticeMemberRole(practiceId: number, nutritionistUserId: number, role: string): Promise<PracticeMember | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1706,6 +1718,88 @@ export class DatabaseStorage implements IStorage {
 
   async deletePlanTemplate(id: number, nutritionistId: number): Promise<void> {
     await db.delete(planTemplates).where(and(eq(planTemplates.id, id), eq(planTemplates.nutritionistId, nutritionistId)));
+  }
+
+  async getPracticeByAdmin(adminUserId: number): Promise<PracticeAccount | undefined> {
+    const [row] = await db.select().from(practiceAccounts).where(eq(practiceAccounts.adminUserId, adminUserId));
+    return row;
+  }
+
+  async getPracticeById(id: number): Promise<PracticeAccount | undefined> {
+    const [row] = await db.select().from(practiceAccounts).where(eq(practiceAccounts.id, id));
+    return row;
+  }
+
+  async createPracticeAccount(adminUserId: number, name: string, maxSeats = 5): Promise<PracticeAccount> {
+    const [created] = await db.insert(practiceAccounts).values({ adminUserId, name, maxSeats }).returning();
+    return created;
+  }
+
+  async updatePracticeAccount(id: number, updates: { name?: string; maxSeats?: number }): Promise<PracticeAccount | undefined> {
+    const [updated] = await db.update(practiceAccounts).set(updates).where(eq(practiceAccounts.id, id)).returning();
+    return updated;
+  }
+
+  async getPracticeMembers(practiceId: number): Promise<(PracticeMember & { nutritionist: Pick<User, "id" | "name" | "email"> & { profile: NutritionistProfile | null } })[]> {
+    const rows = await db.select({
+      pm: practiceMembers,
+      userId: users.id,
+      userName: users.name,
+      userEmail: users.email,
+    })
+      .from(practiceMembers)
+      .innerJoin(users, eq(practiceMembers.nutritionistUserId, users.id))
+      .where(eq(practiceMembers.practiceId, practiceId))
+      .orderBy(practiceMembers.createdAt);
+
+    const result = [];
+    for (const row of rows) {
+      const profile = await this.getNutritionistProfile(row.userId);
+      result.push({
+        ...row.pm,
+        nutritionist: {
+          id: row.userId,
+          name: row.userName,
+          email: row.userEmail,
+          profile: profile ?? null,
+        },
+      });
+    }
+    return result;
+  }
+
+  async getPracticeMemberByNutritionist(practiceId: number, nutritionistUserId: number): Promise<PracticeMember | undefined> {
+    const [row] = await db.select().from(practiceMembers)
+      .where(and(eq(practiceMembers.practiceId, practiceId), eq(practiceMembers.nutritionistUserId, nutritionistUserId)));
+    return row;
+  }
+
+  async getPracticeByMember(nutritionistUserId: number): Promise<PracticeAccount | undefined> {
+    const [row] = await db.select({
+      practice: practiceAccounts,
+    })
+      .from(practiceMembers)
+      .innerJoin(practiceAccounts, eq(practiceMembers.practiceId, practiceAccounts.id))
+      .where(eq(practiceMembers.nutritionistUserId, nutritionistUserId));
+    return row?.practice;
+  }
+
+  async addPracticeMember(practiceId: number, nutritionistUserId: number, role = "member"): Promise<PracticeMember> {
+    const [created] = await db.insert(practiceMembers).values({ practiceId, nutritionistUserId, role }).returning();
+    return created;
+  }
+
+  async removePracticeMember(practiceId: number, nutritionistUserId: number): Promise<void> {
+    await db.delete(practiceMembers)
+      .where(and(eq(practiceMembers.practiceId, practiceId), eq(practiceMembers.nutritionistUserId, nutritionistUserId)));
+  }
+
+  async updatePracticeMemberRole(practiceId: number, nutritionistUserId: number, role: string): Promise<PracticeMember | undefined> {
+    const [updated] = await db.update(practiceMembers)
+      .set({ role })
+      .where(and(eq(practiceMembers.practiceId, practiceId), eq(practiceMembers.nutritionistUserId, nutritionistUserId)))
+      .returning();
+    return updated;
   }
 }
 

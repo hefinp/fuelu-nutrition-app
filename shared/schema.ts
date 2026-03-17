@@ -824,3 +824,42 @@ export const insertPlanTemplateSchema = createInsertSchema(planTemplates).omit({
 
 export type InsertPlanTemplate = z.infer<typeof insertPlanTemplateSchema>;
 export type PlanTemplate = typeof planTemplates.$inferSelect;
+
+export const practiceAccounts = pgTable("practice_accounts", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  adminUserId: integer("admin_user_id").notNull().references(() => users.id),
+  maxSeats: integer("max_seats").notNull().default(5),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPracticeAccountSchema = createInsertSchema(practiceAccounts).omit({
+  id: true,
+  createdAt: true,
+  adminUserId: true,
+}).extend({
+  name: z.string().min(2, "Practice name must be at least 2 characters").max(200),
+  maxSeats: z.number().int().min(1).max(100).optional(),
+});
+
+export type InsertPracticeAccount = z.infer<typeof insertPracticeAccountSchema>;
+export type PracticeAccount = typeof practiceAccounts.$inferSelect;
+
+export const practiceMembers = pgTable("practice_members", {
+  id: serial("id").primaryKey(),
+  practiceId: integer("practice_id").notNull().references(() => practiceAccounts.id),
+  nutritionistUserId: integer("nutritionist_user_id").notNull().references(() => users.id),
+  role: text("role").notNull().default("member"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPracticeMemberSchema = createInsertSchema(practiceMembers).omit({
+  id: true,
+  createdAt: true,
+  practiceId: true,
+}).extend({
+  role: z.enum(["admin", "member"]).default("member"),
+});
+
+export type InsertPracticeMember = z.infer<typeof insertPracticeMemberSchema>;
+export type PracticeMember = typeof practiceMembers.$inferSelect;
