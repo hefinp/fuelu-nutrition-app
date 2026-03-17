@@ -340,6 +340,67 @@ router.post("/api/admin/canonical-foods/:id/unverify", async (req, res) => {
   res.json(food);
 });
 
+router.post("/api/admin/sync-stripe-prices", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  const stripe = getStripe();
+  if (!stripe) return res.status(503).json({ message: "Stripe is not configured" });
+  try {
+    const allTiers = await storage.getTierPricing();
+    const missing = allTiers.filter(t => t.active && (!t.stripePriceIdMonthly || !t.stripePriceIdAnnual));
+    if (missing.length === 0) {
+      return res.json({ message: "All tiers already have Stripe prices configured", synced: [] });
+    }
+    const synced: string[] = [];
+    for (const tp of missing) {
+      const productName = `FuelU ${tp.tier.charAt(0).toUpperCase() + tp.tier.slice(1)}`;
+      let productId: string | undefined;
+      const products = await stripe.products.search({ query: `name:'${productName}'` });
+      if (products.data.length > 0) {
+        productId = products.data[0].id;
+      } else {
+        const product = await stripe.products.create({ name: productName });
+        productId = product.id;
+      }
+      let monthlyPriceId = tp.stripePriceIdMonthly;
+      let annualPriceId = tp.stripePriceIdAnnual;
+      if (!monthlyPriceId) {
+        const price = await stripe.prices.create({
+          product: productId,
+          unit_amount: tp.monthlyPriceUsd,
+          currency: "usd",
+          recurring: { interval: "month" },
+        });
+        monthlyPriceId = price.id;
+      }
+      if (!annualPriceId) {
+        const price = await stripe.prices.create({
+          product: productId,
+          unit_amount: tp.annualPriceUsd,
+          currency: "usd",
+          recurring: { interval: "year" },
+        });
+        annualPriceId = price.id;
+      }
+      await storage.upsertTierPricing({
+        tier: tp.tier,
+        monthlyPriceUsd: tp.monthlyPriceUsd,
+        annualPriceUsd: tp.annualPriceUsd,
+        stripePriceIdMonthly: monthlyPriceId,
+        stripePriceIdAnnual: annualPriceId,
+        active: tp.active ?? true,
+        features: (tp.features as unknown[]) ?? [],
+        displayOrder: tp.displayOrder ?? 0,
+      });
+      synced.push(tp.tier);
+      console.log(`[admin] Stripe prices synced for tier: ${tp.tier}`);
+    }
+    res.json({ message: `Synced Stripe prices for: ${synced.join(", ")}`, synced });
+  } catch (err: any) {
+    console.error("[admin] Stripe sync error:", err.message);
+    res.status(500).json({ message: `Stripe sync failed: ${err.message}` });
+  }
+});
+
 setTimeout(() => {
   checkAndRefillCommunityMealBalance(true).then(r => {
     if (r.mealsGenerated > 0) {

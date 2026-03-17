@@ -105,10 +105,51 @@ router.post("/api/stripe/create-checkout", async (req, res) => {
       return res.status(400).json({ message: "Invalid tier" });
     }
 
-    const priceId = billing === "annual" ? tierPricing.stripePriceIdAnnual : tierPricing.stripePriceIdMonthly;
-    if (!priceId) {
-      return res.status(400).json({ message: "Stripe price not configured for this tier" });
+    let monthlyPriceId = tierPricing.stripePriceIdMonthly;
+    let annualPriceId = tierPricing.stripePriceIdAnnual;
+
+    if (!monthlyPriceId || !annualPriceId) {
+      const productName = `FuelU ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
+      let productId: string | undefined;
+      const products = await stripe.products.search({ query: `name:'${productName}'` });
+      if (products.data.length > 0) {
+        productId = products.data[0].id;
+      } else {
+        const product = await stripe.products.create({ name: productName });
+        productId = product.id;
+      }
+      if (!monthlyPriceId) {
+        const price = await stripe.prices.create({
+          product: productId,
+          unit_amount: tierPricing.monthlyPriceUsd,
+          currency: "usd",
+          recurring: { interval: "month" },
+        });
+        monthlyPriceId = price.id;
+      }
+      if (!annualPriceId) {
+        const price = await stripe.prices.create({
+          product: productId,
+          unit_amount: tierPricing.annualPriceUsd,
+          currency: "usd",
+          recurring: { interval: "year" },
+        });
+        annualPriceId = price.id;
+      }
+      await storage.upsertTierPricing({
+        tier: tierPricing.tier,
+        monthlyPriceUsd: tierPricing.monthlyPriceUsd,
+        annualPriceUsd: tierPricing.annualPriceUsd,
+        stripePriceIdMonthly: monthlyPriceId,
+        stripePriceIdAnnual: annualPriceId,
+        active: tierPricing.active ?? true,
+        features: (tierPricing.features as unknown[]) ?? [],
+        displayOrder: tierPricing.displayOrder ?? 0,
+      });
+      console.log(`[stripe] Auto-created Stripe prices for tier: ${tier}`);
     }
+
+    const priceId = billing === "annual" ? annualPriceId : monthlyPriceId;
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,

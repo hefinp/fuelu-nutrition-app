@@ -190,6 +190,15 @@ export default function AdminPage() {
     },
   });
 
+  const syncStripeMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/sync-stripe-prices", {}),
+    onSuccess: async (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/tier-pricing"] });
+      toast({ title: data?.message ?? "Stripe prices synced" });
+    },
+    onError: (err: any) => toast({ title: err?.message ?? "Stripe sync failed", variant: "destructive" }),
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
@@ -428,6 +437,8 @@ export default function AdminPage() {
             onSavePack={(data) => saveCreditPackMutation.mutate(data)}
             onDeletePack={(id) => deleteCreditPackMutation.mutate(id)}
             isSavingPack={saveCreditPackMutation.isPending}
+            onSyncStripe={() => syncStripeMutation.mutate()}
+            isSyncingStripe={syncStripeMutation.isPending}
           />
         )}
 
@@ -451,7 +462,7 @@ export default function AdminPage() {
   );
 }
 
-function PricingTab({ tierPricing, onSave, isSaving, creditPacks, onSavePack, onDeletePack, isSavingPack }: {
+function PricingTab({ tierPricing, onSave, isSaving, creditPacks, onSavePack, onDeletePack, isSavingPack, onSyncStripe, isSyncingStripe }: {
   tierPricing: TierPricingItem[];
   onSave: (data: { tier: string; monthlyPriceUsd: number; annualPriceUsd: number; active: boolean; features: string[]; displayOrder: number }) => void;
   isSaving: boolean;
@@ -459,6 +470,8 @@ function PricingTab({ tierPricing, onSave, isSaving, creditPacks, onSavePack, on
   onSavePack: (data: { id?: number; credits: number; priceUsd: number; stripePriceId?: string; active?: boolean }) => void;
   onDeletePack: (id: number) => void;
   isSavingPack: boolean;
+  onSyncStripe: () => void;
+  isSyncingStripe: boolean;
 }) {
   const [editTier, setEditTier] = useState<string | null>(null);
   const [editData, setEditData] = useState<{ monthlyPriceUsd: number; annualPriceUsd: number; active: boolean; features: string; displayOrder: number }>({
@@ -471,7 +484,18 @@ function PricingTab({ tierPricing, onSave, isSaving, creditPacks, onSavePack, on
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-zinc-100 p-5">
-        <h2 className="text-sm font-semibold text-zinc-900 mb-4">Tier Pricing</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-zinc-900">Tier Pricing</h2>
+          <button
+            onClick={onSyncStripe}
+            disabled={isSyncingStripe}
+            data-testid="button-sync-stripe-prices"
+            className="flex items-center gap-1.5 text-xs text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg font-medium disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw className={`w-3 h-3 ${isSyncingStripe ? "animate-spin" : ""}`} />
+            {isSyncingStripe ? "Syncing…" : "Sync Stripe Prices"}
+          </button>
+        </div>
         <div className="space-y-3">
           {tiers.map(tier => {
             const existing = tierPricing.find(t => t.tier === tier);
