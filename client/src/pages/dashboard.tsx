@@ -17,6 +17,7 @@ import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { InstallPrompt } from "@/components/install-prompt";
 const InsightsPage = lazy(() => import("@/pages/insights"));
+const VitalityInsightsPage = lazy(() => import("@/pages/vitality-insights"));
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
 import { useDashboardLayout, WIDE_WIDGETS } from "@/hooks/use-dashboard-layout";
@@ -128,6 +129,7 @@ export default function Dashboard() {
   const [logPrefill, setLogPrefill] = useState<PrefillEntry | null>(null);
   const [showFoodLogPopup, setShowFoodLogPopup] = useState(false);
   const [showInsightsPopup, setShowInsightsPopup] = useState(false);
+  const [showVitalityInsightsPopup, setShowVitalityInsightsPopup] = useState(false);
   const { data: history, isLoading: historyLoading } = useCalculations();
   const { user, logout, isLoggingOut } = useAuth();
   const { data: tierStatus } = useTierStatus();
@@ -1155,6 +1157,12 @@ export default function Dashboard() {
                 label: "Insights",
                 active: showInsightsPopup,
                 action: () => setShowInsightsPopup(v => !v),
+              }] : userPrefs?.vitalityInsightsEnabled ? [{
+                id: "insights",
+                icon: TrendingUp,
+                label: "Insights",
+                active: showVitalityInsightsPopup,
+                action: () => setShowVitalityInsightsPopup(v => !v),
               }] : []),
               {
                 id: "settings",
@@ -1329,6 +1337,33 @@ export default function Dashboard() {
             >
               <div className="flex-1 overflow-y-auto">
                 <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>}><InsightsPage onClose={() => setShowInsightsPopup(false)} /></Suspense>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Vitality Insights popup ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showVitalityInsightsPopup && user && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-[39] bg-black/40"
+              onClick={() => setShowVitalityInsightsPopup(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="fixed z-40 inset-x-4 top-[5%] bottom-[5%] max-w-lg mx-auto bg-zinc-50 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+            >
+              <div className="flex-1 overflow-y-auto">
+                <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>}><VitalityInsightsPage onClose={() => setShowVitalityInsightsPopup(false)} /></Suspense>
               </div>
             </motion.div>
           </>
