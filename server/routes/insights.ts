@@ -235,6 +235,78 @@ Write 1-2 sentences analysing their trend: rate of change, whether they're on tr
   }
 });
 
+router.get("/api/food-log/free-weekly-summary", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI unavailable" });
+
+  const userId = req.session.userId;
+  const user = await storage.getUserById(userId);
+  if (!user) return res.status(401).json({ message: "User not found" });
+
+  const now = new Date();
+
+  // Compute the Monday of the current week (UTC) as the cache key
+  // Sunday=0..Saturday=6; dayOfWeek=0 → Monday was 6 days ago
+  const dayOfWeek = now.getUTCDay(); // 0=Sun,1=Mon,...,6=Sat
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() - daysFromMonday);
+  monday.setUTCHours(0, 0, 0, 0);
+  const mondayKey = monday.toISOString().split("T")[0]; // e.g. "2026-03-16"
+  const cacheKey = `free-weekly-summary:${mondayKey}`;
+
+  const existing = await storage.getAiInsightsCache(userId, cacheKey);
+  if (existing && existing.expiresAt > new Date()) {
+    return res.json({ ...(existing.narrativeJson as object), cached: true });
+  }
+
+  // Fetch entries for the current Mon–Sun week (same window as the cache key)
+  const weekStart = monday.toISOString().split("T")[0]; // e.g. "2026-03-16"
+  const weekEnd = new Date(monday.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]; // Sunday
+
+  const entries = await storage.getFoodLogEntriesRange(userId, weekStart, weekEnd);
+
+  if (entries.length < 3) {
+    return res.json({ summary: null, insufficientData: true, cached: false });
+  }
+
+  const byDate: Record<string, { calories: number; protein: number; carbs: number; fat: number }> = {};
+  for (const e of entries) {
+    if (!byDate[e.date]) byDate[e.date] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    byDate[e.date].calories += e.calories;
+    byDate[e.date].protein += e.protein;
+    byDate[e.date].carbs += e.carbs;
+    byDate[e.date].fat += e.fat;
+  }
+  const dailySummaries = Object.entries(byDate)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, t]) => `${date}: ${t.calories}kcal, P${t.protein}g, C${t.carbs}g, F${t.fat}g`)
+    .join("; ");
+
+  try {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const prompt = `Here are a user's food log totals for the past week:\n${dailySummaries}\n\nWrite 2-3 encouraging bullet points (use • character) summarising their week: how consistent they were, a nutritional pattern you notice, and one practical tip for next week. Be specific, warm, and concise. Plain text only.`;
+
+    const resp = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 180,
+      temperature: 0.7,
+    });
+    const summary = resp.choices[0]?.message?.content?.trim() ?? "";
+    const payload = { summary, insufficientData: false };
+
+    // Expire at next Monday 00:00 UTC (always at least 1 day away since we're in current week)
+    const nextMonday = new Date(monday);
+    nextMonday.setUTCDate(monday.getUTCDate() + 7);
+    await storage.upsertAiInsightsCache(userId, cacheKey, payload, nextMonday);
+
+    res.json({ ...payload, cached: false });
+  } catch {
+    res.status(500).json({ error: "Failed to generate summary" });
+  }
+});
+
 router.post("/api/food-log/weekly-insights", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI unavailable" });

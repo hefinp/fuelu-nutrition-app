@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight } from "lucide-react";
+import { Link } from "wouter";
 import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences } from "@shared/schema";
@@ -370,16 +371,18 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 mb-4 opacity-75" data-testid="vitality-hormone-boost-locked">
-            <div className="flex items-center gap-2">
-              <Lock className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-medium text-zinc-500">Hormone-boosting meals</p>
-                <p className="text-[10px] text-zinc-400">Upgrade to premium to unlock</p>
+          <Link href="/pricing">
+            <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 mb-4 cursor-pointer hover:bg-zinc-100 transition-colors" data-testid="vitality-hormone-boost-locked">
+              <div className="flex items-center gap-2">
+                <Lock className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-medium text-zinc-600">Hormone-boosting meals</p>
+                  <p className="text-[10px] text-zinc-400">Available on Simple and above</p>
+                </div>
               </div>
+              <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
             </div>
-            <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Premium</span>
-          </div>
+          </Link>
         )
       )}
 

@@ -107,14 +107,16 @@ export default function VitalityInsightsPage({ onClose }: { onClose?: () => void
           <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-4">
             <Lock className="w-7 h-7 text-amber-500" />
           </div>
-          <h2 className="text-lg font-semibold text-zinc-800 mb-2" data-testid="vitality-insights-premium-gate">Premium Feature</h2>
+          <h2 className="text-lg font-semibold text-zinc-800 mb-1" data-testid="vitality-insights-premium-gate">Advanced Analytics</h2>
           <p className="text-sm text-zinc-500 max-w-sm mx-auto mb-4">
-            Get detailed trend analysis, food correlations, AI-powered narrative insights, and the latest research on male hormonal nutrition.
+            Detailed trend analysis, food correlations, and AI-powered narrative insights on male hormonal nutrition — available on Simple and above.
           </p>
-          <span className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-amber-100 text-amber-700 rounded-xl text-sm font-medium">
-            <Shield className="w-4 h-4" />
-            Upgrade to unlock
-          </span>
+          <Link href="/pricing">
+            <button className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-medium hover:bg-zinc-800 transition-colors" data-testid="button-vitality-upgrade">
+              <Shield className="w-4 h-4" />
+              See plans
+            </button>
+          </Link>
         </main>
       </div>
     );

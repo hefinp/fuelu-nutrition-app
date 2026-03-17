@@ -16,8 +16,6 @@ import { OnboardingTour } from "@/components/onboarding-tour";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { InstallPrompt } from "@/components/install-prompt";
-import { TrialBanner } from "@/components/trial-banner";
-import type { TrialInfo } from "@shared/trial";
 const InsightsPage = lazy(() => import("@/pages/insights"));
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
@@ -53,36 +51,52 @@ import {
 } from "lucide-react";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
 
-function UpgradeNudgeBanner({ tier }: { tier: string }) {
-  const [dismissed, setDismissed] = useState(false);
-  if (dismissed) return null;
-  return (
-    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100" data-testid="banner-upgrade-nudge">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm text-amber-800">
-          <Zap className="w-4 h-4 text-amber-500 shrink-0" />
-          <span>
-            {tier === "free" ? "Unlock AI meal plans, barcode scanning, and more." : "Upgrade to Advanced for unlimited access to every feature."}
-          </span>
+function FreeWeeklySummaryCard() {
+  const { data, isLoading } = useQuery<{ summary: string | null; insufficientData?: boolean; cached?: boolean }>({
+    queryKey: ["/api/food-log/free-weekly-summary"],
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-4 mb-6 snap-start" data-testid="card-free-weekly-summary">
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span className="text-sm font-semibold text-emerald-800">Weekly Nutrition Summary</span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href="/account?tab=plan"
-            className="text-xs font-semibold text-amber-700 hover:text-amber-900 underline whitespace-nowrap"
-            data-testid="link-upgrade-nudge-banner"
-          >
-            Upgrade now
-          </Link>
-          <button
-            onClick={() => setDismissed(true)}
-            className="text-amber-400 hover:text-amber-700 transition-colors"
-            aria-label="Dismiss"
-            data-testid="button-dismiss-upgrade-banner"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-2 text-xs text-emerald-600">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Generating your summary...
         </div>
       </div>
+    );
+  }
+
+  if (!data || data.insufficientData || !data.summary) return null;
+
+  const bullets = data.summary.split("\n").filter(l => l.trim().startsWith("•")).map(l => l.trim());
+  const displayLines = bullets.length > 0 ? bullets : data.summary.split("\n").filter(l => l.trim());
+
+  return (
+    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-4 mb-6 snap-start" data-testid="card-free-weekly-summary">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+          <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+        </div>
+        <div>
+          <span className="text-sm font-semibold text-emerald-800">Weekly Nutrition Summary</span>
+          <span className="ml-2 text-[10px] text-emerald-600 font-medium bg-emerald-100 px-1.5 py-0.5 rounded-full">Free</span>
+        </div>
+      </div>
+      <ul className="space-y-1.5">
+        {displayLines.slice(0, 4).map((line, i) => (
+          <li key={i} className="flex items-start gap-2 text-xs text-emerald-900 leading-relaxed">
+            <span className="text-emerald-500 shrink-0 mt-0.5">•</span>
+            <span>{line.replace(/^•\s*/, "")}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -511,13 +525,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {user && (user as any).trialInfo && (
-        <TrialBanner trialInfo={(user as any).trialInfo as TrialInfo} />
-      )}
 
-      {user && tierStatus && !tierStatus.betaUser && tierStatus.tier !== "advanced" && (
-        <UpgradeNudgeBanner tier={tierStatus.tier} />
-      )}
 
       {/* Metrics slide-over panel */}
       <AnimatePresence>
@@ -957,6 +965,8 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+
+            {user && (!tierStatus || tierStatus.tier === "free") && <FreeWeeklySummaryCard />}
 
             {/* ── MOBILE layout: single column, flat order ── */}
             <div className="flex flex-col gap-6 xl:hidden">

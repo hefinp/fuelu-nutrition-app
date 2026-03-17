@@ -555,6 +555,11 @@ function StepSummary({ macros, goal, loading }: { macros: MacroPreview | null; g
           </div>
         </div>
       </div>
+
+      <div className="mt-4 flex items-center justify-center gap-2 text-xs text-emerald-700 font-medium" data-testid="text-no-ads-promise">
+        <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+        No ads. Ever. FuelU is completely ad-free on every plan.
+      </div>
     </div>
   );
 }

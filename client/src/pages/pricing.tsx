@@ -15,7 +15,7 @@ const TIER_META: Record<string, { name: string; icon: typeof Check; color: strin
 };
 
 const DEFAULT_FEATURES: Record<string, string[]> = {
-  free: ["Basic calorie calculator", "Manual food logging", "Weight tracking", "1 saved meal plan"],
+  free: ["No ads. Ever.", "Basic calorie calculator", "Manual food logging", "Weight tracking", "1 saved meal plan", "Weekly AI nutrition summary"],
   simple: ["Everything in Free", "AI meal plans (Simple tier)", "Barcode scanning", "PDF export", "Up to 5 saved meal plans", "Hydration tracking"],
   advanced: ["Everything in Simple", "AI meal plans (all tiers)", "AI food recognition", "AI insights & trends", "Cycle-aware nutrition", "Unlimited saved plans", "Priority support"],
   payg: ["Everything in Free", "Pay per AI feature use", "No monthly commitment", "Credits never expire"],
@@ -119,6 +119,10 @@ export default function PricingPage() {
           <p className="text-zinc-500 text-lg max-w-lg mx-auto">
             Choose the plan that fits your nutrition journey. Upgrade or downgrade anytime.
           </p>
+          <div className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-full" data-testid="badge-no-ads">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+            <span className="text-sm font-semibold text-emerald-800">No ads. Ever. — on every plan, including free.</span>
+          </div>
 
           <div className="flex items-center justify-center gap-3 mt-8" data-testid="toggle-billing">
             <button

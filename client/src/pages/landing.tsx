@@ -131,6 +131,12 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
               </span>
               PDF export, email delivery &amp; smart shopping lists
             </li>
+            <li className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0">
+                <Check className="w-3 h-3 text-white" strokeWidth={3} />
+              </span>
+              <span className="font-semibold text-zinc-900">No ads. Ever.</span>
+            </li>
           </ul>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">

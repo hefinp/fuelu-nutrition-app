@@ -5,7 +5,9 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Plus, X, Check, Barcode, BookOpen, UtensilsCrossed,
   Coffee, Salad, Moon, Apple, Search, Camera, Sparkles, Send, ChevronDown, BadgeCheck,
+  Lock, ArrowRight,
 } from "lucide-react";
+import { Link } from "wouter";
 import { GoalPreview } from "@/components/goal-preview";
 import type { SavedMealPlan } from "@shared/schema";
 import {
@@ -611,17 +613,15 @@ export function FoodLogDrawer({
             <Barcode className="w-3.5 h-3.5" />
             Scan
           </button>
-          {labelScanAvailable && (
-            <button
-              type="button"
-              onClick={() => { setAiTabResult(null); setAiTabDescription(""); setAiTabPhotoFile(null); setAiTabMode("describe"); setAiTabProductName(""); setAiTabLabelPhotoFile(null); setFormTab("ai"); }}
-              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "ai" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-              data-testid="button-form-tab-ai"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              AI
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => { setAiTabResult(null); setAiTabDescription(""); setAiTabPhotoFile(null); setAiTabMode("describe"); setAiTabProductName(""); setAiTabLabelPhotoFile(null); setFormTab("ai"); }}
+            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "ai" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-form-tab-ai"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            AI
+          </button>
           <button
             type="button"
             onClick={() => setFormTab("plan")}
@@ -983,10 +983,47 @@ export function FoodLogDrawer({
                       </div>
                     )}
                     {!searchLoading && debouncedQuery.length < 2 && !searchQuery && (
-                      <div className="text-center py-6 text-zinc-300">
-                        <Search className="w-8 h-8 mx-auto mb-2" />
-                        <p className="text-sm">Start typing to search 3M+ foods</p>
-                      </div>
+                      <>
+                        {recentFoods.length > 0 ? (
+                          <div data-testid="search-tab-recent-foods">
+                            <p className="text-[10px] text-zinc-400 font-medium mb-1.5">Recent</p>
+                            <div className="flex gap-1.5 flex-wrap mb-4">
+                              {recentFoods.map(food => (
+                                <button
+                                  key={food.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormTab("manual");
+                                    setForm(f => ({
+                                      ...f,
+                                      mealName: food.mealName,
+                                      calories: String(food.calories),
+                                      protein: String(food.protein),
+                                      carbs: String(food.carbs),
+                                      fat: String(food.fat),
+                                      mealSlot: (food.mealSlot as MealSlot) || f.mealSlot,
+                                    }));
+                                  }}
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 hover:bg-zinc-100 transition-colors"
+                                  data-testid={`button-search-recent-food-${food.id}`}
+                                >
+                                  <span className="font-medium max-w-[6rem] truncate">{food.mealName}</span>
+                                  <span className="text-zinc-400 shrink-0">{food.calories}kcal</span>
+                                </button>
+                              ))}
+                            </div>
+                            <div className="text-center text-zinc-300">
+                              <Search className="w-6 h-6 mx-auto mb-1" />
+                              <p className="text-xs">Or start typing to search 3M+ foods</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 text-zinc-300">
+                            <Search className="w-8 h-8 mx-auto mb-2" />
+                            <p className="text-sm">Start typing to search 3M+ foods</p>
+                          </div>
+                        )}
+                      </>
                     )}
                     {foodResults.length > 0 && (
                       <div className="space-y-1.5 max-h-56 overflow-y-auto" data-testid="food-search-results">
@@ -1360,7 +1397,23 @@ export function FoodLogDrawer({
 
             {formTab === "ai" && (
               <div className="p-4 space-y-3">
-                {!aiTabResult ? (
+                {!labelScanAvailable ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center gap-3" data-testid="ai-tab-soft-lock">
+                    <div className="w-12 h-12 rounded-full bg-violet-50 flex items-center justify-center">
+                      <Lock className="w-6 h-6 text-violet-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-800">AI food recognition</p>
+                      <p className="text-xs text-zinc-500 mt-1">Describe a meal or scan a label — AI estimates your macros instantly.</p>
+                    </div>
+                    <Link href="/pricing">
+                      <button type="button" className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-xl hover:bg-zinc-800 transition-colors" data-testid="button-ai-tab-see-plans">
+                        See plans
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </Link>
+                  </div>
+                ) : !aiTabResult ? (
                   <>
                     <div className="flex bg-zinc-100 p-0.5 rounded-xl">
                       <button type="button" onClick={() => setAiTabMode("describe")} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition-colors ${aiTabMode === "describe" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`} data-testid="button-ai-mode-describe">
