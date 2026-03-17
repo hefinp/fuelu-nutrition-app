@@ -762,7 +762,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async recomputeMealMacros(userMealId: number, userId: number): Promise<UserMeal | undefined> {
-    const rows = await this.getMealIngredients(userMealId);
+    // Join canonical_foods to use their CURRENT nutrition values, not the snapshot
+    const rows = await db.select({
+      ingredient: mealIngredients,
+      food: canonicalFoods,
+    }).from(mealIngredients)
+      .leftJoin(canonicalFoods, eq(mealIngredients.canonicalFoodId, canonicalFoods.id))
+      .where(eq(mealIngredients.userMealId, userMealId));
+
     if (rows.length === 0) return undefined;
 
     let totalCalories = 0;
@@ -771,19 +778,62 @@ export class DatabaseStorage implements IStorage {
     let totalFat = 0;
 
     for (const row of rows) {
-      const factor = row.grams / 100;
-      totalCalories += row.calories100g * factor;
-      totalProtein += row.protein100g * factor;
-      totalCarbs += row.carbs100g * factor;
-      totalFat += row.fat100g * factor;
+      // Prefer canonical food's live values; fall back to junction snapshot
+      const cal100 = row.food?.calories100g ?? row.ingredient.calories100g;
+      const prot100 = row.food?.protein100g ?? row.ingredient.protein100g;
+      const carbs100 = row.food?.carbs100g ?? row.ingredient.carbs100g;
+      const fat100 = row.food?.fat100g ?? row.ingredient.fat100g;
+      const factor = row.ingredient.grams / 100;
+      totalCalories += cal100 * factor;
+      totalProtein += prot100 * factor;
+      totalCarbs += carbs100 * factor;
+      totalFat += fat100 * factor;
+
+      // Also refresh the junction snapshot to match canonical
+      if (row.food) {
+        await db.update(mealIngredients).set({
+          calories100g: row.food.calories100g,
+          protein100g: row.food.protein100g,
+          carbs100g: row.food.carbs100g,
+          fat100g: row.food.fat100g,
+        }).where(eq(mealIngredients.id, row.ingredient.id));
+      }
     }
 
+    const roundedCal = Math.round(totalCalories);
+    const roundedProt = Math.round(totalProtein * 10) / 10;
+    const roundedCarbs = Math.round(totalCarbs * 10) / 10;
+    const roundedFat = Math.round(totalFat * 10) / 10;
+
     const [updated] = await db.update(userMeals).set({
-      caloriesPerServing: Math.round(totalCalories),
-      proteinPerServing: Math.round(totalProtein * 10) / 10,
-      carbsPerServing: Math.round(totalCarbs * 10) / 10,
-      fatPerServing: Math.round(totalFat * 10) / 10,
+      caloriesPerServing: roundedCal,
+      proteinPerServing: roundedProt,
+      carbsPerServing: roundedCarbs,
+      fatPerServing: roundedFat,
     }).where(and(eq(userMeals.id, userMealId), eq(userMeals.userId, userId))).returning();
+
+    // Keep ingredientsJson in sync with refreshed values
+    if (updated) {
+      const updatedRows = await db.select({ ingredient: mealIngredients, food: canonicalFoods })
+        .from(mealIngredients)
+        .leftJoin(canonicalFoods, eq(mealIngredients.canonicalFoodId, canonicalFoods.id))
+        .where(eq(mealIngredients.userMealId, userMealId))
+        .orderBy(mealIngredients.orderIndex);
+
+      const refreshedJson = updatedRows.map((r, i) => ({
+        key: `ing-${i}`,
+        name: r.ingredient.name,
+        grams: r.ingredient.grams,
+        calories100g: r.food?.calories100g ?? r.ingredient.calories100g,
+        protein100g: r.food?.protein100g ?? r.ingredient.protein100g,
+        carbs100g: r.food?.carbs100g ?? r.ingredient.carbs100g,
+        fat100g: r.food?.fat100g ?? r.ingredient.fat100g,
+      }));
+
+      await db.update(userMeals).set({ ingredientsJson: refreshedJson })
+        .where(eq(userMeals.id, userMealId));
+    }
+
     return updated;
   }
 
