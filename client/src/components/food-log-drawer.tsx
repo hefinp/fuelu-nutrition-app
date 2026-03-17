@@ -56,8 +56,8 @@ export function FoodLogDrawer({
 
   const [scannerError, setScannerError] = useState(false);
   const [scanLookingUp, setScanLookingUp] = useState(false);
+  const [scanFoundFlash, setScanFoundFlash] = useState(false);
   const [scanResult, setScanResult] = useState<{ type: "found" | "not_found"; barcode: string; name?: string } | null>(null);
-  const [saveAsCustomFood, setSaveAsCustomFood] = useState(false);
   const [scannedFood, setScannedFood] = useState<ExtendedFoodResult | null>(null);
   const [scanServingGrams, setScanServingGrams] = useState("100");
   const [scanMealSlot, setScanMealSlot] = useState<MealSlot | null>(null);
@@ -138,13 +138,18 @@ export function FoodLogDrawer({
             setScanLookingUp(true);
 
             try {
-              const res = await fetch(`/api/barcode/${encodeURIComponent(barcode)}`);
+              const locale = navigator.language?.split("-")[1]?.toLowerCase() ?? "";
+              const localeParam = locale ? `?locale=${encodeURIComponent(locale)}` : "";
+              const res = await fetch(`/api/barcode/${encodeURIComponent(barcode)}${localeParam}`);
               if (res.ok) {
                 const food: ExtendedFoodResult = await res.json();
+                setScanFoundFlash(true);
+                await new Promise(r => setTimeout(r, 700));
+                setScanFoundFlash(false);
                 setScannedFood(food);
                 setScanServingGrams(String(food.servingGrams || 100));
                 setScanMealSlot(null);
-                setSaveAsCustomFood(false);
+                
                 setScanResult(null);
               } else {
                 setLabelScanBarcode(barcode);
@@ -212,7 +217,9 @@ export function FoodLogDrawer({
     queryKey: ["/api/food-search", debouncedQuery],
     queryFn: async () => {
       if (!debouncedQuery || debouncedQuery.length < 2) return [];
-      const res = await fetch(`/api/food-search?q=${encodeURIComponent(debouncedQuery)}`);
+      const locale = navigator.language?.split("-")[1]?.toLowerCase() ?? "";
+      const localeParam = locale ? `&locale=${encodeURIComponent(locale)}` : "";
+      const res = await fetch(`/api/food-search?q=${encodeURIComponent(debouncedQuery)}${localeParam}`);
       if (!res.ok) return [];
       return res.json();
     },
@@ -264,11 +271,12 @@ export function FoodLogDrawer({
     setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", fibre: "", sugar: "", saturatedFat: "", mealSlot: null });
     setFormTab("manual");
     setScanResult(null);
-    setSaveAsCustomFood(false);
+    
     setScannedFood(null);
     setScanMealSlot(null);
     setShowScanAnother(false);
     setScanKey(0);
+    setScanFoundFlash(false);
     setSearchQuery("");
     setDebouncedQuery("");
     setSelectedFood(null);
@@ -288,7 +296,7 @@ export function FoodLogDrawer({
     e.preventDefault();
     if (!form.mealName.trim()) return;
 
-    if (saveAsCustomFood && scanResult?.type === "not_found" && scanResult.barcode) {
+    if (scanResult?.type === "not_found" && scanResult.barcode) {
       try {
         await apiRequest("POST", "/api/custom-foods", {
           barcode: scanResult.barcode,
@@ -407,6 +415,7 @@ export function FoodLogDrawer({
     setShowScanAnother(false);
     setShowPhotoInterstitial(false);
     setLabelScanBarcode("");
+    setScanFoundFlash(false);
     setScanKey(k => k + 1);
   }
 
@@ -419,7 +428,7 @@ export function FoodLogDrawer({
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const res = await apiRequest("POST", "/api/food-log/extract-label", { imageBase64: base64 });
+      const res = await apiRequest("POST", "/api/food-log/extract-label", { imageBase64: base64, barcode: labelScanBarcode || undefined });
       if (!res.ok) throw new Error("scan failed");
       const food: ExtendedFoodResult = await res.json();
       setScannedFood(food);
@@ -429,7 +438,7 @@ export function FoodLogDrawer({
     } catch {
       toast({ title: "Could not read label", description: "Try entering the food manually.", variant: "destructive" });
       setScanResult({ type: "not_found", barcode: labelScanBarcode });
-      setSaveAsCustomFood(true);
+      
       setFormTab("manual");
       setShowPhotoInterstitial(false);
     } finally {
@@ -606,7 +615,7 @@ export function FoodLogDrawer({
           </button>
           <button
             type="button"
-            onClick={() => { setScanResult(null); setSaveAsCustomFood(false); setScannerError(false); setFormTab("scan"); }}
+            onClick={() => { setScanResult(null);  setScannerError(false); setFormTab("scan"); }}
             className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "scan" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
             data-testid="button-form-tab-scan"
           >
@@ -827,17 +836,10 @@ export function FoodLogDrawer({
                     ))}
                   </div>
                 </div>
-                {scanResult?.type === "not_found" && (
-                  <label className="flex items-center gap-2 cursor-pointer py-1" data-testid="label-save-custom-food">
-                    <input
-                      type="checkbox"
-                      checked={saveAsCustomFood}
-                      onChange={e => setSaveAsCustomFood(e.target.checked)}
-                      className="w-3.5 h-3.5 accent-zinc-900"
-                      data-testid="checkbox-save-custom-food"
-                    />
-                    <span className="text-xs text-zinc-600">Save this food for future barcode scans</span>
-                  </label>
+                {scanResult?.type === "not_found" && scanResult.barcode && (
+                  <p className="text-xs text-blue-600 py-1" data-testid="text-barcode-save-notice">
+                    This food will be saved to the community database for future barcode scans.
+                  </p>
                 )}
               </form>
             )}
@@ -1138,7 +1140,8 @@ export function FoodLogDrawer({
                                scannedFood.source === "fsanz" ? "Food Standards AU/NZ" :
                                scannedFood.sourceType === "label" ? "Nutrition label scan" :
                                scannedFood.sourceType === "estimated" ? "AI-estimated values" :
-                               (scannedFood.source === "community" || scannedFood.source === "canonical") ? "FuelU database" :
+                               scannedFood.source === "community" ? "Community contributed" :
+                               scannedFood.source === "canonical" ? "FuelU database" :
                                scannedFood.source === "open_food_facts" ? "Open Food Facts" : "USDA database"}
                             </p>
                             <div className="flex flex-wrap gap-1 mt-1">
@@ -1147,6 +1150,21 @@ export function FoodLogDrawer({
                               )}
                               {scannedFood.source === "fsanz" && (
                                 <span className="inline-flex items-center px-1.5 py-0.5 bg-yellow-100 text-yellow-700 border border-yellow-200 rounded text-[9px] font-bold" data-testid="badge-scan-au-verified">AU Verified</span>
+                              )}
+                              {scannedFood.source === "community" && (
+                                <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 border border-blue-200 rounded-full text-[9px] font-medium text-blue-700" data-testid="badge-community-added">
+                                  Community added
+                                </span>
+                              )}
+                              {(scannedFood.source === "canonical" || scannedFood.source === "open_food_facts" || scannedFood.source === "usda" || scannedFood.source === "usda_cached") && (
+                                <span className="inline-flex items-center px-2 py-0.5 bg-green-50 border border-green-200 rounded-full text-[9px] font-medium text-green-700" data-testid="badge-verified-source">
+                                  Verified
+                                </span>
+                              )}
+                              {scannedFood.locallyVerified === false && (
+                                <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-[9px] font-medium text-amber-700" data-testid="badge-not-locally-verified">
+                                  May differ locally
+                                </span>
                               )}
                               {scannedFood.sourceType === "estimated" && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-[9px] font-medium text-amber-700" data-testid="badge-estimated-values">
@@ -1244,7 +1262,7 @@ export function FoodLogDrawer({
                               Take a photo of the label
                             </button>
                           )}
-                          <button type="button" onClick={() => { setScanResult({ type: "not_found", barcode: labelScanBarcode }); setSaveAsCustomFood(true); setFormTab("manual"); setShowPhotoInterstitial(false); }} className="w-full py-2.5 bg-zinc-100 text-zinc-700 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-colors" data-testid="button-scan-enter-manually">
+                          <button type="button" onClick={() => { setScanResult({ type: "not_found", barcode: labelScanBarcode });  setFormTab("manual"); setShowPhotoInterstitial(false); }} className="w-full py-2.5 bg-zinc-100 text-zinc-700 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-colors" data-testid="button-scan-enter-manually">
                             Enter manually
                           </button>
                           <button type="button" onClick={resetScanner} className="w-full py-2 text-zinc-400 text-xs hover:text-zinc-600 transition-colors" data-testid="button-scan-try-again">
@@ -1260,7 +1278,7 @@ export function FoodLogDrawer({
                     <Barcode className="w-10 h-10 mx-auto mb-3 text-zinc-300" />
                     <p className="text-sm font-medium text-zinc-600">Camera not available</p>
                     <p className="text-xs text-zinc-400 mt-1">Allow camera access or try a different browser.</p>
-                    <button type="button" onClick={() => { setScanResult({ type: "not_found", barcode: "" }); setSaveAsCustomFood(true); setFormTab("manual"); }} className="mt-4 px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-medium" data-testid="button-scan-enter-manually">
+                    <button type="button" onClick={() => { setScanResult({ type: "not_found", barcode: "" });  setFormTab("manual"); }} className="mt-4 px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-medium" data-testid="button-scan-enter-manually">
                       Enter manually instead
                     </button>
                   </div>
@@ -1307,7 +1325,13 @@ export function FoodLogDrawer({
                           )}
                         </div>
                       </div>
-                      {scanLookingUp && (
+                      {scanFoundFlash && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-green-500/80 z-20 transition-opacity duration-300" data-testid="overlay-scan-found">
+                          <Check className="w-10 h-10 text-white mb-2" />
+                          <p className="text-white text-sm font-semibold">Found!</p>
+                        </div>
+                      )}
+                      {scanLookingUp && !scanFoundFlash && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20">
                           <Loader2 className="w-8 h-8 text-white animate-spin mb-2" />
                           <p className="text-white text-xs font-medium">Looking up product…</p>

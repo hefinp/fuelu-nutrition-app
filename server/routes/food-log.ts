@@ -45,6 +45,8 @@ function detectRegionFromAcceptLanguage(acceptLanguage: string | undefined): str
 router.get("/api/food-search", async (req, res) => {
   const q = (req.query.q as string | undefined)?.trim();
   if (!q || q.length < 2) return res.json([]);
+  const locale = (req.query.locale as string | undefined) || req.headers["accept-language"]?.split(",")[0]?.split("-")[1]?.toLowerCase() || "";
+  const isNzAu = ["nz", "au"].includes(locale);
   try {
     // Detect user's region for boosting local results
     // Priority: 1. User profile country preference, 2. Accept-Language header
@@ -100,6 +102,46 @@ router.get("/api/food-search", async (req, res) => {
       for (const r of customResults) {
         canonicalNames.add(r.name.toLowerCase());
       }
+    }
+
+    // 1c. For NZ/AU users, query Open Food Facts for locale-specific results (shown first)
+    let nzAuOffResults: any[] = [];
+    if (isNzAu) {
+      try {
+        const localeTag = locale === "nz" ? "new-zealand" : "australia";
+        const offSearchUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&tagtype_0=countries&tag_contains_0=contains&tag_0=${encodeURIComponent(localeTag)}&action=process&json=1&page_size=10&fields=product_name_en,product_name,nutriments,serving_quantity,serving_size,countries_tags`;
+        const offRes = await fetch(offSearchUrl, { signal: AbortSignal.timeout(5000) });
+        if (offRes.ok) {
+          const offData = await offRes.json() as any;
+          const products = (offData.products ?? []) as any[];
+          nzAuOffResults = products
+            .filter((p: any) => {
+              const n = p.nutriments || {};
+              const kcal = n["energy-kcal_100g"] ?? (n["energy_100g"] ? Math.round(n["energy_100g"] / 4.184) : 0);
+              const name = (p.product_name_en || p.product_name || "").trim();
+              return kcal > 0 && name && !canonicalNames.has(name.toLowerCase());
+            })
+            .slice(0, 5)
+            .map((p: any) => {
+              const n = p.nutriments || {};
+              const name = (p.product_name_en || p.product_name || "").trim();
+              const kcal = Math.round(n["energy-kcal_100g"] ?? (n["energy_100g"] ? Math.round(n["energy_100g"] / 4.184) : 0));
+              const servingGrams = Math.round(parseFloat(p.serving_quantity) || 100);
+              return {
+                id: `off-search-${name.replace(/\s/g, "-").toLowerCase()}`,
+                name: name.charAt(0).toUpperCase() + name.slice(1),
+                calories100g: kcal,
+                protein100g: Math.round((n.proteins_100g || 0) * 10) / 10,
+                carbs100g: Math.round((n.carbohydrates_100g || 0) * 10) / 10,
+                fat100g: Math.round((n.fat_100g || 0) * 10) / 10,
+                servingSize: p.serving_size || `${servingGrams}g`,
+                servingGrams: servingGrams || 100,
+                source: "open_food_facts",
+                verified: true,
+              };
+            });
+        }
+      } catch {}
     }
 
     // 2. Fire USDA and Open Food Facts searches in parallel
@@ -168,17 +210,18 @@ router.get("/api/food-search", async (req, res) => {
       }));
     }
 
-    // --- Open Food Facts results ---
+    // --- Open Food Facts results (global, all users) ---
     let offResults: any[] = [];
     if (offSettled.status === "fulfilled" && offSettled.value.ok) {
       const offData = await offSettled.value.json() as any;
       // search.openfoodfacts.org returns { hits: [...] }
       const products = (offData.hits ?? offData.products ?? []) as any[];
 
-      // Build a set of names already covered by canonical + USDA
+      // Build a set of names already covered by canonical + USDA + NZ/AU locale results
       const seenNames = new Set([
         ...canonicalNames,
         ...usdaResults.map(r => r.name.toLowerCase()),
+        ...nzAuOffResults.map((r: any) => r.name.toLowerCase()),
       ]);
 
       for (const p of products) {
@@ -240,10 +283,17 @@ router.get("/api/food-search", async (req, res) => {
       }
     }
 
-    // Priority order: verified canonical > unverified canonical > My Foods > USDA > OFF
-    const verified = canonicalResults.filter(r => r.verified);
-    const unverified = canonicalResults.filter(r => !r.verified);
-    res.json([...verified, ...unverified, ...customResults, ...usdaResults, ...offResults].slice(0, 20));
+    if (isNzAu && nzAuOffResults.length > 0) {
+      // NZ/AU users: locale-specific OFF first, then remaining canonical (deduped), then My Foods, USDA, global OFF
+      const nzAuNames = new Set(nzAuOffResults.map((r: any) => r.name.toLowerCase()));
+      const filteredCanonical = canonicalResults.filter(r => !nzAuNames.has(r.name.toLowerCase()));
+      res.json([...nzAuOffResults, ...filteredCanonical, ...customResults, ...usdaResults, ...offResults].slice(0, 20));
+    } else {
+      // Priority order: verified canonical > unverified canonical > My Foods > USDA > OFF
+      const verified = canonicalResults.filter(r => r.verified);
+      const unverified = canonicalResults.filter(r => !r.verified);
+      res.json([...verified, ...unverified, ...customResults, ...usdaResults, ...offResults].slice(0, 20));
+    }
   } catch {
     res.json([]);
   }
@@ -256,7 +306,7 @@ router.get("/api/food-log/label-scan-available", (req, res) => {
 
 router.post("/api/food-log/extract-label", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Unauthorized" });
-  const { imageBase64 } = req.body as { imageBase64?: string };
+  const { imageBase64, barcode: labelBarcode } = req.body as { imageBase64?: string; barcode?: string };
   if (!imageBase64) return res.status(400).json({ error: "imageBase64 required" });
   if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "Vision service unavailable" });
 
@@ -303,6 +353,7 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
       return res.status(422).json({ error: "Could not parse nutrition data from image" });
     }
 
+    const servingGramsVal = Math.max(1, Number(extracted.servingGrams) || 100);
     const result = {
       id: `label-${Date.now()}`,
       name: String(extracted.name ?? "Scanned Food"),
@@ -314,9 +365,10 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
       sugar100g: extracted.sugar100g != null ? Number(extracted.sugar100g) : undefined,
       sodium100g: extracted.sodium100g != null ? Number(extracted.sodium100g) : undefined,
       saturatedFat100g: extracted.saturatedFat100g != null ? Number(extracted.saturatedFat100g) : undefined,
-      servingGrams: Math.max(1, Number(extracted.servingGrams) || 100),
-      servingSize: `${Math.max(1, Number(extracted.servingGrams) || 100)}g`,
+      servingGrams: servingGramsVal,
+      servingSize: `${servingGramsVal}g`,
       sourceType: (extracted.sourceType === "label" ? "label" : "estimated") as "label" | "estimated",
+      source: "community",
     };
 
     if (result.calories100g > 0) {
@@ -329,6 +381,8 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
         fibre100g: result.fibre100g ?? null,
         sodium100g: result.sodium100g ?? null,
         servingGrams: result.servingGrams,
+        barcode: labelBarcode ?? null,
+        fdcId: null,
         source: "ai_label",
         contributedByUserId: (req.user as any)?.id ?? (req.session as any)?.userId ?? null,
       }).catch(() => {});
@@ -463,6 +517,8 @@ router.post("/api/food-log/daily-nudge", async (req, res) => {
 
 router.get("/api/barcode/:barcode", async (req, res) => {
   const barcode = req.params.barcode;
+  const locale = (req.query.locale as string | undefined) || req.headers["accept-language"]?.split(",")[0]?.split("-")[1]?.toLowerCase() || "";
+  const isNzAu = ["nz", "au"].includes(locale);
 
   const canonical = await storage.getCanonicalFoodByBarcode(barcode);
   if (canonical) {
@@ -479,6 +535,7 @@ router.get("/api/barcode/:barcode", async (req, res) => {
       source: canonical.source ?? "canonical",
       region: canonical.region ?? null,
       verified: canonical.verifiedAt != null,
+      contributedByUserId: canonical.contributedByUserId,
     });
   }
 
@@ -501,36 +558,64 @@ router.get("/api/barcode/:barcode", async (req, res) => {
     }).catch(() => {});
   };
 
+  const parseOffProduct = (p: any, barcode: string, preferLocale?: string) => {
+    const n = p.nutriments || {};
+    const kcal100g = n["energy-kcal_100g"] ?? (n["energy_100g"] ? Math.round(n["energy_100g"] / 4.184) : 0);
+    const name = (p.product_name_en || p.product_name || "").trim();
+    if (kcal100g <= 0 || !name) return null;
+    const servingGrams = Math.round(parseFloat(p.serving_quantity) || 100);
+    const countriesTags: string[] = p.countries_tags ?? [];
+    const isNzAuProduct = countriesTags.some((t: string) => t.includes("new-zealand") || t.includes("australia") || t.includes("en:nz") || t.includes("en:au"));
+    return {
+      id: `off-${barcode}`,
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      calories100g: Math.round(kcal100g),
+      protein100g: Math.round((n.proteins_100g || 0) * 10) / 10,
+      carbs100g: Math.round((n.carbohydrates_100g || 0) * 10) / 10,
+      fat100g: Math.round((n.fat_100g || 0) * 10) / 10,
+      fibre100g: Math.round((n["fiber_100g"] ?? n["fibre_100g"] ?? 0) * 10) / 10,
+      sodium100g: Math.round((n["sodium_100g"] || 0) * 1000) / 10,
+      sugar100g: Math.round((n["sugars_100g"] ?? n["carbohydrates-sugars_100g"] ?? 0) * 10) / 10,
+      saturatedFat100g: Math.round((n["saturated-fat_100g"] || 0) * 10) / 10,
+      servingSize: p.serving_size || `${servingGrams}g`,
+      servingGrams: servingGrams || 100,
+      source: "open_food_facts",
+      isNzAuProduct,
+    };
+  };
+
+  const lookupOffProduct = async (url: string): Promise<ReturnType<typeof parseOffProduct>> => {
+    const r = await fetch(url, { signal: AbortSignal.timeout(7000) });
+    if (!r.ok) return null;
+    const d = await r.json() as any;
+    if (d.status !== 1 || !d.product) return null;
+    return parseOffProduct(d.product, barcode, locale);
+  };
+
   try {
-    const offUrl = `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`;
-    const offRes = await fetch(offUrl, { signal: AbortSignal.timeout(7000) });
-    if (offRes.ok) {
-      const offData = await offRes.json() as any;
-      if (offData.status === 1 && offData.product) {
-        const p = offData.product;
-        const n = p.nutriments || {};
-        const kcal100g = n["energy-kcal_100g"] ?? (n["energy_100g"] ? Math.round(n["energy_100g"] / 4.184) : 0);
-        const name = (p.product_name_en || p.product_name || "").trim();
-        if (kcal100g > 0 && name) {
-          const servingGrams = Math.round(parseFloat(p.serving_quantity) || 100);
-          const result = {
-            id: `off-${barcode}`,
-            name: name.charAt(0).toUpperCase() + name.slice(1),
-            calories100g: Math.round(kcal100g),
-            protein100g: Math.round((n.proteins_100g || 0) * 10) / 10,
-            carbs100g: Math.round((n.carbohydrates_100g || 0) * 10) / 10,
-            fat100g: Math.round((n.fat_100g || 0) * 10) / 10,
-            fibre100g: Math.round((n["fiber_100g"] ?? n["fibre_100g"] ?? 0) * 10) / 10,
-            sodium100g: Math.round((n["sodium_100g"] || 0) * 1000) / 10,
-            sugar100g: Math.round((n["sugars_100g"] ?? n["carbohydrates-sugars_100g"] ?? 0) * 10) / 10,
-            saturatedFat100g: Math.round((n["saturated-fat_100g"] || 0) * 10) / 10,
-            servingSize: p.serving_size || `${servingGrams}g`,
-            servingGrams: servingGrams || 100,
-            source: "open_food_facts",
-          };
-          cacheToDb(result);
-          return res.json(result);
-        }
+    if (isNzAu) {
+      const nzCountry = locale?.toLowerCase().includes("au") ? "australia" : "new-zealand";
+      const nzUrl = `https://${nzCountry === "australia" ? "au" : "nz"}.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`;
+      const nzResult = await lookupOffProduct(nzUrl).catch(() => null);
+      if (nzResult) {
+        const { isNzAuProduct: _, ...cleanResult } = nzResult;
+        cacheToDb(cleanResult);
+        return res.json({ ...cleanResult, locallyVerified: true });
+      }
+      const globalUrl = `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`;
+      const globalResult = await lookupOffProduct(globalUrl).catch(() => null);
+      if (globalResult) {
+        const { isNzAuProduct, ...cleanResult } = globalResult;
+        cacheToDb(cleanResult);
+        return res.json({ ...cleanResult, locallyVerified: isNzAuProduct });
+      }
+    } else {
+      const offUrl = `https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`;
+      const result = await lookupOffProduct(offUrl).catch(() => null);
+      if (result) {
+        const { isNzAuProduct: _, ...cleanResult } = result;
+        cacheToDb(cleanResult);
+        return res.json(cleanResult);
       }
     }
   } catch {}
@@ -595,8 +680,34 @@ router.post("/api/custom-foods", async (req, res) => {
       servingGrams: z.number().int().min(1).default(100),
     }).parse(req.body);
     const existing = await storage.getCustomFoodByBarcode(body.barcode);
-    if (existing) return res.status(200).json(existing);
+    if (existing) {
+      storage.upsertCanonicalFood({
+        name: existing.name,
+        calories100g: existing.calories100g,
+        protein100g: parseFloat(String(existing.protein100g)) || 0,
+        carbs100g: parseFloat(String(existing.carbs100g)) || 0,
+        fat100g: parseFloat(String(existing.fat100g)) || 0,
+        servingGrams: existing.servingGrams,
+        barcode: body.barcode,
+        fdcId: null,
+        source: "community",
+        contributedByUserId: existing.contributedByUserId ?? req.session.userId,
+      }).catch(() => {});
+      return res.status(200).json(existing);
+    }
     const food = await storage.createCustomFood({ ...body, protein100g: String(body.protein100g), carbs100g: String(body.carbs100g), fat100g: String(body.fat100g), contributedByUserId: req.session.userId });
+    storage.upsertCanonicalFood({
+      name: body.name,
+      calories100g: body.calories100g,
+      protein100g: body.protein100g,
+      carbs100g: body.carbs100g,
+      fat100g: body.fat100g,
+      servingGrams: body.servingGrams,
+      barcode: body.barcode,
+      fdcId: null,
+      source: "community",
+      contributedByUserId: req.session.userId,
+    }).catch(() => {});
     res.status(201).json(food);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });

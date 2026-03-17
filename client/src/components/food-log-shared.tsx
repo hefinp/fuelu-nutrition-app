@@ -36,6 +36,7 @@ export interface ExtendedFoodResult extends FoodResult {
   saturatedFat100g?: number;
   source?: string;
   sourceType?: "label" | "estimated";
+  locallyVerified?: boolean;
 }
 
 export interface FoodLogEntry {

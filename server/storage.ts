@@ -523,14 +523,22 @@ export class DatabaseStorage implements IStorage {
 
     if (food.fdcId) {
       const existing = await this.getCanonicalFoodByFdcId(food.fdcId);
-      if (existing) return existing;
+      if (existing) {
+        if (food.barcode && !existing.barcode) {
+          await db.update(canonicalFoods).set({ barcode: food.barcode }).where(eq(canonicalFoods.id, existing.id));
+          return { ...existing, barcode: food.barcode };
+        }
+        return existing;
+      }
     }
     if (food.barcode) {
       const existing = await this.getCanonicalFoodByBarcode(food.barcode);
       if (existing) return existing;
     }
-    const existing = await this.canonicalFoodExistsByName(food.name);
-    if (existing) return existing;
+    if (!food.barcode) {
+      const existing = await this.canonicalFoodExistsByName(food.name);
+      if (existing) return existing;
+    }
 
     const trustedSource = !!food.fdcId || (!!food.barcode && ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts"].includes(food.source ?? "")) || ["nzfcd", "fsanz", "nz_regional", "au_regional"].includes(food.source ?? "");
     try {
