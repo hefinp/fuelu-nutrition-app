@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -1002,6 +1002,21 @@ function SavedWeeklyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pr
 
 function SavedRecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
   const recipe = RECIPES[meal.meal];
+  const [canonicalNames, setCanonicalNames] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!Array.isArray(meal.ingredientsJson) || meal.ingredientsJson.length === 0) return;
+    const names = meal.ingredientsJson.map(i => i.name);
+    fetch("/api/canonical-foods/check-names", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ names }),
+      credentials: "include",
+    })
+      .then(r => r.ok ? r.json() : { matched: [] })
+      .then((data: { matched: string[] }) => setCanonicalNames(new Set(data.matched)))
+      .catch(() => {});
+  }, [meal.ingredientsJson]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onClose}>
@@ -1043,13 +1058,19 @@ function SavedRecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }
             <div className="bg-zinc-50 p-4 rounded-xl mb-4">
               <h4 className="text-sm font-semibold text-zinc-900 mb-3">Ingredients</h4>
               <ul className="space-y-1.5">
-                {(meal.ingredientsJson as Array<{ name: string; grams: number; calories100g: number }>).map((ing, idx) => (
+                {(meal.ingredientsJson as Array<{ name: string; grams: number; calories100g: number }>).map((ing, idx) => {
+                  const isLinked = canonicalNames.has(ing.name.toLowerCase().replace(/\s+/g, " ").trim());
+                  return (
                   <li key={idx} className="flex items-start gap-1.5 text-sm text-zinc-700" data-testid={`saved-ingredient-${idx}`}>
                     <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                     <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
+                    {isLinked && (
+                      <span className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0" data-testid={`badge-fuelu-db-saved-${idx}`}>FuelU DB</span>
+                    )}
                     <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
             {recipe?.instructions && (

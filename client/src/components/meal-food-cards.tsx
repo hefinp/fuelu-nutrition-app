@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   Utensils, Wheat, Trash2, Loader2, Pencil,
   ChevronDown, ChevronUp, Globe, Repeat,
@@ -49,6 +50,23 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
   const hasSourceLink = isWebImportedMeal(meal);
   const isVideo = isVideoImportedMeal(meal);
   const isPhoto = isPhotoImportedMeal(meal);
+
+  const hasStructured = Array.isArray(meal.ingredientsJson) && meal.ingredientsJson.length > 0;
+  const [canonicalNames, setCanonicalNames] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!isOpen || !hasStructured) return;
+    fetch(`/api/user-meals/${meal.id}/ingredients`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: Array<{ name: string; canonicalFoodId: number | null }>) => {
+        const names = new Set<string>();
+        for (const r of rows) {
+          if (r.canonicalFoodId != null) names.add(r.name.toLowerCase());
+        }
+        setCanonicalNames(names);
+      })
+      .catch(() => {});
+  }, [isOpen, meal.id, hasStructured]);
 
   return (
     <div className="group relative rounded-xl border border-zinc-100 overflow-hidden">
@@ -106,13 +124,19 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
             <div className="mt-3">
               <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Ingredients</p>
               <ul className="text-xs text-zinc-600 space-y-0.5 max-h-28 overflow-y-auto" data-testid={`list-ingredients-${meal.id}`}>
-                {(meal.ingredientsJson as Array<{ name: string; grams: number; calories100g: number; protein100g: number; carbs100g: number; fat100g: number }>).map((ing, i) => (
-                  <li key={i} className="flex items-start gap-1.5" data-testid={`ingredient-item-${meal.id}-${i}`}>
-                    <span className="mt-1.5 w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
-                    <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
-                    <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
-                  </li>
-                ))}
+                {(meal.ingredientsJson as Array<{ name: string; grams: number; calories100g: number; protein100g: number; carbs100g: number; fat100g: number }>).map((ing, i) => {
+                  const isLinked = canonicalNames.has(ing.name.toLowerCase());
+                  return (
+                    <li key={i} className="flex items-start gap-1.5" data-testid={`ingredient-item-${meal.id}-${i}`}>
+                      <span className="mt-1.5 w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
+                      <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
+                      {isLinked && (
+                        <span className="inline-flex items-center px-1 py-0.5 rounded text-[8px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 shrink-0" data-testid={`badge-fuelu-db-${meal.id}-${i}`}>FuelU DB</span>
+                      )}
+                      <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ) : meal.ingredients ? (

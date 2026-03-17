@@ -57,6 +57,7 @@ export interface IStorage {
   getCanonicalFoodByBarcode(barcode: string): Promise<CanonicalFood | undefined>;
   getCanonicalFoodByFdcId(fdcId: string): Promise<CanonicalFood | undefined>;
   canonicalFoodExistsByName(name: string): Promise<CanonicalFood | undefined>;
+  checkCanonicalFoodNames(names: string[]): Promise<Set<string>>;
   upsertCanonicalFood(food: {
     name: string;
     calories100g: number;
@@ -432,6 +433,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(canonicalFoods.canonicalName, canonical))
       .limit(1);
     return row;
+  }
+
+  async checkCanonicalFoodNames(names: string[]): Promise<Set<string>> {
+    if (names.length === 0) return new Set();
+    const canonicals = names.map(n => n.toLowerCase().replace(/\s+/g, " ").trim());
+    const rows = await db.select({ canonicalName: canonicalFoods.canonicalName })
+      .from(canonicalFoods)
+      .where(sql`${canonicalFoods.canonicalName} = ANY(${canonicals})`);
+    return new Set(rows.map(r => r.canonicalName));
   }
 
   async upsertCanonicalFood(food: {
