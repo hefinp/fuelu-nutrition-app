@@ -463,8 +463,9 @@ export class DatabaseStorage implements IStorage {
         contributedByUserId: food.contributedByUserId ?? null,
       }).returning();
       return created;
-    } catch (err: any) {
-      if (err?.code === "23505") {
+    } catch (err: unknown) {
+      const pgErr = err as { code?: string };
+      if (pgErr.code === "23505") {
         if (food.barcode) {
           const byBarcode = await this.getCanonicalFoodByBarcode(food.barcode);
           if (byBarcode) return byBarcode;

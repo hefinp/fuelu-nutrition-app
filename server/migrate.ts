@@ -283,6 +283,49 @@ export async function runMigrations(): Promise<void> {
 
     await client.query(`ALTER TABLE user_meals ADD COLUMN IF NOT EXISTS source_photos TEXT[]`);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS canonical_foods (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        canonical_name TEXT NOT NULL,
+        calories_100g INTEGER NOT NULL,
+        protein_100g REAL NOT NULL,
+        carbs_100g REAL NOT NULL,
+        fat_100g REAL NOT NULL,
+        serving_grams INTEGER NOT NULL DEFAULT 100,
+        barcode TEXT,
+        fdc_id TEXT,
+        source TEXT NOT NULL DEFAULT 'user_manual',
+        verified_at TIMESTAMP,
+        contributed_by_user_id INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS meal_ingredients (
+        id SERIAL PRIMARY KEY,
+        user_meal_id INTEGER NOT NULL REFERENCES user_meals(id) ON DELETE CASCADE,
+        canonical_food_id INTEGER REFERENCES canonical_foods(id),
+        name TEXT NOT NULL,
+        grams REAL NOT NULL,
+        calories_100g REAL NOT NULL,
+        protein_100g REAL NOT NULL,
+        carbs_100g REAL NOT NULL,
+        fat_100g REAL NOT NULL,
+        order_index INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS meal_ingredients_user_meal_idx ON meal_ingredients (user_meal_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS meal_ingredients_canonical_food_idx ON meal_ingredients (canonical_food_id)`);
+
+    await client.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_foods_name_trgm ON canonical_foods USING gin (canonical_name gin_trgm_ops)`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_canonical_foods_barcode_uniq ON canonical_foods (barcode) WHERE barcode IS NOT NULL`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_canonical_foods_fdc_id_uniq ON canonical_foods (fdc_id) WHERE fdc_id IS NOT NULL`);
+
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
   } finally {
     client.release();
