@@ -487,6 +487,38 @@ export default function AccountPage() {
               </div>
             </div>
 
+            {tier === "simple" && !betaUser && !pendingTier && (
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6" data-testid="card-advanced-upgrade-teaser">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <Crown className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-zinc-900">Unlock the full FuelU experience</h3>
+                </div>
+                <ul className="space-y-2 mb-4">
+                  {[
+                    "Unlimited saved meal plans",
+                    "Advanced analytics & trend insights",
+                    "Full nutrition data export",
+                    "Priority support",
+                  ].map((item) => (
+                    <li key={item} className="flex items-center gap-2 text-sm text-zinc-700">
+                      <CheckCircle2 className="w-4 h-4 text-amber-500 shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/pricing"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors"
+                  data-testid="link-upgrade-to-advanced"
+                >
+                  <Crown className="w-3.5 h-3.5" />
+                  Upgrade to Advanced
+                </Link>
+              </div>
+            )}
+
             {isPaid && (
               <div className="bg-white rounded-2xl border border-zinc-100 p-6" data-testid="card-payment-method">
                 <div className="flex items-center justify-between">
