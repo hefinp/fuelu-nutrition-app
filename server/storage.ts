@@ -518,12 +518,47 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
+  private static readonly TRUSTED_SOURCES = ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts", "nzfcd", "fsanz", "nz_regional", "au_regional"];
+
   async canonicalFoodExistsByName(name: string): Promise<CanonicalFood | undefined> {
     const canonical = name.toLowerCase().replace(/\s+/g, " ").trim();
-    const [row] = await db.select().from(canonicalFoods)
+    const rows = await db.select().from(canonicalFoods)
       .where(eq(canonicalFoods.canonicalName, canonical))
+      .orderBy(
+        sql`CASE WHEN ${canonicalFoods.source} IN (${sql.join(DatabaseStorage.TRUSTED_SOURCES.map(s => sql`${s}`), sql`, `)}) THEN 0 ELSE 1 END`,
+        desc(canonicalFoods.verifiedAt)
+      )
       .limit(1);
-    return row;
+    if (rows.length === 0) {
+      return this.findTrustedCanonicalBySubstring(canonical);
+    }
+    const row = rows[0];
+    if (DatabaseStorage.TRUSTED_SOURCES.includes(row.source ?? "")) return row;
+
+    const trustedFallback = await this.findTrustedCanonicalBySubstring(canonical);
+    return trustedFallback ?? row;
+  }
+
+  private async findTrustedCanonicalBySubstring(canonical: string): Promise<CanonicalFood | undefined> {
+    if (canonical.length < 4) return undefined;
+    const rows = await db.select().from(canonicalFoods)
+      .where(sql`${canonicalFoods.canonicalName} LIKE ${'% ' + canonical} AND ${canonicalFoods.source} IN (${sql.join(DatabaseStorage.TRUSTED_SOURCES.map(s => sql`${s}`), sql`, `)})`)
+      .limit(10);
+    if (rows.length === 0) return undefined;
+    const wordCount = (s: string) => s.split(/\s+/).length;
+    const scored = rows
+      .filter(r => {
+        const rName = (r.canonicalName ?? "").toLowerCase();
+        if (!rName.endsWith(" " + canonical)) return false;
+        if (wordCount(rName) > wordCount(canonical) + 2) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const aWords = wordCount((a.canonicalName ?? "").toLowerCase());
+        const bWords = wordCount((b.canonicalName ?? "").toLowerCase());
+        return aWords - bWords;
+      });
+    return scored[0];
   }
 
   async checkCanonicalFoodNames(names: string[]): Promise<Set<string>> {
@@ -1866,7 +1901,88 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  private async cleanupUntrustedWithTrustedAlternatives(): Promise<void> {
+    const UNTRUSTED = ["ingredient_parsed", "ai_generated", "ai-estimated", "user_manual"];
+
+    const untrustedRows = await db.select().from(canonicalFoods)
+      .where(sql`${canonicalFoods.source} IN (${sql.join(UNTRUSTED.map(s => sql`${s}`), sql`, `)})`);
+
+    for (const row of untrustedRows) {
+      const canonical = (row.canonicalName ?? row.name).toLowerCase().replace(/\s+/g, " ").trim();
+      if (canonical.length < 3) continue;
+      const t = await this.findTrustedCanonicalBySubstring(canonical);
+      if (!t) continue;
+      const calDiff = Math.abs(row.calories100g - t.calories100g);
+      if (calDiff < 30) continue;
+
+      console.log(`[cleanup] Correcting "${row.name}" (id=${row.id}, ${row.calories100g} kcal) → using trusted "${t.name}" (${t.calories100g} kcal)`);
+      await db.update(canonicalFoods).set({
+        calories100g: t.calories100g,
+        protein100g: t.protein100g,
+        carbs100g: t.carbs100g,
+        fat100g: t.fat100g,
+        source: t.source,
+        verifiedAt: new Date(),
+      }).where(eq(canonicalFoods.id, row.id));
+
+      const affectedMealRows = await db.select({ userMealId: mealIngredients.userMealId })
+        .from(mealIngredients)
+        .where(eq(mealIngredients.canonicalFoodId, row.id));
+      const uniqueMealIds = [...new Set(affectedMealRows.map(r => r.userMealId))];
+      for (const mealId of uniqueMealIds) {
+        try {
+          const meal = await db.select().from(userMeals).where(eq(userMeals.id, mealId)).limit(1);
+          if (meal.length > 0) {
+            await this.recomputeMealMacros(mealId, meal[0].userId);
+            console.log(`[cleanup] Recomputed meal id=${mealId} after correcting "${row.name}"`);
+          }
+        } catch (err) {
+          console.warn(`[cleanup] Failed to recompute meal id=${mealId}:`, err);
+        }
+      }
+    }
+  }
+
+  private async fixBadTrustedEntries(): Promise<void> {
+    const KNOWN_CORRECTIONS: Record<string, { calories100g: number; protein100g: number; carbs100g: number; fat100g: number }> = {
+      "egg": { calories100g: 155, protein100g: 12.5, carbs100g: 0.4, fat100g: 11.5 },
+    };
+    for (const [name, correct] of Object.entries(KNOWN_CORRECTIONS)) {
+      const canonical = name.toLowerCase().replace(/\s+/g, " ").trim();
+      const rows = await db.select().from(canonicalFoods)
+        .where(eq(canonicalFoods.canonicalName, canonical));
+      for (const row of rows) {
+        const calDiff = Math.abs(row.calories100g - correct.calories100g);
+        if (calDiff < 30) continue;
+        console.log(`[cleanup] Fixing trusted entry "${row.name}" (id=${row.id}, ${row.calories100g} kcal) → ${correct.calories100g} kcal`);
+        await db.update(canonicalFoods).set({
+          ...correct,
+          verifiedAt: new Date(),
+        }).where(eq(canonicalFoods.id, row.id));
+
+        const affectedMealRows = await db.select({ userMealId: mealIngredients.userMealId })
+          .from(mealIngredients)
+          .where(eq(mealIngredients.canonicalFoodId, row.id));
+        const uniqueMealIds = [...new Set(affectedMealRows.map(r => r.userMealId))];
+        for (const mealId of uniqueMealIds) {
+          try {
+            const meal = await db.select().from(userMeals).where(eq(userMeals.id, mealId)).limit(1);
+            if (meal.length > 0) {
+              await this.recomputeMealMacros(mealId, meal[0].userId);
+              console.log(`[cleanup] Recomputed meal id=${mealId} after fixing "${row.name}"`);
+            }
+          } catch (err) {
+            console.warn(`[cleanup] Failed to recompute meal id=${mealId}:`, err);
+          }
+        }
+      }
+    }
+  }
+
   async cleanupBadCanonicalFoods(): Promise<void> {
+    await this.cleanupUntrustedWithTrustedAlternatives();
+    await this.fixBadTrustedEntries();
+
     const ZERO_CAL_FOODS = [
       "water", "tap water", "ice", "ice water",
       "black coffee", "coffee", "espresso",
@@ -1882,7 +1998,7 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
       if (rows.length > 0) {
         const row = rows[0];
-        const isTrusted = !!row.fdcId || ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts", "nzfcd", "fsanz", "nz_regional", "au_regional"].includes(row.source ?? "");
+        const isTrusted = !!row.fdcId || DatabaseStorage.TRUSTED_SOURCES.includes(row.source ?? "");
         if (!isTrusted && (row.calories100g > 5 || row.protein100g > 1 || row.carbs100g > 1 || row.fat100g > 1)) {
           console.log(`[cleanupBadCanonicalFoods] Fixing "${row.name}" (id=${row.id}) — had ${row.calories100g} kcal, setting to 0`);
           await db.update(canonicalFoods).set({
