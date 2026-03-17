@@ -111,7 +111,7 @@
   }
 }
 
-@media (max-width: 1279px) {
+@media (pointer: coarse) {
   html.dashboard-snap {
     scroll-snap-type: y proximity;
     scroll-padding-top: 4rem;
