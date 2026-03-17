@@ -144,8 +144,8 @@ export function MyMealsFoodWidget() {
       <div className="px-6 pt-6 pb-0">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0">
-              <UtensilsCrossed className="w-4 h-4 text-emerald-600" />
+            <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg shrink-0">
+              <UtensilsCrossed className="w-5 h-5" />
             </div>
             <div>
               <h2 className="font-display font-semibold text-zinc-900 text-base leading-tight">My Meals & Food</h2>

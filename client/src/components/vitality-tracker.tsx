@@ -185,8 +185,8 @@ export function VitalityTracker() {
       <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
         <div className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4 border-b border-zinc-50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center">
-              <Zap className="w-4 h-4 text-amber-600" />
+            <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
+              <Zap className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-zinc-900">Vitality Tracker</h3>
@@ -216,8 +216,8 @@ export function VitalityTracker() {
       <div className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4 border-b border-zinc-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-amber-100 rounded-xl flex items-center justify-center">
-              <Zap className="w-4 h-4 text-amber-600" />
+            <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
+              <Zap className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-zinc-900" data-testid="vitality-tracker-title">Vitality Tracker</h3>

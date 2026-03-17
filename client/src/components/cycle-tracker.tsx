@@ -251,8 +251,8 @@ export function CycleTracker() {
       {/* Header */}
       <div className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4 border-b border-zinc-50">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-zinc-100 rounded-xl flex items-center justify-center">
-            <Circle className="w-4 h-4 text-zinc-500" />
+          <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
+            <Circle className="w-5 h-5" />
           </div>
           <div>
             <h3 className="text-sm font-semibold text-zinc-900">Cycle Tracker</h3>

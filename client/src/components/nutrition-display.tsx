@@ -144,7 +144,7 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
             <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
               <div className="flex items-center gap-2 px-6 pt-5 pb-4">
                 <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
-                  <Pill className="w-4 h-4" />
+                  <Pill className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-sm font-display font-bold text-zinc-900">Recommended Micronutrients</h3>

@@ -167,10 +167,10 @@ export function WeightTracker({
     <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
       {/* Header */}
       <div className="flex items-center gap-2 mb-2">
-        <div className="p-2 bg-zinc-100 rounded-lg">
+        <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
           {activeTab === "weight"
-            ? <Scale className="w-4 h-4 text-zinc-600" />
-            : <Flame className="w-4 h-4 text-zinc-600" />}
+            ? <Scale className="w-5 h-5" />
+            : <Flame className="w-5 h-5" />}
         </div>
         <div>
           <h3 className="font-display font-bold text-zinc-900">Progress Tracker</h3>
