@@ -52,19 +52,27 @@ router.get("/api/food-search", async (req, res) => {
       verified: c.verifiedAt != null,
     }));
 
-    // 2. Search USDA and cache results into canonical DB
+    const canonicalNames = new Set(canonicalResults.map(r => r.name.toLowerCase()));
+
+    // 2. Fire USDA and Open Food Facts searches in parallel
     const apiKey = process.env.USDA_API_KEY || "DEMO_KEY";
-    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=25&api_key=${apiKey}`;
-    const upstream = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=25&api_key=${apiKey}`;
+    const offUrl = `https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}&json=1&page_size=15`;
+
+    const [usdaSettled, offSettled] = await Promise.allSettled([
+      fetch(usdaUrl, { signal: AbortSignal.timeout(8000) }),
+      fetch(offUrl, { signal: AbortSignal.timeout(3000) }),
+    ]);
+
+    // --- USDA results ---
     let usdaResults: any[] = [];
-    if (upstream.ok) {
-      const data = await upstream.json() as any;
+    if (usdaSettled.status === "fulfilled" && usdaSettled.value.ok) {
+      const data = await usdaSettled.value.json() as any;
       const foods = (data.foods ?? []) as any[];
       const getNutrient = (nutrients: any[], id: number) =>
         nutrients.find((n: any) => n.nutrientId === id)?.value ?? 0;
       const getEnergy = (n: any[]) =>
         getNutrient(n, 1008) || getNutrient(n, 2047) || getNutrient(n, 2048);
-      const canonicalNames = new Set(canonicalResults.map(r => r.name.toLowerCase()));
 
       const usdaFoods = foods
         .filter((f: any) => f.description && getEnergy(f.foodNutrients ?? []) > 0)
@@ -112,7 +120,76 @@ router.get("/api/food-search", async (req, res) => {
       }));
     }
 
-    res.json([...canonicalResults, ...usdaResults].slice(0, 15));
+    // --- Open Food Facts results ---
+    let offResults: any[] = [];
+    if (offSettled.status === "fulfilled" && offSettled.value.ok) {
+      const offData = await offSettled.value.json() as any;
+      // search.openfoodfacts.org returns { hits: [...] }
+      const products = (offData.hits ?? offData.products ?? []) as any[];
+
+      // Build a set of names already covered by canonical + USDA
+      const seenNames = new Set([
+        ...canonicalNames,
+        ...usdaResults.map(r => r.name.toLowerCase()),
+      ]);
+
+      for (const p of products) {
+        const rawName = (p.product_name ?? "").trim();
+        if (!rawName) continue;
+
+        // brands may be an array or a comma-separated string
+        const brandsRaw = p.brands;
+        const brand = Array.isArray(brandsRaw)
+          ? brandsRaw[0]?.trim() ?? ""
+          : (brandsRaw ?? "").split(",")[0].trim();
+
+        const name = brand && !rawName.toLowerCase().includes(brand.toLowerCase())
+          ? `${rawName} (${brand})`
+          : rawName;
+        const normName = name.toLowerCase();
+        if (seenNames.has(normName)) continue;
+
+        const nm = p.nutriments ?? {};
+        const cal = Math.round(nm["energy-kcal_100g"] ?? 0);
+        const protein = Math.round((nm["proteins_100g"] ?? 0) * 10) / 10;
+        const carbs = Math.round((nm["carbohydrates_100g"] ?? 0) * 10) / 10;
+        const fat = Math.round((nm["fat_100g"] ?? 0) * 10) / 10;
+
+        if (cal <= 0 || cal > 950) continue;
+
+        seenNames.add(normName);
+        const formatted = name.charAt(0).toUpperCase() + name.slice(1);
+
+        // Cache into canonical DB asynchronously
+        storage.upsertCanonicalFood({
+          name: formatted,
+          calories100g: cal,
+          protein100g: protein,
+          carbs100g: carbs,
+          fat100g: fat,
+          servingGrams: 100,
+          source: "openfoodfacts",
+        }).catch(() => {});
+
+        offResults.push({
+          id: `off-${encodeURIComponent(formatted)}`,
+          name: formatted,
+          calories100g: cal,
+          protein100g: protein,
+          carbs100g: carbs,
+          fat100g: fat,
+          servingSize: "100g",
+          servingGrams: 100,
+        });
+
+        if (offResults.length >= 8) break;
+      }
+    }
+
+    // Priority order: verified canonical > unverified canonical > USDA > OFF
+    const verified = canonicalResults.filter(r => r.verified);
+    const unverified = canonicalResults.filter(r => !r.verified);
+    res.json([...verified, ...unverified, ...usdaResults, ...offResults].slice(0, 20));
   } catch {
     res.json([]);
   }
