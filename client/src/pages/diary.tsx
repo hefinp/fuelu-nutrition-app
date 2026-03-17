@@ -80,8 +80,8 @@ function DiaryContent({
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { data: tierStatus } = useTierStatus();
-  const isAdvanced = !tierStatus || tierStatus.betaUser || tierStatus.tier === "advanced";
+  const { data: tierStatus, isLoading: tierLoading } = useTierStatus();
+  const isAdvanced = tierLoading || !!(tierStatus && (tierStatus.betaUser || tierStatus.tier === "advanced"));
   const today = todayStr();
 
   const [view, setView] = useState<"daily" | "weekly">("daily");
