@@ -448,20 +448,36 @@ export class DatabaseStorage implements IStorage {
     const existing = await this.canonicalFoodExistsByName(food.name);
     if (existing) return existing;
 
-    const [created] = await db.insert(canonicalFoods).values({
-      name: food.name,
-      canonicalName: canonical,
-      calories100g: food.calories100g,
-      protein100g: food.protein100g,
-      carbs100g: food.carbs100g,
-      fat100g: food.fat100g,
-      servingGrams: food.servingGrams ?? 100,
-      barcode: food.barcode ?? null,
-      fdcId: food.fdcId ?? null,
-      source: food.source ?? "user_manual",
-      contributedByUserId: food.contributedByUserId ?? null,
-    }).returning();
-    return created;
+    try {
+      const [created] = await db.insert(canonicalFoods).values({
+        name: food.name,
+        canonicalName: canonical,
+        calories100g: food.calories100g,
+        protein100g: food.protein100g,
+        carbs100g: food.carbs100g,
+        fat100g: food.fat100g,
+        servingGrams: food.servingGrams ?? 100,
+        barcode: food.barcode ?? null,
+        fdcId: food.fdcId ?? null,
+        source: food.source ?? "user_manual",
+        contributedByUserId: food.contributedByUserId ?? null,
+      }).returning();
+      return created;
+    } catch (err: any) {
+      if (err?.code === "23505") {
+        if (food.barcode) {
+          const byBarcode = await this.getCanonicalFoodByBarcode(food.barcode);
+          if (byBarcode) return byBarcode;
+        }
+        if (food.fdcId) {
+          const byFdc = await this.getCanonicalFoodByFdcId(food.fdcId);
+          if (byFdc) return byFdc;
+        }
+        const byName = await this.canonicalFoodExistsByName(food.name);
+        if (byName) return byName;
+      }
+      throw err;
+    }
   }
 
   async getCanonicalFoodById(id: number): Promise<CanonicalFood | undefined> {
