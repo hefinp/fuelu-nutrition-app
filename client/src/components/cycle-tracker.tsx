@@ -140,14 +140,14 @@ export function CycleTracker() {
   const { data: tipData, isLoading: tipLoading } = useQuery<{ tip: string; source: { title: string; url: string } | null }>({
     queryKey: ["/api/cycle/daily-tip", cycleInfo?.phase, today],
     queryFn: () => fetch(`/api/cycle/daily-tip?phase=${cycleInfo!.phase}`).then(r => r.json()),
-    enabled: !!cycleInfo?.phase && tipExpanded,
+    enabled: isPremium && !!cycleInfo?.phase && tipExpanded,
     staleTime: 1000 * 60 * 60 * 12,
   });
 
   const { data: periodLogs } = useQuery<CyclePeriodLog[]>({
     queryKey: ["/api/cycle/periods"],
     queryFn: () => apiRequest("GET", "/api/cycle/periods").then(r => r.json()),
-    enabled: !!cycleInfo,
+    enabled: isPremium && !!cycleInfo,
   });
 
   const [periodExpanded, setPeriodExpanded] = useState(false);
@@ -194,7 +194,7 @@ export function CycleTracker() {
     queryFn: () =>
       apiRequest("GET", `/api/cycle/symptoms?from=${sevenDaysAgo}&to=${today}`)
         .then(r => r.json()) as Promise<CycleSymptom[]>,
-    enabled: !!cycleInfo,
+    enabled: isPremium && !!cycleInfo,
   });
 
   useEffect(() => {
