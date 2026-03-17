@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useActiveFlow } from "@/contexts/active-flow-context";
 import { format, subDays } from "date-fns";
 import {
   LineChart,
@@ -60,6 +61,12 @@ export function WeightTracker({
   const [showEntries, setShowEntries] = useState(false);
   const [weightInsight, setWeightInsight] = useState<string | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
+  const { setFlowActive } = useActiveFlow();
+
+  useEffect(() => {
+    setFlowActive("weight-log", showForm);
+    return () => setFlowActive("weight-log", false);
+  }, [showForm, setFlowActive]);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const weekFrom = format(subDays(new Date(), 6), "yyyy-MM-dd");

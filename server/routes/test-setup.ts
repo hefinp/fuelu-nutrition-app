@@ -26,6 +26,15 @@ if (process.env.NODE_ENV !== "production") {
     const updated = await storage.updateUserTier(user.id, { betaUser: true });
     res.json({ id: updated.id, email: updated.email, betaUser: updated.betaUser, tier: updated.tier });
   });
+
+  router.post("/api/test/set-free-tier", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "email required" });
+    const user = await storage.getUserByEmail(email);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    await db.update(users).set({ tier: "free", betaUser: false, betaTierLocked: false, tierExpiresAt: null }).where(eq(users.id, user.id));
+    res.json({ id: user.id, email: user.email, tier: "free", betaUser: false });
+  });
 }
 
 export default router;

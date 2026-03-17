@@ -9,6 +9,7 @@ import type { Calculation } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useActiveFlow } from "@/contexts/active-flow-context";
 import { RECIPES } from "./results-recipes";
 import { toDateStr, addDays, getMonday, formatShort, DAY_LABELS } from "./results-pdf";
 import { exportMealPlanToPDF, exportShoppingListToPDF } from "./results-pdf";
@@ -50,6 +51,7 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
   const [ignoreCycle, setIgnoreCycle] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { setFlowActive } = useActiveFlow();
 
   const prevWeekRef = useRef(weekStart);
   useEffect(() => {
@@ -60,16 +62,6 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
   }, [weekStart]);
 
   const { data: mealPlanPrefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
-  const hasCycleData = !!(mealPlanPrefs?.cycleTrackingEnabled && mealPlanPrefs?.lastPeriodDate && data.gender === "female");
-  const cycleEnabledButMissing = !!(mealPlanPrefs?.cycleTrackingEnabled && !mealPlanPrefs?.lastPeriodDate && data.gender === "female");
-  const hasVitalityBoost = !!(mealPlanPrefs?.vitalityInsightsEnabled && mealPlanPrefs?.hormoneBoostingMeals && data.gender === "male");
-  const dailyRef = selectedDates[0] || toDateStr(new Date());
-  const cycleInfo = hasCycleData
-    ? getCyclePhase(mealPlanPrefs!.lastPeriodDate!, mealPlanPrefs!.cycleLength ?? 28, dailyRef)
-    : null;
-  const weekCycleInfo = hasCycleData
-    ? getCyclePhase(mealPlanPrefs!.lastPeriodDate!, mealPlanPrefs!.cycleLength ?? 28, weekStart)
-    : null;
 
   const generateMealPlan = useMutation({
     mutationFn: async (planType: 'daily' | 'weekly') => {
@@ -109,6 +101,22 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
       toast({ title, description, variant: "destructive" });
     },
   });
+  const hasCycleData = !!(mealPlanPrefs?.cycleTrackingEnabled && mealPlanPrefs?.lastPeriodDate && data.gender === "female");
+  const cycleEnabledButMissing = !!(mealPlanPrefs?.cycleTrackingEnabled && !mealPlanPrefs?.lastPeriodDate && data.gender === "female");
+  const hasVitalityBoost = !!(mealPlanPrefs?.vitalityInsightsEnabled && mealPlanPrefs?.hormoneBoostingMeals && data.gender === "male");
+  const dailyRef = selectedDates[0] || toDateStr(new Date());
+  const cycleInfo = hasCycleData
+    ? getCyclePhase(mealPlanPrefs!.lastPeriodDate!, mealPlanPrefs!.cycleLength ?? 28, dailyRef)
+    : null;
+  const weekCycleInfo = hasCycleData
+    ? getCyclePhase(mealPlanPrefs!.lastPeriodDate!, mealPlanPrefs!.cycleLength ?? 28, weekStart)
+    : null;
+
+  useEffect(() => {
+    const isActive = generateMealPlan.isPending || mealPlan !== null;
+    setFlowActive("meal-plan", isActive);
+    return () => setFlowActive("meal-plan", false);
+  }, [generateMealPlan.isPending, mealPlan, setFlowActive]);
 
   const savePlanMutation = useMutation({
     mutationFn: async () => {

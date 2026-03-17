@@ -20,6 +20,8 @@ import NutritionistRegisterPage from "@/pages/nutritionist-register";
 import NutritionistPortalPage from "@/pages/nutritionist-portal";
 import { useAuth } from "@/hooks/use-auth";
 import { TrialModal } from "@/components/trial-modal";
+import { AdBanner } from "@/components/ad-banner";
+import { ActiveFlowProvider } from "@/contexts/active-flow-context";
 import type { TrialInfo } from "@shared/trial";
 import { Loader2 } from "lucide-react";
 
@@ -80,9 +82,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <TrialModalWrapper />
-        <Router />
+        <ActiveFlowProvider>
+          <Toaster />
+          <TrialModalWrapper />
+          <Router />
+          <AdBanner />
+        </ActiveFlowProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

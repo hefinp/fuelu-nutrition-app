@@ -46,12 +46,30 @@ app.use(
         ? {
             directives: {
               defaultSrc: ["'self'"],
-              scriptSrc: ["'self'", "'unsafe-inline'"],
+              scriptSrc: [
+                "'self'",
+                "'unsafe-inline'",
+                "https://pagead2.googlesyndication.com",
+                "https://tpc.googlesyndication.com",
+                "https://www.googletagservices.com",
+                "https://adservice.google.com",
+                "https://www.google.com",
+                "https://www.gstatic.com",
+              ],
               styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
               fontSrc: ["'self'", "https://fonts.gstatic.com"],
               imgSrc: ["'self'", "data:", "https:"],
-              connectSrc: ["'self'"],
-              frameSrc: ["'none'"],
+              connectSrc: [
+                "'self'",
+                "https://pagead2.googlesyndication.com",
+                "https://adservice.google.com",
+                "https://www.google.com",
+              ],
+              frameSrc: [
+                "'self'",
+                "https://googleads.g.doubleclick.net",
+                "https://tpc.googlesyndication.com",
+              ],
             },
           }
         : false,

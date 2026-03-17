@@ -521,6 +521,10 @@ export async function runMigrations(): Promise<void> {
         console.error("[migrate] Stripe price backfill error:", err.message);
       }
     }
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS is_managed_client BOOLEAN NOT NULL DEFAULT FALSE
+    `);
+
   } finally {
     client.release();
   }

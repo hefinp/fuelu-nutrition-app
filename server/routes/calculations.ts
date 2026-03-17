@@ -93,4 +93,57 @@ router.put("/api/user/preferences", async (req, res) => {
   res.json(prefs);
 });
 
+const DIET_AD_EXCLUSIONS: Record<string, string[]> = {
+  vegetarian: ["meat", "poultry", "seafood"],
+  vegan: ["meat", "poultry", "seafood", "dairy", "eggs_ad"],
+  pescatarian: ["meat", "poultry"],
+  halal: ["alcohol", "gambling", "dating_non_halal", "pork"],
+  kosher: ["pork", "shellfish"],
+};
+
+const ALLERGEN_AD_EXCLUSIONS: Record<string, string[]> = {
+  gluten: ["bread", "wheat", "pasta_gluten"],
+  crustaceans: ["seafood", "shellfish"],
+  eggs: ["eggs_ad"],
+  fish: ["seafood", "fish_ad"],
+  peanuts: ["peanuts_ad", "nuts_ad"],
+  soy: ["soy_ad"],
+  milk: ["dairy", "milk_ad"],
+  nuts: ["nuts_ad"],
+  celery: [],
+  mustard: [],
+  sesame: ["sesame_ad"],
+  sulphites: ["alcohol"],
+  lupin: [],
+  molluscs: ["seafood", "shellfish"],
+};
+
+router.get("/api/ads/policy", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const user = await storage.getUserById(req.session.userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  const prefs = (user.preferences as UserPreferences | null) ?? { diet: null, allergies: [] };
+  const exclusionSet = new Set<string>();
+
+  if (prefs.diet && DIET_AD_EXCLUSIONS[prefs.diet]) {
+    for (const ex of DIET_AD_EXCLUSIONS[prefs.diet]) exclusionSet.add(ex);
+  }
+
+  for (const allergen of prefs.allergies ?? []) {
+    for (const ex of ALLERGEN_AD_EXCLUSIONS[allergen] ?? []) exclusionSet.add(ex);
+  }
+
+  const exclusions = Array.from(exclusionSet);
+  const hasSensitiveProfile = !!(prefs.diet || (prefs.allergies ?? []).length > 0);
+
+  res.json({
+    exclusions,
+    hasSensitiveProfile,
+    diet: prefs.diet ?? null,
+    allergenCount: (prefs.allergies ?? []).length,
+  });
+});
+
 export default router;

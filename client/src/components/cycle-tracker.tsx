@@ -12,6 +12,7 @@ import {
   PHASE_NUTRITION_CALLOUTS, formatShortDate, type CyclePhase,
 } from "@/lib/cycle";
 import { apiRequest } from "@/lib/queryClient";
+import { useActiveFlow } from "@/contexts/active-flow-context";
 
 const PHASE_EMOJI: Record<string, string> = {
   menstrual: "🌑",
@@ -120,6 +121,7 @@ export function CycleTracker() {
     energy: null, bloating: null, cravings: null, mood: null, appetite: null,
   });
   const [symptomsInitialized, setSymptomsInitialized] = useState(false);
+  const { setFlowActive } = useActiveFlow();
 
   const lastPeriodDate = prefs?.lastPeriodDate ?? "";
   const cycleLength = prefs?.cycleLength ?? 28;
@@ -147,6 +149,11 @@ export function CycleTracker() {
   const [periodExpanded, setPeriodExpanded] = useState(false);
   const [logStartDate, setLogStartDate] = useState(today);
   const [showStartForm, setShowStartForm] = useState(false);
+
+  useEffect(() => {
+    setFlowActive("cycle-tracking", symptomExpanded || showStartForm || periodExpanded);
+    return () => setFlowActive("cycle-tracking", false);
+  }, [symptomExpanded, showStartForm, periodExpanded, setFlowActive]);
 
   const createPeriodMutation = useMutation({
     mutationFn: (body: { periodStartDate: string }) =>

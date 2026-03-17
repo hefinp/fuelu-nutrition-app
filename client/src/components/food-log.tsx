@@ -12,6 +12,7 @@ import {
 } from "@/components/food-log-shared";
 import { FoodLogDrawer } from "@/components/food-log-drawer";
 import { TemplateSuggestions } from "@/components/template-suggestions";
+import { useActiveFlow } from "@/contexts/active-flow-context";
 
 export type { PrefillEntry } from "@/components/food-log-shared";
 
@@ -31,6 +32,12 @@ export function FoodLog({
   const today = todayStr();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [expandedSlots, setExpandedSlots] = useState<Set<string>>(new Set());
+  const { setFlowActive } = useActiveFlow();
+
+  useEffect(() => {
+    setFlowActive("food-log", drawerOpen);
+    return () => setFlowActive("food-log", false);
+  }, [drawerOpen, setFlowActive]);
 
   useEffect(() => {
     if (prefill) setDrawerOpen(true);
