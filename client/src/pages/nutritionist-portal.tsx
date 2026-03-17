@@ -1464,12 +1464,13 @@ export default function NutritionistPortalPage() {
   return (
     <div className="min-h-screen bg-zinc-50 pb-16">
       <header className="bg-white border-b border-zinc-100 sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">F</span>
+            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center relative">
+              <div className="w-3 h-3 bg-white rounded-full" />
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[3px] h-[calc(50%-6px)] bg-white rounded-t-sm" />
             </div>
-            <span className="font-display font-semibold text-zinc-900 hidden sm:block">Professional Portal</span>
+            <h1 className="font-display font-bold text-xl tracking-tight text-zinc-900">FuelU</h1>
           </Link>
           <div className="flex items-center gap-1">
             {TABS.map(t => {
@@ -1487,6 +1488,27 @@ export default function NutritionistPortalPage() {
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        {/* Personal / Professional tab strip */}
+        <div className="border-t border-zinc-100" data-testid="tab-strip-professional-portal">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-1 h-10">
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-colors"
+                data-testid="tab-personal"
+              >
+                Personal
+              </Link>
+              <span
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md text-zinc-900 bg-zinc-100"
+                data-testid="tab-professional-active"
+              >
+                Professional
+              </span>
+            </div>
           </div>
         </div>
       </header>
