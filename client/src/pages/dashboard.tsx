@@ -47,7 +47,7 @@ import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
   Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, Home, TrendingUp, Star,
-  Sparkles, ScanLine, Heart, ShieldCheck, Zap, User,
+  Sparkles, ScanLine, Heart, ShieldCheck, Zap, User, Crown,
 } from "lucide-react";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
 
@@ -468,9 +468,28 @@ export default function Dashboard() {
                           exit={{ opacity: 0, scale: 0.95, y: -8 }}
                           className="absolute right-0 top-10 z-20 bg-white border border-zinc-100 rounded-xl shadow-lg py-1 w-52"
                         >
-                          <div className="px-3 py-2 border-b border-zinc-100">
+                          <div className="px-3 py-2.5 border-b border-zinc-100">
                             <p className="text-xs font-semibold text-zinc-900 truncate">{user.name}</p>
                             <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+                            {tierStatus && (
+                              <div className="flex items-center gap-1.5 mt-2">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  tierStatus.tier === "advanced"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : tierStatus.tier === "simple"
+                                    ? "bg-blue-100 text-blue-700"
+                                    : "bg-zinc-100 text-zinc-600"
+                                }`} data-testid="badge-menu-tier">
+                                  <Crown className="w-3 h-3" />
+                                  {tierStatus.tier === "advanced" ? "Advanced" : tierStatus.tier === "simple" ? "Simple" : "Pay As You Go"}
+                                </span>
+                                {tierStatus.betaUser && (
+                                  <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700" data-testid="badge-menu-beta">
+                                    Beta
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <Link
                             href="/account"
