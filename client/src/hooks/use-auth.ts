@@ -28,13 +28,14 @@ export function useAuth() {
     },
     onSuccess: (user) => {
       queryClient.setQueryData(["/api/auth/me"], user);
+      queryClient.removeQueries({ queryKey: ["/api/nutritionist/profile"] });
       queryClient.invalidateQueries({ queryKey: ["/api/calculations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/saved-meal-plans"] });
     },
   });
 
   const registerMutation = useMutation({
-    mutationFn: async (data: { email: string; name: string; password: string; inviteCode?: string }) => {
+    mutationFn: async (data: { email: string; name: string; password: string; inviteCode?: string; nutritionistInviteToken?: string }) => {
       const res = await apiRequest("POST", "/api/auth/register", data);
       if (!res.ok) {
         const err = await res.json();
@@ -44,6 +45,7 @@ export function useAuth() {
     },
     onSuccess: (user) => {
       queryClient.setQueryData(["/api/auth/me"], user);
+      queryClient.removeQueries({ queryKey: ["/api/nutritionist/profile"] });
       queryClient.invalidateQueries({ queryKey: ["/api/calculations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/saved-meal-plans"] });
     },
@@ -55,6 +57,8 @@ export function useAuth() {
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/auth/me"], null);
+      queryClient.removeQueries({ queryKey: ["/api/nutritionist/profile"] });
+      queryClient.removeQueries({ queryKey: ["/api/nutritionist/clients"] });
       queryClient.invalidateQueries({ queryKey: ["/api/calculations"] });
       queryClient.removeQueries({ queryKey: ["/api/saved-meal-plans"] });
     },

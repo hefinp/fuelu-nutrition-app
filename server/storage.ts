@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type NutritionistInvitation, type NutritionistNote } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -196,6 +196,35 @@ export interface IStorage {
   // User lookup helpers
   getUserByStripeCustomerId(stripeCustomerId: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
+
+  // Managed client flag
+  setManagedClientFlag(userId: number, isManagedClient: boolean, managedByNutritionistId: number | null): Promise<void>;
+
+  // Nutritionist profiles
+  getNutritionistProfile(userId: number): Promise<NutritionistProfile | undefined>;
+  createNutritionistProfile(userId: number, data: InsertNutritionistProfile): Promise<NutritionistProfile>;
+  updateNutritionistProfile(userId: number, data: Partial<InsertNutritionistProfile>): Promise<NutritionistProfile | undefined>;
+
+  // Nutritionist clients
+  getNutritionistClients(nutritionistId: number): Promise<(NutritionistClient & { client: Pick<User, "id" | "name" | "email" | "isManagedClient" | "createdAt"> })[]>;
+  getNutritionistClientCount(nutritionistId: number): Promise<number>;
+  addNutritionistClient(nutritionistId: number, clientId: number, data?: { status?: string; goalSummary?: string }): Promise<NutritionistClient>;
+  updateNutritionistClient(id: number, nutritionistId: number, updates: { status?: string; goalSummary?: string; healthNotes?: string; lastActivityAt?: Date }): Promise<NutritionistClient | undefined>;
+  removeNutritionistClient(id: number, nutritionistId: number): Promise<void>;
+  getNutritionistClientByClientId(nutritionistId: number, clientId: number): Promise<NutritionistClient | undefined>;
+  getNutritionistClientByClientIdAny(clientId: number): Promise<NutritionistClient | undefined>;
+
+  // Nutritionist invitations
+  createNutritionistInvitation(nutritionistId: number, email: string, token: string, expiresAt: Date): Promise<NutritionistInvitation>;
+  getNutritionistInvitationByToken(token: string): Promise<NutritionistInvitation | undefined>;
+  acceptNutritionistInvitation(token: string): Promise<NutritionistInvitation | undefined>;
+  getNutritionistInvitations(nutritionistId: number): Promise<NutritionistInvitation[]>;
+
+  // Nutritionist notes
+  getNutritionistNotes(nutritionistId: number, clientId: number): Promise<NutritionistNote[]>;
+  createNutritionistNote(nutritionistId: number, clientId: number, note: string): Promise<NutritionistNote>;
+  updateNutritionistNote(id: number, nutritionistId: number, clientId: number, note: string): Promise<NutritionistNote | undefined>;
+  deleteNutritionistNote(id: number, nutritionistId: number, clientId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1421,6 +1450,146 @@ export class DatabaseStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     return db.select().from(users).orderBy(users.id);
+  }
+
+  async setManagedClientFlag(userId: number, isManagedClient: boolean, managedByNutritionistId: number | null): Promise<void> {
+    await db.update(users).set({ isManagedClient, managedByNutritionistId }).where(eq(users.id, userId));
+  }
+
+  async getNutritionistProfile(userId: number): Promise<NutritionistProfile | undefined> {
+    const [profile] = await db.select().from(nutritionistProfiles).where(eq(nutritionistProfiles.userId, userId));
+    return profile;
+  }
+
+  async createNutritionistProfile(userId: number, data: InsertNutritionistProfile): Promise<NutritionistProfile> {
+    const [profile] = await db.insert(nutritionistProfiles).values({ ...data, userId }).returning();
+    return profile;
+  }
+
+  async updateNutritionistProfile(userId: number, data: Partial<InsertNutritionistProfile>): Promise<NutritionistProfile | undefined> {
+    const [updated] = await db.update(nutritionistProfiles)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(nutritionistProfiles.userId, userId))
+      .returning();
+    return updated;
+  }
+
+  async getNutritionistClients(nutritionistId: number): Promise<(NutritionistClient & { client: Pick<User, "id" | "name" | "email" | "isManagedClient" | "createdAt"> })[]> {
+    const clientUsers = await db
+      .select({
+        nc: nutritionistClients,
+        clientId: users.id,
+        clientName: users.name,
+        clientEmail: users.email,
+        clientIsManagedClient: users.isManagedClient,
+        clientCreatedAt: users.createdAt,
+      })
+      .from(nutritionistClients)
+      .innerJoin(users, eq(nutritionistClients.clientId, users.id))
+      .where(eq(nutritionistClients.nutritionistId, nutritionistId))
+      .orderBy(desc(nutritionistClients.lastActivityAt));
+    return clientUsers.map(row => ({
+      ...row.nc,
+      client: {
+        id: row.clientId,
+        name: row.clientName,
+        email: row.clientEmail,
+        isManagedClient: row.clientIsManagedClient,
+        createdAt: row.clientCreatedAt,
+      },
+    }));
+  }
+
+  async getNutritionistClientCount(nutritionistId: number): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(nutritionistClients)
+      .where(eq(nutritionistClients.nutritionistId, nutritionistId));
+    return Number(result?.count ?? 0);
+  }
+
+  async addNutritionistClient(nutritionistId: number, clientId: number, data?: { status?: string; goalSummary?: string }): Promise<NutritionistClient> {
+    const [client] = await db.insert(nutritionistClients).values({
+      nutritionistId,
+      clientId,
+      status: data?.status ?? "onboarding",
+      goalSummary: data?.goalSummary,
+      lastActivityAt: new Date(),
+    }).returning();
+    return client;
+  }
+
+  async updateNutritionistClient(id: number, nutritionistId: number, updates: { status?: string; goalSummary?: string; healthNotes?: string; lastActivityAt?: Date }): Promise<NutritionistClient | undefined> {
+    const [updated] = await db.update(nutritionistClients)
+      .set(updates)
+      .where(and(eq(nutritionistClients.id, id), eq(nutritionistClients.nutritionistId, nutritionistId)))
+      .returning();
+    return updated;
+  }
+
+  async removeNutritionistClient(id: number, nutritionistId: number): Promise<void> {
+    await db.delete(nutritionistClients)
+      .where(and(eq(nutritionistClients.id, id), eq(nutritionistClients.nutritionistId, nutritionistId)));
+  }
+
+  async getNutritionistClientByClientId(nutritionistId: number, clientId: number): Promise<NutritionistClient | undefined> {
+    const [row] = await db.select().from(nutritionistClients)
+      .where(and(eq(nutritionistClients.nutritionistId, nutritionistId), eq(nutritionistClients.clientId, clientId)));
+    return row;
+  }
+
+  async getNutritionistClientByClientIdAny(clientId: number): Promise<NutritionistClient | undefined> {
+    const [row] = await db.select().from(nutritionistClients)
+      .where(eq(nutritionistClients.clientId, clientId));
+    return row;
+  }
+
+  async createNutritionistInvitation(nutritionistId: number, email: string, token: string, expiresAt: Date): Promise<NutritionistInvitation> {
+    const [inv] = await db.insert(nutritionistInvitations).values({ nutritionistId, email, token, expiresAt }).returning();
+    return inv;
+  }
+
+  async getNutritionistInvitationByToken(token: string): Promise<NutritionistInvitation | undefined> {
+    const [inv] = await db.select().from(nutritionistInvitations).where(eq(nutritionistInvitations.token, token));
+    return inv;
+  }
+
+  async acceptNutritionistInvitation(token: string): Promise<NutritionistInvitation | undefined> {
+    const [updated] = await db.update(nutritionistInvitations)
+      .set({ acceptedAt: new Date() })
+      .where(eq(nutritionistInvitations.token, token))
+      .returning();
+    return updated;
+  }
+
+  async getNutritionistInvitations(nutritionistId: number): Promise<NutritionistInvitation[]> {
+    return db.select().from(nutritionistInvitations)
+      .where(eq(nutritionistInvitations.nutritionistId, nutritionistId))
+      .orderBy(desc(nutritionistInvitations.createdAt));
+  }
+
+  async getNutritionistNotes(nutritionistId: number, clientId: number): Promise<NutritionistNote[]> {
+    return db.select().from(nutritionistNotes)
+      .where(and(eq(nutritionistNotes.nutritionistId, nutritionistId), eq(nutritionistNotes.clientId, clientId)))
+      .orderBy(desc(nutritionistNotes.createdAt));
+  }
+
+  async createNutritionistNote(nutritionistId: number, clientId: number, note: string): Promise<NutritionistNote> {
+    const [created] = await db.insert(nutritionistNotes).values({ nutritionistId, clientId, note }).returning();
+    return created;
+  }
+
+  async updateNutritionistNote(id: number, nutritionistId: number, clientId: number, note: string): Promise<NutritionistNote | undefined> {
+    const [updated] = await db.update(nutritionistNotes)
+      .set({ note, updatedAt: new Date() })
+      .where(and(eq(nutritionistNotes.id, id), eq(nutritionistNotes.nutritionistId, nutritionistId), eq(nutritionistNotes.clientId, clientId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteNutritionistNote(id: number, nutritionistId: number, clientId: number): Promise<void> {
+    await db.delete(nutritionistNotes)
+      .where(and(eq(nutritionistNotes.id, id), eq(nutritionistNotes.nutritionistId, nutritionistId), eq(nutritionistNotes.clientId, clientId)));
   }
 }
 

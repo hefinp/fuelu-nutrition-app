@@ -567,7 +567,7 @@ export default function AccountPage() {
               </div>
             )}
 
-            {tierStatus?.suggestUpgrade && !betaUser && (
+            {tierStatus?.suggestUpgrade && !betaUser && !user?.isManagedClient && (
               <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-2xl" data-testid="banner-upgrade-suggestion">
                 <Coins className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
                 <div>

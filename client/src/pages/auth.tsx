@@ -19,6 +19,7 @@ export default function AuthPage() {
   const oauthError = params.get("error");
   const oauthPending = params.get("oauth_pending"); // e.g. "google"
   const oauthEmail = params.get("email") ?? "";
+  const nutritionistInviteToken = params.get("nutritionist_invite") ?? "";
 
   useEffect(() => {
     const t = new URLSearchParams(search).get("tab");
@@ -69,10 +70,16 @@ export default function AuthPage() {
     setRegError("");
     setInviteCodeError("");
     try {
-      await register({ email: regEmail, name: regName, password: regPassword, inviteCode: regInviteCode || undefined });
+      await register({
+        email: regEmail,
+        name: regName,
+        password: regPassword,
+        inviteCode: nutritionistInviteToken ? undefined : (regInviteCode || undefined),
+        nutritionistInviteToken: nutritionistInviteToken || undefined,
+      });
       setLocation("/dashboard");
-    } catch (err: any) {
-      const msg = err.message || "Registration failed";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Registration failed";
       if (msg.toLowerCase().includes("invite code")) {
         setInviteCodeError(msg);
       } else {
@@ -347,6 +354,12 @@ export default function AuthPage() {
                 </div>
               )}
 
+              {nutritionistInviteToken && (
+                <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-800" data-testid="banner-nutritionist-invite">
+                  <span>You have been invited by your nutritionist. Create your account to get started.</span>
+                </div>
+              )}
+
               {regError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700" data-testid="error-register">
                   {regError}
@@ -403,7 +416,7 @@ export default function AuthPage() {
                 </div>
               </div>
 
-              {inviteConfig?.required && (
+              {inviteConfig?.required && !nutritionistInviteToken && (
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1.5">Invite Code</label>
                   <input

@@ -16,6 +16,8 @@ import AdminPage from "@/pages/admin";
 import PricingPage from "@/pages/pricing";
 import BillingPage from "@/pages/billing";
 import AccountPage from "@/pages/account";
+import NutritionistRegisterPage from "@/pages/nutritionist-register";
+import NutritionistPortalPage from "@/pages/nutritionist-portal";
 import { useAuth } from "@/hooks/use-auth";
 import { TrialModal } from "@/components/trial-modal";
 import type { TrialInfo } from "@shared/trial";
@@ -43,6 +45,7 @@ function RootRedirect() {
 function TrialModalWrapper() {
   const { user } = useAuth();
   if (!user) return null;
+  if (user.isManagedClient) return null;
   const trialInfo = (user as any).trialInfo as TrialInfo | undefined;
   if (!trialInfo) return null;
   return <TrialModal trialInfo={trialInfo} showOnLogin={true} />;
@@ -62,6 +65,8 @@ function Router() {
       <Route path="/pricing" component={PricingPage} />
       <Route path="/billing" component={BillingPage} />
       <Route path="/account" component={AccountPage} />
+      <Route path="/nutritionist/register" component={NutritionistRegisterPage} />
+      <Route path="/nutritionist/portal" component={NutritionistPortalPage} />
       <Route path="/insights">{() => <Suspense fallback={<LazyFallback />}><InsightsPage /></Suspense>}</Route>
       <Route path="/diary">{() => <Suspense fallback={<LazyFallback />}><DiaryPage /></Suspense>}</Route>
       <Route path="/my-library">{() => <Suspense fallback={<LazyFallback />}><MyLibraryPage /></Suspense>}</Route>

@@ -10,6 +10,7 @@ import {
 import { motion } from "framer-motion";
 import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
 import { useTierStatus } from "@/hooks/use-tier";
+import { useAuth } from "@/hooks/use-auth";
 
 type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
 type MealStyle = "simple" | "gourmet" | "michelin";
@@ -67,7 +68,8 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: tierStatus } = useTierStatus();
-  const showUpgradeNudge = !!tierStatus && !tierStatus.betaUser && (tierStatus.tier === "free" || tierStatus.tier === "simple");
+  const { user } = useAuth();
+  const showUpgradeNudge = !!tierStatus && !tierStatus.betaUser && !user?.isManagedClient && (tierStatus.tier === "free" || tierStatus.tier === "simple");
   const [selectedStyle, setSelectedStyle] = useState<MealStyle>("simple");
   const [selectedSlot, setSelectedSlot] = useState<MealSlot>("breakfast");
   const [expandedMealId, setExpandedMealId] = useState<number | null>(null);

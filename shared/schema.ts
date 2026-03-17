@@ -5,6 +5,18 @@ import { z } from "zod";
 export const tierEnum = ["free", "simple", "advanced", "payg"] as const;
 export type Tier = typeof tierEnum[number];
 
+export const nutritionistTierEnum = ["starter", "professional", "practice"] as const;
+export type NutritionistTier = typeof nutritionistTierEnum[number];
+
+export const nutritionistTierLimits: Record<NutritionistTier, number> = {
+  starter: 15,
+  professional: 40,
+  practice: 999,
+};
+
+export const clientStatusEnum = ["onboarding", "active", "paused"] as const;
+export type ClientStatus = typeof clientStatusEnum[number];
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
@@ -26,6 +38,8 @@ export const users = pgTable("users", {
   trialStatus: text("trial_status").notNull().default("none"),
   trialStepDownSeen: boolean("trial_step_down_seen").notNull().default(false),
   trialExpiredSeen: boolean("trial_expired_seen").notNull().default(false),
+  isManagedClient: boolean("is_managed_client").notNull().default(false),
+  managedByNutritionistId: integer("managed_by_nutritionist_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -44,6 +58,7 @@ export const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   inviteCode: z.string().optional(),
+  nutritionistInviteToken: z.string().optional(),
 });
 
 export const loginSchema = z.object({
@@ -650,3 +665,98 @@ export const insertRecipeIngredientSchema = createInsertSchema(recipeIngredients
 
 export type InsertRecipeIngredient = z.infer<typeof insertRecipeIngredientSchema>;
 export type RecipeIngredient = typeof recipeIngredients.$inferSelect;
+
+export const nutritionistProfiles = pgTable("nutritionist_profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  tier: text("tier").notNull().default("starter"),
+  bio: text("bio"),
+  credentials: text("credentials"),
+  specializations: text("specializations").array(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertNutritionistProfileSchema = createInsertSchema(nutritionistProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  userId: true,
+}).extend({
+  tier: z.enum(nutritionistTierEnum).default("starter"),
+  bio: z.string().max(1000).optional(),
+  credentials: z.string().max(500).optional(),
+  specializations: z.array(z.string()).optional(),
+});
+
+export type InsertNutritionistProfile = z.infer<typeof insertNutritionistProfileSchema>;
+export type NutritionistProfile = typeof nutritionistProfiles.$inferSelect;
+
+export const nutritionistClients = pgTable("nutritionist_clients", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  status: text("status").notNull().default("onboarding"),
+  goalSummary: text("goal_summary"),
+  healthNotes: text("health_notes"),
+  lastActivityAt: timestamp("last_activity_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertNutritionistClientSchema = createInsertSchema(nutritionistClients).omit({
+  id: true,
+  createdAt: true,
+  nutritionistId: true,
+}).extend({
+  status: z.enum(clientStatusEnum).default("onboarding"),
+  goalSummary: z.string().max(500).optional(),
+  healthNotes: z.string().max(2000).optional(),
+});
+
+export type InsertNutritionistClient = z.infer<typeof insertNutritionistClientSchema>;
+export type NutritionistClient = typeof nutritionistClients.$inferSelect;
+
+export const nutritionistInvitations = pgTable("nutritionist_invitations", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  email: text("email").notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertNutritionistInvitationSchema = createInsertSchema(nutritionistInvitations).omit({
+  id: true,
+  createdAt: true,
+  nutritionistId: true,
+  token: true,
+  acceptedAt: true,
+}).extend({
+  email: z.string().email("Invalid email address"),
+});
+
+export type InsertNutritionistInvitation = z.infer<typeof insertNutritionistInvitationSchema>;
+export type NutritionistInvitation = typeof nutritionistInvitations.$inferSelect;
+
+export const nutritionistNotes = pgTable("nutritionist_notes", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  note: text("note").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertNutritionistNoteSchema = createInsertSchema(nutritionistNotes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  nutritionistId: true,
+  clientId: true,
+}).extend({
+  note: z.string().min(1, "Note cannot be empty").max(10000),
+});
+
+export type InsertNutritionistNote = z.infer<typeof insertNutritionistNoteSchema>;
+export type NutritionistNote = typeof nutritionistNotes.$inferSelect;

@@ -135,7 +135,7 @@ export default function InsightsPage({ onClose }: { onClose?: () => void } = {})
         </div>
       </header>
 
-      {user && (user as any).trialInfo && (
+      {user && !user.isManagedClient && (user as any).trialInfo && (
         <TrialBanner trialInfo={(user as any).trialInfo as TrialInfo} />
       )}
 

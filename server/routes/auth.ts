@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import passport from "passport";
 import { storage } from "../storage";
-import { registerSchema, loginSchema, type UserPreferences, type User } from "@shared/schema";
+import { registerSchema, loginSchema, type UserPreferences, type User, nutritionistTierLimits, type NutritionistTier } from "@shared/schema";
 import { computeTrialInfo } from "@shared/trial";
 import { authRateLimiter } from "../constants";
 import { sendEmail, buildPasswordResetEmailHtml } from "../email";
@@ -25,13 +25,41 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
   try {
     const input = registerSchema.parse(req.body);
 
-    const submitted = (input.inviteCode ?? "").trim().toUpperCase();
-    if (!submitted) {
-      return res.status(400).json({ message: "An invite code is required to register." });
-    }
-    const inviteRecord = await storage.getInviteCode(submitted);
-    if (!inviteRecord || inviteRecord.usedAt !== null) {
-      return res.status(400).json({ message: "Invalid or already-used invite code." });
+    const nutritionistInviteToken = (input.nutritionistInviteToken ?? "").trim();
+
+    // Validate authorization BEFORE creating user — either a nutritionist invite or a platform invite code
+    let nutritionistInvitation: { id: number; nutritionistId: number; email: string; expiresAt: Date; acceptedAt: Date | null } | null = null;
+    let platformInviteCode: string | null = null;
+
+    if (nutritionistInviteToken) {
+      // Nutritionist invite path: validate token, email match, nutritionist profile, and capacity
+      const inv = await storage.getNutritionistInvitationByToken(nutritionistInviteToken);
+      if (!inv || inv.acceptedAt || inv.expiresAt < new Date()) {
+        return res.status(400).json({ message: "The nutritionist invitation link is invalid or has expired. Please request a new one from your nutritionist." });
+      }
+      if (inv.email.toLowerCase() !== input.email.toLowerCase()) {
+        return res.status(403).json({ message: "This invitation was sent to a different email address. Please register with the email address your nutritionist used." });
+      }
+      const nutritionistProfile = await storage.getNutritionistProfile(inv.nutritionistId);
+      if (!nutritionistProfile) {
+        return res.status(400).json({ message: "The nutritionist who sent this invitation no longer has a valid account. Please contact them." });
+      }
+      const clientLimit = nutritionistTierLimits[nutritionistProfile.tier as NutritionistTier] ?? 15;
+      const currentCount = await storage.getNutritionistClientCount(inv.nutritionistId);
+      if (currentCount >= clientLimit) {
+        return res.status(403).json({ message: "Your nutritionist has reached their maximum client capacity and cannot accept new clients at this time." });
+      }
+      nutritionistInvitation = inv;
+    } else {
+      const submitted = (input.inviteCode ?? "").trim().toUpperCase();
+      if (!submitted) {
+        return res.status(400).json({ message: "An invite code is required to register." });
+      }
+      const inviteRecord = await storage.getInviteCode(submitted);
+      if (!inviteRecord || inviteRecord.usedAt !== null) {
+        return res.status(400).json({ message: "Invalid or already-used invite code." });
+      }
+      platformInviteCode = submitted;
     }
 
     const existing = await storage.getUserByEmail(input.email);
@@ -45,8 +73,18 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
     if (!user.betaUser) {
       await storage.updateUserTrial(user.id, { trialStartDate: new Date(), trialStatus: "active" });
     }
-    await storage.markInviteCodeUsed(submitted, input.email);
-    await storage.updateUserTier(user.id, { betaUser: true, tier: "advanced" });
+
+    if (nutritionistInvitation) {
+      // Accept invitation and link client atomically after account creation
+      await storage.acceptNutritionistInvitation(nutritionistInviteToken);
+      await storage.addNutritionistClient(nutritionistInvitation.nutritionistId, user.id, { status: "onboarding" });
+      await storage.setManagedClientFlag(user.id, true, nutritionistInvitation.nutritionistId);
+      await storage.updateUserTier(user.id, { betaUser: false, tier: "free" });
+    } else if (platformInviteCode) {
+      await storage.markInviteCodeUsed(platformInviteCode, input.email);
+      await storage.updateUserTier(user.id, { betaUser: true, tier: "advanced" });
+    }
+
     req.session.userId = user.id;
     const updatedUser = await storage.getUserById(user.id);
     const publicUser = toPublicUser(updatedUser!);

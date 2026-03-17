@@ -28,7 +28,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTierStatus } from "@/hooks/use-tier";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { Calculation, UserPreferences } from "@shared/schema";
+import type { Calculation, NutritionistProfile, UserPreferences } from "@shared/schema";
 import {
   DndContext,
   closestCenter,
@@ -47,7 +47,7 @@ import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
   Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, Home, TrendingUp, Star,
-  Sparkles, ScanLine, Heart, ShieldCheck, Zap, User, Crown,
+  Sparkles, ScanLine, Heart, ShieldCheck, Zap, User, Crown, Briefcase,
 } from "lucide-react";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
 
@@ -140,6 +140,14 @@ export default function Dashboard() {
     queryKey: ["/api/user/preferences"],
     enabled: !!user,
   });
+
+  const { data: nutritionistProfile } = useQuery<NutritionistProfile | null>({
+    queryKey: ["/api/nutritionist/profile"],
+    enabled: !!user,
+    retry: false,
+  });
+
+  const isNutritionist = !!nutritionistProfile;
 
   // Local hidden-widget state: derived from prefs, updated optimistically on toggle
   const [hiddenWidgets, setHiddenWidgets] = useState<string[]>([]);
@@ -429,7 +437,7 @@ export default function Dashboard() {
                   <span>My Plans</span>
                 </button>
 
-                {tierStatus && (tierStatus.tier === "free" || tierStatus.tier === "simple") && (
+                {tierStatus && !user.isManagedClient && (tierStatus.tier === "free" || tierStatus.tier === "simple") && (
                   <Link
                     href="/pricing"
                     aria-label="Upgrade plan"
@@ -451,7 +459,7 @@ export default function Dashboard() {
                       <div className="w-8 h-8 bg-zinc-900 rounded-full flex items-center justify-center text-white text-xs font-bold">
                         {user.name.charAt(0).toUpperCase()}
                       </div>
-                      {tierStatus && !tierStatus.betaUser && tierStatus.tier !== "advanced" && (
+                      {tierStatus && !user.isManagedClient && !tierStatus.betaUser && tierStatus.tier !== "advanced" && (
                         <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white" data-testid="badge-upgrade-dot" />
                       )}
                     </div>
@@ -500,6 +508,15 @@ export default function Dashboard() {
                             <User className="w-4 h-4 text-zinc-400" />
                             My Account
                           </Link>
+                          <Link
+                            href={isNutritionist ? "/nutritionist/portal" : "/nutritionist/register"}
+                            onClick={() => setShowUserMenu(false)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                            data-testid="link-nutritionist-portal"
+                          >
+                            <Briefcase className="w-4 h-4 text-zinc-400" />
+                            {isNutritionist ? "Professional Portal" : "Nutritionist Account"}
+                          </Link>
                           <button
                             onClick={handleOpenMetrics}
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
@@ -544,7 +561,28 @@ export default function Dashboard() {
         </div>
       </header>
 
-
+      {/* Personal / Professional tab strip — only visible to nutritionist account holders */}
+      {user && isNutritionist && (
+        <div className="bg-white border-b border-zinc-100" data-testid="tab-strip-professional">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-1 h-11">
+              <span
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg text-zinc-900 bg-zinc-100"
+                data-testid="tab-personal-active"
+              >
+                Personal
+              </span>
+              <Link
+                href="/nutritionist/portal"
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-colors"
+                data-testid="tab-professional"
+              >
+                Professional
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Metrics slide-over panel */}
       <AnimatePresence>
@@ -985,7 +1023,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            {user && (!tierStatus || tierStatus.tier === "free") && <FreeWeeklySummaryCard />}
+            {user && !user.isManagedClient && (!tierStatus || tierStatus.tier === "free") && <FreeWeeklySummaryCard />}
 
             {/* ── MOBILE layout: single column, flat order ── */}
             <div className="flex flex-col gap-6 xl:hidden">

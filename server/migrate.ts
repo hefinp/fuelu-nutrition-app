@@ -414,6 +414,65 @@ export async function runMigrations(): Promise<void> {
 
     await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_foods_region ON canonical_foods (region) WHERE region IS NOT NULL`);
 
+    // Nutritionist tables
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_managed_client BOOLEAN NOT NULL DEFAULT FALSE`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS managed_by_nutritionist_id INTEGER`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS nutritionist_profiles (
+        id              SERIAL PRIMARY KEY,
+        user_id         INTEGER NOT NULL REFERENCES users(id) UNIQUE,
+        tier            TEXT NOT NULL DEFAULT 'starter',
+        bio             TEXT,
+        credentials     TEXT,
+        specializations TEXT[],
+        created_at      TIMESTAMP DEFAULT NOW(),
+        updated_at      TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS nutritionist_clients (
+        id                SERIAL PRIMARY KEY,
+        nutritionist_id   INTEGER NOT NULL REFERENCES users(id),
+        client_id         INTEGER NOT NULL REFERENCES users(id),
+        status            TEXT NOT NULL DEFAULT 'onboarding',
+        goal_summary      TEXT,
+        health_notes      TEXT,
+        last_activity_at  TIMESTAMP DEFAULT NOW(),
+        created_at        TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`ALTER TABLE nutritionist_clients ADD COLUMN IF NOT EXISTS health_notes TEXT`);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_nutritionist_clients_nutritionist ON nutritionist_clients (nutritionist_id)`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_nutritionist_clients_client_unique ON nutritionist_clients (client_id)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS nutritionist_invitations (
+        id                SERIAL PRIMARY KEY,
+        nutritionist_id   INTEGER NOT NULL REFERENCES users(id),
+        email             TEXT NOT NULL,
+        token             TEXT NOT NULL UNIQUE,
+        expires_at        TIMESTAMP NOT NULL,
+        accepted_at       TIMESTAMP,
+        created_at        TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS nutritionist_notes (
+        id                SERIAL PRIMARY KEY,
+        nutritionist_id   INTEGER NOT NULL REFERENCES users(id),
+        client_id         INTEGER NOT NULL REFERENCES users(id),
+        note              TEXT NOT NULL,
+        created_at        TIMESTAMP DEFAULT NOW(),
+        updated_at        TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_nutritionist_notes_nutritionist_client ON nutritionist_notes (nutritionist_id, client_id)`);
+
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;
