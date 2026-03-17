@@ -80,6 +80,28 @@ router.get("/api/food-search", async (req, res) => {
 
     const canonicalNames = new Set(canonicalResults.map(r => r.name.toLowerCase()));
 
+    // 1b. Search custom foods (My Foods) for this user and merge, deduplicating by name
+    let customResults: any[] = [];
+    if (req.session.userId) {
+      const customHits = await storage.searchCustomFoodsByNameForUser(q, req.session.userId);
+      customResults = customHits
+        .filter(c => !canonicalNames.has(c.name.toLowerCase()))
+        .map(c => ({
+          id: `custom-${c.id}`,
+          name: c.name,
+          calories100g: c.calories100g,
+          protein100g: parseFloat(c.protein100g),
+          carbs100g: parseFloat(c.carbs100g),
+          fat100g: parseFloat(c.fat100g),
+          servingSize: `${c.servingGrams ?? 100}g`,
+          servingGrams: c.servingGrams ?? 100,
+          source: "my_foods",
+        }));
+      for (const r of customResults) {
+        canonicalNames.add(r.name.toLowerCase());
+      }
+    }
+
     // 2. Fire USDA and Open Food Facts searches in parallel
     const apiKey = process.env.USDA_API_KEY || "DEMO_KEY";
     const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(q)}&pageSize=25&api_key=${apiKey}`;
@@ -218,10 +240,10 @@ router.get("/api/food-search", async (req, res) => {
       }
     }
 
-    // Priority order: verified canonical > unverified canonical > USDA > OFF
+    // Priority order: verified canonical > unverified canonical > My Foods > USDA > OFF
     const verified = canonicalResults.filter(r => r.verified);
     const unverified = canonicalResults.filter(r => !r.verified);
-    res.json([...verified, ...unverified, ...usdaResults, ...offResults].slice(0, 20));
+    res.json([...verified, ...unverified, ...customResults, ...usdaResults, ...offResults].slice(0, 20));
   } catch {
     res.json([]);
   }
@@ -298,19 +320,18 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
     };
 
     if (result.calories100g > 0) {
-      const exists = await storage.customFoodExistsByName(result.name);
-      if (!exists) {
-        storage.createCustomFood({
-          barcode: null,
-          name: result.name,
-          calories100g: result.calories100g,
-          protein100g: String(result.protein100g),
-          carbs100g: String(result.carbs100g),
-          fat100g: String(result.fat100g),
-          servingGrams: result.servingGrams,
-          contributedByUserId: (req.user as any)?.id ?? null,
-        }).catch(() => {});
-      }
+      storage.upsertCanonicalFood({
+        name: result.name,
+        calories100g: result.calories100g,
+        protein100g: result.protein100g,
+        carbs100g: result.carbs100g,
+        fat100g: result.fat100g,
+        fibre100g: result.fibre100g ?? null,
+        sodium100g: result.sodium100g ?? null,
+        servingGrams: result.servingGrams,
+        source: "ai_label",
+        contributedByUserId: (req.user as any)?.id ?? (req.session as any)?.userId ?? null,
+      }).catch(() => {});
     }
 
     res.json(result);
@@ -385,19 +406,18 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
     };
 
     if (result.calories100g > 0) {
-      const exists = await storage.customFoodExistsByName(result.name);
-      if (!exists) {
-        storage.createCustomFood({
-          barcode: null,
-          name: result.name,
-          calories100g: result.calories100g,
-          protein100g: String(result.protein100g),
-          carbs100g: String(result.carbs100g),
-          fat100g: String(result.fat100g),
-          servingGrams: result.servingGrams,
-          contributedByUserId: (req.user as any)?.id ?? null,
-        }).catch(() => {});
-      }
+      storage.upsertCanonicalFood({
+        name: result.name,
+        calories100g: result.calories100g,
+        protein100g: result.protein100g,
+        carbs100g: result.carbs100g,
+        fat100g: result.fat100g,
+        fibre100g: result.fibre100g ?? null,
+        sodium100g: result.sodium100g ?? null,
+        servingGrams: result.servingGrams,
+        source: "ai_recognized",
+        contributedByUserId: (req.user as any)?.id ?? (req.session as any)?.userId ?? null,
+      }).catch(() => {});
     }
 
     res.json(result);

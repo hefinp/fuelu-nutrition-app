@@ -47,6 +47,7 @@ export interface IStorage {
   // Custom foods (legacy — kept for backward compat)
   getCustomFoodByBarcode(barcode: string): Promise<CustomFood | undefined>;
   searchCustomFoodsByName(query: string): Promise<CustomFood[]>;
+  searchCustomFoodsByNameForUser(query: string, userId: number): Promise<CustomFood[]>;
   customFoodExistsByName(name: string): Promise<boolean>;
   createCustomFood(food: InsertCustomFood): Promise<CustomFood>;
   getCustomFoods(): Promise<CustomFood[]>;
@@ -387,6 +388,16 @@ export class DatabaseStorage implements IStorage {
   async searchCustomFoodsByName(query: string): Promise<CustomFood[]> {
     return await db.select().from(customFoods)
       .where(ilike(customFoods.name, `%${query}%`))
+      .orderBy(desc(customFoods.createdAt))
+      .limit(10);
+  }
+
+  async searchCustomFoodsByNameForUser(query: string, userId: number): Promise<CustomFood[]> {
+    return await db.select().from(customFoods)
+      .where(and(
+        ilike(customFoods.name, `%${query}%`),
+        eq(customFoods.contributedByUserId, userId),
+      ))
       .orderBy(desc(customFoods.createdAt))
       .limit(10);
   }
