@@ -386,13 +386,14 @@ router.post("/api/stripe/webhook", async (req: Request, res: Response) => {
         const status = subscription.status;
 
         if (status === "active" || status === "trialing") {
-          const subAny = subscription as unknown as { current_period_end: number };
+          const subAny = subscription as unknown as { current_period_end: number; cancel_at_period_end: boolean };
+          const cancelAtPeriodEnd = subAny.cancel_at_period_end === true;
           await storage.updateUserTier(user.id, {
             tier,
             stripeSubscriptionId: subscription.id,
             tierExpiresAt: new Date(subAny.current_period_end * 1000),
             paymentFailedAt: null,
-            pendingTier: null,
+            pendingTier: cancelAtPeriodEnd ? "free" : null,
           });
         } else if (status === "canceled" || status === "unpaid") {
           const subAny = subscription as unknown as { current_period_end: number };
