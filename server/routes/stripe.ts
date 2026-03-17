@@ -123,7 +123,7 @@ router.post("/api/stripe/create-checkout", async (req, res) => {
         const price = await stripe.prices.create({
           product: productId,
           unit_amount: tierPricing.monthlyPriceUsd,
-          currency: "usd",
+          currency: "nzd",
           recurring: { interval: "month" },
         });
         monthlyPriceId = price.id;
@@ -132,7 +132,7 @@ router.post("/api/stripe/create-checkout", async (req, res) => {
         const price = await stripe.prices.create({
           product: productId,
           unit_amount: tierPricing.annualPriceUsd,
-          currency: "usd",
+          currency: "nzd",
           recurring: { interval: "year" },
         });
         annualPriceId = price.id;

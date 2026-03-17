@@ -441,7 +441,7 @@ export async function runMigrations(): Promise<void> {
             const price = await stripe.prices.create({
               product: productId,
               unit_amount: row.monthly_price_usd as number,
-              currency: "usd",
+              currency: "nzd",
               recurring: { interval: "month" },
             });
             monthlyPriceId = price.id;
@@ -450,7 +450,7 @@ export async function runMigrations(): Promise<void> {
             const price = await stripe.prices.create({
               product: productId,
               unit_amount: row.annual_price_usd as number,
-              currency: "usd",
+              currency: "nzd",
               recurring: { interval: "year" },
             });
             annualPriceId = price.id;

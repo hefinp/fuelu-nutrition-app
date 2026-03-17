@@ -152,7 +152,7 @@ router.post("/api/admin/tier-pricing", async (req, res) => {
         const newMonthly = await stripe.prices.create({
           product: productId,
           unit_amount: monthlyPriceUsd,
-          currency: "usd",
+          currency: "nzd",
           recurring: { interval: "month" },
         });
         stripePriceIdMonthly = newMonthly.id;
@@ -162,7 +162,7 @@ router.post("/api/admin/tier-pricing", async (req, res) => {
         const newAnnual = await stripe.prices.create({
           product: productId,
           unit_amount: annualPriceUsd,
-          currency: "usd",
+          currency: "nzd",
           recurring: { interval: "year" },
         });
         stripePriceIdAnnual = newAnnual.id;
@@ -367,7 +367,7 @@ router.post("/api/admin/sync-stripe-prices", async (req, res) => {
         const price = await stripe.prices.create({
           product: productId,
           unit_amount: tp.monthlyPriceUsd,
-          currency: "usd",
+          currency: "nzd",
           recurring: { interval: "month" },
         });
         monthlyPriceId = price.id;
@@ -376,7 +376,7 @@ router.post("/api/admin/sync-stripe-prices", async (req, res) => {
         const price = await stripe.prices.create({
           product: productId,
           unit_amount: tp.annualPriceUsd,
-          currency: "usd",
+          currency: "nzd",
           recurring: { interval: "year" },
         });
         annualPriceId = price.id;
