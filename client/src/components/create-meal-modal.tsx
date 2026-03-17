@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus, X, Loader2, ArrowLeft,
+  Plus, X, Loader2,
   Check, Search, Barcode, Sparkles, Wheat, UtensilsCrossed,
+  ChevronDown, ChevronUp, AlertCircle,
 } from "lucide-react";
 import { DuplicateWarningBanner, type DuplicateWarning } from "@/components/duplicate-warning-banner";
 import type { UserSavedFood } from "@shared/schema";
@@ -19,12 +19,50 @@ import {
 } from "@/components/food-picker-tabs";
 import { AddFoodModal } from "@/components/add-food-modal";
 
+function AutoGrowTextarea({
+  value,
+  onChange,
+  placeholder,
+  testId,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  testId?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  const resize = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+  }, []);
+
+  useEffect(() => { resize(); }, [value, resize]);
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      onInput={resize}
+      placeholder={placeholder}
+      rows={2}
+      className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none overflow-y-auto"
+      style={{ maxHeight: 200 }}
+      data-testid={testId}
+    />
+  );
+}
+
 export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<"pick" | "details">("pick");
   const [showAddFood, setShowAddFood] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
   const [pickerTab, setPickerTab] = useState<PickerTab>("search");
+  const [showInstructions, setShowInstructions] = useState(false);
 
   const { data: myFoods = [] } = useQuery<{ items: UserSavedFood[] }, Error, UserSavedFood[]>({
     queryKey: ["/api/my-foods", "all"],
@@ -33,13 +71,22 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
   });
 
   const [selected, setSelected] = useState<Ingredient[]>([]);
-
   const [mealName, setMealName] = useState("");
   const [instructions, setInstructions] = useState("");
-  const [mealSlot, setMealSlot] = useState<MealSlot>("dinner");
+  const [mealSlot, setMealSlot] = useState<MealSlot | null>(null);
   const [dupWarning, setDupWarning] = useState<{ message: string; exactMatch: boolean; existingCount: number } | null>(null);
 
-  const picker = useFoodPicker({ activeTab: pickerTab, scanActive: step === "pick" });
+  const picker = useFoodPicker({ activeTab: pickerTab, scanActive: showPicker });
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  const stopScrollLeak = useCallback((e: React.TouchEvent | React.WheelEvent) => {
+    e.stopPropagation();
+  }, []);
 
   function addIngredient(ing: Ingredient) {
     setSelected(prev => [...prev, ing]);
@@ -56,15 +103,14 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
 
   function toggleSavedFood(food: UserSavedFood) {
     const existingKey = `saved-${food.id}`;
-    const exists = selected.find(s => s.key === existingKey);
-    if (exists) {
+    if (selected.find(s => s.key === existingKey)) {
       setSelected(prev => prev.filter(s => s.key !== existingKey));
     } else {
       setSelected(prev => [...prev, ingredientFromSaved(food)]);
     }
   }
 
-  const totals = selected.reduce((acc, ing) => {
+  const totals = useMemo(() => selected.reduce((acc, ing) => {
     const factor = ing.grams / 100;
     return {
       cal: acc.cal + Math.round(ing.calories100g * factor),
@@ -72,7 +118,16 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
       carbs: acc.carbs + Math.round(ing.carbs100g * factor),
       fat: acc.fat + Math.round(ing.fat100g * factor),
     };
-  }, { cal: 0, prot: 0, carbs: 0, fat: 0 });
+  }, { cal: 0, prot: 0, carbs: 0, fat: 0 }), [selected]);
+
+  const missingFields = useMemo(() => {
+    const missing: string[] = [];
+    if (!mealName.trim()) missing.push("Add a meal name");
+    if (selected.length === 0) missing.push("Add at least one ingredient");
+    return missing;
+  }, [mealName, selected]);
+
+  const canSave = missingFields.length === 0;
 
   function buildMealPayload(confirm = false) {
     const ingredientLines = selected.map(s => `${s.grams}g ${s.name}`).join("\n");
@@ -89,7 +144,7 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
       ingredients: ingredientLines,
       ingredientsJson: selected,
       instructions: instructions.trim() || null,
-      mealSlot,
+      mealSlot: mealSlot ?? "dinner",
       mealStyle: "simple",
       ...(confirm ? { confirmDuplicate: true } : {}),
     };
@@ -129,250 +184,275 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
 
   const pickerTabs: { id: PickerTab; label: string; icon: typeof Search }[] = [
     { id: "search", label: "Search", icon: Search },
-    { id: "scan", label: "Barcode", icon: Barcode },
+    { id: "scan", label: "Scan", icon: Barcode },
     { id: "ai", label: "AI", icon: Sparkles },
     { id: "myfoods", label: "My Foods", icon: Wheat },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm pb-16 sm:pb-0" onClick={onClose}>
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
-          <div className="flex items-center gap-2">
-            {step === "details" && (
-              <button onClick={() => setStep("pick")} className="p-1 text-zinc-400 hover:text-zinc-700 mr-1" data-testid="button-create-back">
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            )}
-            <h3 className="text-base font-semibold text-zinc-900">
-              {step === "pick" ? "Pick Foods" : "Meal Details"}
-            </h3>
-          </div>
-          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-700" data-testid="button-create-meal-close"><X className="w-4 h-4" /></button>
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={onClose} onWheel={stopScrollLeak} onTouchMove={stopScrollLeak}>
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-zinc-100 shrink-0">
+          <h3 className="text-base font-semibold text-zinc-900" data-testid="text-create-meal-title">Create Meal</h3>
+          <button onClick={onClose} className="p-2 -mr-1 text-zinc-500 hover:text-zinc-700 rounded-xl hover:bg-zinc-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center" data-testid="button-create-meal-close"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {step === "pick" && (
-            <div className="px-6 py-4 space-y-3">
-              <div className="flex bg-zinc-100 p-1 rounded-xl">
-                {pickerTabs.map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setPickerTab(tab.id)}
-                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold transition-colors rounded-lg ${pickerTab === tab.id ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-                    data-testid={`button-picker-tab-${tab.id}`}
-                  >
-                    <tab.icon className="w-3.5 h-3.5" />
-                    {tab.label}
-                  </button>
-                ))}
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 sm:py-5 space-y-3 sm:space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1.5">Name</label>
+            <input
+              type="text"
+              value={mealName}
+              onChange={e => setMealName(e.target.value)}
+              placeholder="e.g. Chicken & Rice Bowl"
+              className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300"
+              data-testid="input-create-meal-name"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 mb-1.5 sm:mb-2">Meal slot</label>
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+              {SLOT_OPTIONS.map(o => (
+                <button key={o.value} onClick={() => setMealSlot(mealSlot === o.value ? null : o.value)}
+                  className={`py-2.5 sm:py-1.5 rounded-lg text-xs font-medium border transition-colors h-11 sm:h-auto ${mealSlot === o.value ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"}`}
+                  data-testid={`button-create-slot-${o.value}`}
+                >{o.label}</button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-zinc-600">Ingredients</label>
+            </div>
+
+            <div className="space-y-2">
+              <div className="bg-zinc-50 rounded-2xl p-2.5 sm:p-3 space-y-1.5 sm:space-y-2">
+                {selected.length > 0 ? (
+                  <>
+                    {selected.map(ing => {
+                      const factor = ing.grams / 100;
+                      const ingCal = Math.round(ing.calories100g * factor);
+                      const ingProt = Math.round(ing.protein100g * factor * 10) / 10;
+                      const ingCarbs = Math.round(ing.carbs100g * factor * 10) / 10;
+                      const ingFat = Math.round(ing.fat100g * factor * 10) / 10;
+                      return (
+                        <div key={ing.key} className="bg-white rounded-xl border border-zinc-100 p-2.5 sm:p-3 space-y-1.5">
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <span className="flex-1 text-xs font-medium text-zinc-800 truncate min-w-0">{ing.name}</span>
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              <input
+                                type="number"
+                                value={ing.grams}
+                                min={1}
+                                onChange={e => updateGrams(ing.key, parseInt(e.target.value) || 1)}
+                                className="w-16 sm:w-[4.5rem] text-xs border border-zinc-200 rounded-lg px-1.5 sm:px-2 py-1.5 text-center focus:outline-none focus:ring-1 focus:ring-zinc-300"
+                                data-testid={`input-create-ing-grams-${ing.key}`}
+                              />
+                              <span className="text-zinc-400 text-[10px]">g</span>
+                            </div>
+                            <button type="button" onClick={() => removeIngredient(ing.key)} className="p-1.5 -mr-1 text-zinc-300 hover:text-red-500 shrink-0 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center" data-testid={`button-create-remove-ing-${ing.key}`}>
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            <span className="px-1.5 py-0.5 rounded-md bg-orange-50 text-orange-700 text-[10px] font-medium">{ingCal} kcal</span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-medium">P {ingProt}g</span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-green-50 text-green-700 text-[10px] font-medium">C {ingCarbs}g</span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-yellow-50 text-yellow-700 text-[10px] font-medium">F {ingFat}g</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <div className="text-center py-4 text-zinc-400 text-xs" data-testid="text-create-no-ingredients">
+                    No ingredients yet — add some using the picker below
+                  </div>
+                )}
+                <div className="pt-1 border-t border-zinc-100">
+                  <p className="text-[10px] text-zinc-400 mb-1">Meal total</p>
+                  <MacroChips cal={totals.cal} p={totals.prot} c={totals.carbs} f={totals.fat} />
+                </div>
               </div>
 
-              {pickerTab === "search" && (
-                <SearchPanel
-                  picker={picker}
-                  onSelectFood={(food) => addIngredient(ingredientFromSearch(food))}
-                  testPrefix="create"
-                  onSwitchToAi={() => {
-                    picker.setAiResult(null);
-                    picker.setAiDescription(picker.debouncedQuery);
-                    picker.setAiPhotoFile(null);
-                    picker.setAiMode("describe");
-                    setPickerTab("ai");
-                  }}
-                  extraButton={
-                    <div className="space-y-1.5 max-h-52 overflow-y-auto" />
-                  }
-                />
-              )}
+              <button
+                type="button"
+                onClick={() => setShowPicker(v => !v)}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 sm:py-2 rounded-xl border border-dashed border-zinc-300 text-xs font-medium text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors min-h-[44px] sm:min-h-0"
+                data-testid="button-create-toggle-picker"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add ingredient
+                {showPicker ? <ChevronUp className="w-3.5 h-3.5 ml-auto" /> : <ChevronDown className="w-3.5 h-3.5 ml-auto" />}
+              </button>
 
-              {pickerTab === "scan" && (
-                <div className="space-y-3">
-                  {picker.scannedFood ? (
-                    <ScannedFoodPanel
+              {showPicker && (
+                <div className="border border-zinc-100 rounded-2xl p-2.5 sm:p-3 space-y-2.5 sm:space-y-3 bg-white overflow-hidden">
+                  <div className="flex bg-zinc-100 p-0.5 sm:p-1 rounded-xl overflow-hidden">
+                    {pickerTabs.map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setPickerTab(tab.id)}
+                        className={`flex-1 flex items-center justify-center gap-1 py-2 sm:py-1.5 text-[11px] sm:text-xs font-semibold transition-colors rounded-lg min-h-[40px] sm:min-h-0 ${pickerTab === tab.id ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+                        data-testid={`button-create-picker-tab-${tab.id}`}
+                      >
+                        <tab.icon className="w-4 h-4 sm:w-3.5 sm:h-3.5 shrink-0" />
+                        <span className="hidden min-[380px]:inline truncate">{tab.label}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {pickerTab === "search" && (
+                    <SearchPanel
+                      picker={picker}
+                      onSelectFood={(food) => addIngredient(ingredientFromSearch(food))}
+                      testPrefix="create"
+                      onSwitchToAi={() => {
+                        picker.setAiResult(null);
+                        picker.setAiDescription(picker.debouncedQuery);
+                        picker.setAiPhotoFile(null);
+                        picker.setAiMode("describe");
+                        setPickerTab("ai");
+                      }}
+                    />
+                  )}
+
+                  {pickerTab === "scan" && (
+                    picker.scannedFood ? (
+                      <ScannedFoodPanel
+                        picker={picker}
+                        testPrefix="create"
+                        actionLabel="Add to meal"
+                        onAction={(food: ExtendedFoodResult, grams: number) => {
+                          addIngredient({ ...ingredientFromSearch(food), grams });
+                          picker.resetScan();
+                        }}
+                      />
+                    ) : (
+                      <ScannerView picker={picker} testPrefix="create" />
+                    )
+                  )}
+
+                  {pickerTab === "ai" && (
+                    <AiPanel
                       picker={picker}
                       testPrefix="create"
                       actionLabel="Add to meal"
                       onAction={(food: ExtendedFoodResult, grams: number) => {
                         addIngredient({ ...ingredientFromSearch(food), grams });
-                        picker.resetScan();
+                        picker.resetAi();
                       }}
                     />
-                  ) : (
-                    <ScannerView picker={picker} testPrefix="create" />
                   )}
-                </div>
-              )}
 
-              {pickerTab === "ai" && (
-                <div className="space-y-3">
-                  <AiPanel
-                    picker={picker}
-                    testPrefix="create"
-                    actionLabel="Add to meal"
-                    onAction={(food: ExtendedFoodResult, grams: number) => {
-                      addIngredient({ ...ingredientFromSearch(food), grams });
-                      picker.resetAi();
-                    }}
-                  />
-                </div>
-              )}
-
-              {pickerTab === "myfoods" && (
-                <div className="space-y-2">
-                  {myFoods.length === 0 ? (
-                    <div className="text-center py-6">
-                      <div className="w-12 h-12 bg-zinc-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                        <Wheat className="w-5 h-5 text-zinc-300" />
-                      </div>
-                      <p className="text-sm font-medium text-zinc-500 mb-1">No foods saved yet</p>
-                      <p className="text-xs text-zinc-400 mb-4">Add foods to My Foods first, then you can pick them here.</p>
-                    </div>
-                  ) : (
-                    myFoods.map(food => {
-                      const isSelected = selected.some(s => s.key === `saved-${food.id}`);
-                      const sel = selected.find(s => s.key === `saved-${food.id}`);
-                      return (
-                        <div key={food.id} className={`rounded-xl border transition-all ${isSelected ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 bg-white"}`}>
+                  {pickerTab === "myfoods" && (
+                    <div className="space-y-1.5 sm:space-y-2">
+                      {myFoods.length === 0 ? (
+                        <div className="text-center py-4">
+                          <p className="text-xs text-zinc-400 mb-2">No foods saved yet</p>
                           <button
-                            className="w-full flex items-center gap-3 p-3 text-left"
-                            onClick={() => toggleSavedFood(food)}
-                            data-testid={`button-pick-food-${food.id}`}
+                            onClick={() => setShowAddFood(true)}
+                            className="text-xs text-zinc-500 hover:text-zinc-700 font-medium"
+                            data-testid="button-create-add-food"
                           >
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected ? "bg-zinc-900 border-zinc-900" : "border-zinc-300"}`}>
-                              {isSelected && <Check className="w-3 h-3 text-white" />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-zinc-900 truncate">{food.name}</p>
-                              <p className="text-xs text-zinc-400">{food.calories100g} kcal · P:{food.protein100g.toFixed(1)}g · C:{food.carbs100g.toFixed(1)}g · F:{food.fat100g.toFixed(1)}g per 100g</p>
-                            </div>
+                            <Plus className="w-3.5 h-3.5 inline mr-1" />Add new food to My Foods
                           </button>
-                          {isSelected && sel && (
-                            <div className="px-3 pb-3 flex items-center gap-2">
-                              <label className="text-xs text-zinc-500 shrink-0">Serving (g):</label>
-                              <input
-                                type="number"
-                                value={sel.grams}
-                                min={1}
-                                onChange={e => updateGrams(sel.key, parseInt(e.target.value) || 1)}
-                                className="w-20 text-sm border border-zinc-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-zinc-300"
-                                data-testid={`input-grams-${food.id}`}
-                              />
-                              {(() => {
-                                const f = sel.grams / 100;
-                                return <p className="text-xs text-zinc-400">≈ {Math.round(food.calories100g * f)} kcal</p>;
-                              })()}
-                            </div>
-                          )}
                         </div>
-                      );
-                    })
-                  )}
-                  <button
-                    onClick={() => setShowAddFood(true)}
-                    className="w-full flex items-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 text-sm transition-colors"
-                    data-testid="button-create-add-food"
-                  >
-                    <Plus className="w-4 h-4" />Add new food to My Foods
-                  </button>
-                </div>
-              )}
-
-              {selected.length > 0 && (
-                <div className="bg-zinc-50 rounded-2xl p-3 space-y-2">
-                  <p className="text-xs font-medium text-zinc-500">Ingredients ({selected.length})</p>
-                  {selected.map(ing => (
-                    <div key={ing.key} className="flex items-center gap-2 text-xs">
-                      <div className="flex-1 min-w-0 flex items-center gap-2">
-                        <span className="text-zinc-700 truncate">{ing.name}</span>
-                      </div>
-                      <input
-                        type="number"
-                        value={ing.grams}
-                        min={1}
-                        onChange={e => updateGrams(ing.key, parseInt(e.target.value) || 1)}
-                        className="w-16 text-xs border border-zinc-200 rounded-lg px-1.5 py-1 text-center focus:outline-none focus:ring-1 focus:ring-zinc-300"
-                        data-testid={`input-ing-grams-${ing.key}`}
-                      />
-                      <span className="text-zinc-400 text-[10px] shrink-0">g · {Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
-                      <button type="button" onClick={() => removeIngredient(ing.key)} className="text-zinc-300 hover:text-red-500 shrink-0" data-testid={`button-remove-ing-${ing.key}`}>
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                      ) : (
+                        <>
+                          {myFoods.map(food => {
+                            const key = `saved-${food.id}`;
+                            const isSelected = selected.some(s => s.key === key);
+                            const sel = selected.find(s => s.key === key);
+                            return (
+                              <div key={food.id} className={`rounded-xl border transition-all ${isSelected ? "border-zinc-900 bg-zinc-50" : "border-zinc-100 bg-white"}`}>
+                                <button
+                                  className="w-full flex items-center gap-3 p-2.5 sm:p-3 text-left min-h-[44px]"
+                                  onClick={() => toggleSavedFood(food)}
+                                  data-testid={`button-create-pick-food-${food.id}`}
+                                >
+                                  <div className={`w-5 h-5 sm:w-4 sm:h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isSelected ? "bg-zinc-900 border-zinc-900" : "border-zinc-300"}`}>
+                                    {isSelected && <Check className="w-3 h-3 sm:w-2.5 sm:h-2.5 text-white" />}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium text-zinc-900 truncate">{food.name}</p>
+                                    <p className="text-[10px] text-zinc-400">{food.calories100g} kcal/100g</p>
+                                  </div>
+                                </button>
+                                {isSelected && sel && (
+                                  <div className="px-2.5 pb-2.5 flex items-center gap-2">
+                                    <label className="text-[10px] text-zinc-500 shrink-0">g:</label>
+                                    <input
+                                      type="number"
+                                      value={sel.grams}
+                                      min={1}
+                                      onChange={e => updateGrams(sel.key, parseInt(e.target.value) || 1)}
+                                      className="w-20 text-xs border border-zinc-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-zinc-300"
+                                      data-testid={`input-create-myfood-grams-${food.id}`}
+                                    />
+                                    <p className="text-[10px] text-zinc-400">{"\u2248"} {Math.round(food.calories100g * sel.grams / 100)} kcal</p>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          <button
+                            onClick={() => setShowAddFood(true)}
+                            className="w-full flex items-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 text-sm transition-colors min-h-[44px]"
+                            data-testid="button-create-add-food"
+                          >
+                            <Plus className="w-4 h-4" />Add new food to My Foods
+                          </button>
+                        </>
+                      )}
                     </div>
-                  ))}
-                  <MacroChips cal={totals.cal} p={totals.prot} c={totals.carbs} f={totals.fat} />
+                  )}
                 </div>
               )}
             </div>
-          )}
+          </div>
 
-          {step === "details" && (
-            <div className="px-6 py-5 space-y-4">
-              {selected.length > 0 && (
-                <div className="bg-zinc-50 rounded-2xl p-4">
-                  <p className="text-xs font-medium text-zinc-500 mb-2">Selected foods</p>
-                  <div className="space-y-1 mb-3">
-                    {selected.map(s => (
-                      <div key={s.key} className="flex items-center justify-between text-xs text-zinc-600">
-                        <span>{s.name}</span>
-                        <span>{s.grams}g · {Math.round(s.calories100g * s.grams / 100)} kcal</span>
-                      </div>
-                    ))}
-                  </div>
-                  <MacroChips cal={totals.cal} p={totals.prot} c={totals.carbs} f={totals.fat} />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-zinc-600 mb-1.5">Meal name <span className="text-red-400">*</span></label>
-                <input
-                  type="text"
-                  value={mealName}
-                  onChange={e => setMealName(e.target.value)}
-                  placeholder="e.g. Chicken & Rice Bowl"
-                  className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300"
-                  data-testid="input-create-meal-name"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-zinc-600 mb-2">Meal slot</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {SLOT_OPTIONS.map(o => (
-                    <button key={o.value} onClick={() => setMealSlot(o.value)}
-                      className={`py-1.5 rounded-lg text-xs font-medium border transition-colors ${mealSlot === o.value ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"}`}
-                      data-testid={`button-create-slot-${o.value}`}
-                    >{o.label}</button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-zinc-600 mb-1.5">Instructions</label>
-                <textarea
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowInstructions(v => !v)}
+              className="flex items-center gap-1.5 w-full text-left py-1 min-h-[44px] sm:min-h-0"
+              data-testid="button-create-toggle-instructions"
+            >
+              <span className="text-xs font-medium text-zinc-600">Instructions</span>
+              <span className="text-zinc-400 text-[10px] font-normal">(optional)</span>
+              {showInstructions
+                ? <ChevronUp className="w-3.5 h-3.5 text-zinc-400 ml-auto" />
+                : <ChevronDown className="w-3.5 h-3.5 text-zinc-400 ml-auto" />}
+            </button>
+            {showInstructions && (
+              <div className="mt-1.5">
+                <AutoGrowTextarea
                   value={instructions}
-                  onChange={e => setInstructions(e.target.value)}
-                  rows={6}
-                  placeholder="Step 1: Cook the chicken in a pan over medium heat...&#10;Step 2: ..."
-                  className="w-full text-sm border border-zinc-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none"
-                  data-testid="textarea-create-instructions"
+                  onChange={setInstructions}
+                  placeholder="Add cooking steps, tips, or notes…"
+                  testId="textarea-create-instructions"
                 />
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        <div className="px-6 pb-6 pt-4 border-t border-zinc-100 shrink-0">
-          {step === "pick" ? (
-            <button
-              onClick={() => setStep("details")}
-              disabled={selected.length === 0}
-              className="w-full py-3 bg-zinc-900 text-white text-sm font-semibold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
-              data-testid="button-create-next"
-            >
-              Next — Add meal details ({selected.length} food{selected.length !== 1 ? "s" : ""} selected)
-            </button>
-          ) : dupWarning ? (
+        <div className="px-4 sm:px-6 pt-3 sm:pt-4 border-t border-zinc-100 shrink-0" style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 1.25rem))" }}>
+          {!canSave && !dupWarning && (
+            <div className="flex items-start gap-2 mb-3 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl" data-testid="banner-create-validation">
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                {missingFields.map(msg => (
+                  <p key={msg} className="text-xs text-amber-700 font-medium">{msg}</p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {dupWarning ? (
             <DuplicateWarningBanner
               warning={dupWarning}
               onConfirm={() => { setDupWarning(null); saveMutation.mutate(buildMealPayload(true)); }}
@@ -382,8 +462,8 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
           ) : (
             <button
               onClick={() => saveMutation.mutate(buildMealPayload())}
-              disabled={!mealName.trim() || saveMutation.isPending}
-              className="w-full py-3 bg-zinc-900 text-white text-sm font-semibold rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
+              disabled={!canSave || saveMutation.isPending}
+              className="w-full py-3 bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-semibold rounded-2xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60 min-h-[48px]"
               data-testid="button-create-meal-save"
             >
               {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><UtensilsCrossed className="w-4 h-4" />Save Meal</>}
