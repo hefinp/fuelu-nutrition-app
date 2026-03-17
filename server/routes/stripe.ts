@@ -74,7 +74,8 @@ router.post("/api/stripe/create-checkout", async (req, res) => {
       await storage.updateUserTier(user.id, { stripeCustomerId: customerId });
     }
 
-    const appUrl = process.env.APP_URL || "http://localhost:5000";
+    const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+    const appUrl = process.env.APP_URL || (replitDomain ? `https://${replitDomain}` : "http://localhost:5000");
 
     if (creditPackId) {
       const pack = (await storage.getCreditPacks()).find(p => p.id === creditPackId && p.active);
@@ -237,7 +238,8 @@ router.post("/api/stripe/create-portal", async (req, res) => {
   }
 
   try {
-    const appUrl = process.env.APP_URL || "http://localhost:5000";
+    const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+    const appUrl = process.env.APP_URL || (replitDomain ? `https://${replitDomain}` : "http://localhost:5000");
     const session = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
       return_url: `${appUrl}/billing`,
