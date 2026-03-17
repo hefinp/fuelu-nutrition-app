@@ -12,3 +12,9 @@ id = "R9j-byQ8S8_yIX_NW0ZlY"
 uri = "file://.local/docs/fuelu-5yr-projection.md"
 type = "text"
 title = "FuelU — 5-Year Financial Projection"
+
+[[outputs]]
+id = "5o8yxfV_rXMvKzP1ZYpSM"
+uri = "file://.local/docs/fuelu-advertising-projection.md"
+type = "text"
+title = "FuelU — Advertising Model & Revised 5-Year Projection"
