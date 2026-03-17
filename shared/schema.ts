@@ -531,6 +531,28 @@ export const insertMealTemplateSchema = createInsertSchema(mealTemplates).omit({
 export type InsertMealTemplate = z.infer<typeof insertMealTemplateSchema>;
 export type MealTemplate = typeof mealTemplates.$inferSelect;
 
+export const mealIngredients = pgTable("meal_ingredients", {
+  id: serial("id").primaryKey(),
+  userMealId: integer("user_meal_id").notNull().references(() => userMeals.id, { onDelete: "cascade" }),
+  canonicalFoodId: integer("canonical_food_id").references(() => canonicalFoods.id),
+  name: text("name").notNull(),
+  grams: real("grams").notNull(),
+  calories100g: real("calories_100g").notNull(),
+  protein100g: real("protein_100g").notNull(),
+  carbs100g: real("carbs_100g").notNull(),
+  fat100g: real("fat_100g").notNull(),
+  orderIndex: integer("order_index").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMealIngredientSchema = createInsertSchema(mealIngredients).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertMealIngredient = z.infer<typeof insertMealIngredientSchema>;
+export type MealIngredient = typeof mealIngredients.$inferSelect;
+
 export const featureGates = pgTable("feature_gates", {
   id: serial("id").primaryKey(),
   featureKey: text("feature_key").notNull().unique(),

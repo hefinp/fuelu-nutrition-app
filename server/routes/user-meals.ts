@@ -32,6 +32,29 @@ router.get("/api/user-meals", async (req, res) => {
   }
 });
 
+router.get("/api/user-meals/:id/ingredients", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const id = parseInt(req.params.id);
+    const rows = await storage.getMealIngredients(id);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch meal ingredients" });
+  }
+});
+
+router.post("/api/user-meals/:id/recompute-macros", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const id = parseInt(req.params.id);
+    const updated = await storage.recomputeMealMacros(id, req.session.userId);
+    if (!updated) return res.status(404).json({ message: "Meal not found or no ingredients" });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to recompute macros" });
+  }
+});
+
 router.post("/api/user-meals", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
@@ -108,6 +131,13 @@ router.post("/api/user-meals", async (req, res) => {
       await storage.incrementCommunityMealFavourite(communityMealId).catch(() => {});
     }
 
+    // Sync junction table asynchronously after creation
+    if (created.ingredientsJson && Array.isArray(created.ingredientsJson) && (created.ingredientsJson as any[]).length > 0) {
+      storage.syncMealIngredientsFromJson(created.id, created.ingredientsJson as any[]).catch(err =>
+        console.error("[user-meals] Failed to sync meal_ingredients on create:", err)
+      );
+    }
+
     res.status(201).json(created);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
@@ -145,6 +175,19 @@ router.patch("/api/user-meals/:id", async (req, res) => {
 
     const updated = await storage.updateUserMeal(id, req.session.userId, body);
     if (!updated) return res.status(404).json({ message: "Not found" });
+
+    // Sync junction table asynchronously after update
+    if (body.ingredientsJson !== undefined) {
+      const ingJson = body.ingredientsJson;
+      if (ingJson && ingJson.length > 0) {
+        storage.syncMealIngredientsFromJson(id, ingJson).catch(err =>
+          console.error("[user-meals] Failed to sync meal_ingredients on update:", err)
+        );
+      } else {
+        storage.deleteMealIngredients(id).catch(() => {});
+      }
+    }
+
     res.json(updated);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });

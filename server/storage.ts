@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -119,6 +119,12 @@ export interface IStorage {
   deleteUserMeal(id: number, userId: number): Promise<void>;
 
   findDuplicateUserMeals(userId: number, name: string): Promise<UserMeal[]>;
+
+  // Meal ingredients junction table
+  getMealIngredients(userMealId: number): Promise<(MealIngredient & { canonicalFood: CanonicalFood | null })[]>;
+  syncMealIngredientsFromJson(userMealId: number, ingredientsJson: { name: string; grams: number; calories100g: number; protein100g: number; carbs100g: number; fat100g: number }[]): Promise<void>;
+  recomputeMealMacros(userMealId: number, userId: number): Promise<UserMeal | undefined>;
+  deleteMealIngredients(userMealId: number): Promise<void>;
 
   // User saved foods
   getUserSavedFoods(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserSavedFood[]; nextCursor: string | null }>;
@@ -709,6 +715,80 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(userMeals)
       .where(and(eq(userMeals.userId, userId), ilike(userMeals.name, escaped)))
       .limit(5);
+  }
+
+  async getMealIngredients(userMealId: number): Promise<(MealIngredient & { canonicalFood: CanonicalFood | null })[]> {
+    const rows = await db.select({
+      ingredient: mealIngredients,
+      food: canonicalFoods,
+    }).from(mealIngredients)
+      .leftJoin(canonicalFoods, eq(mealIngredients.canonicalFoodId, canonicalFoods.id))
+      .where(eq(mealIngredients.userMealId, userMealId))
+      .orderBy(mealIngredients.orderIndex);
+    return rows.map(r => ({ ...r.ingredient, canonicalFood: r.food ?? null }));
+  }
+
+  async syncMealIngredientsFromJson(
+    userMealId: number,
+    ingredientsJson: { name: string; grams: number; calories100g: number; protein100g: number; carbs100g: number; fat100g: number }[]
+  ): Promise<void> {
+    await db.delete(mealIngredients).where(eq(mealIngredients.userMealId, userMealId));
+    if (!ingredientsJson || ingredientsJson.length === 0) return;
+
+    for (let i = 0; i < ingredientsJson.length; i++) {
+      const ing = ingredientsJson[i];
+      if (!ing.name || ing.calories100g <= 0) continue;
+      const canonicalFood = await this.upsertCanonicalFood({
+        name: ing.name,
+        calories100g: Math.round(ing.calories100g),
+        protein100g: Math.round(ing.protein100g * 10) / 10,
+        carbs100g: Math.round(ing.carbs100g * 10) / 10,
+        fat100g: Math.round(ing.fat100g * 10) / 10,
+        servingGrams: 100,
+        source: "ingredient_parsed",
+      });
+      await db.insert(mealIngredients).values({
+        userMealId,
+        canonicalFoodId: canonicalFood.id,
+        name: ing.name,
+        grams: ing.grams,
+        calories100g: ing.calories100g,
+        protein100g: ing.protein100g,
+        carbs100g: ing.carbs100g,
+        fat100g: ing.fat100g,
+        orderIndex: i,
+      });
+    }
+  }
+
+  async recomputeMealMacros(userMealId: number, userId: number): Promise<UserMeal | undefined> {
+    const rows = await this.getMealIngredients(userMealId);
+    if (rows.length === 0) return undefined;
+
+    let totalCalories = 0;
+    let totalProtein = 0;
+    let totalCarbs = 0;
+    let totalFat = 0;
+
+    for (const row of rows) {
+      const factor = row.grams / 100;
+      totalCalories += row.calories100g * factor;
+      totalProtein += row.protein100g * factor;
+      totalCarbs += row.carbs100g * factor;
+      totalFat += row.fat100g * factor;
+    }
+
+    const [updated] = await db.update(userMeals).set({
+      caloriesPerServing: Math.round(totalCalories),
+      proteinPerServing: Math.round(totalProtein * 10) / 10,
+      carbsPerServing: Math.round(totalCarbs * 10) / 10,
+      fatPerServing: Math.round(totalFat * 10) / 10,
+    }).where(and(eq(userMeals.id, userMealId), eq(userMeals.userId, userId))).returning();
+    return updated;
+  }
+
+  async deleteMealIngredients(userMealId: number): Promise<void> {
+    await db.delete(mealIngredients).where(eq(mealIngredients.userMealId, userMealId));
   }
 
   async getUserSavedFoods(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserSavedFood[]; nextCursor: string | null }> {
