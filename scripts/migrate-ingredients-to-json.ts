@@ -36,13 +36,11 @@ async function migrateTable(tableName: string, ingredientsCol: string, jsonCol: 
           if (!ingredientText.trim()) continue;
 
           const parsed = await parseIngredients(ingredientText);
-          if (parsed.length > 0) {
-            await client.query(
-              `UPDATE ${tableName} SET ${jsonCol} = $1 WHERE id = $2`,
-              [JSON.stringify(parsed), row.id]
-            );
-            success++;
-          }
+          await client.query(
+            `UPDATE ${tableName} SET ${jsonCol} = $1 WHERE id = $2`,
+            [JSON.stringify(parsed.length > 0 ? parsed : []), row.id]
+          );
+          success++;
         } catch (e: any) {
           console.error(`[${tableName}] Failed row ${row.id}:`, e.message);
           failed++;
