@@ -24,6 +24,7 @@ export interface FoodResult {
   fat100g: number;
   servingSize: string;
   servingGrams: number;
+  verified?: boolean;
 }
 
 export interface ExtendedFoodResult extends FoodResult {

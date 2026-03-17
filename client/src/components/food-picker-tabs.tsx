@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
-  X, Loader2, Camera, Plus, Search, Barcode, Sparkles,
+  X, Loader2, Camera, Plus, Search, Barcode, Sparkles, BadgeCheck,
 } from "lucide-react";
 import type { FoodResult, ExtendedFoodResult } from "@/components/food-log-shared";
 import { fileToBase64 } from "@/components/meals-food-shared";
@@ -246,7 +246,12 @@ export function FoodResultCard({ food, onSelect, testId }: {
       data-testid={testId}
     >
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-zinc-900 truncate">{food.name}</p>
+        <div className="flex items-center gap-1">
+          <p className="text-xs font-medium text-zinc-900 truncate">{food.name}</p>
+          {food.verified && (
+            <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" data-testid={`badge-verified-${food.id}`} />
+          )}
+        </div>
         <p className="text-[10px] text-zinc-400 mt-0.5">P:{food.protein100g}g · C:{food.carbs100g}g · F:{food.fat100g}g per 100g</p>
       </div>
       <div className="ml-3 shrink-0 text-right">

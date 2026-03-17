@@ -71,6 +71,8 @@ export interface IStorage {
     contributedByUserId?: number | null;
   }): Promise<CanonicalFood>;
   getCanonicalFoodById(id: number): Promise<CanonicalFood | undefined>;
+  verifyCanonicalFood(id: number): Promise<CanonicalFood | undefined>;
+  unverifyCanonicalFood(id: number): Promise<CanonicalFood | undefined>;
 
   // User food bookmarks
   getUserFoodBookmarks(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: (UserFoodBookmark & { food: CanonicalFood })[]; nextCursor: string | null }>;
@@ -409,7 +411,10 @@ export class DatabaseStorage implements IStorage {
     const normalized = query.toLowerCase().replace(/\s+/g, " ").trim();
     return db.select().from(canonicalFoods)
       .where(ilike(canonicalFoods.canonicalName, `%${normalized}%`))
-      .orderBy(desc(canonicalFoods.createdAt))
+      .orderBy(
+        sql`CASE WHEN ${canonicalFoods.verifiedAt} IS NOT NULL THEN 0 ELSE 1 END`,
+        desc(canonicalFoods.createdAt),
+      )
       .limit(limit);
   }
 
@@ -469,6 +474,7 @@ export class DatabaseStorage implements IStorage {
     const existing = await this.canonicalFoodExistsByName(food.name);
     if (existing) return existing;
 
+    const trustedSource = !!food.fdcId || (!!food.barcode && ["usda_cached", "barcode_scan", "openfoodfacts"].includes(food.source ?? ""));
     try {
       const [created] = await db.insert(canonicalFoods).values({
         name: food.name,
@@ -482,6 +488,7 @@ export class DatabaseStorage implements IStorage {
         fdcId: food.fdcId ?? null,
         source: food.source ?? "user_manual",
         contributedByUserId: food.contributedByUserId ?? null,
+        verifiedAt: trustedSource ? new Date() : null,
       }).returning();
       return created;
     } catch (err: unknown) {
@@ -504,6 +511,22 @@ export class DatabaseStorage implements IStorage {
 
   async getCanonicalFoodById(id: number): Promise<CanonicalFood | undefined> {
     const [row] = await db.select().from(canonicalFoods).where(eq(canonicalFoods.id, id));
+    return row;
+  }
+
+  async verifyCanonicalFood(id: number): Promise<CanonicalFood | undefined> {
+    const [row] = await db.update(canonicalFoods)
+      .set({ verifiedAt: new Date() })
+      .where(eq(canonicalFoods.id, id))
+      .returning();
+    return row;
+  }
+
+  async unverifyCanonicalFood(id: number): Promise<CanonicalFood | undefined> {
+    const [row] = await db.update(canonicalFoods)
+      .set({ verifiedAt: null })
+      .where(eq(canonicalFoods.id, id))
+      .returning();
     return row;
   }
 

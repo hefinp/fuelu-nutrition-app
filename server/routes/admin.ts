@@ -303,6 +303,24 @@ router.get("/api/admin/users", async (req, res) => {
   res.json(result);
 });
 
+router.post("/api/admin/canonical-foods/:id/verify", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+  const food = await storage.verifyCanonicalFood(id);
+  if (!food) return res.status(404).json({ message: "Not found" });
+  res.json(food);
+});
+
+router.post("/api/admin/canonical-foods/:id/unverify", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+  const food = await storage.unverifyCanonicalFood(id);
+  if (!food) return res.status(404).json({ message: "Not found" });
+  res.json(food);
+});
+
 setTimeout(() => {
   checkAndRefillCommunityMealBalance(true).then(r => {
     if (r.mealsGenerated > 0) {

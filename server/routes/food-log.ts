@@ -49,6 +49,7 @@ router.get("/api/food-search", async (req, res) => {
       servingSize: `${c.servingGrams}g`,
       servingGrams: c.servingGrams,
       source: "canonical",
+      verified: c.verifiedAt != null,
     }));
 
     // 2. Search USDA and cache results into canonical DB
