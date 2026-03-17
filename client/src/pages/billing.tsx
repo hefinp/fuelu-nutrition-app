@@ -9,14 +9,14 @@ import { Crown, CreditCard, AlertTriangle, ArrowRight, Loader2, CheckCircle2, Co
 
 export default function BillingPage() {
   const { user, isLoading: authLoading } = useAuth();
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const { data: tierStatus, isLoading: tierLoading } = useTierStatus();
   const [upgradedTier, setUpgradedTier] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(4);
   const confirmedRef = useRef(false);
 
-  const searchParams = new URLSearchParams(location.split("?")[1] || "");
+  const searchParams = new URLSearchParams(window.location.search);
   const success = searchParams.get("success");
   const cancelled = searchParams.get("cancelled");
   const sessionId = searchParams.get("session_id");
