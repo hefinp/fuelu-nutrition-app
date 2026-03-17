@@ -73,20 +73,20 @@ export function MacroBar({ p, c, f }: { p: number; c: number; f: number }) {
 
 export function MacroChips({ cal, p, c, f }: { cal: number; p: number; c: number; f: number }) {
   return (
-    <div className="grid grid-cols-4 gap-1.5 mt-2">
-      <div className="bg-orange-50 rounded-lg p-1.5 text-center">
+    <div className="grid grid-cols-4 gap-1 sm:gap-1.5 mt-2">
+      <div className="bg-orange-50 rounded-lg p-1 sm:p-1.5 text-center">
         <p className="text-xs font-bold text-orange-600">{cal}</p>
         <p className="text-[10px] text-orange-400">kcal</p>
       </div>
-      <div className="bg-blue-50 rounded-lg p-1.5 text-center">
+      <div className="bg-blue-50 rounded-lg p-1 sm:p-1.5 text-center">
         <p className="text-xs font-bold text-blue-600">{p}g</p>
         <p className="text-[10px] text-blue-400">prot</p>
       </div>
-      <div className="bg-amber-50 rounded-lg p-1.5 text-center">
+      <div className="bg-amber-50 rounded-lg p-1 sm:p-1.5 text-center">
         <p className="text-xs font-bold text-amber-600">{c}g</p>
         <p className="text-[10px] text-amber-400">carbs</p>
       </div>
-      <div className="bg-rose-50 rounded-lg p-1.5 text-center">
+      <div className="bg-rose-50 rounded-lg p-1 sm:p-1.5 text-center">
         <p className="text-xs font-bold text-rose-600">{f}g</p>
         <p className="text-[10px] text-rose-400">fat</p>
       </div>

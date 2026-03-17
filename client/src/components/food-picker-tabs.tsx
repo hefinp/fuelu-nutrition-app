@@ -217,7 +217,7 @@ export function useFoodPicker(opts: {
 export function MacroGrid({ food, servingGrams }: { food: FoodResult | ExtendedFoodResult; servingGrams: string }) {
   const f = (parseFloat(servingGrams) || 0) / 100;
   return (
-    <div className="grid grid-cols-4 gap-1.5">
+    <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
       {[
         { label: "kcal", value: Math.round(food.calories100g * f), color: "bg-orange-50 text-orange-700" },
         { label: "protein", value: Math.round(food.protein100g * f), color: "bg-red-50 text-red-700" },
