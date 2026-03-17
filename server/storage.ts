@@ -461,6 +461,37 @@ export class DatabaseStorage implements IStorage {
     source?: string;
     contributedByUserId?: number | null;
   }): Promise<CanonicalFood> {
+    // Sanity-check: log a warning and skip upsert for implausible calorie values
+    const { calories100g, protein100g, carbs100g, fat100g, name } = food;
+
+    // Nothing edible exceeds pure fat at ~900 kcal/100g
+    if (calories100g > 950) {
+      console.warn(`[upsertCanonicalFood] Skipping "${name}" — calories_100g=${calories100g} exceeds max plausible value (950)`);
+      const fallback = await this.canonicalFoodExistsByName(name);
+      if (fallback) return fallback;
+      throw new Error(`Implausible calorie value (${calories100g} kcal/100g) for food "${name}" — upsert skipped`);
+    }
+
+    // Macro-consistency check for non-fat, non-sugar foods (low-carb vegetables like onion, cucumber etc.):
+    // low fat (<10g/100g) and very low carbs (<15g/100g) → calories should be protein×4 + carbs×4 + fat×9 ± 10%
+    // Higher-carb foods (fruits, starchy veg) are excluded because dietary fibre reduces effective calories
+    const isLowFatLowSugar = fat100g < 10 && carbs100g < 15;
+    if (isLowFatLowSugar) {
+      const expectedCalories = protein100g * 4 + carbs100g * 4 + fat100g * 9;
+      if (expectedCalories > 0) {
+        const ratio = calories100g / expectedCalories;
+        if (ratio < 0.90 || ratio > 1.10) {
+          console.warn(
+            `[upsertCanonicalFood] Skipping "${name}" — calories_100g=${calories100g} is wildly inconsistent with macros ` +
+            `(protein=${protein100g}g, carbs=${carbs100g}g, fat=${fat100g}g → expected ~${Math.round(expectedCalories)} kcal, ratio=${ratio.toFixed(2)})`
+          );
+          const fallback = await this.canonicalFoodExistsByName(name);
+          if (fallback) return fallback;
+          throw new Error(`Macro-inconsistent calorie value for food "${name}" (got ${calories100g}, expected ~${Math.round(expectedCalories)} kcal/100g) — upsert skipped`);
+        }
+      }
+    }
+
     const canonical = food.name.toLowerCase().replace(/\s+/g, " ").trim();
 
     if (food.fdcId) {
