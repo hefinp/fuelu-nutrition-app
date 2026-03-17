@@ -394,13 +394,6 @@ export async function runMigrations(): Promise<void> {
       }
     }
 
-    try {
-      await client.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
-      await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_foods_name_trgm ON canonical_foods USING gin (canonical_name gin_trgm_ops)`);
-    } catch (e: any) {
-      console.warn("[migrate] Skipping pg_trgm index — extension unavailable on this DB:", e.message);
-    }
-
     const barcodeDups = await client.query(`SELECT barcode, COUNT(*) FROM canonical_foods WHERE barcode IS NOT NULL GROUP BY barcode HAVING COUNT(*) > 1`);
     if (barcodeDups.rowCount === 0) {
       await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_canonical_foods_barcode_uniq ON canonical_foods (barcode) WHERE barcode IS NOT NULL`);
