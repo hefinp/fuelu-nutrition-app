@@ -251,6 +251,14 @@ export function FoodResultCard({ food, onSelect, testId }: {
           {food.verified && (
             <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" data-testid={`badge-verified-${food.id}`} />
           )}
+          {(food.source === "nzfcd" || food.source === "fsanz") && (
+            <span
+              className="shrink-0 inline-flex items-center px-1 py-0 rounded text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
+              data-testid={`badge-region-${food.id}`}
+            >
+              {food.source === "nzfcd" ? "NZ" : "AU"}
+            </span>
+          )}
         </div>
         <p className="text-[10px] text-zinc-400 mt-0.5">P:{food.protein100g}g · C:{food.carbs100g}g · F:{food.fat100g}g per 100g</p>
       </div>

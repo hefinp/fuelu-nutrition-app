@@ -1,0 +1,901 @@
+name,calories_100g,protein_100g,carbs_100g,fat_100g,fibre_100g,sodium_100g,serving_grams,region,source
+Weet-Bix (Sanitarium Australia),362,10.4,67.0,2.2,9.8,0.27,30,au,fsanz
+Vegemite,250,27.0,19.0,1.5,2.5,3.45,5,au,fsanz
+Tim Tam Original,491,5.6,63.5,24.0,1.5,0.22,17,au,fsanz
+Tim Tam Dark,480,5.3,63.0,23.0,2.5,0.18,17,au,fsanz
+Tim Tam White,508,5.5,63.5,25.5,0.5,0.15,17,au,fsanz
+Arnotts Tim Tam Chewy Caramel,488,5.0,63.5,23.5,1.0,0.20,17,au,fsanz
+Golden Gaytime Ice Cream,259,3.5,29.5,14.0,0.3,0.12,85,au,fsanz
+Peters Drumstick Vanilla,258,3.5,28.0,14.5,0.3,0.10,75,au,fsanz
+Streets Calippo,65,0.5,15.5,0.1,0.0,0.02,105,au,fsanz
+Streets Paddle Pop Chocolate,128,2.0,18.0,5.5,0.2,0.07,65,au,fsanz
+Bundaberg Ginger Beer,40,0.2,9.5,0.1,0.0,0.01,375,au,fsanz
+Milo (Nestle Australia),389,9.5,73.5,4.5,3.0,0.22,20,au,fsanz
+Weeties,367,10.5,67.0,2.5,9.5,0.28,30,au,fsanz
+Uncle Tobys Rolled Oats,375,12.5,60.0,7.2,10.0,0.006,45,au,fsanz
+Uncle Tobys Quick Oats,376,12.5,60.5,7.0,9.8,0.006,45,au,fsanz
+Kellogg's Corn Flakes,370,7.0,81.0,0.4,2.5,0.65,30,au,fsanz
+Kellogg's Special K,372,15.0,71.5,1.0,2.5,0.65,30,au,fsanz
+Kellogg's Crunchy Nut Corn Flakes,390,7.0,80.0,2.5,2.0,0.60,30,au,fsanz
+Sanitarium Light n Tasty,372,10.0,72.0,2.0,7.0,0.40,30,au,fsanz
+Sanitarium Granola (Australia),452,8.5,60.0,18.5,7.5,0.15,45,au,fsanz
+Lowan Rolled Oats,375,12.5,60.0,7.2,10.0,0.005,45,au,fsanz
+Country Life Oats,374,12.0,60.5,7.0,10.2,0.006,45,au,fsanz
+Bircher Muesli,380,9.0,60.5,10.5,7.0,0.05,50,au,fsanz
+Up&Go Original,85,5.4,12.8,1.8,0.8,0.09,250,au,fsanz
+Up&Go Chocolate,87,5.5,13.0,1.9,0.9,0.10,250,au,fsanz
+Anchor Butter Australia,741,0.5,0.0,82.0,0.0,0.67,10,au,fsanz
+Devondale Butter,745,0.5,0.0,82.5,0.0,0.60,10,au,fsanz
+Western Star Butter,742,0.5,0.0,82.2,0.0,0.65,10,au,fsanz
+Lurpak Butter,740,0.5,0.0,82.0,0.0,0.62,10,au,fsanz
+Mainland Butter Australia,741,0.5,0.0,82.0,0.0,0.67,10,au,fsanz
+Pauls Full Cream Milk,62,3.3,4.7,3.5,0.0,0.04,250,au,fsanz
+Pauls Trim Milk,37,3.6,4.9,0.1,0.0,0.04,250,au,fsanz
+Pura Full Cream Milk,62,3.3,4.7,3.5,0.0,0.04,250,au,fsanz
+Dairy Farmers Full Cream Milk,62,3.3,4.7,3.5,0.0,0.04,250,au,fsanz
+A2 Milk Full Cream,62,3.4,4.7,3.6,0.0,0.04,250,au,fsanz
+A2 Milk Skim,37,3.5,4.9,0.1,0.0,0.04,250,au,fsanz
+Devondale Full Cream Milk,62,3.3,4.7,3.5,0.0,0.04,250,au,fsanz
+Norco Full Cream Milk,62,3.3,4.7,3.5,0.0,0.04,250,au,fsanz
+Chobani Greek Yoghurt Plain,90,9.0,4.5,3.5,0.0,0.05,170,au,fsanz
+Chobani Greek Yoghurt Strawberry,105,8.0,14.5,1.0,0.0,0.07,170,au,fsanz
+Jalna Greek Yoghurt,120,8.5,5.0,6.5,0.0,0.06,200,au,fsanz
+Mundella Greek Yoghurt,100,9.5,4.5,4.5,0.0,0.05,200,au,fsanz
+Pauls Vanilla Yoghurt,95,3.8,14.5,2.5,0.0,0.07,200,au,fsanz
+Twisties Cheese,499,5.5,60.5,25.5,2.0,0.75,45,au,fsanz
+Twisties Chicken,502,6.0,60.0,26.0,1.8,0.80,45,au,fsanz
+Red Rock Deli Chips Sea Salt,522,5.0,55.5,31.0,4.5,0.35,40,au,fsanz
+Red Rock Deli Chips Honey Soy Chicken,510,5.5,56.0,29.5,4.0,0.42,40,au,fsanz
+Thins Chips Original,527,5.8,55.5,30.5,4.0,0.47,40,au,fsanz
+Kettle Chips Original,523,5.5,54.0,31.0,4.8,0.38,40,au,fsanz
+Smith's Crinkle Cut Original,529,5.5,55.5,31.5,4.0,0.45,40,au,fsanz
+Smith's Original Chips,529,5.5,55.5,31.5,4.0,0.45,40,au,fsanz
+Grain Waves,463,7.0,69.0,15.5,6.5,0.70,28,au,fsanz
+Vita-Weat Crackers,362,13.5,65.0,5.0,8.5,0.65,25,au,fsanz
+Ryvita Crispbread,340,10.0,70.0,2.0,12.5,0.02,25,au,fsanz
+Arnotts SAO Biscuits,440,10.0,65.0,15.5,3.5,0.72,25,au,fsanz
+Arnotts Tiny Teddy,476,7.0,68.0,18.5,2.5,0.35,15,au,fsanz
+Arnotts Scotch Finger,505,6.0,64.0,24.5,1.5,0.35,25,au,fsanz
+Arnotts Monte Carlo,486,5.5,65.5,22.5,2.0,0.28,25,au,fsanz
+Arnotts Kingston Biscuits,492,6.5,64.5,23.0,2.5,0.38,19,au,fsanz
+Arnotts Shortbread Cream,500,5.5,64.5,24.0,1.5,0.32,20,au,fsanz
+Arnotts Iced Vovo,394,5.0,70.5,10.5,1.5,0.35,20,au,fsanz
+Allen's Snakes,338,5.5,80.0,0.1,0.0,0.05,25,au,fsanz
+Allen's Red Frogs,340,5.5,80.5,0.1,0.0,0.05,25,au,fsanz
+Allen's Party Mix,340,5.0,81.0,0.1,0.0,0.06,25,au,fsanz
+Cadbury Dairy Milk Australia,540,8.0,59.0,30.5,0.5,0.12,20,au,fsanz
+Cadbury Freddo,537,7.5,59.0,30.0,0.5,0.11,12,au,fsanz
+Cadbury Caramello,530,7.0,60.0,29.5,0.3,0.13,20,au,fsanz
+Cadbury Cherry Ripe,434,4.5,60.0,19.5,3.0,0.10,52,au,fsanz
+Cadbury Crunchie,450,5.0,72.0,15.5,0.5,0.22,45,au,fsanz
+Freddo Frog,538,7.5,59.0,30.0,0.5,0.11,12,au,fsanz
+Mars Bar,455,4.5,67.5,18.0,0.5,0.15,53,au,fsanz
+Snickers Bar,508,9.5,55.0,27.5,2.0,0.18,52,au,fsanz
+Kit Kat Original,518,7.5,62.0,27.0,1.5,0.12,45,au,fsanz
+Boost Bar,490,9.5,55.5,27.0,1.5,0.17,55,au,fsanz
+Australian Chicken Breast Skinless,110,23.2,0.0,1.5,0.0,0.06,100,au,fsanz
+Australian Beef Mince Regular,215,18.5,0.0,15.2,0.0,0.07,100,au,fsanz
+Australian Beef Mince Lean,175,20.1,0.0,10.5,0.0,0.07,100,au,fsanz
+Australian Lamb Leg,195,19.8,0.0,12.8,0.0,0.07,100,au,fsanz
+Australian Lamb Chops,260,18.5,0.0,20.5,0.0,0.06,120,au,fsanz
+Australian Pork Fillet,143,22.0,0.0,6.0,0.0,0.05,100,au,fsanz
+Australian Pork Belly,380,14.0,0.0,35.0,0.0,0.05,100,au,fsanz
+Barramundi Fillet Australia,98,21.0,0.0,1.8,0.0,0.07,100,au,fsanz
+Australian Salmon Fillet,208,20.5,0.0,13.8,0.0,0.05,100,au,fsanz
+Atlantic Salmon Australia,220,19.5,0.0,15.5,0.0,0.05,100,au,fsanz
+Australian Prawns Cooked,90,20.0,0.0,1.0,0.0,0.30,100,au,fsanz
+Australian Flathead Fillet,82,18.0,0.0,1.0,0.0,0.09,100,au,fsanz
+Australian Snapper Fillet,90,20.2,0.0,1.0,0.0,0.08,100,au,fsanz
+Australian Whiting Fillet,83,18.5,0.0,0.8,0.0,0.09,100,au,fsanz
+Australian Bream Fillet,88,19.5,0.0,1.0,0.0,0.08,100,au,fsanz
+Australian Crayfish Cooked,95,21.0,0.0,1.0,0.0,0.28,100,au,fsanz
+Australian Rock Lobster,95,21.5,0.0,0.8,0.0,0.35,100,au,fsanz
+Balmain Bug,85,18.5,0.0,1.2,0.0,0.30,100,au,fsanz
+Australian Oysters,55,10.0,2.0,1.2,0.0,0.40,12,au,fsanz
+Australian Scallops,82,18.0,2.5,0.5,0.0,0.35,100,au,fsanz
+Australian Egg Free Range,155,12.5,0.4,11.5,0.0,0.14,60,au,fsanz
+Woolworths Select White Bread,247,8.5,47.5,2.5,2.5,0.45,36,au,fsanz
+Coles Brand White Bread,246,8.5,47.5,2.4,2.5,0.45,36,au,fsanz
+Helga's Traditional Wholemeal,226,9.2,40.0,2.8,5.5,0.42,38,au,fsanz
+Helga's Mixed Grain,228,9.0,40.5,2.9,5.2,0.44,38,au,fsanz
+Abbott's Village Bakery Sourdough,244,9.0,47.0,1.8,2.5,0.40,50,au,fsanz
+Bakers Delight Cape Seed Loaf,262,10.5,42.0,6.0,4.5,0.42,50,au,fsanz
+Bakers Delight Hi-Fibre White,235,8.5,45.5,2.0,3.5,0.44,36,au,fsanz
+Tip Top Sunblest White,247,8.9,47.5,2.5,2.4,0.45,36,au,fsanz
+Tip Top The One White,250,9.0,47.8,2.6,2.5,0.46,36,au,fsanz
+Burgen Wholemeal Bread,228,9.5,40.0,3.2,5.8,0.41,38,au,fsanz
+Wonder White Bread,235,9.0,44.5,2.0,4.5,0.44,36,au,fsanz
+Mountain Bread Wheat,285,12.0,52.0,2.5,7.0,0.52,20,au,fsanz
+Pita Bread White,268,8.5,51.0,2.0,2.5,0.48,60,au,fsanz
+Lebanese Bread Thin,280,9.5,55.0,1.5,3.0,0.50,60,au,fsanz
+Corn Tortillas,218,5.5,44.5,2.8,4.5,0.53,45,au,fsanz
+Old El Paso Flour Tortillas,285,7.5,51.0,6.0,3.0,0.55,45,au,fsanz
+Australian Banana,89,1.1,22.8,0.3,2.6,0.001,120,au,fsanz
+Australian Mango,60,0.8,14.8,0.4,1.6,0.001,200,au,fsanz
+Australian Pineapple,50,0.5,13.0,0.1,1.4,0.001,150,au,fsanz
+Australian Watermelon,30,0.6,7.6,0.2,0.4,0.001,300,au,fsanz
+Australian Papaya,39,0.6,9.8,0.1,1.8,0.008,200,au,fsanz
+Australian Rockmelon,34,0.8,8.5,0.1,0.9,0.008,200,au,fsanz
+Australian Lemon,29,1.1,9.3,0.3,2.8,0.002,50,au,fsanz
+Australian Orange,47,0.9,11.7,0.1,2.4,0.001,150,au,fsanz
+Australian Passionfruit,97,2.2,23.4,0.7,10.4,0.028,60,au,fsanz
+Australian Blueberries,57,0.7,14.5,0.3,2.4,0.001,100,au,fsanz
+Australian Strawberries,32,0.7,7.7,0.3,2.0,0.001,100,au,fsanz
+Australian Raspberries,52,1.2,11.9,0.7,6.5,0.001,100,au,fsanz
+Australian Grapes,69,0.7,18.1,0.2,0.9,0.002,100,au,fsanz
+Australian Peach,39,0.9,9.5,0.3,1.5,0.001,150,au,fsanz
+Australian Plum,46,0.7,11.4,0.3,1.4,0.001,100,au,fsanz
+Australian Apricot,48,1.4,11.1,0.4,2.0,0.001,80,au,fsanz
+Australian Apple,52,0.3,13.8,0.1,2.4,0.001,150,au,fsanz
+Australian Pear,57,0.4,15.2,0.1,3.1,0.001,150,au,fsanz
+Australian Potato,77,1.9,17.5,0.1,2.5,0.004,150,au,fsanz
+Australian Sweet Potato (Orange),105,2.0,24.0,0.1,2.5,0.04,100,au,fsanz
+Australian Sweet Potato (White),103,1.9,23.5,0.1,2.3,0.04,100,au,fsanz
+Australian Pumpkin Butternut,42,1.0,10.2,0.1,2.0,0.004,150,au,fsanz
+Australian Pumpkin Kent,45,1.1,10.5,0.1,2.2,0.004,150,au,fsanz
+Australian Pumpkin Japanese,47,1.4,9.9,0.2,3.2,0.004,150,au,fsanz
+Australian Broccoli,34,3.0,5.0,0.4,2.6,0.03,100,au,fsanz
+Australian Cauliflower,25,1.9,4.0,0.3,2.0,0.03,100,au,fsanz
+Australian Broccolini,34,3.5,4.5,0.5,2.8,0.03,100,au,fsanz
+Australian Spinach,23,2.9,1.4,0.4,2.2,0.08,100,au,fsanz
+Australian Silverbeet,19,1.9,2.3,0.2,1.6,0.18,100,au,fsanz
+Australian Kale,49,4.3,8.8,0.9,3.6,0.04,100,au,fsanz
+Australian Carrot,41,0.9,9.6,0.2,2.8,0.07,100,au,fsanz
+Australian Beetroot,43,1.7,9.6,0.1,2.8,0.07,100,au,fsanz
+Australian Zucchini,17,1.5,2.0,0.2,1.2,0.005,100,au,fsanz
+Australian Eggplant,24,1.0,5.5,0.2,3.0,0.002,100,au,fsanz
+Australian Capsicum Red,31,0.9,7.2,0.3,2.1,0.004,100,au,fsanz
+Australian Capsicum Green,20,0.9,4.6,0.3,1.7,0.003,100,au,fsanz
+Australian Corn on the Cob,96,3.4,21.3,1.5,2.7,0.015,200,au,fsanz
+Australian Tomato,18,0.9,3.4,0.2,1.2,0.005,120,au,fsanz
+Australian Cucumber,16,0.7,3.0,0.2,0.6,0.002,100,au,fsanz
+Australian Lettuce,15,1.4,2.2,0.2,1.8,0.01,100,au,fsanz
+Australian Cabbage,25,1.4,4.8,0.2,2.5,0.02,100,au,fsanz
+Australian Bok Choy,13,1.5,1.2,0.2,1.0,0.065,100,au,fsanz
+Australian Avocado,160,2.0,0.9,16.0,6.7,0.007,100,au,fsanz
+Australian Mushrooms Button,22,3.1,3.3,0.3,1.0,0.005,100,au,fsanz
+Australian Mushrooms Portobello,29,3.5,4.5,0.3,1.5,0.01,100,au,fsanz
+Australian Asparagus,20,2.2,3.7,0.2,2.1,0.002,100,au,fsanz
+Australian Snow Peas,42,2.8,7.6,0.2,2.6,0.003,100,au,fsanz
+Australian Green Beans,31,1.8,5.9,0.2,3.4,0.006,100,au,fsanz
+Australian Onion,40,1.1,9.3,0.1,1.7,0.004,100,au,fsanz
+Australian Garlic,149,6.4,33.1,0.5,2.1,0.017,10,au,fsanz
+Australian Ginger Fresh,80,1.8,18.0,0.8,2.0,0.013,5,au,fsanz
+Australian White Rice Cooked,144,2.7,31.8,0.3,0.4,0.001,200,au,fsanz
+Australian Brown Rice Cooked,112,2.6,23.0,0.9,1.8,0.001,200,au,fsanz
+SunRice White Rice,356,7.0,79.5,0.5,0.5,0.001,50,au,fsanz
+SunRice Brown Rice,364,7.5,76.0,2.8,3.5,0.001,50,au,fsanz
+San Remo Pasta Dry,350,12.5,71.5,1.8,3.0,0.002,80,au,fsanz
+San Remo Wholemeal Pasta,341,13.0,66.0,2.5,6.5,0.002,80,au,fsanz
+Latina Fresh Pasta,210,8.5,38.5,2.5,2.5,0.25,100,au,fsanz
+Dolmio Pasta Sauce Tomato Basil,52,1.8,9.5,0.8,1.5,0.45,125,au,fsanz
+MasterFoods Tomato Sauce,105,2.0,24.5,0.2,0.5,1.05,25,au,fsanz
+Praise Whole Egg Mayonnaise,695,1.5,3.8,74.5,0.0,0.98,20,au,fsanz
+Hellmann's Real Mayonnaise,680,1.0,3.5,74.0,0.0,0.95,20,au,fsanz
+MasterFoods Barbecue Sauce,145,1.5,33.5,0.5,0.5,1.60,20,au,fsanz
+Fountain Tomato Sauce,108,1.8,25.0,0.2,0.5,1.10,20,au,fsanz
+Beerenberg Tomato Sauce,112,2.0,25.5,0.2,0.5,1.15,15,au,fsanz
+Leggo's Tomato Paste,90,5.0,17.5,0.5,4.5,0.04,30,au,fsanz
+Ardmona Diced Tomatoes,24,1.2,4.0,0.2,1.2,0.25,400,au,fsanz
+SPC Baked Beans,77,4.8,12.5,0.3,4.8,0.45,220,au,fsanz
+SPC Spaghetti,72,2.5,13.8,0.3,1.5,0.43,220,au,fsanz
+Heinz Baked Beans,77,5.2,12.0,0.4,4.5,0.44,220,au,fsanz
+Heinz Tomato Soup,38,1.2,7.5,0.5,0.8,0.45,220,au,fsanz
+Campbell's Chunky Chicken,71,6.0,8.5,1.5,0.8,0.52,220,au,fsanz
+Woolworths Frozen Peas,69,5.2,11.5,0.4,5.5,0.004,100,au,fsanz
+Coles Frozen Peas,68,5.0,11.3,0.4,5.2,0.004,100,au,fsanz
+McCain Oven Bake Fries,155,2.8,25.5,4.5,2.5,0.30,100,au,fsanz
+Birds Eye Fish Fingers,200,12.0,16.5,9.0,1.0,0.50,90,au,fsanz
+Birds Eye Chicken Nuggets,225,14.0,17.0,10.5,1.0,0.55,100,au,fsanz
+I&J Fish Fingers,200,12.0,16.5,9.0,1.0,0.50,90,au,fsanz
+Goodman Fielder Olive Oil Spread,535,0.5,0.5,59.0,0.0,0.55,10,au,fsanz
+Flora Margarine,534,0.5,0.3,59.0,0.0,0.55,10,au,fsanz
+Nuttelex Original,688,0.5,0.5,75.5,0.0,0.45,10,au,fsanz
+Allowrie Canola Oil,884,0.0,0.0,100.0,0.0,0.0,15,au,fsanz
+Cobram Extra Virgin Olive Oil,884,0.0,0.0,100.0,0.0,0.0,15,au,fsanz
+Lupi Extra Virgin Olive Oil,884,0.0,0.0,100.0,0.0,0.0,15,au,fsanz
+Alfa One Rice Bran Oil,884,0.0,0.0,100.0,0.0,0.0,15,au,fsanz
+Squeaky Gate Olive Oil,882,0.0,0.0,100.0,0.0,0.0,15,au,fsanz
+Australian Honey,304,0.3,82.4,0.0,0.0,0.005,15,au,fsanz
+Capilano Honey,304,0.3,82.4,0.0,0.0,0.005,15,au,fsanz
+Allowrie Honey,304,0.3,82.4,0.0,0.0,0.005,15,au,fsanz
+Devondale Cheese Cheddar,410,25.4,0.1,34.0,0.0,0.62,30,au,fsanz
+Mainland Cheese Australia,310,28.0,0.5,21.5,0.0,0.55,30,au,fsanz
+Bega Cheese Tasty,410,25.5,0.2,34.0,0.0,0.62,30,au,fsanz
+Bega Cheese Reduced Fat,296,28.5,2.0,19.0,0.0,0.72,30,au,fsanz
+Perfect Italiano Parmesan Grated,424,38.5,0.0,29.5,0.0,1.54,20,au,fsanz
+Mersey Valley Club Cheddar,395,24.0,0.5,33.0,0.0,0.80,30,au,fsanz
+King Island Dairy Brie,340,18.5,0.5,29.5,0.0,0.52,30,au,fsanz
+Castello Havarti,370,22.0,0.5,31.5,0.0,0.60,30,au,fsanz
+Anchor Cream Cheese Australia,250,6.0,3.5,24.0,0.0,0.32,30,au,fsanz
+Philadelphia Cream Cheese,253,6.5,4.0,24.0,0.0,0.45,30,au,fsanz
+Woolworths Greek Yoghurt,100,9.5,4.0,4.0,0.0,0.06,200,au,fsanz
+Coles Greek Yoghurt,98,9.5,4.0,3.8,0.0,0.06,200,au,fsanz
+Farmers Union Greek Yoghurt,102,9.0,4.5,4.5,0.0,0.05,200,au,fsanz
+Bulla Sour Cream,200,3.0,3.5,20.0,0.0,0.04,35,au,fsanz
+Paul's Sour Cream,200,3.0,3.5,20.0,0.0,0.04,35,au,fsanz
+Bulla Cream,355,2.5,2.8,38.0,0.0,0.03,20,au,fsanz
+Pauls Thickened Cream,358,2.5,2.8,38.5,0.0,0.03,20,au,fsanz
+Bulla Ricotta,155,10.0,4.5,11.0,0.0,0.10,50,au,fsanz
+Pauls Custard,120,3.5,19.5,3.0,0.0,0.08,125,au,fsanz
+Peters Vanilla Ice Cream,210,3.5,22.0,12.5,0.0,0.08,100,au,fsanz
+Woolworths Vanilla Ice Cream,205,3.3,22.5,11.5,0.0,0.08,100,au,fsanz
+Vitasoy Soy Milk Regular,42,3.5,3.0,2.0,0.5,0.09,250,au,fsanz
+Vitasoy Oat Milk Australia,43,1.0,7.5,0.9,0.5,0.07,250,au,fsanz
+Vitasoy Almond Milk Original,25,1.0,2.5,1.5,0.5,0.06,250,au,fsanz
+Sanitarium So Good Soy Milk,42,3.5,3.5,2.0,0.5,0.10,250,au,fsanz
+Oatly Oat Milk,45,1.0,6.5,1.5,0.8,0.06,250,au,fsanz
+Califia Farms Oat Milk,46,1.0,7.0,1.5,0.8,0.06,250,au,fsanz
+Alpro Soy Milk,39,3.3,2.8,1.8,0.5,0.10,250,au,fsanz
+Uncle Tobys Muesli Bar Apricot,380,5.5,65.5,9.5,4.0,0.15,31,au,fsanz
+Carman's Classic Muesli Bar,420,8.5,57.0,17.0,5.0,0.18,45,au,fsanz
+Carman's Oat Slice,425,8.5,57.0,17.5,5.5,0.15,50,au,fsanz
+Freedom Foods Cereal,368,8.5,74.0,4.5,5.0,0.35,30,au,fsanz
+Macro Wholefood Granola,448,8.5,60.0,17.5,7.5,0.12,45,au,fsanz
+Australian Bush Tucker Mixed Herbs,280,6.0,48.0,7.0,35.0,0.05,5,au,fsanz
+Woolworths Peanut Butter Smooth,609,26.0,14.0,50.0,5.0,0.35,20,au,fsanz
+Woolworths Peanut Butter Crunchy,610,26.0,13.8,50.5,5.5,0.35,20,au,fsanz
+Bega Peanut Butter Smooth,612,26.5,13.5,51.0,5.5,0.008,20,au,fsanz
+Bega Peanut Butter Crunchy,613,26.5,13.5,51.5,5.5,0.008,20,au,fsanz
+Mayver's Peanut Butter,615,27.0,13.0,52.0,5.8,0.008,20,au,fsanz
+Kraft Peanut Butter Smooth,605,25.5,14.5,49.5,5.0,0.40,20,au,fsanz
+Gippsland Dairy Strawberry Yoghurt,90,3.5,14.0,1.5,0.0,0.07,170,au,fsanz
+Coco2 Coconut Yoghurt,130,0.8,7.0,11.0,0.0,0.04,150,au,fsanz
+Coconut Collaborative Yoghurt,120,1.0,8.5,9.5,0.5,0.04,150,au,fsanz
+Woolworths Chickpeas Canned,110,7.0,18.0,1.5,5.5,0.24,120,au,fsanz
+Woolworths Lentils Canned,90,6.5,14.0,0.5,4.5,0.23,120,au,fsanz
+Coles Kidney Beans Canned,90,6.5,14.5,0.5,5.5,0.27,120,au,fsanz
+McCain Healthy Choice Frozen Vegies,45,2.5,7.5,0.3,3.5,0.01,100,au,fsanz
+Nando's Peri-Peri Sauce,68,0.8,15.0,0.5,1.0,1.20,20,au,fsanz
+Maggi Seasoning,110,5.5,15.5,2.0,0.0,18.0,5,au,fsanz
+MasterFoods Whole Grain Mustard,100,4.5,8.5,5.5,4.0,2.2,10,au,fsanz
+Keen's Traditional Curry Powder,370,12.0,55.0,11.0,37.0,0.06,5,au,fsanz
+Continental Cup-a-Soup Chicken Noodle,380,12.5,62.5,8.0,2.0,3.50,20,au,fsanz
+Nestle Milo Powder Australia,395,9.5,73.5,4.5,3.0,0.22,20,au,fsanz
+Australian White Cooked Quinoa,120,4.4,21.3,1.9,2.8,0.007,185,au,fsanz
+Australian Chia Seeds,486,17.0,42.1,30.7,34.4,0.016,15,au,fsanz
+Australian Flaxseeds (Linseeds),534,18.3,28.9,42.2,27.3,0.030,15,au,fsanz
+Australian Almonds,609,22.0,5.7,54.0,12.5,0.001,30,au,fsanz
+Australian Cashews,574,15.3,27.5,46.4,3.3,0.012,30,au,fsanz
+Australian Walnuts,654,15.2,5.0,65.2,6.7,0.001,30,au,fsanz
+Australian Macadamia Nuts,718,7.9,5.2,75.8,8.6,0.005,30,au,fsanz
+Australian Pistachio Nuts,562,20.2,27.5,45.3,10.3,0.005,30,au,fsanz
+Australian Pumpkin Seeds,559,30.0,10.7,49.0,6.0,0.009,30,au,fsanz
+Australian Sunflower Seeds,584,20.8,20.0,51.5,8.6,0.002,30,au,fsanz
+Australian Mixed Nuts,607,15.0,15.5,54.0,5.5,0.080,30,au,fsanz
+Australian Sultanas,295,2.5,76.0,0.3,4.5,0.011,30,au,fsanz
+Australian Dried Apricots,250,3.4,65.0,0.3,8.0,0.003,30,au,fsanz
+Australian Dates,282,2.5,75.0,0.2,8.0,0.002,30,au,fsanz
+Australian Raisins,299,3.1,79.5,0.5,3.7,0.011,30,au,fsanz
+Australian Coconut Desiccated,660,6.3,23.0,65.0,15.0,0.030,30,au,fsanz
+Woolworths White Sugar,400,0.0,100.0,0.0,0.0,0.001,5,au,fsanz
+Coles White Sugar,400,0.0,100.0,0.0,0.0,0.001,5,au,fsanz
+CSR White Sugar,400,0.0,100.0,0.0,0.0,0.001,5,au,fsanz
+CSR Brown Sugar,389,0.0,97.0,0.0,0.0,0.015,5,au,fsanz
+CSR Raw Sugar,388,0.0,97.0,0.0,0.0,0.001,5,au,fsanz
+Australian Pure Maple Syrup,260,0.1,67.0,0.1,0.0,0.006,20,au,fsanz
+Bundaberg Sugar Raw,388,0.0,97.0,0.0,0.0,0.001,5,au,fsanz
+White Wings Self Raising Flour,346,9.2,71.5,1.3,2.7,0.03,30,au,fsanz
+Lighthouse Self Raising Flour,348,9.5,72.0,1.3,2.8,0.03,30,au,fsanz
+McKenzie's Baking Soda,0,0.0,0.0,0.0,0.0,27.0,5,au,fsanz
+McKenzie's Baking Powder,210,2.2,46.5,0.0,0.0,11.5,5,au,fsanz
+Australian Cornflour,362,0.5,87.0,0.5,0.5,0.003,15,au,fsanz
+Australian Cocoa Powder Unsweetened,228,19.6,13.7,13.7,33.2,0.01,20,au,fsanz
+Nestle Baking Cocoa,228,19.6,13.7,13.7,33.2,0.01,20,au,fsanz
+Lindt Excellence 70% Dark Chocolate,540,8.5,47.0,40.5,11.0,0.02,20,au,fsanz
+Lindt Excellence 85% Dark Chocolate,575,9.5,37.0,48.0,14.5,0.02,20,au,fsanz
+Lindt Excellence 90% Dark Chocolate,600,10.0,30.0,55.5,15.0,0.02,20,au,fsanz
+Green & Blacks 70% Dark Chocolate,555,8.0,49.0,40.5,12.0,0.005,20,au,fsanz
+Pana Chocolate Dark,560,6.0,51.0,41.0,9.0,0.002,20,au,fsanz
+Loving Earth Chocolate,535,8.0,50.0,38.5,10.0,0.005,20,au,fsanz
+Australian Iodised Salt,0,0.0,0.0,0.0,0.0,38.0,5,au,fsanz
+Australian Soy Sauce,75,8.0,8.0,0.1,0.0,5.8,15,au,fsanz
+Kikkoman Soy Sauce,78,8.0,9.0,0.1,0.0,6.5,15,au,fsanz
+Fountain Worcestershire Sauce,75,2.5,17.0,0.1,0.0,2.3,10,au,fsanz
+Lee Kum Kee Oyster Sauce,100,2.5,22.0,0.5,0.0,3.5,15,au,fsanz
+Australian White Wine Vinegar,12,0.2,2.5,0.0,0.0,0.01,15,au,fsanz
+Australian Apple Cider Vinegar,22,0.0,5.5,0.0,0.0,0.005,15,au,fsanz
+Spiral Foods Apple Cider Vinegar,22,0.0,5.5,0.0,0.0,0.005,15,au,fsanz
+Coles Full Cream Milk,62,3.3,4.7,3.5,0.0,0.04,250,au,fsanz
+WW Milk Full Cream,62,3.3,4.7,3.5,0.0,0.04,250,au,fsanz
+Soy Milk Organic,45,3.8,2.8,2.5,0.5,0.09,250,au,fsanz
+Rice Milk Australia,62,0.3,13.5,1.5,0.0,0.08,250,au,fsanz
+Coconut Milk Beverage,24,0.2,4.0,0.8,0.0,0.06,250,au,fsanz
+Coles Almonds,609,22.0,5.7,54.0,12.5,0.001,30,au,fsanz
+Coles Rolled Oats,374,12.0,60.5,7.1,10.4,0.006,45,au,fsanz
+Coles Peanut Butter Smooth,606,25.0,14.5,49.0,5.5,0.38,20,au,fsanz
+Coles Olive Oil Extra Virgin,884,0.0,0.0,100.0,0.0,0.0,15,au,fsanz
+Coles Cream Cheese,250,6.0,3.5,24.0,0.0,0.32,30,au,fsanz
+Coles Hummus Traditional,185,6.5,14.5,11.5,4.0,0.45,50,au,fsanz
+Coles Tinned Tuna in Springwater,120,27.0,0.0,1.5,0.0,0.35,95,au,fsanz
+Coles Tinned Tuna in Oil,215,22.0,0.0,14.0,0.0,0.38,95,au,fsanz
+John West Tuna in Springwater,118,26.5,0.0,1.0,0.0,0.35,95,au,fsanz
+John West Tuna in Olive Oil,210,22.0,0.0,13.5,0.0,0.38,95,au,fsanz
+John West Salmon in Springwater,140,22.0,0.0,6.0,0.0,0.35,95,au,fsanz
+Woolworths Tuna in Springwater,120,27.0,0.0,1.5,0.0,0.35,95,au,fsanz
+Woolworths Salmon in Springwater,138,22.0,0.0,5.8,0.0,0.35,95,au,fsanz
+Australian Tofu Firm,145,14.5,3.5,8.0,0.3,0.02,100,au,fsanz
+Australian Tofu Silken,62,5.2,2.8,2.0,0.1,0.02,100,au,fsanz
+Australian Tempeh,195,19.5,9.4,11.0,0.0,0.009,100,au,fsanz
+Sanitarium Vegie Delights,155,13.0,5.5,9.0,4.5,0.55,75,au,fsanz
+Quorn Mince,120,14.5,5.0,3.5,5.5,0.42,100,au,fsanz
+Beyond Meat Burger,250,20.0,7.0,18.0,2.0,0.50,113,au,fsanz
+Impossible Burger,240,19.0,9.0,14.0,3.0,0.37,113,au,fsanz
+Four'N Twenty Meat Pie,260,7.5,25.5,14.0,1.0,0.50,175,au,fsanz
+Nanna's Frozen Chicken Pie,280,8.0,28.0,15.5,1.2,0.55,175,au,fsanz
+Pampas Frozen Pastry,370,6.0,44.0,19.5,1.5,0.35,50,au,fsanz
+Coles Frozen Stir Fry Vegetables,35,2.0,5.5,0.3,3.0,0.01,100,au,fsanz
+Woolworths Frozen Mixed Vegetables,40,2.5,6.0,0.3,3.5,0.01,100,au,fsanz
+Simplot Bird's Eye Frozen Corn,97,3.4,21.3,1.5,2.7,0.015,100,au,fsanz
+V Energy Drink Regular,44,0.0,11.0,0.0,0.0,0.05,250,au,fsanz
+Red Bull Regular,45,0.0,11.3,0.0,0.0,0.05,250,au,fsanz
+Monster Energy Regular,42,0.0,10.5,0.0,0.0,0.18,500,au,fsanz
+Powerade Mountain Blast Australia,27,0.0,6.6,0.0,0.0,0.05,600,au,fsanz
+Gatorade Citrus Charge,25,0.0,6.4,0.0,0.0,0.05,600,au,fsanz
+Coca Cola Australia,42,0.0,10.6,0.0,0.0,0.01,375,au,fsanz
+Pepsi Regular,43,0.0,11.0,0.0,0.0,0.01,375,au,fsanz
+Schweppes Lemonade,42,0.0,10.5,0.0,0.0,0.01,375,au,fsanz
+Solo Lemon,40,0.0,10.0,0.0,0.0,0.01,375,au,fsanz
+Golden Circle Fruit Juice Tropical,55,0.8,13.0,0.1,0.0,0.005,250,au,fsanz
+Golden Circle Apple Juice,45,0.3,11.0,0.1,0.0,0.005,250,au,fsanz
+Nudie Orange Juice,45,0.7,10.5,0.2,0.0,0.003,250,au,fsanz
+Boost Juice,65,1.0,15.5,0.3,1.5,0.005,250,au,fsanz
+Berri Orange Juice,44,0.7,10.5,0.1,0.0,0.003,250,au,fsanz
+Australian Sparkling Water,0,0.0,0.0,0.0,0.0,0.01,375,au,fsanz
+Kirra Water,0,0.0,0.0,0.0,0.0,0.01,600,au,fsanz
+Mount Franklin Still Water,0,0.0,0.0,0.0,0.0,0.01,600,au,fsanz
+VOSS Water,0,0.0,0.0,0.0,0.0,0.01,850,au,fsanz
+Lemon Lime Bitters,35,0.0,8.5,0.0,0.0,0.03,285,au,fsanz
+Australian Flat White,75,4.5,6.5,3.0,0.0,0.06,220,au,fsanz
+Australian Long Black,8,0.2,1.2,0.1,0.0,0.01,250,au,fsanz
+Australian Cappuccino Full Cream,95,5.5,8.0,4.5,0.0,0.07,220,au,fsanz
+Australian Latte Full Cream,85,5.0,7.0,4.0,0.0,0.06,250,au,fsanz
+Nescafe Blend 43,0,0.0,0.0,0.0,0.0,0.01,200,au,fsanz
+Moccona Coffee,0,0.0,0.0,0.0,0.0,0.01,200,au,fsanz
+Lipton Tea Black,0,0.0,0.0,0.0,0.0,0.005,250,au,fsanz
+Twinings English Breakfast,0,0.0,0.0,0.0,0.0,0.005,250,au,fsanz
+Twinings Green Tea,0,0.0,0.0,0.0,0.0,0.005,250,au,fsanz
+Nerada Tea,0,0.0,0.0,0.0,0.0,0.005,250,au,fsanz
+Australian Protein Powder Whey,380,80.0,6.5,4.5,0.0,0.15,30,au,fsanz
+Australian Protein Powder Vegan,360,25.0,35.0,6.0,5.0,0.20,35,au,fsanz
+Muscle Nation Protein,390,30.0,8.0,5.0,0.0,0.18,35,au,fsanz
+Bulk Nutrients Whey Protein,385,80.5,6.0,4.0,0.0,0.12,30,au,fsanz
+EHP Labs OxyWhey,385,27.5,8.5,2.5,0.5,0.22,35,au,fsanz
+Woolworths Whole Egg Mayonnaise,692,1.5,3.5,74.0,0.0,0.95,20,au,fsanz
+Fountain BBQ Sauce,145,1.5,34.0,0.5,0.5,1.55,25,au,fsanz
+Australian Miso Paste,200,12.0,26.0,6.0,5.0,3.5,15,au,fsanz
+Australian Tahini,595,17.5,19.0,54.0,3.3,0.02,15,au,fsanz
+Mayver's Tahini,596,17.5,19.5,54.5,3.4,0.02,15,au,fsanz
+Australian Hummus Traditional,185,6.5,14.5,11.5,4.0,0.45,50,au,fsanz
+Fresh Sensations Hummus,182,6.0,14.0,11.0,4.5,0.42,50,au,fsanz
+Blue Dragon Sweet Chilli Sauce,250,1.0,61.0,0.2,0.5,2.5,20,au,fsanz
+Ayam Sweet Chilli Sauce,255,1.0,62.0,0.2,0.5,2.5,20,au,fsanz
+Kewpie Mayonnaise,680,1.5,3.0,76.0,0.0,1.20,20,au,fsanz
+Chobani Fit Protein Yoghurt,68,11.5,5.5,0.2,0.0,0.07,170,au,fsanz
+Yoplait Forme Zero Fat Yoghurt,50,5.0,7.0,0.2,0.0,0.09,200,au,fsanz
+Siggi's Plain Yoghurt,90,15.0,5.0,0.5,0.0,0.05,170,au,fsanz
+Jalna Pot Set Yoghurt,115,6.5,7.5,5.5,0.0,0.07,200,au,fsanz
+Coles Natural Yoghurt,60,4.5,6.5,1.8,0.0,0.07,200,au,fsanz
+Woolworths Natural Yoghurt,60,4.5,6.5,1.8,0.0,0.07,200,au,fsanz
+Streets Blue Ribbon Ice Cream,195,3.5,21.5,10.5,0.0,0.07,100,au,fsanz
+Connoisseur Vanilla Ice Cream,230,3.5,23.0,14.0,0.0,0.10,100,au,fsanz
+Bulla Triple Cream Ice Cream,245,3.0,22.5,16.0,0.0,0.09,100,au,fsanz
+Magnum Classic Ice Cream,278,3.5,26.5,17.5,0.3,0.07,86,au,fsanz
+Magnum Almond Ice Cream,290,4.5,26.5,19.0,1.5,0.07,90,au,fsanz
+Coles Premium Ice Cream Vanilla,218,3.5,22.5,12.5,0.0,0.09,100,au,fsanz
+Woolworths Vanilla Ice Cream Premium,220,3.5,22.5,13.0,0.0,0.09,100,au,fsanz
+Australian Basmati Rice Cooked,140,2.7,30.5,0.3,0.5,0.001,200,au,fsanz
+Australian Jasmine Rice Cooked,145,2.7,31.5,0.3,0.4,0.001,200,au,fsanz
+San Remo Fettuccine Dry,354,13.0,72.0,1.8,3.5,0.002,80,au,fsanz
+San Remo Penne Dry,352,12.5,71.5,1.8,3.0,0.002,80,au,fsanz
+Uncle Tobys Plus Antioxidant Cereal,370,9.0,73.0,3.0,5.5,0.50,30,au,fsanz
+Just Right Cereal,370,9.5,72.0,3.0,5.0,0.55,30,au,fsanz
+Nutri-Grain,388,12.0,76.0,2.5,3.5,0.65,30,au,fsanz
+Sustain,373,10.0,72.0,3.5,5.5,0.55,30,au,fsanz
+All-Bran (Kellogg's),290,11.5,55.5,3.5,27.0,0.55,30,au,fsanz
+Muesli (Natural Untoasted),366,10.5,60.0,7.5,7.5,0.06,45,au,fsanz
+Australian Lamb Shoulder,220,18.5,0.0,16.0,0.0,0.07,100,au,fsanz
+Australian Beef Sirloin,220,23.5,0.0,13.5,0.0,0.06,100,au,fsanz
+Australian Beef Rump,180,23.0,0.0,10.0,0.0,0.06,100,au,fsanz
+Australian Chicken Thigh Skinless,150,18.5,0.0,8.5,0.0,0.07,100,au,fsanz
+Australian Chicken Drumstick,148,18.5,0.0,8.0,0.0,0.07,100,au,fsanz
+Australian Turkey Breast,135,30.0,0.0,1.5,0.0,0.05,100,au,fsanz
+Australian Duck Breast,195,21.5,0.0,11.5,0.0,0.06,100,au,fsanz
+Australian Kangaroo Fillet,96,22.3,0.0,0.5,0.0,0.07,100,au,fsanz
+Australian Kangaroo Mince,98,22.0,0.0,0.8,0.0,0.07,100,au,fsanz
+Australian Crocodile Meat,92,22.0,0.0,0.5,0.0,0.05,100,au,fsanz
+Emu Meat Australia,114,22.5,0.0,2.5,0.0,0.06,100,au,fsanz
+Australian Pork Mince,205,18.5,0.0,14.5,0.0,0.07,100,au,fsanz
+Australian Pork Sausage,290,11.0,10.0,23.0,0.5,0.85,75,au,fsanz
+Don Kransky,340,12.5,3.5,29.5,0.0,0.95,50,au,fsanz
+Primo Salami,410,23.0,1.0,35.0,0.0,1.50,30,au,fsanz
+Don Ham Leg,110,17.5,1.5,3.5,0.0,1.20,50,au,fsanz
+Primo Ham Short Cut,108,17.0,1.5,3.5,0.0,1.25,50,au,fsanz
+Australian Canned Chickpeas,120,7.5,19.0,1.5,7.0,0.25,120,au,fsanz
+Australian Canned Lentils,95,7.0,14.5,0.5,5.0,0.25,120,au,fsanz
+Australian Canned Black Beans,95,7.5,15.5,0.5,6.0,0.25,120,au,fsanz
+Australian Canned Cannellini Beans,90,6.5,14.5,0.5,5.5,0.25,120,au,fsanz
+Australian Canned Kidney Beans,90,6.5,14.5,0.5,5.5,0.27,120,au,fsanz
+Australian Dried Lentils Red,352,25.0,60.1,1.0,10.6,0.010,50,au,fsanz
+Australian Dried Lentils Green,297,24.0,51.5,1.0,10.8,0.010,50,au,fsanz
+Australian Kangaroo Burger,195,22.5,8.5,7.5,0.5,0.55,180,au,fsanz
+Australian Emu Burger,190,22.0,8.5,7.0,0.5,0.52,180,au,fsanz
+Australian Crocodile Fillet,92,22.0,0.0,0.5,0.0,0.05,100,au,fsanz
+Australian Wild Boar,180,21.5,0.0,10.5,0.0,0.07,100,au,fsanz
+Australian Bison,143,23.5,0.0,5.5,0.0,0.06,100,au,fsanz
+Australian Rabbit,114,22.0,0.0,2.5,0.0,0.05,100,au,fsanz
+Australian Rabbit Mince,115,21.5,0.0,3.0,0.0,0.05,100,au,fsanz
+Australian Beef Eye Fillet,165,23.5,0.0,8.0,0.0,0.06,100,au,fsanz
+Australian Beef Scotch Fillet,250,21.5,0.0,17.5,0.0,0.06,100,au,fsanz
+Australian Beef Blade,195,20.0,0.0,12.5,0.0,0.06,100,au,fsanz
+Australian Beef Chuck,215,18.5,0.0,14.5,0.0,0.06,100,au,fsanz
+Australian Beef Osso Bucco,175,20.0,0.0,10.5,0.0,0.06,100,au,fsanz
+Australian Beef Short Ribs,295,18.0,0.0,24.5,0.0,0.07,100,au,fsanz
+Australian Beef Brisket,258,17.5,0.0,20.0,0.0,0.06,100,au,fsanz
+Australian Beef Flank,175,21.0,0.0,10.0,0.0,0.07,100,au,fsanz
+Australian Beef Tripe,95,15.5,0.0,3.5,0.0,0.07,100,au,fsanz
+Australian Beef Oxtail,250,17.5,0.0,19.5,0.0,0.07,200,au,fsanz
+Australian Lamb Brain,145,11.0,0.0,11.0,0.0,0.07,100,au,fsanz
+Australian Lamb Heart,125,19.5,0.3,4.5,0.0,0.12,100,au,fsanz
+Australian Lamb Liver,165,23.5,3.5,5.5,0.0,0.08,100,au,fsanz
+Australian Lamb Kidney,90,15.0,1.0,3.0,0.0,0.25,100,au,fsanz
+Australian Chicken Liver,135,20.0,1.0,5.5,0.0,0.08,100,au,fsanz
+Australian Pork Liver,168,21.5,3.5,6.0,0.0,0.07,100,au,fsanz
+Australian Pork Kidney,107,17.0,1.5,3.5,0.0,0.24,100,au,fsanz
+Australian Pork Ribs,320,17.5,0.0,28.0,0.0,0.06,100,au,fsanz
+Australian Pork Neck,268,18.5,0.0,21.5,0.0,0.06,100,au,fsanz
+Australian Pork Crackling,560,65.0,0.0,32.5,0.0,1.20,30,au,fsanz
+Australian Veal Cutlets,140,21.5,0.0,6.0,0.0,0.06,100,au,fsanz
+Australian Veal Schnitzel,230,18.5,11.5,12.0,0.5,0.48,120,au,fsanz
+Australian Chicken Wings,215,18.5,0.0,15.0,0.0,0.08,100,au,fsanz
+Australian Chicken Mince,145,17.5,0.0,8.5,0.0,0.07,100,au,fsanz
+Australian Chicken Maryland,175,18.5,0.0,10.5,0.0,0.07,100,au,fsanz
+Australian Turkey Mince,125,22.0,0.0,4.0,0.0,0.06,100,au,fsanz
+Australian Turkey Thigh,175,19.5,0.0,10.5,0.0,0.07,100,au,fsanz
+Australian Barramundi Baked,105,22.0,0.0,2.0,0.0,0.07,150,au,fsanz
+Australian Bream Baked,95,21.0,0.0,1.5,0.0,0.08,100,au,fsanz
+Australian Murray Cod,90,20.0,0.0,1.5,0.0,0.07,100,au,fsanz
+Australian Yellowfin Tuna,144,23.5,0.0,5.0,0.0,0.05,100,au,fsanz
+Australian Mackerel,305,18.5,0.0,25.5,0.0,0.09,100,au,fsanz
+Australian Sardines Fresh,175,19.5,0.0,10.5,0.0,0.10,100,au,fsanz
+Australian Anchovy,175,25.5,0.0,8.5,0.0,0.35,10,au,fsanz
+Australian Garfish,80,18.0,0.0,0.8,0.0,0.07,100,au,fsanz
+Australian Jewfish (Mulloway),85,19.0,0.0,1.0,0.0,0.07,100,au,fsanz
+Australian Leatherjacket,70,15.5,0.0,1.0,0.0,0.07,100,au,fsanz
+Australian Luderick (Blackfish),80,18.5,0.0,0.8,0.0,0.07,100,au,fsanz
+Australian Blue Eye Trevalla,90,19.5,0.0,1.5,0.0,0.07,100,au,fsanz
+Australian Pink Snapper,90,20.0,0.0,1.0,0.0,0.08,100,au,fsanz
+Australian Tiger Prawns Cooked,90,20.0,0.0,1.0,0.0,0.30,100,au,fsanz
+Australian King Prawns Cooked,92,20.5,0.0,1.0,0.0,0.30,100,au,fsanz
+Australian Moreton Bay Bugs,82,18.5,0.0,0.8,0.0,0.35,100,au,fsanz
+Australian Blue Swimmer Crab,82,18.0,0.0,0.8,0.0,0.38,100,au,fsanz
+Australian Mud Crab,88,19.5,0.0,0.8,0.0,0.40,100,au,fsanz
+Australian Abalone,90,17.5,4.0,1.0,0.0,0.28,100,au,fsanz
+Australian Pipis,55,9.5,2.5,0.5,0.0,0.38,100,au,fsanz
+Australian Vongole (Clams),56,9.0,2.5,0.5,0.0,0.38,100,au,fsanz
+Australian Sea Urchin (Uni),110,12.0,4.5,3.5,0.0,0.18,30,au,fsanz
+Australian Yabby Cooked,80,17.5,0.0,0.8,0.0,0.35,100,au,fsanz
+Australian Marron Cooked,78,17.0,0.0,0.8,0.0,0.30,100,au,fsanz
+Australian Smoked Salmon,185,22.5,0.0,10.5,0.0,1.50,50,au,fsanz
+Australian Smoked Trout,195,22.0,0.0,12.0,0.0,1.20,50,au,fsanz
+Australian Smoked Mackerel,270,19.5,0.0,21.5,0.0,1.40,75,au,fsanz
+Australian Canned Sardines,175,19.5,0.0,10.5,0.0,0.55,95,au,fsanz
+Australian Canned Mackerel,215,20.0,0.0,14.5,0.0,0.58,95,au,fsanz
+Australian Canned Anchovies,195,25.5,0.0,10.0,0.0,4.0,10,au,fsanz
+Australian Fish Cake,155,10.5,14.5,6.0,1.0,0.65,75,au,fsanz
+Australian Prawn Crackers,490,5.5,71.0,19.5,1.5,1.05,30,au,fsanz
+Australian Caviar/Roe,265,25.5,4.0,18.0,0.0,1.80,25,au,fsanz
+Australian Ham Off the Bone,110,17.5,1.5,3.5,0.0,1.35,50,au,fsanz
+Australian Ham Shoulder,105,15.5,2.0,4.0,0.0,1.40,50,au,fsanz
+Australian Bacon Middle Rasher,285,15.5,0.5,24.0,0.0,1.65,60,au,fsanz
+Australian Bacon Eye Round,240,18.5,0.5,18.5,0.0,1.50,60,au,fsanz
+Australian Leg Ham Honey,115,17.5,2.5,3.5,0.0,1.25,50,au,fsanz
+Australian Pastrami,195,20.0,1.5,12.0,0.0,1.90,50,au,fsanz
+Australian Corned Beef,210,24.0,0.5,12.0,0.0,0.95,100,au,fsanz
+Australian Silverside,155,20.5,0.0,8.5,0.0,0.70,100,au,fsanz
+Australian Sausage Beef,285,13.5,9.0,22.0,0.5,0.85,75,au,fsanz
+Australian Sausage Pork,290,11.0,10.0,23.0,0.5,0.85,75,au,fsanz
+Australian Sausage Chicken,195,12.5,8.5,12.0,0.8,0.75,75,au,fsanz
+Australian Sausage Lamb,280,14.0,8.5,21.0,0.5,0.80,75,au,fsanz
+Australian Cocktail Frankfurts,225,10.5,5.0,17.5,0.0,1.10,40,au,fsanz
+Australian Kransky,335,12.5,3.5,29.5,0.0,0.95,50,au,fsanz
+Australian Bratwurst,295,13.5,4.5,24.5,0.0,0.90,90,au,fsanz
+Australian Merguez Sausage,310,15.0,3.0,27.0,0.5,1.05,75,au,fsanz
+Australian Mettwurst,380,22.0,0.5,32.5,0.0,1.55,30,au,fsanz
+Australian Chicken Nuggets Homemade,220,14.5,15.5,11.0,0.8,0.45,100,au,fsanz
+Australian Chicken Schnitzel,245,19.5,12.5,12.5,0.8,0.52,120,au,fsanz
+Australian Chicken Kiev,285,19.5,9.5,18.5,0.5,0.45,120,au,fsanz
+Australian Chicken Roll,205,16.5,14.5,9.0,1.0,0.68,100,au,fsanz
+Australian Satay Chicken Skewer,215,18.0,8.5,12.5,1.5,0.42,150,au,fsanz
+Australian Beef Kebab,235,19.0,12.5,11.5,1.5,0.52,200,au,fsanz
+Australian Lamb Kofta,240,16.5,7.5,16.0,1.5,0.52,100,au,fsanz
+Australian Meat Pie,265,7.5,25.5,14.0,1.0,0.50,175,au,fsanz
+Australian Sausage Roll,305,8.5,29.5,17.0,1.5,0.65,120,au,fsanz
+Australian Party Pie,260,7.0,25.0,13.5,1.0,0.52,45,au,fsanz
+Australian Pasty,280,9.5,30.5,14.0,2.0,0.58,180,au,fsanz
+Australian Quiche Lorraine,265,10.5,22.5,15.0,1.0,0.48,125,au,fsanz
+Australian Tofu Scramble,135,9.0,7.5,8.0,2.0,0.38,150,au,fsanz
+Australian Baked Potato,77,3.0,17.0,0.1,1.8,0.006,200,au,fsanz
+Australian Mashed Potato,135,2.5,17.5,6.5,1.5,0.35,150,au,fsanz
+Australian Potato Bake,195,5.5,22.5,9.5,1.5,0.42,150,au,fsanz
+Australian Vegetable Fritters,155,5.5,16.5,7.5,2.5,0.38,100,au,fsanz
+Australian Corn Fritters,188,6.5,24.5,7.5,2.5,0.42,100,au,fsanz
+Australian Ricotta Fritters,225,8.5,18.5,12.5,0.5,0.38,100,au,fsanz
+Australian Beetroot Dip,85,2.5,10.5,3.5,2.5,0.32,50,au,fsanz
+Australian Eggplant Dip,145,3.5,10.5,10.0,4.5,0.35,50,au,fsanz
+Australian Roasted Capsicum Dip,115,2.0,10.5,6.5,2.5,0.38,50,au,fsanz
+Australian Pumpkin Soup,88,2.0,14.0,2.5,2.0,0.42,250,au,fsanz
+Australian Minestrone,75,4.0,11.5,1.5,2.5,0.42,300,au,fsanz
+Australian Beef and Vegetable Soup,88,7.5,9.5,2.5,2.0,0.45,300,au,fsanz
+Australian Chicken and Corn Soup,105,7.0,12.5,2.5,1.5,0.52,300,au,fsanz
+Australian Tom Yum Soup,65,5.0,6.5,1.5,1.0,0.88,300,au,fsanz
+Australian Laksa,285,12.5,28.5,14.5,3.0,0.85,400,au,fsanz
+Australian Pho,165,14.5,18.5,2.5,1.5,0.75,500,au,fsanz
+Australian Ramen,280,12.5,32.5,10.5,2.0,1.20,500,au,fsanz
+Australian Udon Noodle Soup,195,8.0,32.5,3.5,2.0,0.95,400,au,fsanz
+Australian Soba Noodle Soup,185,8.5,30.5,2.5,2.5,0.85,400,au,fsanz
+Australian Fried Rice,195,5.5,32.5,5.0,1.5,0.45,250,au,fsanz
+Australian Pad See Ew,295,12.5,39.5,9.5,2.5,1.05,350,au,fsanz
+Australian Massaman Curry,255,14.5,18.5,13.5,3.0,0.65,350,au,fsanz
+Australian Green Curry,245,14.0,17.5,12.5,3.0,0.58,350,au,fsanz
+Australian Panang Curry,260,14.5,16.5,14.5,3.0,0.65,350,au,fsanz
+Australian Tikka Masala,195,15.5,10.5,9.5,2.0,0.52,350,au,fsanz
+Australian Rogan Josh,185,15.0,8.5,9.5,2.0,0.48,350,au,fsanz
+Australian Palak Paneer,185,9.0,8.5,13.0,3.5,0.42,250,au,fsanz
+Australian Channa Masala,165,7.5,22.5,5.5,6.5,0.45,300,au,fsanz
+Australian Dal Makhani,195,9.5,22.5,7.5,6.5,0.42,300,au,fsanz
+Australian Aloo Gobi,95,3.5,14.5,2.5,3.0,0.25,250,au,fsanz
+Australian Biryani Chicken,295,14.5,38.5,8.5,1.5,0.62,350,au,fsanz
+Australian Biryani Lamb,305,15.0,38.5,9.0,1.5,0.62,350,au,fsanz
+Australian Naan with Butter,310,8.5,43.5,11.5,2.0,0.55,90,au,fsanz
+Australian Dosa Plain,215,6.5,38.5,4.0,2.5,0.35,100,au,fsanz
+Australian Idli,135,5.0,24.5,1.5,1.5,0.38,60,au,fsanz
+Australian Fried Chicken KFC Style,275,20.5,15.5,14.5,0.8,0.72,100,au,fsanz
+Australian BBQ Chicken,185,22.5,0.0,10.5,0.0,0.08,100,au,fsanz
+Australian Spit Roast Lamb,215,22.0,0.0,14.0,0.0,0.07,100,au,fsanz
+Australian Souvlaki Pork,210,19.5,7.5,11.5,1.0,0.55,200,au,fsanz
+Australian Gyros,250,17.5,22.5,10.5,1.5,0.68,250,au,fsanz
+Australian Falafel,330,12.5,31.5,18.5,5.0,0.55,100,au,fsanz
+Australian Kibbeh,275,14.0,22.5,14.5,2.5,0.42,100,au,fsanz
+Australian Spanakopita,295,8.5,22.5,19.0,2.5,0.52,100,au,fsanz
+Australian Moussaka,195,12.5,12.5,10.5,2.0,0.48,250,au,fsanz
+Australian Pastizzi,305,9.5,28.5,17.5,1.5,0.48,70,au,fsanz
+Australian Arancini Balls,285,7.5,35.5,12.5,2.0,0.52,75,au,fsanz
+Australian Gnocchi,185,5.0,36.5,1.5,2.0,0.35,200,au,fsanz
+Australian Risotto Mushroom,215,6.5,35.5,5.5,2.5,0.38,300,au,fsanz
+Australian Panzanella,145,4.5,18.5,6.0,2.0,0.42,200,au,fsanz
+Australian Bruschetta,225,6.5,32.5,8.5,2.5,0.45,100,au,fsanz
+Australian Antipasto Platter,285,14.5,12.5,20.5,2.0,1.20,150,au,fsanz
+Australian Margherita Pizza,245,11.5,35.5,7.0,2.0,0.72,100,au,fsanz
+Australian BBQ Pizza,260,13.0,35.0,8.0,2.0,0.82,100,au,fsanz
+Australian Prawn Pizza,250,13.5,34.5,7.5,2.0,0.75,100,au,fsanz
+Australian Meat Lovers Pizza,295,15.0,31.5,13.5,2.0,1.05,100,au,fsanz
+Australian Veggie Supreme Pizza,235,9.0,35.5,7.0,3.5,0.68,100,au,fsanz
+Australian Garlic Pizza Bread,310,8.5,37.5,14.0,2.0,0.55,80,au,fsanz
+Australian Tacos,255,14.5,24.5,10.5,3.0,0.55,150,au,fsanz
+Australian Nachos,295,9.0,35.5,13.5,4.0,0.52,150,au,fsanz
+Australian Burritos,295,14.0,38.5,8.5,4.5,0.62,250,au,fsanz
+Australian Enchiladas,255,14.5,23.5,10.5,3.5,0.68,200,au,fsanz
+Australian Quesadilla,310,14.5,30.5,14.5,2.5,0.68,150,au,fsanz
+Australian Fish Tacos,245,15.0,27.5,8.5,2.5,0.55,175,au,fsanz
+Australian Prawn Taco,240,14.5,26.5,8.0,2.5,0.62,175,au,fsanz
+Australian Beef Burger Gourmet,455,27.5,38.5,20.0,2.5,0.88,220,au,fsanz
+Australian Chicken Burger Crispy,405,23.5,42.5,15.5,2.5,0.75,210,au,fsanz
+Australian Veggie Burger,380,15.5,48.5,13.5,5.5,0.55,180,au,fsanz
+Australian Lamb Burger,425,24.5,36.5,19.0,2.5,0.75,200,au,fsanz
+Australian Fish Burger,360,18.5,38.5,14.5,2.5,0.68,180,au,fsanz
+Australian Pulled Pork Burger,415,24.5,36.5,17.5,2.5,0.95,220,au,fsanz
+Australian Smashed Avo Toast,265,5.5,32.5,12.5,5.0,0.45,115,au,fsanz
+Australian Eggs Benedict,380,17.5,25.5,23.5,1.5,0.88,200,au,fsanz
+Australian Eggs Florentine,355,16.5,25.0,21.5,2.0,0.85,200,au,fsanz
+Australian Full Breakfast,625,35.5,28.5,42.5,3.0,1.55,500,au,fsanz
+Australian Big Breakfast,580,32.0,28.0,38.5,2.5,1.45,450,au,fsanz
+Australian Pancakes with Maple Syrup,295,7.0,47.5,9.5,2.0,0.42,200,au,fsanz
+Australian Acai Bowl,185,4.5,28.5,7.5,5.5,0.05,300,au,fsanz
+Australian Overnight Oats,190,7.5,28.5,5.5,4.5,0.08,250,au,fsanz
+Australian Bircher Muesli,225,7.5,31.5,8.0,4.5,0.05,200,au,fsanz
+Australian Vegemite Toast,195,8.5,35.0,1.5,1.5,0.75,72,au,fsanz
+Australian Avocado Toast,265,5.5,32.5,12.5,5.0,0.45,115,au,fsanz
+Australian Smashed Avocado Feta,290,8.0,28.5,16.5,5.0,0.62,150,au,fsanz
+Australian Corn Fritters Brunch,225,8.0,25.5,10.0,3.0,0.52,150,au,fsanz
+Australian Zucchini Slice,185,10.5,12.5,11.0,1.5,0.42,150,au,fsanz
+Australian Pavlova,310,4.5,72.0,0.5,0.0,0.12,100,au,fsanz
+Australian Lamingtons,380,5.0,57.0,14.5,1.5,0.18,60,au,fsanz
+Australian Anzac Biscuits,415,6.0,62.5,16.0,3.5,0.35,25,au,fsanz
+Australian Melting Moments,490,5.5,61.5,24.5,2.0,0.32,30,au,fsanz
+Australian Hedgehog Slice,465,6.5,55.0,24.5,2.0,0.25,40,au,fsanz
+Australian Chocolate Crackles,498,4.5,62.5,25.0,2.0,0.35,25,au,fsanz
+Australian Jelly Slice,165,3.5,31.5,3.5,0.5,0.10,80,au,fsanz
+Australian Neenish Tart,355,4.5,46.5,17.0,0.8,0.18,45,au,fsanz
+Australian Vanilla Slice,345,5.5,47.5,15.0,0.5,0.22,120,au,fsanz
+Australian Apple Pie,265,3.5,38.0,11.0,2.0,0.22,150,au,fsanz
+Australian Peach Pie,258,3.5,37.0,10.5,1.5,0.22,150,au,fsanz
+Australian Pumpkin Pie,245,4.0,35.0,10.5,2.5,0.32,150,au,fsanz
+Australian Lemon Tart,330,5.5,44.0,16.5,0.5,0.18,120,au,fsanz
+Australian Chocolate Tart,380,6.5,46.5,20.0,2.5,0.18,100,au,fsanz
+Australian Strawberry Tart,255,4.5,39.5,9.0,1.5,0.12,120,au,fsanz
+Australian Cheesecake Baked,355,7.0,36.5,20.5,1.0,0.25,120,au,fsanz
+Australian Cheesecake No-Bake,320,5.5,35.5,18.5,0.8,0.22,120,au,fsanz
+Australian Tiramisu,265,5.5,30.0,14.0,0.5,0.05,100,au,fsanz
+Australian Panna Cotta,215,4.0,19.5,14.0,0.0,0.04,120,au,fsanz
+Australian Bread and Butter Pudding,235,7.0,32.0,8.5,1.0,0.25,150,au,fsanz
+Australian Sticky Date Pudding,385,5.0,56.0,17.5,2.0,0.32,120,au,fsanz
+Australian Chocolate Mousse,225,5.5,24.5,12.5,1.5,0.05,100,au,fsanz
+Australian Creme Brulee,295,5.5,20.5,21.5,0.0,0.07,120,au,fsanz
+Australian Profiteroles,370,6.5,35.5,23.5,0.8,0.22,75,au,fsanz
+Australian Baklava,455,6.0,55.5,24.0,2.5,0.18,60,au,fsanz
+Australian Chocolate Brownie,425,5.5,55.0,21.5,2.0,0.18,60,au,fsanz
+Australian Carrot Cake,370,5.0,47.5,18.5,2.0,0.25,90,au,fsanz
+Australian Banana Bread,290,5.5,45.0,9.5,2.0,0.32,80,au,fsanz
+Australian Zucchini Bread,275,5.5,42.0,9.0,2.0,0.28,80,au,fsanz
+Australian Gingerbread,370,5.0,65.5,10.5,1.5,0.42,30,au,fsanz
+Australian Shortbread,495,5.5,63.0,24.5,1.5,0.25,30,au,fsanz
+Australian Madeira Cake,375,6.0,52.5,16.5,1.0,0.28,80,au,fsanz
+Australian Pound Cake,395,5.5,50.5,20.5,1.0,0.32,80,au,fsanz
+Australian Fruit Cake,345,4.5,55.0,12.5,2.5,0.22,60,au,fsanz
+Australian Sponge Cake,305,6.0,45.0,11.5,0.5,0.28,80,au,fsanz
+Australian Carrot Cake with Frosting,415,5.0,55.0,21.0,2.0,0.32,100,au,fsanz
+Australian Chocolate Mud Cake,430,5.5,56.0,22.0,2.5,0.28,90,au,fsanz
+Australian Red Velvet Cake,385,5.0,52.5,18.5,0.5,0.32,90,au,fsanz
+Australian Lemon Drizzle Cake,385,5.0,57.0,15.5,1.0,0.22,80,au,fsanz
+Australian Hummingbird Cake,400,4.5,57.0,18.5,1.5,0.28,90,au,fsanz
+Australian Coffee Cake,375,5.5,52.0,16.5,1.0,0.30,80,au,fsanz
+Australian Pineapple Upside Down Cake,360,4.5,55.0,14.5,1.0,0.25,100,au,fsanz
+Australian Donut Glazed,335,5.5,45.0,15.5,1.0,0.25,60,au,fsanz
+Australian Donut Jam,328,5.5,44.0,14.5,1.0,0.22,65,au,fsanz
+Australian Eclair,280,5.5,30.5,16.0,0.8,0.20,65,au,fsanz
+Australian Cream Puff,265,5.5,27.5,15.5,0.5,0.18,60,au,fsanz
+Australian Crepe with Lemon Sugar,195,6.0,30.5,6.0,1.0,0.28,80,au,fsanz
+Australian Scones with Cream,395,6.5,45.5,21.5,1.5,0.38,70,au,fsanz
+Australian Cheese Scone,355,10.5,46.0,14.5,2.0,0.72,60,au,fsanz
+Australian Apricot Danish,335,5.5,48.5,14.0,1.5,0.28,80,au,fsanz
+Australian Cinnamon Roll,340,6.5,52.0,12.5,2.0,0.35,90,au,fsanz
+Australian Hot Cross Bun,285,7.5,50.5,6.0,2.5,0.35,60,au,fsanz
+Australian Crumpet with Butter,245,7.0,35.5,9.5,1.5,0.52,75,au,fsanz
+Australian Toast with Vegemite,195,8.5,35.0,1.5,1.5,0.75,72,au,fsanz
+Australian Toast with Peanut Butter,310,12.5,33.5,15.0,3.5,0.55,72,au,fsanz
+Australian Toast with Jam,255,4.5,53.0,2.0,1.5,0.28,72,au,fsanz
+Australian Toast with Honey,255,4.5,53.5,2.0,1.5,0.25,72,au,fsanz
+Australian Toast with Marmalade,250,4.5,52.0,2.0,1.5,0.28,72,au,fsanz
+Australian Milo on Toast,285,9.5,47.5,5.5,2.5,0.35,100,au,fsanz
+Australian Capsicum Stuffed with Rice,165,5.5,25.0,5.0,2.5,0.42,200,au,fsanz
+Australian Zucchini Stuffed with Beef,195,13.0,10.5,11.0,2.0,0.48,200,au,fsanz
+Australian Eggplant Stuffed,185,9.5,17.5,9.0,4.5,0.45,200,au,fsanz
+Australian Mushroom Stuffed,175,8.5,12.5,10.5,2.5,0.45,200,au,fsanz
+Australian Baked Beans on Toast,215,9.5,37.5,2.0,5.5,0.65,250,au,fsanz
+Australian Beans and Eggs,225,13.5,22.5,8.0,5.0,0.62,300,au,fsanz
+Australian Tofu and Vegetables,155,9.5,13.5,7.5,3.0,0.38,300,au,fsanz
+Australian Tempeh Bowl,245,19.0,22.5,9.0,5.0,0.42,300,au,fsanz
+Australian Buddha Bowl,295,12.5,35.5,12.0,7.5,0.45,350,au,fsanz
+Australian Grain Bowl Chicken,335,25.5,32.5,11.5,5.5,0.52,350,au,fsanz
+Australian Grain Bowl Salmon,355,27.5,30.5,14.0,5.5,0.52,350,au,fsanz
+Australian Poke Bowl Tuna,295,22.5,32.5,7.5,4.5,0.65,350,au,fsanz
+Australian Poke Bowl Salmon,315,24.5,32.5,10.0,4.5,0.62,350,au,fsanz
+Australian Caesar Salad,195,10.5,9.5,13.5,1.5,0.55,200,au,fsanz
+Australian Niçoise Salad,195,14.5,12.5,9.5,3.0,0.55,250,au,fsanz
+Australian Greek Salad,145,5.0,9.5,10.5,2.5,0.45,200,au,fsanz
+Australian Caprese Salad,195,11.5,5.5,15.0,1.5,0.25,200,au,fsanz
+Australian Fattoush Salad,155,4.5,19.5,7.5,3.5,0.42,200,au,fsanz
+Australian Tabbouleh,105,3.5,16.0,3.5,3.5,0.25,150,au,fsanz
+Australian Waldorf Salad,185,3.5,17.5,11.5,2.5,0.22,150,au,fsanz
+Australian Coleslaw Creamy,155,1.5,11.5,11.0,2.5,0.38,100,au,fsanz
+Australian Coleslaw Vinaigrette,65,1.5,9.5,2.5,2.5,0.28,100,au,fsanz
+Australian Potato Salad Mustard,175,3.5,21.5,8.5,2.0,0.45,150,au,fsanz
+Australian Pasta Salad,225,7.5,34.5,7.0,2.5,0.38,200,au,fsanz
+Australian Roast Pumpkin Salad,135,4.5,17.0,5.5,3.5,0.18,200,au,fsanz
+Australian Beet Salad,95,3.0,16.0,2.5,3.5,0.22,150,au,fsanz
+Australian Kale Salad,155,5.5,14.5,9.0,4.5,0.25,150,au,fsanz
+Australian Quinoa Salad,165,6.5,25.5,5.0,4.0,0.22,200,au,fsanz
+Australian Edamame,121,11.9,8.9,5.2,5.2,0.006,100,au,fsanz
+Australian Broccolini Roasted,52,4.0,5.5,2.0,3.5,0.12,100,au,fsanz
+Australian Asparagus Grilled,24,2.8,4.5,0.3,2.5,0.003,100,au,fsanz
+Australian Brussels Sprouts Roasted,65,5.0,9.5,2.5,4.5,0.055,100,au,fsanz
+Australian Cauliflower Rice,25,2.0,5.0,0.3,2.5,0.03,150,au,fsanz
+Australian Vegetable Chips,380,4.5,55.0,16.0,7.0,0.42,40,au,fsanz
+Australian Kale Chips,320,12.5,30.5,18.5,8.5,0.35,30,au,fsanz
+Australian Roasted Chickpeas,380,14.5,52.5,10.5,9.5,0.52,30,au,fsanz
+Australian Roasted Broad Beans,320,22.0,44.0,4.5,15.0,0.010,30,au,fsanz
+Australian Edamame Beans Frozen,121,11.9,8.9,5.2,5.2,0.006,100,au,fsanz
+Australian Lupin Flakes,380,40.0,30.0,9.0,24.0,0.02,30,au,fsanz
+Australian Soybeans Cooked,173,16.6,9.9,9.0,6.0,0.001,100,au,fsanz
+Australian Broad Beans Frozen,88,7.5,13.5,0.5,6.5,0.002,100,au,fsanz
+Australian Snake Beans,35,2.5,6.5,0.2,2.8,0.003,100,au,fsanz
+Australian Bitter Melon,17,1.0,3.7,0.2,2.8,0.005,100,au,fsanz
+Australian Choko (Chayote),18,0.8,4.2,0.1,1.7,0.002,100,au,fsanz
+Australian Lotus Root,74,2.6,17.2,0.1,4.9,0.040,100,au,fsanz
+Australian Daikon Radish,18,0.6,4.1,0.1,1.6,0.021,100,au,fsanz
+Australian Water Chestnuts,97,1.4,23.9,0.1,3.0,0.014,100,au,fsanz
+Australian Bamboo Shoots Canned,20,1.8,3.5,0.2,1.2,0.009,100,au,fsanz
+Australian Bean Sprouts,30,3.1,5.9,0.2,1.8,0.006,100,au,fsanz
+Australian Wombok Cabbage,16,1.2,3.0,0.2,1.2,0.009,100,au,fsanz
+Australian Taro,112,1.5,26.5,0.2,4.1,0.011,100,au,fsanz
+Australian Yam,118,1.5,27.9,0.2,4.2,0.009,100,au,fsanz
+Australian Cassava,160,1.4,38.1,0.3,1.8,0.014,100,au,fsanz
+Australian Plantain Green,122,1.3,31.9,0.4,2.3,0.004,100,au,fsanz
+Australian Jackfruit Young,95,1.7,23.2,0.1,1.5,0.003,100,au,fsanz
+Australian Durian,147,1.5,27.1,5.3,3.8,0.002,100,au,fsanz
+Australian Lychee,66,0.8,16.5,0.4,1.3,0.001,80,au,fsanz
+Australian Longan,60,1.3,15.1,0.1,1.1,0.001,80,au,fsanz
+Australian Rambutan,75,0.9,20.4,0.2,0.9,0.011,40,au,fsanz
+Australian Starfruit,31,1.0,6.7,0.3,2.8,0.002,100,au,fsanz
+Australian Dragonfruit,60,1.2,13.0,0.4,3.0,0.039,200,au,fsanz
+Australian Guava,68,2.6,14.3,1.0,5.4,0.002,80,au,fsanz
+Australian Persimmon,70,0.6,18.6,0.2,3.6,0.001,90,au,fsanz
+Australian Quince,57,0.4,15.3,0.1,1.9,0.004,100,au,fsanz
+Australian Feijoa,49,1.2,11.0,0.4,6.0,0.003,80,au,fsanz
+Australian Tamarind,239,2.8,62.5,0.6,5.1,0.028,20,au,fsanz
+Australian Davidson Plum,43,0.5,9.5,0.8,2.6,0.001,50,au,fsanz
+Australian Kakadu Plum,63,1.5,12.5,0.5,7.5,0.002,30,au,fsanz
+Australian Finger Lime,37,0.9,8.5,0.4,2.8,0.001,30,au,fsanz
+Australian Bunya Nut,166,4.0,38.0,1.5,3.5,0.002,30,au,fsanz
+Australian Quandong,50,1.5,10.0,0.5,5.0,0.002,50,au,fsanz
+Australian Warrigal Greens,25,2.5,3.5,0.5,2.5,0.45,100,au,fsanz
+Australian Sea Purslane,20,1.5,3.0,0.3,1.5,0.28,100,au,fsanz
+Australian Samphire,16,1.2,2.0,0.3,1.2,1.20,50,au,fsanz
+Australian Lemon Myrtle,324,8.0,73.5,3.5,15.0,0.12,5,au,fsanz
+Australian Mountain Pepper Leaf,250,6.0,53.0,5.5,22.0,0.02,3,au,fsanz
+Australian Wattleseed,350,16.5,60.0,3.5,20.0,0.02,10,au,fsanz
+Australian Macadamia Oil,884,0.0,0.0,100.0,0.0,0.0,15,au,fsanz
+Australian Hemp Seed Oil,884,0.0,0.0,100.0,0.0,0.0,15,au,fsanz
+Australian Tea Tree Honey,304,0.3,82.4,0.0,0.0,0.005,15,au,fsanz
+Australian Blue Borage Honey,304,0.3,82.4,0.0,0.0,0.005,15,au,fsanz
+Australian Manuka Honey,304,0.4,82.5,0.0,0.0,0.004,15,au,fsanz
+Australian Jarrah Honey,304,0.3,82.4,0.0,0.0,0.005,15,au,fsanz
+Australian Red Gum Honey,304,0.3,82.3,0.0,0.0,0.005,15,au,fsanz
+Australian Ironbark Honey,305,0.3,82.5,0.0,0.0,0.005,15,au,fsanz
+Australian Leatherwood Honey,304,0.3,82.4,0.0,0.0,0.005,15,au,fsanz
+Australian Orange Blossom Honey,304,0.3,82.4,0.0,0.0,0.005,15,au,fsanz
+Australian Pure Honey Blend,302,0.3,82.0,0.0,0.0,0.005,15,au,fsanz
+Australian Beechworth Honey,304,0.3,82.4,0.0,0.0,0.005,15,au,fsanz
+Australian Dandelion Tea,0,0.0,0.0,0.0,0.0,0.003,250,au,fsanz
+Australian Peppermint Tea,0,0.0,0.0,0.0,0.0,0.005,250,au,fsanz
+Australian Chamomile Tea,0,0.0,0.0,0.0,0.0,0.004,250,au,fsanz
+Australian Ginger Tea,2,0.0,0.5,0.0,0.0,0.003,250,au,fsanz
+Australian Rooibos Tea,0,0.0,0.0,0.0,0.0,0.003,250,au,fsanz
+Australian Lemon Tea,3,0.0,0.8,0.0,0.0,0.003,250,au,fsanz
+Australian Hibiscus Tea,2,0.0,0.5,0.0,0.0,0.003,250,au,fsanz
+Australian Matcha Latte,60,2.5,7.5,2.0,0.0,0.06,250,au,fsanz
+Australian Turmeric Latte,95,3.5,11.5,3.5,0.5,0.08,250,au,fsanz
+Australian Chai Latte Full Fat,145,5.5,20.0,5.5,0.5,0.09,280,au,fsanz
+Australian Cold Brew Coffee,5,0.2,0.8,0.0,0.0,0.01,350,au,fsanz
+Australian Nitro Cold Brew,8,0.3,1.2,0.0,0.0,0.01,350,au,fsanz
+Australian Batch Brew Coffee,5,0.2,0.8,0.0,0.0,0.01,300,au,fsanz
+Australian Macchiato,18,0.8,1.5,0.8,0.0,0.02,45,au,fsanz
+Australian Cortado,55,3.5,5.0,2.5,0.0,0.04,90,au,fsanz
+Australian Piccolo Latte,55,3.5,5.0,2.5,0.0,0.04,90,au,fsanz
+Australian Cold Drip Coffee,5,0.2,0.8,0.0,0.0,0.01,200,au,fsanz
+Australian Bulletproof Coffee,220,0.3,0.3,25.0,0.0,0.02,350,au,fsanz
+Australian Beer Pale Ale,52,0.5,4.2,0.0,0.0,0.006,330,au,fsanz
+Australian Beer IPA,64,0.6,6.2,0.0,0.0,0.007,330,au,fsanz
+Australian Beer Stout,60,0.5,5.0,0.0,0.0,0.006,330,au,fsanz
+Australian Beer Wheat,48,0.5,3.8,0.0,0.0,0.005,330,au,fsanz
+Australian Cider Pear,46,0.2,5.0,0.0,0.0,0.003,330,au,fsanz
+Australian Cider Apple,45,0.2,4.8,0.0,0.0,0.002,330,au,fsanz
+Australian Wine Rosé,82,0.1,2.5,0.0,0.0,0.006,150,au,fsanz
+Australian Wine Dessert,150,0.2,12.0,0.0,0.0,0.005,75,au,fsanz
+Australian Wine Sparkling,80,0.3,1.4,0.0,0.0,0.005,120,au,fsanz
+Australian Spirits Rum,230,0.0,0.0,0.0,0.0,0.001,30,au,fsanz
+Australian Spirits Gin,220,0.0,0.0,0.0,0.0,0.001,30,au,fsanz
+Australian Spirits Brandy,235,0.0,0.0,0.0,0.0,0.001,30,au,fsanz
+Australian Spirits Tequila,220,0.0,0.0,0.0,0.0,0.001,30,au,fsanz
+Australian Pre-Mixed RTD,145,0.0,18.5,0.0,0.0,0.03,275,au,fsanz
+Australian Kombucha,20,0.2,4.5,0.0,0.0,0.01,250,au,fsanz
+Australian Kefir,65,3.5,4.8,3.5,0.0,0.05,200,au,fsanz
+Australian Coconut Water,19,0.7,4.5,0.2,0.0,0.01,250,au,fsanz
+Australian Electrolyte Drink,10,0.0,2.5,0.0,0.0,0.05,500,au,fsanz
+Australian Protein Water,35,8.5,0.5,0.0,0.0,0.08,500,au,fsanz
+Australian BCAA Drink,25,5.0,2.5,0.0,0.0,0.08,500,au,fsanz
+Australian Pre-Workout Drink,35,0.5,7.5,0.0,0.0,0.10,500,au,fsanz
+Australian Creatine Monohydrate,0,0.0,0.0,0.0,0.0,0.01,5,au,fsanz
+Australian Collagen Peptides,38,9.5,0.0,0.0,0.0,0.04,10,au,fsanz
+Australian Greens Powder,55,3.5,8.5,0.5,3.5,0.05,10,au,fsanz
+Australian Protein Powder Pea,365,23.5,35.0,7.5,5.5,0.22,35,au,fsanz
+Australian Protein Powder Rice,380,78.5,7.0,4.5,2.0,0.05,30,au,fsanz
+Australian Protein Powder Hemp,380,31.5,30.0,12.5,9.5,0.02,30,au,fsanz
+Australian Protein Powder Casein,375,78.5,6.5,4.0,0.5,0.18,30,au,fsanz
+Australian Pre-Workout Powder,45,1.0,9.0,0.5,0.0,0.08,15,au,fsanz
+Australian Mass Gainer,395,30.0,55.0,8.0,2.5,0.22,100,au,fsanz
+Australian Meal Replacement Shake,205,20.5,22.5,5.0,3.5,0.30,55,au,fsanz
+Australian Collagen Bar,320,17.5,35.0,11.5,3.0,0.22,50,au,fsanz
+Australian Quinoa Puffs,388,13.5,72.0,5.0,3.5,0.02,30,au,fsanz
+Australian Puffed Amaranth,388,14.8,65.0,7.0,4.0,0.01,30,au,fsanz
+Australian Buckwheat Groats,343,13.3,71.5,3.4,10.0,0.001,50,au,fsanz
+Australian Millet,378,11.0,72.8,4.2,8.5,0.005,50,au,fsanz
+Australian Sorghum,329,11.3,72.1,3.5,6.3,0.006,50,au,fsanz
+Australian Freekeh,354,12.8,71.3,2.7,8.5,0.004,50,au,fsanz
+Australian Farro,340,14.0,67.8,2.4,7.0,0.004,50,au,fsanz
+Australian Spelt,338,14.6,70.0,2.4,10.7,0.002,50,au,fsanz
+Australian Barley Pearl Cooked,123,2.3,28.2,0.4,3.8,0.003,150,au,fsanz
+Australian Rolled Barley,354,12.5,73.5,2.1,17.3,0.006,45,au,fsanz
+Australian Wheat Bran,216,15.6,64.5,4.3,42.8,0.002,10,au,fsanz
+Australian Wheat Berries,339,13.7,71.1,2.5,12.2,0.002,50,au,fsanz
+Australian Oat Bran,246,17.3,66.2,7.0,15.4,0.002,15,au,fsanz
+Australian Polenta Dry,370,8.0,79.5,3.6,7.3,0.002,50,au,fsanz
+Australian Polenta Cooked,70,1.5,15.0,0.7,1.4,0.001,200,au,fsanz
+Australian Risoni/Orzo,351,12.5,72.0,1.8,3.0,0.002,80,au,fsanz
+Australian Couscous Dry,376,12.8,77.5,0.6,2.0,0.010,50,au,fsanz
+Australian Couscous Cooked,112,3.8,23.2,0.2,0.6,0.003,180,au,fsanz
+Australian Bulgur Wheat,342,12.3,75.9,1.3,18.3,0.017,50,au,fsanz
+Australian Amaranth Grain,371,14.0,65.3,7.0,6.7,0.004,50,au,fsanz
+Australian Arrowroot Starch,357,0.3,88.2,0.1,0.0,0.001,15,au,fsanz
+Australian Tapioca Pearls,358,0.2,89.0,0.0,0.0,0.001,30,au,fsanz
+Australian Wonton Wrappers,300,9.5,60.0,1.5,2.0,0.55,50,au,fsanz
+Australian Dumpling Wrappers,295,9.0,60.5,1.5,2.0,0.50,50,au,fsanz
+Australian Spring Roll Wrappers,310,8.0,66.5,1.5,1.5,0.42,30,au,fsanz
+Australian Rice Paper,335,7.0,83.5,0.5,1.0,0.02,22,au,fsanz
+Australian Kelp Noodles Cooked,6,0.5,1.5,0.0,0.5,0.045,100,au,fsanz
+Australian Shirataki Noodles,8,0.2,1.5,0.1,2.0,0.003,200,au,fsanz
+Australian Glass Noodles Dry,352,0.2,87.0,0.5,1.8,0.018,50,au,fsanz
+Australian Soba Noodles Dry,350,14.2,70.5,1.4,2.9,0.490,80,au,fsanz
+Australian Udon Noodles Fresh,195,6.0,40.5,0.8,2.5,0.55,200,au,fsanz
+Australian Rice Noodles Dry,366,7.0,84.0,0.6,2.2,0.012,80,au,fsanz
+Australian Hokkien Noodles,165,5.5,34.5,0.5,2.0,0.42,180,au,fsanz
+Australian Egg Noodles Dry,385,13.5,74.5,3.5,2.5,0.42,80,au,fsanz
+Australian Vermicelli Rice Dry,364,6.0,80.5,0.6,1.5,0.008,50,au,fsanz
+Australian Japanese Breadcrumbs (Panko),395,14.0,80.0,4.5,3.5,0.55,30,au,fsanz
+Australian Breadcrumbs Traditional,375,13.0,72.5,4.0,3.5,0.65,30,au,fsanz
+Australian Croutons,405,9.5,63.5,14.0,3.5,0.75,30,au,fsanz
+Australian Pita Chips,455,8.5,68.5,16.5,3.5,0.75,30,au,fsanz
+Australian Lavosh Crackers,415,9.0,72.0,10.0,3.0,0.62,30,au,fsanz
+Australian Water Crackers,380,9.0,76.5,2.5,2.5,0.65,25,au,fsanz
+Australian Melba Toast,370,11.5,78.5,2.5,3.0,0.52,25,au,fsanz
+Australian Crispbread Dark,335,10.0,70.5,2.0,12.5,0.02,25,au,fsanz
+Australian Oat Cakes,425,10.5,63.0,17.5,7.5,0.40,25,au,fsanz
+Australian Matzo,393,11.5,83.0,1.2,2.8,0.55,28,au,fsanz
+Australian Seed Crackers,490,15.5,40.5,31.0,9.5,0.42,30,au,fsanz
+Australian Cheese Crackers,498,9.5,58.0,25.5,2.0,0.82,25,au,fsanz
+Australian Chilli Crackers,465,9.0,65.5,19.5,3.5,1.05,30,au,fsanz
+Australian Rosemary Crackers,455,9.5,62.5,20.0,3.0,0.52,30,au,fsanz
+Australian Gluten Free Bread,230,5.5,45.5,4.0,3.0,0.55,36,au,fsanz
+Australian Gluten Free Pasta Dry,365,5.5,82.5,2.0,5.5,0.002,80,au,fsanz
+Australian Gluten Free Pizza Base,245,6.0,50.0,3.0,3.5,0.42,100,au,fsanz
+Australian Gluten Free Flour Blend,355,4.5,80.5,1.5,5.0,0.010,30,au,fsanz
+Australian Almond Flour,580,22.5,19.5,51.5,11.0,0.002,30,au,fsanz
+Australian Coconut Flour,400,18.0,60.0,15.0,35.0,0.038,30,au,fsanz
+Australian Chickpea Flour,387,22.4,57.8,6.2,10.8,0.064,30,au,fsanz
+Australian Tapioca Flour,358,0.2,88.7,0.0,0.0,0.001,15,au,fsanz
+Australian Potato Starch,357,0.1,88.5,0.1,3.5,0.001,15,au,fsanz
+Australian Arrowroot Flour,357,0.3,88.2,0.1,0.0,0.001,15,au,fsanz
+Australian Brown Rice Flour,361,7.2,76.5,2.8,3.5,0.001,30,au,fsanz
+Australian White Rice Flour,366,6.0,80.5,1.4,2.4,0.001,30,au,fsanz
+Australian Soy Flour,370,37.0,29.5,17.5,10.5,0.008,30,au,fsanz
+Australian Rye Flour,335,9.5,72.0,1.7,14.0,0.001,30,au,fsanz
+Australian Spelt Flour,388,13.5,77.5,2.4,10.5,0.001,30,au,fsanz
+Australian Rolled Spelt,350,14.5,73.0,2.5,11.5,0.002,45,au,fsanz
+Australian Buckwheat Flour,335,12.6,70.6,3.1,10.0,0.001,30,au,fsanz
+Australian Teff Grain,367,13.3,73.1,2.4,8.0,0.012,50,au,fsanz
+Australian Lupin Flour,340,40.0,29.5,7.5,34.5,0.010,30,au,fsanz
+Australian Besan (Chickpea Flour),387,22.4,57.8,6.2,10.8,0.064,30,au,fsanz
+Australian Masa Harina,365,8.5,76.5,3.5,7.5,0.008,30,au,fsanz
+Australian Popping Corn Kernels,375,10.5,77.0,4.5,14.5,0.007,30,au,fsanz
+Australian Powdered Peanut Butter,362,21.5,24.5,12.5,9.0,0.55,30,au,fsanz
+Australian Almond Meal,580,22.5,19.5,51.5,11.0,0.002,30,au,fsanz
+Australian Desiccated Coconut,665,6.5,23.5,64.5,15.5,0.038,30,au,fsanz
+Australian Shredded Coconut,616,5.5,24.5,61.0,8.5,0.010,30,au,fsanz
+Australian Flaked Coconut,660,6.3,23.0,65.0,15.0,0.030,30,au,fsanz
+Australian Coconut Flour Toasted,412,18.5,62.0,16.0,35.0,0.038,30,au,fsanz
+Australian Cacao Powder Raw,229,19.5,13.5,13.5,33.0,0.01,20,au,fsanz
+Australian Cacao Nibs,480,14.0,34.0,43.5,18.5,0.001,20,au,fsanz
+Australian Carob Powder,222,4.8,92.0,0.7,40.0,0.035,20,au,fsanz
+Australian Maca Powder,325,14.0,71.5,2.2,8.5,0.019,10,au,fsanz
+Australian Beetroot Powder,340,9.5,67.0,2.0,12.5,0.10,10,au,fsanz
+Australian Moringa Powder,329,27.0,38.5,5.5,19.5,0.09,5,au,fsanz
+Australian Barley Grass Powder,278,18.5,50.5,4.5,21.0,0.02,5,au,fsanz
+Australian Wheat Grass Powder,278,18.0,50.5,4.5,21.0,0.02,5,au,fsanz
+Australian Ashwagandha Powder,249,4.0,49.5,0.3,32.5,0.012,5,au,fsanz
+Australian Chlorella Powder,415,58.0,23.0,9.0,0.0,0.042,3,au,fsanz
+Australian Pea Protein Powder,365,23.5,35.0,7.5,5.5,0.22,35,au,fsanz
+Australian Whey Protein Isolate,374,91.0,3.5,1.0,0.0,0.11,30,au,fsanz
+Australian Whey Protein Concentrate,395,80.0,6.5,4.5,0.0,0.15,30,au,fsanz
+Australian Soy Protein Isolate,338,90.0,2.5,0.5,0.0,1.08,30,au,fsanz
+Australian Collagen Protein,380,90.0,0.5,0.5,0.0,0.04,10,au,fsanz
+Australian Bone Broth Powder,380,88.0,3.0,2.0,0.0,0.35,12,au,fsanz
+Australian Beef Bone Broth,25,5.0,1.0,0.5,0.0,0.25,250,au,fsanz
+Australian Chicken Bone Broth,22,4.5,0.5,0.5,0.0,0.25,250,au,fsanz
+Australian Vegetable Stock,8,0.5,1.5,0.1,0.2,0.25,250,au,fsanz
+Australian Beef Stock,18,2.5,1.5,0.5,0.0,0.35,250,au,fsanz
+Australian Chicken Stock,20,2.5,1.5,0.5,0.0,0.35,250,au,fsanz
+Australian Fish Stock,12,2.0,0.5,0.3,0.0,0.28,250,au,fsanz
+Australian Miso Soup,32,2.5,3.5,0.8,0.5,0.85,250,au,fsanz
+Australian Dashi Stock,8,0.5,1.2,0.1,0.0,0.30,250,au,fsanz
+Australian Tom Yum Stock,22,1.0,3.5,0.5,0.5,0.88,250,au,fsanz

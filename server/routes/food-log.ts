@@ -62,6 +62,10 @@ router.get("/api/food-search", async (req, res) => {
     if (!regionBoost) {
       regionBoost = detectRegionFromAcceptLanguage(req.headers["accept-language"]);
     }
+    // Final fallback: default to "nz" to boost NZ results for undetectable regions
+    if (!regionBoost) {
+      regionBoost = "nz";
+    }
 
     // 1. Search canonical foods DB first
     const canonicalHits = await storage.searchCanonicalFoods(q, 10, regionBoost);

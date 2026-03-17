@@ -1,0 +1,684 @@
+name,calories_100g,protein_100g,carbs_100g,fat_100g,fibre_100g,sodium_100g,serving_grams,region,source
+Weet-Bix,363,10.5,67.2,2.2,9.9,0.27,30,nz,nzfcd
+Marmite NZ,260,39.0,17.8,1.1,1.4,3.5,5,nz,nzfcd
+Vogel's Original Mixed Grain Bread,235,9.8,40.6,3.0,5.2,0.44,40,nz,nzfcd
+Anchor Butter,741,0.5,0.0,82.0,0.0,0.67,10,nz,nzfcd
+Anchor Trim Milk,37,3.6,4.9,0.1,0.0,0.04,250,nz,nzfcd
+Anchor Full Fat Milk,62,3.3,4.7,3.5,0.0,0.04,250,nz,nzfcd
+Mainland Edam Cheese,310,28.0,0.5,21.5,0.0,0.55,30,nz,nzfcd
+Mainland Cheddar Cheese,410,25.4,0.1,34.0,0.0,0.62,30,nz,nzfcd
+Lewis Road Creamery Butter,744,0.5,0.0,82.5,0.0,0.01,10,nz,nzfcd
+Tararua Butter,741,0.5,0.0,82.0,0.0,0.67,10,nz,nzfcd
+Sanitarium Up&Go,88,5.4,13.1,1.8,0.8,0.08,250,nz,nzfcd
+Vogel's Soy & Linseed Bread,224,9.2,36.7,4.3,5.7,0.46,40,nz,nzfcd
+Vogel's Honey Oat Bread,238,9.3,43.0,2.9,4.0,0.42,40,nz,nzfcd
+Tip Top Bread White,247,8.9,47.5,2.5,2.4,0.45,36,nz,nzfcd
+Tip Top Bread Wholegrain,234,9.6,42.3,2.8,5.1,0.46,36,nz,nzfcd
+Pams White Bread,246,8.5,48.0,2.2,2.5,0.46,36,nz,nzfcd
+Countdown White Bread,248,8.7,47.8,2.4,2.3,0.45,36,nz,nzfcd
+Farrah's Wraps Original,294,8.5,52.2,5.3,3.5,0.51,50,nz,nzfcd
+Mission Deli Wraps,295,8.4,52.5,5.1,3.3,0.50,50,nz,nzfcd
+New World Chicken Breast Skinless,110,23.2,0.0,1.5,0.0,0.06,100,nz,nzfcd
+NZ Beef Mince (Regular),215,18.5,0.0,15.2,0.0,0.07,100,nz,nzfcd
+NZ Beef Mince (Lean),175,20.1,0.0,10.5,0.0,0.07,100,nz,nzfcd
+NZ Lamb Leg,195,19.8,0.0,12.8,0.0,0.07,100,nz,nzfcd
+NZ Lamb Mince,210,19.5,0.0,14.5,0.0,0.07,100,nz,nzfcd
+NZ Pork Loin Chops,185,22.5,0.0,10.8,0.0,0.06,120,nz,nzfcd
+NZ Venison Steak,110,24.5,0.0,1.5,0.0,0.05,100,nz,nzfcd
+NZ Salmon Fillet,208,20.5,0.0,13.8,0.0,0.05,100,nz,nzfcd
+NZ King Salmon,250,20.0,0.0,18.8,0.0,0.05,100,nz,nzfcd
+NZ Hoki Fillet,80,18.5,0.0,0.5,0.0,0.10,100,nz,nzfcd
+NZ Snapper Fillet,90,20.2,0.0,1.0,0.0,0.08,100,nz,nzfcd
+NZ Tarakihi Fillet,87,19.8,0.0,0.8,0.0,0.09,100,nz,nzfcd
+NZ Terakihi,87,19.8,0.0,0.8,0.0,0.09,100,nz,nzfcd
+NZ Whitebait,100,16.8,1.0,3.2,0.0,0.18,50,nz,nzfcd
+NZ Crayfish (Cooked),98,21.0,0.0,1.2,0.0,0.25,100,nz,nzfcd
+NZ Paua (Abalone),90,17.5,2.8,0.8,0.0,0.35,100,nz,nzfcd
+NZ Bluff Oysters,55,10.0,2.0,1.2,0.0,0.40,12,nz,nzfcd
+NZ Greenshell Mussels,86,11.9,3.7,2.2,0.0,0.35,100,nz,nzfcd
+Egg New Zealand Chicken,155,12.5,0.4,11.5,0.0,0.14,60,nz,nzfcd
+Anchor Greek Style Yoghurt,100,10.0,3.8,5.0,0.0,0.05,150,nz,nzfcd
+Anchor Natural Yoghurt,60,4.5,6.5,1.8,0.0,0.07,150,nz,nzfcd
+Yoplait Greek Yoghurt,130,5.5,14.0,5.2,0.0,0.07,150,nz,nzfcd
+Kiwifruit Green,61,1.1,14.7,0.5,3.0,0.003,120,nz,nzfcd
+Kiwifruit Gold (Zespri),63,1.1,15.0,0.4,1.4,0.002,120,nz,nzfcd
+Feijoa,49,1.2,11.0,0.4,6.0,0.003,80,nz,nzfcd
+Tamarillo,31,1.5,5.9,0.6,3.3,0.004,80,nz,nzfcd
+NZ Apple Royal Gala,52,0.3,13.8,0.1,2.4,0.001,150,nz,nzfcd
+NZ Apple Braeburn,52,0.3,13.5,0.2,2.4,0.001,150,nz,nzfcd
+NZ Pears,57,0.4,15.2,0.1,3.1,0.001,150,nz,nzfcd
+NZ Nectarines,44,1.1,10.5,0.3,1.7,0.001,120,nz,nzfcd
+NZ Blueberries,57,0.7,14.5,0.3,2.4,0.001,100,nz,nzfcd
+NZ Boysenberries,43,1.0,9.6,0.3,5.1,0.001,100,nz,nzfcd
+NZ Strawberries,32,0.7,7.7,0.3,2.0,0.001,100,nz,nzfcd
+Watercress (NZ),22,2.3,1.3,0.1,0.5,0.041,50,nz,nzfcd
+NZ Kumara (Orange),105,2.0,24.0,0.1,2.5,0.04,100,nz,nzfcd
+NZ Kumara (Red),93,1.7,21.5,0.1,2.3,0.04,100,nz,nzfcd
+NZ Kumara (Gold),99,1.8,23.0,0.1,2.5,0.04,100,nz,nzfcd
+NZ Potatoes (Agria),77,1.9,17.5,0.1,2.5,0.004,150,nz,nzfcd
+NZ Potatoes (Ilam Hardy),73,2.0,16.5,0.1,2.2,0.005,150,nz,nzfcd
+Silver Beet (NZ),18,1.8,2.2,0.2,1.5,0.18,100,nz,nzfcd
+Pumpkin Buttercup (NZ),47,1.4,9.9,0.2,3.2,0.004,150,nz,nzfcd
+NZ Courgette (Zucchini),17,1.5,2.0,0.2,1.2,0.005,100,nz,nzfcd
+NZ Broccoli,34,3.0,5.0,0.4,2.6,0.03,100,nz,nzfcd
+NZ Cauliflower,25,1.9,4.0,0.3,2.0,0.03,100,nz,nzfcd
+NZ Cabbage,25,1.4,4.8,0.2,2.5,0.02,100,nz,nzfcd
+NZ Spinach,23,2.9,1.4,0.4,2.2,0.08,100,nz,nzfcd
+NZ Carrot,41,0.9,9.6,0.2,2.8,0.07,100,nz,nzfcd
+NZ Onion,40,1.1,9.3,0.1,1.7,0.004,100,nz,nzfcd
+NZ Leeks,61,1.5,14.2,0.3,1.8,0.01,100,nz,nzfcd
+NZ Tomato,18,0.9,3.4,0.2,1.2,0.005,120,nz,nzfcd
+NZ Lettuce,15,1.4,2.2,0.2,1.8,0.01,100,nz,nzfcd
+NZ Celery,16,0.7,3.0,0.2,1.6,0.08,100,nz,nzfcd
+NZ Cucumber,16,0.7,3.0,0.2,0.6,0.002,100,nz,nzfcd
+NZ Avocado,160,2.0,0.9,16.0,6.7,0.007,100,nz,nzfcd
+Edmonds Standard Self Raising Flour,345,9.2,71.2,1.3,2.7,0.03,30,nz,nzfcd
+Edmonds Baking Powder,210,2.2,46.5,0.0,0.0,11.5,5,nz,nzfcd
+Chelsea White Sugar,400,0.0,100.0,0.0,0.0,0.001,5,nz,nzfcd
+Chelsea Raw Sugar,389,0.0,97.2,0.0,0.0,0.001,5,nz,nzfcd
+Chelsea Icing Sugar,385,0.0,97.0,0.0,0.0,0.001,5,nz,nzfcd
+Countdown Rolled Oats,374,12.0,60.5,7.1,10.4,0.006,45,nz,nzfcd
+Hubbards Oats,372,12.5,60.0,7.2,10.8,0.006,45,nz,nzfcd
+Sanitarium Weet-Bix Multi-Grain,360,10.8,66.5,2.3,10.5,0.25,30,nz,nzfcd
+Sanitarium Granola,450,8.5,60.5,18.5,7.5,0.15,45,nz,nzfcd
+Hubbards Clusters Cereal,380,6.0,74.0,6.5,4.0,0.22,45,nz,nzfcd
+Hubbards Natural Muesli,382,11.5,60.0,8.3,6.5,0.05,45,nz,nzfcd
+Countdown Peanut Butter Smooth,606,25.0,15.0,49.0,5.0,0.35,20,nz,nzfcd
+Pic's Peanut Butter Smooth,608,26.0,13.5,50.5,5.5,0.008,20,nz,nzfcd
+Pic's Peanut Butter Crunchy,610,26.5,13.0,51.0,5.8,0.008,20,nz,nzfcd
+Fix & Fogg Peanut Butter,612,26.0,13.8,51.5,5.5,0.12,20,nz,nzfcd
+Proper Crisps Original Sea Salt,503,5.8,53.5,29.5,5.0,0.35,28,nz,nzfcd
+Griffin's Toffee Pops,502,5.5,63.0,23.5,1.8,0.25,20,nz,nzfcd
+Griffin's Chocolate Chippie,508,6.0,61.0,25.0,2.0,0.40,25,nz,nzfcd
+Bluebird Chips Original,527,5.8,55.5,30.5,4.0,0.48,40,nz,nzfcd
+Bluebird Sour Cream Chips,530,6.0,56.0,31.0,3.8,0.55,40,nz,nzfcd
+Eta Chips Original,520,5.5,55.0,30.0,4.2,0.45,40,nz,nzfcd
+Whittaker's Dark Ghana Chocolate,540,7.0,57.5,30.5,5.0,0.03,20,nz,nzfcd
+Whittaker's Milk Chocolate,540,8.0,59.0,30.0,1.5,0.08,20,nz,nzfcd
+Whittaker's Peanut Slab,510,13.0,54.0,27.5,3.5,0.15,60,nz,nzfcd
+Cadbury Dairy Milk NZ,540,8.0,59.0,30.5,0.5,0.12,20,nz,nzfcd
+Cadbury Top Deck,540,7.5,59.5,30.5,0.5,0.10,20,nz,nzfcd
+NZ Honey (Manuka),304,0.4,82.4,0.0,0.0,0.004,15,nz,nzfcd
+NZ Honey (Clover),304,0.3,82.5,0.0,0.0,0.003,15,nz,nzfcd
+Comvita Manuka Honey UMF10+,304,0.4,82.5,0.0,0.0,0.004,15,nz,nzfcd
+Eta Peanut Butter,605,25.5,14.5,49.5,5.2,0.38,20,nz,nzfcd
+Meadowfresh Trim Milk,37,3.6,4.9,0.1,0.0,0.04,250,nz,nzfcd
+Meadowfresh Full Fat Milk,62,3.3,4.7,3.5,0.0,0.04,250,nz,nzfcd
+Jersey Girl Milk,68,3.4,4.8,4.0,0.0,0.04,250,nz,nzfcd
+Kapiti Ice Cream Vanilla,215,3.5,22.0,13.0,0.0,0.08,100,nz,nzfcd
+Tip Top Trumpet Vanilla,228,3.2,26.0,12.5,0.3,0.09,80,nz,nzfcd
+Tip Top Goody Goody Gum Drops Ice Cream,203,3.5,24.0,10.5,0.2,0.08,100,nz,nzfcd
+Meadowfresh Greek Yoghurt,100,10.0,3.8,5.0,0.0,0.05,150,nz,nzfcd
+Clearwater Organic Whole Milk,65,3.4,4.8,3.8,0.0,0.04,250,nz,nzfcd
+NZ Long Life Milk Full Fat,62,3.3,4.7,3.5,0.0,0.04,250,nz,nzfcd
+Freedom Farms Bacon,290,15.0,1.0,25.0,0.0,1.6,60,nz,nzfcd
+NZ Free Range Eggs,155,12.5,0.4,11.5,0.0,0.14,60,nz,nzfcd
+Countdown Frozen Peas,69,5.2,11.5,0.4,5.5,0.004,100,nz,nzfcd
+Birds Eye Frozen Peas,66,5.0,11.3,0.4,5.2,0.004,100,nz,nzfcd
+McCain Super Fries,163,2.8,25.0,5.5,2.2,0.28,100,nz,nzfcd
+Watties Baked Beans in Tomato Sauce,80,4.8,12.8,0.3,4.8,0.48,220,nz,nzfcd
+Watties Creamed Corn,69,1.8,15.0,0.4,2.0,0.25,300,nz,nzfcd
+Watties Tomato Sauce NZ,110,1.5,25.5,0.2,0.5,1.2,15,nz,nzfcd
+Maggi Chicken Noodles,440,10.5,66.0,14.5,2.5,1.8,85,nz,nzfcd
+Maggi 2 Minute Noodles Chicken,441,10.5,65.5,14.8,2.5,1.9,85,nz,nzfcd
+Pams Canned Tuna in Spring Water,120,27.0,0.0,1.5,0.0,0.35,95,nz,nzfcd
+Gregg's Instant Coffee,0,0.0,0.0,0.0,0.0,0.01,200,nz,nzfcd
+L&P Lemon & Paeroa,43,0.0,10.5,0.0,0.0,0.01,355,nz,nzfcd
+Pump Still Water,0,0.0,0.0,0.0,0.0,0.02,750,nz,nzfcd
+Powerade Mountain Blast,27,0.0,6.6,0.0,0.0,0.05,600,nz,nzfcd
+Coca Cola NZ,42,0.0,10.6,0.0,0.0,0.01,355,nz,nzfcd
+Sprite NZ,43,0.0,10.9,0.0,0.0,0.01,355,nz,nzfcd
+Ribena NZ Blackcurrant,60,0.3,14.5,0.1,0.0,0.03,250,nz,nzfcd
+Sanitarium Light Soy Milk,33,2.7,2.5,1.5,0.0,0.1,250,nz,nzfcd
+Sanitarium So Good Oat Milk,43,1.0,7.5,0.9,0.5,0.08,250,nz,nzfcd
+Anchor Cream Cheese,250,6.0,3.5,24.0,0.0,0.32,30,nz,nzfcd
+Puhoi Valley Cream Cheese,252,6.0,3.5,24.5,0.0,0.32,30,nz,nzfcd
+Puhoi Valley Brie,330,18.0,0.5,29.0,0.0,0.51,30,nz,nzfcd
+Kapiti Camembert,296,19.0,0.5,24.5,0.0,0.53,30,nz,nzfcd
+NZ White Rice Cooked,144,2.7,31.8,0.3,0.4,0.001,200,nz,nzfcd
+NZ Brown Rice Cooked,112,2.6,23.0,0.9,1.8,0.001,200,nz,nzfcd
+Delmaine Pasta (Cooked),170,6.0,34.0,1.0,2.0,0.001,180,nz,nzfcd
+Pams Dry Pasta,357,12.5,71.5,1.8,3.0,0.002,80,nz,nzfcd
+Uncle Ben's Rice,350,7.0,77.5,0.5,0.5,0.005,50,nz,nzfcd
+NZ Tofu (Firm),145,14.5,3.5,8.0,0.3,0.02,100,nz,nzfcd
+NZ Tofu (Silken),62,5.2,2.8,2.0,0.1,0.02,100,nz,nzfcd
+Sanitarium WHAM Plant-Based,165,12.0,2.8,11.5,0.5,1.1,100,nz,nzfcd
+Pams Chickpeas Canned,110,7.0,18.0,1.5,5.5,0.24,120,nz,nzfcd
+Pams Lentils Canned,90,6.5,14.0,0.5,4.5,0.23,120,nz,nzfcd
+Pams Kidney Beans Canned,90,6.5,14.5,0.5,5.5,0.27,120,nz,nzfcd
+Countdown Olive Oil,881,0.0,0.0,100.0,0.0,0.0,15,nz,nzfcd
+Davis Gelatine,355,88.0,0.0,0.5,0.0,0.05,10,nz,nzfcd
+Edmonds Baking Soda,0,0.0,0.0,0.0,0.0,27.0,5,nz,nzfcd
+Iodised Table Salt NZ,0,0.0,0.0,0.0,0.0,38.0,5,nz,nzfcd
+Gregg's Ground Cinnamon,260,4.0,56.0,3.5,37.0,0.01,2,nz,nzfcd
+Gregg's Mixed Spice,270,8.0,55.0,7.0,23.0,0.05,2,nz,nzfcd
+Eta Worcestershire Sauce,78,2.5,18.0,0.1,0.0,2.5,10,nz,nzfcd
+Pam's White Wine Vinegar,12,0.2,2.5,0.0,0.0,0.01,15,nz,nzfcd
+Olivani Spread,725,0.5,0.5,80.0,0.0,0.55,10,nz,nzfcd
+Gold'n Canola Oil,881,0.0,0.0,100.0,0.0,0.0,15,nz,nzfcd
+Delmaine Extra Virgin Olive Oil,885,0.0,0.0,100.0,0.0,0.0,15,nz,nzfcd
+Countdown Wholegrain Mustard,100,4.5,8.0,5.5,4.0,2.2,10,nz,nzfcd
+Watties Tomato Paste,90,5.0,17.5,0.5,4.5,0.04,30,nz,nzfcd
+Watties Diced Tomatoes Canned,24,1.2,4.0,0.2,1.2,0.25,400,nz,nzfcd
+Pams Coconut Cream,315,2.8,6.0,33.0,0.5,0.02,400,nz,nzfcd
+Pams Coconut Milk,175,1.6,3.5,18.0,0.5,0.02,400,nz,nzfcd
+Sealord Tuna Chunks in Brine,88,20.5,0.0,0.7,0.0,0.38,95,nz,nzfcd
+Sealord Tuna Chunks in Oil,215,22.0,0.0,14.0,0.0,0.38,95,nz,nzfcd
+Sealord Salmon in Spring Water,135,22.0,0.0,5.2,0.0,0.35,95,nz,nzfcd
+Open Country Whey Protein,380,80.0,6.5,4.5,0.0,0.15,30,nz,nzfcd
+Radix Nutrition Protein,395,30.0,40.0,8.0,5.0,0.20,80,nz,nzfcd
+Benchmark Brown Rice Protein,360,78.0,6.0,4.0,2.0,0.05,30,nz,nzfcd
+Countdown Almonds,609,22.0,5.7,54.0,12.5,0.001,30,nz,nzfcd
+Countdown Walnuts,654,15.2,5.0,65.2,6.7,0.001,30,nz,nzfcd
+Countdown Cashews,574,15.3,27.5,46.4,3.3,0.012,30,nz,nzfcd
+Countdown Pumpkin Seeds,560,30.0,10.7,49.0,6.0,0.009,30,nz,nzfcd
+Countdown Sunflower Seeds,584,20.8,20.0,51.5,8.6,0.002,30,nz,nzfcd
+Countdown Chia Seeds,486,17.0,42.1,30.7,34.4,0.016,15,nz,nzfcd
+Countdown Flaxseeds,534,18.3,28.9,42.2,27.3,0.030,15,nz,nzfcd
+Countdown Mixed Nuts,607,15.0,15.5,54.0,5.5,0.080,30,nz,nzfcd
+Pams Dried Apricots,250,3.4,65.0,0.3,8.0,0.003,30,nz,nzfcd
+Pams Sultanas,295,2.5,76.0,0.3,4.5,0.011,30,nz,nzfcd
+Pams Dates,282,2.5,75.0,0.2,8.0,0.002,30,nz,nzfcd
+Sanitarium Nuttelex,670,0.5,0.5,74.0,0.0,0.47,10,nz,nzfcd
+Alpine Organic Milk,62,3.3,4.7,3.5,0.0,0.04,250,nz,nzfcd
+Fonterra Cream,355,2.5,2.8,38.0,0.0,0.03,20,nz,nzfcd
+Lewis Road Cream,354,2.6,2.8,37.5,0.0,0.03,20,nz,nzfcd
+Anchor Sour Cream,210,3.0,3.5,21.0,0.0,0.04,30,nz,nzfcd
+Yoplait Activ Yoghurt,70,5.5,9.5,0.5,0.0,0.10,150,nz,nzfcd
+Vitasoy Oat Milk,44,1.0,7.5,1.1,0.5,0.07,250,nz,nzfcd
+Vitasoy Almond Milk,25,1.0,1.5,2.0,0.5,0.06,250,nz,nzfcd
+Sanitarium Almond Milk,25,1.0,1.5,2.0,0.5,0.07,250,nz,nzfcd
+NZ Plain Bagel,263,9.8,51.0,1.5,2.0,0.45,85,nz,nzfcd
+Countdown Crumpets,190,6.5,37.0,0.8,1.8,0.52,75,nz,nzfcd
+George Weston Crumpets,192,6.5,37.5,0.8,1.8,0.54,75,nz,nzfcd
+NZ English Muffin,235,8.5,45.0,1.5,2.5,0.48,67,nz,nzfcd
+Pams Corn Thins,372,8.5,77.5,2.0,2.5,0.40,16,nz,nzfcd
+Real Foods Corn Thins,376,8.0,78.5,2.0,2.3,0.38,16,nz,nzfcd
+Pams Rice Cakes,386,8.0,80.5,2.5,1.5,0.02,9,nz,nzfcd
+Countdown Cream Crackers,430,9.0,70.0,13.0,2.5,0.70,25,nz,nzfcd
+Griffin's Malt Biscuits,430,9.0,69.5,13.5,3.0,0.65,25,nz,nzfcd
+Griffin's Wine Biscuits,438,8.0,71.5,14.0,2.0,0.55,25,nz,nzfcd
+Griffin's Gingernuts,415,6.0,76.0,10.0,2.5,0.45,20,nz,nzfcd
+Arnott's Shapes NZ,480,8.0,62.0,22.0,2.5,0.80,25,nz,nzfcd
+Milo Powder NZ,385,10.0,73.5,4.5,3.0,0.22,20,nz,nzfcd
+Horlicks Original,378,13.5,65.0,7.5,1.0,0.25,20,nz,nzfcd
+Ovaltine Classic,378,11.0,70.0,5.0,4.0,0.18,20,nz,nzfcd
+Gregg's Hot Chocolate Powder,395,5.5,74.5,8.5,3.0,0.18,20,nz,nzfcd
+T2 Tea Leaves,0,0.0,0.0,0.0,0.0,0.02,500,nz,nzfcd
+Dilmah Tea Bags,0,0.0,0.0,0.0,0.0,0.01,250,nz,nzfcd
+Robert Harris Coffee,0,0.0,0.0,0.0,0.0,0.01,200,nz,nzfcd
+Flat White NZ Cafe Style,75,4.5,6.5,3.0,0.0,0.06,220,nz,nzfcd
+Long Black,8,0.2,1.2,0.1,0.0,0.01,250,nz,nzfcd
+Trim Flat White,65,5.5,6.5,1.2,0.0,0.07,220,nz,nzfcd
+Countdown White Sandwich Bread,250,8.5,47.5,2.5,2.5,0.45,36,nz,nzfcd
+Countdown Multigrain Bread,232,9.5,42.0,2.7,5.0,0.46,36,nz,nzfcd
+Pams Baked Beans,80,4.8,12.8,0.3,4.8,0.48,220,nz,nzfcd
+Pams Spaghetti in Tomato Sauce,71,2.5,13.5,0.3,1.5,0.45,220,nz,nzfcd
+Watties Spaghetti in Tomato Sauce,71,2.5,13.5,0.3,1.5,0.45,220,nz,nzfcd
+Pams Whole Egg Mayonnaise,690,1.5,3.5,74.0,0.0,0.95,20,nz,nzfcd
+Eta Whole Egg Mayonnaise,695,1.5,3.8,74.5,0.0,0.98,20,nz,nzfcd
+Good Food NZ Hummus,185,6.5,14.5,11.5,4.0,0.45,50,nz,nzfcd
+Meadows Mushrooms,22,3.1,3.3,0.3,1.0,0.005,100,nz,nzfcd
+NZ Beetroot Canned,34,1.2,7.5,0.1,2.0,0.28,125,nz,nzfcd
+NZ Corn Canned,85,2.8,17.0,0.8,2.5,0.28,125,nz,nzfcd
+Wattie's Whole Kernel Corn,86,2.8,16.8,1.0,2.5,0.29,125,nz,nzfcd
+NZ Chicken Mince,145,17.5,0.0,8.5,0.0,0.07,100,nz,nzfcd
+NZ Chicken Wings,215,18.5,0.0,15.0,0.0,0.08,100,nz,nzfcd
+NZ Chicken Drumstick,148,18.5,0.0,8.0,0.0,0.07,100,nz,nzfcd
+NZ Chicken Thigh Skinless,150,18.5,0.0,8.5,0.0,0.07,100,nz,nzfcd
+NZ Chicken Liver,135,20.0,1.0,5.5,0.0,0.08,100,nz,nzfcd
+NZ Beef Chuck Steak,218,20.5,0.0,14.5,0.0,0.06,100,nz,nzfcd
+NZ Beef Sirloin,220,23.5,0.0,13.5,0.0,0.06,100,nz,nzfcd
+NZ Beef Ribeye,275,20.5,0.0,21.5,0.0,0.06,100,nz,nzfcd
+NZ Beef Brisket,258,17.5,0.0,20.0,0.0,0.06,100,nz,nzfcd
+NZ Beef T-Bone,218,22.5,0.0,13.5,0.0,0.06,100,nz,nzfcd
+NZ Beef Rump Steak,180,23.0,0.0,10.0,0.0,0.06,100,nz,nzfcd
+NZ Beef Heart,112,17.5,0.5,4.5,0.0,0.10,100,nz,nzfcd
+NZ Beef Liver,155,22.0,4.5,4.5,0.0,0.08,100,nz,nzfcd
+NZ Beef Kidney,102,16.5,1.0,3.5,0.0,0.25,100,nz,nzfcd
+NZ Beef Tongue,220,16.5,0.5,17.0,0.0,0.06,100,nz,nzfcd
+NZ Lamb Kidney,90,15.0,1.0,3.0,0.0,0.25,100,nz,nzfcd
+NZ Lamb Chops,260,18.5,0.0,20.5,0.0,0.06,120,nz,nzfcd
+NZ Lamb Shoulder,220,18.5,0.0,16.0,0.0,0.07,100,nz,nzfcd
+NZ Lamb Cutlets,260,19.0,0.0,20.0,0.0,0.06,100,nz,nzfcd
+NZ Lamb Rack,285,18.5,0.0,23.0,0.0,0.07,100,nz,nzfcd
+NZ Pork Belly,380,14.0,0.0,35.0,0.0,0.05,100,nz,nzfcd
+NZ Pork Sausage,290,11.0,10.0,23.0,0.5,0.85,75,nz,nzfcd
+NZ Pork Spare Ribs,290,14.5,0.0,25.5,0.0,0.07,100,nz,nzfcd
+NZ Pork Mince,205,18.5,0.0,14.5,0.0,0.07,100,nz,nzfcd
+NZ Pork Shoulder,215,18.0,0.0,15.5,0.0,0.06,100,nz,nzfcd
+NZ Pork Fillet,143,22.0,0.0,6.0,0.0,0.05,100,nz,nzfcd
+NZ Venison Mince,110,23.0,0.0,2.0,0.0,0.05,100,nz,nzfcd
+NZ Venison Rack,125,22.5,0.0,4.0,0.0,0.05,100,nz,nzfcd
+NZ Venison Shoulder,115,22.0,0.0,3.0,0.0,0.05,100,nz,nzfcd
+NZ Deer Liver,140,22.5,3.5,4.0,0.0,0.08,100,nz,nzfcd
+NZ Turkey Breast,135,30.0,0.0,1.5,0.0,0.05,100,nz,nzfcd
+NZ Duck Breast,195,21.5,0.0,11.5,0.0,0.06,100,nz,nzfcd
+NZ Rabbit Loin,110,21.0,0.0,2.5,0.0,0.05,100,nz,nzfcd
+NZ Eel Smoked,185,20.0,0.0,11.5,0.0,0.90,100,nz,nzfcd
+NZ Kahawai,105,19.5,0.0,3.0,0.0,0.06,100,nz,nzfcd
+NZ Hapuka,95,21.5,0.0,1.0,0.0,0.07,100,nz,nzfcd
+NZ John Dory,82,18.5,0.0,0.8,0.0,0.08,100,nz,nzfcd
+NZ Trevally,105,18.5,0.0,3.5,0.0,0.06,100,nz,nzfcd
+NZ Gurnard,82,18.5,0.0,0.5,0.0,0.07,100,nz,nzfcd
+NZ Blue Cod,82,19.0,0.0,0.5,0.0,0.08,100,nz,nzfcd
+NZ Orange Roughy,65,14.5,0.0,1.0,0.0,0.13,100,nz,nzfcd
+NZ Kingfish,145,20.5,0.0,7.0,0.0,0.06,100,nz,nzfcd
+NZ Tuna Fresh,133,22.0,0.0,5.0,0.0,0.05,100,nz,nzfcd
+NZ Swordfish,121,19.5,0.0,4.5,0.0,0.12,100,nz,nzfcd
+NZ Marlin,96,21.0,0.0,1.5,0.0,0.07,100,nz,nzfcd
+NZ Shark,98,20.5,0.0,2.0,0.0,0.09,100,nz,nzfcd
+NZ Flounder,75,15.5,0.0,1.5,0.0,0.09,100,nz,nzfcd
+NZ Turbot,80,17.5,0.0,1.5,0.0,0.09,100,nz,nzfcd
+NZ Sole,95,18.0,0.0,2.5,0.0,0.08,100,nz,nzfcd
+NZ Toheroa (Clam),78,13.5,3.0,1.0,0.0,0.45,100,nz,nzfcd
+NZ Tuatua (Clam),72,12.5,2.5,1.0,0.0,0.42,100,nz,nzfcd
+NZ Pipi (Clam),70,12.0,2.5,0.8,0.0,0.38,100,nz,nzfcd
+NZ Cockle,55,9.5,2.0,0.8,0.0,0.38,100,nz,nzfcd
+NZ Kina (Sea Urchin),85,12.0,5.0,2.5,0.0,0.25,30,nz,nzfcd
+NZ Squid,80,15.5,2.0,1.0,0.0,0.28,100,nz,nzfcd
+NZ Octopus,75,14.5,1.5,0.8,0.0,0.35,100,nz,nzfcd
+NZ Cuttlefish,75,14.0,1.5,0.8,0.0,0.32,100,nz,nzfcd
+NZ Scallops,85,18.0,2.5,0.8,0.0,0.35,100,nz,nzfcd
+NZ Smoked Salmon,185,22.5,0.0,10.5,0.0,1.5,50,nz,nzfcd
+NZ Smoked Kahawai,190,22.0,0.0,11.0,0.0,1.4,100,nz,nzfcd
+NZ Smoked Marlin,188,21.5,0.0,11.0,0.0,1.5,100,nz,nzfcd
+NZ Dried Cod,330,70.0,0.0,2.5,0.0,7.0,30,nz,nzfcd
+NZ Anchovy Canned,210,29.0,0.0,10.0,0.0,3.7,10,nz,nzfcd
+NZ Tuna Smoked,195,25.5,0.0,10.0,0.0,1.5,50,nz,nzfcd
+NZ Bacon Back Rasher,280,15.5,0.0,23.5,0.0,1.65,60,nz,nzfcd
+NZ Ham Leg Sliced,110,17.5,1.5,3.5,0.0,1.20,50,nz,nzfcd
+NZ Ham Shoulder,105,15.5,2.0,4.0,0.0,1.35,50,nz,nzfcd
+NZ Salami,410,23.0,1.0,35.0,0.0,1.50,30,nz,nzfcd
+NZ Chorizo,430,22.0,2.0,37.5,0.0,1.80,50,nz,nzfcd
+NZ Frankfurters,270,12.5,4.0,22.5,0.0,1.10,65,nz,nzfcd
+NZ Saveloy,255,10.5,5.5,20.5,0.0,1.05,75,nz,nzfcd
+NZ Luncheon Sausage,220,10.5,7.5,16.5,0.5,1.15,50,nz,nzfcd
+NZ Devon,220,11.0,6.5,17.0,0.5,1.10,50,nz,nzfcd
+NZ Pepperoni,500,22.5,2.5,44.0,0.0,1.55,30,nz,nzfcd
+NZ Prosciutto,200,24.5,0.5,11.0,0.0,2.10,30,nz,nzfcd
+NZ Pancetta,390,18.5,1.0,34.5,0.0,1.60,30,nz,nzfcd
+NZ Corned Beef Canned,205,24.5,0.0,12.0,0.0,0.95,100,nz,nzfcd
+NZ Canned Salmon Smoked,145,20.0,0.0,7.0,0.0,0.90,100,nz,nzfcd
+NZ Fish Fingers,180,10.5,17.0,7.5,1.0,0.48,50,nz,nzfcd
+NZ Potato Wedges,155,2.8,25.0,5.5,2.2,0.30,150,nz,nzfcd
+NZ Onion Rings,280,4.0,33.5,14.5,2.0,0.55,100,nz,nzfcd
+NZ Garlic Bread,320,7.5,40.0,14.5,1.5,0.55,40,nz,nzfcd
+NZ Hash Browns,195,2.5,25.0,9.5,2.0,0.28,75,nz,nzfcd
+NZ Spring Rolls,210,6.0,28.0,8.5,1.5,0.50,75,nz,nzfcd
+NZ Dim Sims Steamed,135,7.5,15.5,4.5,1.5,0.75,50,nz,nzfcd
+NZ Sushi Roll Salmon Avocado,175,6.5,28.5,4.5,1.5,0.48,180,nz,nzfcd
+NZ Sushi Roll Tuna,145,7.0,27.0,1.5,1.5,0.52,180,nz,nzfcd
+NZ Sushi Roll Vegetarian,155,4.0,32.0,1.5,2.0,0.45,180,nz,nzfcd
+NZ Sushi Bowl,245,12.0,38.5,4.0,2.5,0.55,300,nz,nzfcd
+NZ Pad Thai,168,8.5,22.5,5.5,1.5,0.48,350,nz,nzfcd
+NZ Butter Chicken,145,13.0,8.5,6.5,1.0,0.45,250,nz,nzfcd
+NZ Beef Satay,195,15.5,10.5,10.5,1.5,0.55,250,nz,nzfcd
+NZ Lamb Kebab,215,16.5,15.5,9.5,1.5,0.50,250,nz,nzfcd
+NZ Hangi Pork,215,18.0,0.5,15.5,0.0,0.08,200,nz,nzfcd
+NZ Boil Up,145,10.5,12.5,5.5,2.5,0.25,350,nz,nzfcd
+NZ Rewena Bread,215,6.5,43.0,1.5,2.5,0.35,50,nz,nzfcd
+NZ Puha,22,2.5,2.5,0.5,3.5,0.02,100,nz,nzfcd
+NZ Mutton Bird,360,26.0,0.0,28.5,0.0,0.35,100,nz,nzfcd
+NZ Huhu Grub,165,15.0,4.0,10.0,0.0,0.05,20,nz,nzfcd
+NZ Pork Bones,180,15.0,0.0,13.0,0.0,0.06,200,nz,nzfcd
+NZ Watercress Soup,55,2.5,7.5,1.5,2.0,0.25,250,nz,nzfcd
+NZ Pavlova,310,4.5,72.0,0.5,0.0,0.12,100,nz,nzfcd
+NZ Lamingtons,380,5.0,57.0,14.5,1.5,0.18,60,nz,nzfcd
+NZ Hokey Pokey Ice Cream,205,3.5,23.5,10.5,0.0,0.09,100,nz,nzfcd
+NZ Caramel Slice,435,5.0,52.5,22.5,1.5,0.22,50,nz,nzfcd
+NZ Chocolate Brownie,425,5.5,55.0,21.5,2.0,0.18,60,nz,nzfcd
+NZ Anzac Biscuits,415,6.0,62.5,16.0,3.5,0.35,25,nz,nzfcd
+NZ Afghan Biscuits,455,5.5,61.0,21.5,2.5,0.25,20,nz,nzfcd
+NZ Ginger Crunch,445,5.5,62.0,19.5,2.0,0.30,40,nz,nzfcd
+NZ Banana Cake,310,5.0,45.5,12.0,1.5,0.28,80,nz,nzfcd
+NZ Carrot Cake,370,5.0,47.5,18.5,2.0,0.25,90,nz,nzfcd
+NZ Lemon Drizzle Cake,385,5.0,57.0,15.5,1.0,0.22,80,nz,nzfcd
+NZ Custard Square,345,5.5,47.5,15.0,0.5,0.22,80,nz,nzfcd
+NZ Neenish Tart,360,4.5,47.0,17.0,0.8,0.18,45,nz,nzfcd
+NZ Apple Pie,265,3.5,38.0,11.0,2.0,0.22,150,nz,nzfcd
+NZ Apple Crumble,290,4.0,42.5,11.5,2.5,0.20,150,nz,nzfcd
+NZ Lemon Meringue Pie,310,4.5,47.5,11.5,0.5,0.20,120,nz,nzfcd
+NZ Bread and Butter Pudding,235,7.0,32.0,8.5,1.0,0.25,150,nz,nzfcd
+NZ Rice Pudding,152,4.5,23.5,4.5,0.5,0.07,200,nz,nzfcd
+NZ Pikelets,265,7.5,41.5,7.5,1.5,0.38,25,nz,nzfcd
+NZ Scones,340,8.5,54.5,9.5,2.0,0.55,55,nz,nzfcd
+NZ Muffin Blueberry,305,5.5,46.5,11.0,1.5,0.28,90,nz,nzfcd
+NZ Muffin Banana,298,5.0,46.0,10.5,1.5,0.28,90,nz,nzfcd
+NZ Muffin Chocolate,328,5.5,48.5,13.0,1.5,0.32,90,nz,nzfcd
+NZ Muffin Bran,285,6.0,43.5,9.5,3.5,0.38,90,nz,nzfcd
+NZ Banana Muffin,295,5.0,46.0,10.5,1.5,0.28,90,nz,nzfcd
+NZ Chelsea Bun,315,7.5,53.0,8.5,2.0,0.30,75,nz,nzfcd
+NZ Hot Cross Bun,285,7.5,50.5,6.0,2.5,0.35,60,nz,nzfcd
+NZ Doughnuts Glazed,340,5.5,45.5,15.5,1.0,0.28,60,nz,nzfcd
+NZ Croissant Butter,406,8.5,45.5,21.5,2.0,0.45,67,nz,nzfcd
+NZ Danish Pastry,355,6.0,49.0,15.5,1.5,0.32,75,nz,nzfcd
+NZ Pain au Chocolat,395,7.5,45.5,21.0,2.0,0.40,75,nz,nzfcd
+NZ Filo Pastry,335,9.0,66.5,3.0,2.0,0.50,50,nz,nzfcd
+NZ Puff Pastry Cooked,470,6.0,44.5,29.5,1.5,0.50,50,nz,nzfcd
+NZ Shortcrust Pastry Cooked,415,7.0,52.0,20.0,2.0,0.42,50,nz,nzfcd
+NZ Flatbread,295,9.0,55.5,4.0,2.5,0.55,55,nz,nzfcd
+NZ Roti,295,9.0,55.0,4.5,2.5,0.45,60,nz,nzfcd
+NZ Naan Bread,285,9.5,50.0,6.5,2.5,0.50,85,nz,nzfcd
+NZ Ciabatta Bread,247,9.0,47.5,2.0,2.0,0.45,60,nz,nzfcd
+NZ Sourdough Bread,248,9.5,47.5,1.5,2.5,0.42,60,nz,nzfcd
+NZ Focaccia,265,7.5,42.5,7.5,2.0,0.45,80,nz,nzfcd
+NZ Pita Bread,268,8.5,51.0,2.0,2.5,0.48,65,nz,nzfcd
+NZ Lebanese Bread,275,8.5,52.5,2.0,2.8,0.48,60,nz,nzfcd
+NZ Rye Bread,262,9.0,48.5,2.5,6.5,0.52,40,nz,nzfcd
+NZ Pumpernickel,215,7.5,41.0,1.5,7.5,0.55,40,nz,nzfcd
+NZ Brioche,345,9.5,45.0,14.5,1.5,0.42,50,nz,nzfcd
+NZ Tortilla Wheat,280,8.0,49.5,5.5,3.0,0.55,45,nz,nzfcd
+NZ Tortilla Corn,218,5.5,44.5,2.8,4.5,0.53,45,nz,nzfcd
+NZ Crumpet,190,6.5,37.0,0.8,1.8,0.52,75,nz,nzfcd
+NZ Pikelet,250,7.5,40.0,6.5,1.5,0.38,25,nz,nzfcd
+NZ Waffle Plain,300,8.0,42.0,11.5,1.5,0.45,75,nz,nzfcd
+NZ Pancake Plain,200,6.5,30.5,6.0,1.0,0.42,45,nz,nzfcd
+NZ French Toast,220,8.5,27.5,8.5,1.0,0.38,75,nz,nzfcd
+NZ Crepe Plain,175,6.5,27.0,4.5,1.0,0.35,50,nz,nzfcd
+NZ Omelette Cheese,215,14.5,2.5,16.5,0.0,0.45,120,nz,nzfcd
+NZ Scrambled Eggs,185,12.5,1.5,14.5,0.0,0.28,100,nz,nzfcd
+NZ Fried Eggs,210,13.5,0.5,17.0,0.0,0.22,100,nz,nzfcd
+NZ Poached Egg,155,12.5,0.4,11.5,0.0,0.14,60,nz,nzfcd
+NZ Hard Boiled Egg,155,12.5,0.4,11.5,0.0,0.14,60,nz,nzfcd
+NZ Egg Salad,210,12.0,3.5,16.5,1.0,0.42,150,nz,nzfcd
+NZ Deviled Eggs,195,11.5,3.0,15.5,0.5,0.42,50,nz,nzfcd
+NZ Quiche Lorraine,265,10.5,22.5,15.0,1.0,0.48,125,nz,nzfcd
+NZ Frittata Vegetable,145,10.0,7.5,8.5,1.5,0.38,150,nz,nzfcd
+NZ Bacon and Egg Pie,310,14.5,26.5,15.5,1.0,0.55,150,nz,nzfcd
+NZ Cheese Scone,355,10.5,46.0,14.5,2.0,0.72,60,nz,nzfcd
+NZ Potato Salad,155,3.5,20.0,7.0,2.0,0.42,150,nz,nzfcd
+NZ Coleslaw,145,1.5,11.5,10.0,2.5,0.38,100,nz,nzfcd
+NZ Caesar Salad,195,10.5,9.5,13.5,1.5,0.55,200,nz,nzfcd
+NZ Green Salad,35,2.5,5.0,1.0,2.5,0.08,150,nz,nzfcd
+NZ Waldorf Salad,185,3.5,17.5,11.5,2.5,0.22,150,nz,nzfcd
+NZ Nicoise Salad,195,14.5,12.5,9.5,3.0,0.55,250,nz,nzfcd
+NZ Pasta Salad,225,7.5,34.5,7.0,2.5,0.38,200,nz,nzfcd
+NZ Tuna Pasta Salad,215,12.0,28.5,5.5,2.5,0.48,250,nz,nzfcd
+NZ Tomato Soup,65,2.0,11.5,1.5,1.5,0.48,250,nz,nzfcd
+NZ Pumpkin Soup,88,2.0,14.0,2.5,2.0,0.42,250,nz,nzfcd
+NZ Vegetable Soup,65,2.5,10.5,1.5,2.5,0.38,300,nz,nzfcd
+NZ Chicken Soup,75,6.5,7.5,2.0,1.0,0.45,300,nz,nzfcd
+NZ Lentil Soup,95,6.0,14.5,1.5,3.5,0.38,300,nz,nzfcd
+NZ Minestrone,75,4.0,11.5,1.5,2.5,0.42,300,nz,nzfcd
+NZ Pea Soup,100,6.5,15.5,1.5,4.5,0.42,250,nz,nzfcd
+NZ Corn Chowder,155,5.5,22.5,5.0,2.5,0.45,300,nz,nzfcd
+NZ Fish Chowder,155,12.0,12.5,6.0,1.0,0.45,300,nz,nzfcd
+NZ Clam Chowder,140,9.0,12.5,5.5,1.0,0.55,300,nz,nzfcd
+NZ Beef Stew,155,12.0,12.5,6.0,2.0,0.42,300,nz,nzfcd
+NZ Lamb Stew,160,12.5,12.0,6.5,2.0,0.40,300,nz,nzfcd
+NZ Pork Stew,150,11.5,12.5,5.5,2.0,0.40,300,nz,nzfcd
+NZ Chicken Casserole,145,13.5,9.5,5.5,1.5,0.42,300,nz,nzfcd
+NZ Beef Bolognese,185,13.5,15.5,7.5,2.0,0.45,300,nz,nzfcd
+NZ Spaghetti Bolognese,220,12.5,28.5,6.0,2.5,0.42,350,nz,nzfcd
+NZ Lasagna,215,13.5,22.5,8.0,2.0,0.45,250,nz,nzfcd
+NZ Macaroni Cheese,285,12.0,32.5,12.0,1.5,0.52,250,nz,nzfcd
+NZ Pumpkin Risotto,195,5.5,35.5,4.0,2.0,0.38,300,nz,nzfcd
+NZ Chicken Risotto,205,12.0,30.5,4.5,1.5,0.42,300,nz,nzfcd
+NZ Mushroom Risotto,215,6.5,35.5,5.5,2.5,0.38,300,nz,nzfcd
+NZ Beef Curry,175,14.0,10.5,8.0,2.0,0.45,300,nz,nzfcd
+NZ Lamb Curry,170,13.5,10.0,7.5,2.0,0.42,300,nz,nzfcd
+NZ Chicken Curry,165,14.5,9.5,7.0,1.5,0.45,300,nz,nzfcd
+NZ Vegetable Curry,135,4.5,18.5,5.5,3.5,0.38,300,nz,nzfcd
+NZ Dal,115,7.0,16.5,2.5,4.5,0.35,250,nz,nzfcd
+NZ Fried Rice,195,5.5,32.5,5.0,1.5,0.45,250,nz,nzfcd
+NZ Chicken Fried Rice,215,10.5,30.5,5.5,1.5,0.48,300,nz,nzfcd
+NZ Beef Fried Rice,225,11.5,30.5,6.0,1.5,0.48,300,nz,nzfcd
+NZ Noodle Stir Fry,188,7.5,29.5,5.0,2.5,0.42,300,nz,nzfcd
+NZ Chicken Stir Fry,165,14.0,12.5,5.5,2.5,0.42,300,nz,nzfcd
+NZ Beef Stir Fry,175,14.5,11.5,6.0,2.5,0.45,300,nz,nzfcd
+NZ Tofu Stir Fry,155,8.5,13.5,7.5,3.0,0.38,300,nz,nzfcd
+NZ Fish and Chips,310,15.0,32.5,13.5,2.5,0.48,400,nz,nzfcd
+NZ Battered Fish,250,15.5,22.0,10.5,1.5,0.52,150,nz,nzfcd
+NZ Crumbed Fish,245,14.0,22.5,10.0,1.5,0.48,150,nz,nzfcd
+NZ Grilled Fish,115,21.5,0.0,3.0,0.0,0.12,150,nz,nzfcd
+NZ Steamed Fish,95,19.5,0.0,2.0,0.0,0.10,150,nz,nzfcd
+NZ Beef Burger,425,25.5,37.5,18.5,2.5,0.72,200,nz,nzfcd
+NZ Chicken Burger,395,22.5,42.5,14.5,2.5,0.65,200,nz,nzfcd
+NZ Veggie Burger,380,15.5,48.5,13.5,5.5,0.55,180,nz,nzfcd
+NZ Cheese Toastie,340,16.5,37.5,13.5,2.0,0.72,145,nz,nzfcd
+NZ Club Sandwich,315,18.5,30.5,12.0,2.5,0.75,200,nz,nzfcd
+NZ BLT Sandwich,290,14.5,31.0,11.5,2.0,0.65,175,nz,nzfcd
+NZ Tuna Sandwich,275,15.5,30.5,9.0,2.0,0.65,175,nz,nzfcd
+NZ Egg Sandwich,255,11.5,28.5,10.0,2.0,0.55,150,nz,nzfcd
+NZ Chicken Wrap,310,18.5,35.5,9.5,2.5,0.62,200,nz,nzfcd
+NZ Beef Wrap,315,19.0,34.5,10.0,2.5,0.65,200,nz,nzfcd
+NZ Falafel Wrap,310,12.5,38.5,11.5,5.5,0.62,200,nz,nzfcd
+NZ Pizza Margherita,245,11.5,35.5,7.0,2.0,0.72,100,nz,nzfcd
+NZ Pizza Hawaiian,255,12.0,36.5,7.5,2.0,0.78,100,nz,nzfcd
+NZ Pizza BBQ Chicken,260,13.0,35.0,8.0,2.0,0.82,100,nz,nzfcd
+NZ Nachos,295,9.0,35.5,13.5,4.0,0.52,150,nz,nzfcd
+NZ Tacos,255,14.5,24.5,10.5,3.0,0.55,150,nz,nzfcd
+NZ Burritos,295,14.0,38.5,8.5,4.5,0.62,250,nz,nzfcd
+NZ Quesadilla,310,14.5,30.5,14.5,2.5,0.68,150,nz,nzfcd
+NZ Corn on Cob Cooked,96,3.4,21.3,1.5,2.7,0.015,200,nz,nzfcd
+NZ Asparagus Cooked,22,2.5,3.8,0.2,2.1,0.002,100,nz,nzfcd
+NZ Artichoke Globe,45,3.5,10.5,0.2,5.4,0.025,100,nz,nzfcd
+NZ Bok Choy,13,1.5,1.2,0.2,1.0,0.065,100,nz,nzfcd
+NZ Kale,49,4.3,8.8,0.9,3.6,0.04,100,nz,nzfcd
+NZ Brussels Sprouts,43,3.4,8.9,0.3,3.8,0.025,100,nz,nzfcd
+NZ Pak Choi,13,1.5,1.2,0.2,1.0,0.065,100,nz,nzfcd
+NZ Chinese Cabbage,16,1.2,3.0,0.2,1.2,0.009,100,nz,nzfcd
+NZ Spring Onion,32,1.8,7.3,0.2,2.6,0.016,20,nz,nzfcd
+NZ Chilli Pepper Red,40,1.9,9.0,0.4,1.5,0.009,10,nz,nzfcd
+NZ Capsicum Yellow,30,1.0,7.0,0.2,1.0,0.002,100,nz,nzfcd
+NZ Capsicum Red,31,0.9,7.2,0.3,2.1,0.004,100,nz,nzfcd
+NZ Capsicum Green,20,0.9,4.6,0.3,1.7,0.003,100,nz,nzfcd
+NZ Eggplant,24,1.0,5.5,0.2,3.0,0.002,100,nz,nzfcd
+NZ Parsnip,75,1.3,17.9,0.3,4.7,0.010,100,nz,nzfcd
+NZ Turnip,28,0.9,6.4,0.1,1.8,0.067,100,nz,nzfcd
+NZ Beetroot,43,1.7,9.6,0.1,2.8,0.07,100,nz,nzfcd
+NZ Radish,16,0.7,3.4,0.1,1.6,0.039,15,nz,nzfcd
+NZ Watercress,22,2.3,1.3,0.1,0.5,0.041,50,nz,nzfcd
+NZ Chives,30,3.3,4.4,0.7,2.5,0.003,5,nz,nzfcd
+NZ Parsley Fresh,36,3.0,6.3,0.8,3.3,0.056,10,nz,nzfcd
+NZ Coriander Fresh,23,2.1,3.7,0.5,2.8,0.046,10,nz,nzfcd
+NZ Basil Fresh,23,3.2,2.7,0.6,1.6,0.004,5,nz,nzfcd
+NZ Mint Fresh,44,3.3,8.5,0.7,6.8,0.031,5,nz,nzfcd
+NZ Rosemary Fresh,131,3.3,20.7,5.9,14.1,0.026,5,nz,nzfcd
+NZ Thyme Fresh,101,5.6,24.5,1.7,14.0,0.009,3,nz,nzfcd
+NZ Ginger Fresh,80,1.8,18.0,0.8,2.0,0.013,5,nz,nzfcd
+NZ Garlic,149,6.4,33.1,0.5,2.1,0.017,10,nz,nzfcd
+NZ Turmeric Ground,312,9.7,67.1,3.3,21.1,0.038,3,nz,nzfcd
+NZ Cumin Ground,375,17.8,44.2,22.3,10.5,0.168,3,nz,nzfcd
+NZ Paprika Ground,282,14.1,53.9,12.9,34.9,0.068,3,nz,nzfcd
+NZ Chilli Powder,282,12.8,49.7,14.3,34.8,0.072,3,nz,nzfcd
+NZ Ground Black Pepper,251,10.4,63.9,3.3,25.3,0.044,2,nz,nzfcd
+NZ Whole Lentils Red Dried,352,25.0,60.1,1.0,10.6,0.010,50,nz,nzfcd
+NZ Whole Lentils Green Dried,297,24.0,51.5,1.0,10.8,0.010,50,nz,nzfcd
+NZ Split Peas Yellow,348,23.5,60.0,1.1,8.3,0.008,50,nz,nzfcd
+NZ Split Peas Green,345,23.0,60.5,1.1,8.5,0.008,50,nz,nzfcd
+NZ Cannellini Beans Dried,335,22.0,60.5,1.0,15.7,0.020,50,nz,nzfcd
+NZ Black Beans Dried,341,21.6,62.4,1.4,15.5,0.005,50,nz,nzfcd
+NZ Borlotti Beans Dried,330,22.5,59.5,1.0,14.5,0.020,50,nz,nzfcd
+NZ Navy Beans Dried,337,22.3,60.8,1.5,15.8,0.008,50,nz,nzfcd
+NZ Lima Beans Dried,338,21.5,63.0,0.7,19.0,0.007,50,nz,nzfcd
+NZ Mung Beans Dried,347,23.9,62.6,1.2,16.3,0.015,50,nz,nzfcd
+NZ Adzuki Beans Dried,329,19.9,62.9,0.5,12.7,0.008,50,nz,nzfcd
+NZ Soy Beans Dried,446,36.5,30.2,19.9,9.3,0.002,50,nz,nzfcd
+NZ Edamame Frozen,121,11.9,8.9,5.2,5.2,0.006,100,nz,nzfcd
+NZ Chickpeas Dried,364,19.3,60.7,6.0,17.4,0.024,50,nz,nzfcd
+NZ Tahini Raw,595,17.5,19.0,54.0,3.3,0.02,15,nz,nzfcd
+NZ Miso White,199,11.0,27.0,6.0,5.4,3.7,20,nz,nzfcd
+NZ Miso Red,186,12.0,21.0,6.5,5.5,4.5,20,nz,nzfcd
+NZ Tempeh,195,19.5,9.4,11.0,0.0,0.009,100,nz,nzfcd
+NZ Seitan,121,21.4,4.4,1.9,0.6,0.05,100,nz,nzfcd
+NZ Textured Vegetable Protein (TVP),330,52.0,33.0,1.2,19.0,0.02,30,nz,nzfcd
+NZ Cashew Milk Unsweetened,22,0.5,3.5,1.0,0.5,0.13,250,nz,nzfcd
+NZ Macadamia Nuts,718,7.9,5.2,75.8,8.6,0.005,30,nz,nzfcd
+NZ Pistachio Nuts,562,20.2,27.5,45.3,10.3,0.005,30,nz,nzfcd
+NZ Pecans,691,9.2,13.9,72.0,9.6,0.001,30,nz,nzfcd
+NZ Hazelnuts,628,15.0,16.7,60.8,9.7,0.002,30,nz,nzfcd
+NZ Brazil Nuts,659,14.3,12.3,67.1,7.5,0.003,30,nz,nzfcd
+NZ Pine Nuts,673,13.7,13.1,68.4,3.7,0.002,30,nz,nzfcd
+NZ Hemp Seeds,553,31.6,8.7,48.7,4.0,0.005,15,nz,nzfcd
+NZ Sesame Seeds,573,17.7,23.5,49.7,11.8,0.011,10,nz,nzfcd
+NZ Poppy Seeds,525,17.9,28.1,41.6,19.5,0.026,10,nz,nzfcd
+NZ Mixed Seeds,550,22.0,18.5,46.0,8.5,0.010,30,nz,nzfcd
+NZ Trail Mix,480,12.0,44.5,28.5,5.5,0.065,40,nz,nzfcd
+NZ Dried Cranberries,308,0.2,82.2,1.3,5.3,0.003,30,nz,nzfcd
+NZ Dried Mango,319,1.6,78.5,0.5,2.4,0.001,30,nz,nzfcd
+NZ Dried Pineapple,335,0.8,83.0,0.5,1.7,0.001,30,nz,nzfcd
+NZ Dried Papaya,258,0.8,64.5,0.6,4.0,0.011,30,nz,nzfcd
+NZ Dried Figs,249,3.5,63.9,0.9,9.8,0.010,30,nz,nzfcd
+NZ Dried Prunes,240,2.2,63.9,0.4,7.1,0.002,30,nz,nzfcd
+NZ Cocoa Powder Unsweetened,228,19.6,13.7,13.7,33.2,0.01,20,nz,nzfcd
+NZ Dark Chocolate Buttons,535,6.0,56.5,35.0,8.0,0.02,20,nz,nzfcd
+NZ Baking Chocolate Dark,510,9.5,51.0,35.5,10.5,0.02,20,nz,nzfcd
+NZ White Chocolate,539,5.9,59.2,32.1,0.0,0.09,20,nz,nzfcd
+NZ Milk Chocolate Buttons,545,8.5,59.5,30.5,0.8,0.10,20,nz,nzfcd
+NZ Caramel,381,3.0,69.5,10.0,0.0,0.18,15,nz,nzfcd
+NZ Toffee,415,1.5,83.5,8.0,0.0,0.10,20,nz,nzfcd
+NZ Fudge,395,3.0,70.5,11.5,0.0,0.15,25,nz,nzfcd
+NZ Jelly Beans,362,0.0,91.0,0.1,0.0,0.02,20,nz,nzfcd
+NZ Marshmallows,318,1.8,80.4,0.2,0.0,0.08,30,nz,nzfcd
+NZ Liquorice,325,4.5,74.5,1.5,0.5,0.50,25,nz,nzfcd
+NZ Juicy Fruit Gum,372,0.0,93.0,0.0,0.0,0.003,5,nz,nzfcd
+NZ Chewing Gum Sugarfree,185,0.0,70.0,0.0,0.0,0.005,3,nz,nzfcd
+NZ Mints Peppermint,400,0.5,99.0,0.5,0.0,0.001,5,nz,nzfcd
+NZ Fruit Roll-Up,380,0.0,93.0,2.0,0.0,0.17,20,nz,nzfcd
+NZ Orange Juice Fresh,45,0.7,10.5,0.2,0.2,0.001,250,nz,nzfcd
+NZ Apple Juice,47,0.1,11.6,0.1,0.1,0.001,250,nz,nzfcd
+NZ Grape Juice,60,0.5,15.0,0.1,0.0,0.003,250,nz,nzfcd
+NZ Cranberry Juice Cocktail,52,0.0,13.0,0.1,0.1,0.003,250,nz,nzfcd
+NZ Tomato Juice,17,0.8,3.5,0.1,0.4,0.26,250,nz,nzfcd
+NZ Carrot Juice,40,0.9,9.3,0.2,0.8,0.02,250,nz,nzfcd
+NZ Ginger Beer,38,0.2,9.2,0.1,0.0,0.01,355,nz,nzfcd
+NZ Lemonade Homemade,55,0.1,14.5,0.0,0.0,0.002,250,nz,nzfcd
+NZ Beer Lager,43,0.5,3.5,0.0,0.0,0.005,330,nz,nzfcd
+NZ Beer Light,28,0.3,2.0,0.0,0.0,0.003,330,nz,nzfcd
+NZ Wine Red,85,0.1,2.7,0.0,0.0,0.006,150,nz,nzfcd
+NZ Wine White,82,0.1,2.5,0.0,0.0,0.005,150,nz,nzfcd
+NZ Champagne,80,0.3,1.4,0.0,0.0,0.005,120,nz,nzfcd
+NZ Spirits Vodka,231,0.0,0.0,0.0,0.0,0.001,30,nz,nzfcd
+NZ Spirits Whisky,222,0.0,0.0,0.0,0.0,0.001,30,nz,nzfcd
+NZ Cider Apple,45,0.2,4.8,0.0,0.0,0.002,330,nz,nzfcd
+NZ Kefir Plain,65,3.5,4.8,3.5,0.0,0.05,200,nz,nzfcd
+NZ Kombucha,20,0.2,4.5,0.0,0.0,0.01,250,nz,nzfcd
+NZ Coconut Water,19,0.7,4.5,0.2,0.0,0.01,250,nz,nzfcd
+NZ Electrolyte Water,10,0.0,2.5,0.0,0.0,0.05,500,nz,nzfcd
+NZ Sports Drink,27,0.0,6.6,0.0,0.0,0.05,600,nz,nzfcd
+NZ Protein Shake Ready to Drink,65,6.5,5.5,2.0,0.0,0.12,250,nz,nzfcd
+NZ Greek Yoghurt Mango,105,7.5,15.0,2.0,0.5,0.08,170,nz,nzfcd
+NZ Greek Yoghurt Strawberry,102,8.0,14.0,2.0,0.5,0.08,170,nz,nzfcd
+NZ Greek Yoghurt Passionfruit,105,7.5,14.5,2.0,0.5,0.08,170,nz,nzfcd
+NZ Probiotic Shot,45,2.0,6.5,0.5,0.5,0.12,100,nz,nzfcd
+NZ Probiotic Yoghurt,62,4.0,8.0,1.5,0.0,0.08,100,nz,nzfcd
+NZ A2 Milk,62,3.4,4.7,3.6,0.0,0.04,250,nz,nzfcd
+NZ Goat Milk,69,3.5,4.5,4.1,0.0,0.04,250,nz,nzfcd
+NZ Sheep Milk,95,5.4,5.4,6.5,0.0,0.044,250,nz,nzfcd
+NZ Condensed Milk Sweetened,321,7.9,54.4,8.7,0.0,0.12,30,nz,nzfcd
+NZ Evaporated Milk,135,7.0,10.0,7.5,0.0,0.12,100,nz,nzfcd
+NZ Powdered Milk Full Cream,496,26.3,38.4,26.8,0.0,0.37,30,nz,nzfcd
+NZ Powdered Milk Skim,362,35.1,52.0,0.9,0.0,0.55,30,nz,nzfcd
+NZ Chocolate Milk Full Fat,85,3.5,13.5,2.5,0.3,0.07,250,nz,nzfcd
+NZ Iced Coffee,65,2.5,11.0,1.5,0.0,0.05,250,nz,nzfcd
+NZ Instant Oatmeal Plain,374,12.0,60.0,7.2,10.2,0.006,45,nz,nzfcd
+NZ Porridge Made with Water,62,2.0,10.5,1.2,1.8,0.001,180,nz,nzfcd
+NZ Porridge Made with Milk,88,4.0,13.0,2.8,1.8,0.04,200,nz,nzfcd
+NZ Weetbix with Banana,195,5.5,36.5,2.0,4.0,0.12,180,nz,nzfcd
+NZ Muesli Bircher Prepared,195,5.5,30.5,5.5,3.5,0.04,150,nz,nzfcd
+NZ Cereal with Milk,180,6.5,31.0,3.5,2.5,0.22,200,nz,nzfcd
+NZ Smoothie Berry,98,2.0,22.0,0.5,3.0,0.04,300,nz,nzfcd
+NZ Smoothie Green,85,3.0,17.5,1.0,3.5,0.05,300,nz,nzfcd
+NZ Smoothie Mango,105,2.0,24.0,0.5,2.5,0.03,300,nz,nzfcd
+NZ Smoothie Banana,115,2.5,26.5,0.5,2.5,0.03,300,nz,nzfcd
+NZ Protein Smoothie,165,18.5,18.5,2.5,2.5,0.12,350,nz,nzfcd
+NZ Açai Bowl,185,4.5,28.5,7.5,5.5,0.05,300,nz,nzfcd
+NZ Granola Bowl,385,10.0,55.0,14.5,5.0,0.12,250,nz,nzfcd
+NZ Fruit Salad Fresh,55,0.8,13.5,0.2,2.0,0.003,200,nz,nzfcd
+NZ Fruit Salad Canned,60,0.5,15.0,0.1,1.5,0.005,120,nz,nzfcd
+NZ Chia Pudding,155,6.0,18.5,7.5,8.5,0.07,150,nz,nzfcd
+NZ Overnight Oats Plain,185,7.0,27.5,5.5,4.5,0.08,200,nz,nzfcd
+NZ Overnight Oats Berry,195,7.0,29.5,5.5,4.5,0.08,200,nz,nzfcd
+NZ Protein Bar Chocolate,385,25.0,40.5,12.5,5.0,0.22,60,nz,nzfcd
+NZ Protein Bar Caramel,380,25.5,38.5,12.0,5.0,0.25,60,nz,nzfcd
+NZ Muesli Bar Oat,365,7.5,60.5,9.5,5.0,0.15,31,nz,nzfcd
+NZ Muesli Bar Chocolate,385,7.0,60.5,12.0,4.5,0.18,31,nz,nzfcd
+NZ Bliss Ball Date Nut,385,7.5,50.5,17.5,5.5,0.008,30,nz,nzfcd
+NZ Bliss Ball Cacao,380,8.5,48.5,18.5,6.5,0.010,30,nz,nzfcd
+NZ Fruit and Nut Bar,390,8.5,55.5,14.5,5.5,0.050,35,nz,nzfcd
+NZ Kelp Noodles Cooked,6,0.5,1.5,0.0,0.5,0.045,100,nz,nzfcd
+NZ Nori Sheets,35,5.8,4.0,0.3,0.4,0.70,3,nz,nzfcd
+NZ Wakame Seaweed,45,3.0,9.1,0.6,0.5,0.87,15,nz,nzfcd
+NZ Spirulina Powder,290,57.5,23.9,7.7,3.6,0.10,5,nz,nzfcd
+NZ Nutritional Yeast,357,46.5,38.0,5.5,7.0,0.03,10,nz,nzfcd
+NZ Wheat Germ,382,26.6,51.8,10.7,13.2,0.002,15,nz,nzfcd
+NZ Psyllium Husk,200,3.5,53.0,0.5,71.0,0.008,10,nz,nzfcd
+NZ LSA Mix (Linseed Sunflower Almond),570,20.5,15.5,49.5,11.0,0.010,15,nz,nzfcd
+NZ Apple Sauce Unsweetened,48,0.2,12.5,0.2,1.5,0.001,100,nz,nzfcd
+NZ Tomato Relish,145,1.5,34.5,0.3,1.5,0.55,30,nz,nzfcd
+NZ Plum Sauce,250,1.2,62.0,0.3,1.5,0.65,20,nz,nzfcd
+NZ Chutney Mango,225,0.8,56.5,0.2,1.5,0.45,30,nz,nzfcd
+NZ Pickle Relish,100,0.8,24.5,0.2,1.0,0.80,30,nz,nzfcd
+NZ Jam Raspberry,261,0.5,67.5,0.1,1.0,0.01,20,nz,nzfcd
+NZ Jam Strawberry,262,0.4,68.0,0.1,0.5,0.01,20,nz,nzfcd
+NZ Jam Apricot,255,0.5,66.5,0.1,0.8,0.01,20,nz,nzfcd
+NZ Marmalade Orange,245,0.4,64.0,0.1,0.8,0.01,20,nz,nzfcd
+NZ Lemon Curd,325,2.5,48.0,14.0,0.5,0.10,20,nz,nzfcd
+NZ Peanut Butter Powdered,356,21.5,24.5,12.5,9.0,0.55,20,nz,nzfcd
+NZ Almond Butter,614,21.5,19.0,55.5,10.5,0.003,20,nz,nzfcd
+NZ Cashew Butter,580,16.5,27.0,47.0,4.5,0.007,20,nz,nzfcd
+NZ Sunflower Seed Butter,582,20.0,19.5,50.5,7.5,0.010,20,nz,nzfcd
+NZ Hazelnut Spread (Nutella-style),530,6.5,56.5,31.5,3.0,0.07,20,nz,nzfcd
+NZ Coconut Oil,862,0.0,0.0,100.0,0.0,0.0,15,nz,nzfcd
+NZ Sesame Oil,884,0.0,0.0,100.0,0.0,0.0,5,nz,nzfcd
+NZ Avocado Oil,884,0.0,0.0,100.0,0.0,0.0,15,nz,nzfcd
+NZ Walnut Oil,884,0.0,0.0,100.0,0.0,0.0,15,nz,nzfcd
+NZ Lard,898,0.0,0.0,99.5,0.0,0.0,10,nz,nzfcd
+NZ Ghee,900,0.0,0.0,99.8,0.0,0.002,10,nz,nzfcd
+NZ Rice Bran Oil,884,0.0,0.0,100.0,0.0,0.0,15,nz,nzfcd
+NZ Sunflower Oil,884,0.0,0.0,100.0,0.0,0.0,15,nz,nzfcd
+NZ Vegetable Oil,884,0.0,0.0,100.0,0.0,0.0,15,nz,nzfcd
+NZ Cooking Spray,0,0.0,0.0,0.0,0.0,0.0,0,nz,nzfcd
+NZ Balsamic Vinegar,88,0.5,17.0,0.0,0.0,0.02,15,nz,nzfcd
+NZ Red Wine Vinegar,18,0.1,4.5,0.0,0.0,0.01,15,nz,nzfcd
+NZ Rice Wine Vinegar,20,0.1,5.0,0.0,0.0,0.005,15,nz,nzfcd
+NZ Fish Sauce,25,4.0,2.5,0.0,0.0,7.2,10,nz,nzfcd
+NZ Oyster Sauce,100,2.5,22.0,0.5,0.0,3.5,15,nz,nzfcd
+NZ Hoisin Sauce,220,3.5,48.0,3.5,1.5,1.8,20,nz,nzfcd
+NZ Chilli Garlic Sauce,88,3.5,18.5,0.5,2.0,2.5,15,nz,nzfcd
+NZ Sweet Chilli Sauce,245,0.8,61.0,0.2,0.5,2.5,20,nz,nzfcd
+NZ Coconut Aminos,40,1.0,9.0,0.0,0.0,0.85,15,nz,nzfcd
+NZ Tamari,78,8.5,9.0,0.1,0.0,6.2,15,nz,nzfcd
+NZ Dijon Mustard,66,5.0,5.0,3.5,2.0,1.8,10,nz,nzfcd
+NZ Yellow Mustard,60,3.5,5.5,3.0,2.0,1.6,10,nz,nzfcd
+NZ Honey Mustard,175,2.0,38.5,1.5,0.5,0.85,15,nz,nzfcd
+NZ Ranch Dressing,250,1.0,5.0,25.5,0.0,0.62,30,nz,nzfcd
+NZ Caesar Dressing,350,2.0,6.5,36.0,0.0,0.75,30,nz,nzfcd
+NZ Balsamic Dressing,200,0.5,18.5,14.0,0.0,0.38,30,nz,nzfcd
+NZ Italian Dressing,245,0.5,8.0,23.5,0.0,0.75,30,nz,nzfcd
+NZ Tahini Dressing,280,9.0,12.0,24.0,2.5,0.55,30,nz,nzfcd
+NZ Lemon Tahini Dressing,265,8.0,11.5,22.5,2.5,0.42,30,nz,nzfcd
+NZ Vinaigrette,245,0.2,5.5,25.0,0.0,0.35,30,nz,nzfcd
+NZ Blue Cheese Dressing,295,2.5,5.0,30.0,0.0,0.72,30,nz,nzfcd
+NZ Salad Dressing Lite,120,0.5,6.5,10.5,0.0,0.65,30,nz,nzfcd
+NZ Hollandaise Sauce,300,2.5,3.0,32.0,0.0,0.45,30,nz,nzfcd
+NZ Pesto Basil,410,5.5,4.5,42.5,1.5,0.55,30,nz,nzfcd
+NZ Sun-Dried Tomato Pesto,380,5.0,10.5,37.5,2.5,0.58,30,nz,nzfcd
+NZ Avocado Dip,160,2.0,5.5,15.5,3.5,0.35,50,nz,nzfcd
+NZ Tzatziki,95,5.5,5.5,5.5,0.5,0.25,50,nz,nzfcd
+NZ Guacamole,145,1.5,6.0,13.5,4.0,0.28,50,nz,nzfcd
+NZ Baba Ganoush,145,3.5,10.5,10.0,4.5,0.35,50,nz,nzfcd
+NZ Sour Cream Dip,215,2.5,5.5,20.5,0.5,0.42,50,nz,nzfcd
+NZ Cream Cheese Dip,230,5.5,5.5,21.5,0.5,0.42,50,nz,nzfcd
+NZ Kalamata Olives,155,1.4,3.8,15.5,3.5,1.55,20,nz,nzfcd
+NZ Green Olives,128,1.0,3.8,11.0,3.5,1.85,20,nz,nzfcd
+NZ Sundried Tomatoes in Oil,213,5.5,23.5,12.0,4.5,0.28,30,nz,nzfcd
+NZ Anchovies in Oil,185,22.5,0.0,10.0,0.0,4.4,10,nz,nzfcd
+NZ Capers,23,2.4,4.9,0.9,3.2,2.35,10,nz,nzfcd
+NZ Corn Chips Plain,507,7.0,64.5,25.5,5.5,0.52,30,nz,nzfcd
+NZ Popcorn Plain Air-Popped,387,12.9,77.9,4.5,14.5,0.008,30,nz,nzfcd
+NZ Popcorn Butter,430,8.5,62.5,19.5,11.5,0.60,30,nz,nzfcd
+NZ Pretzels,380,9.5,80.5,3.5,2.5,1.55,30,nz,nzfcd
+NZ Pork Rinds Salted,544,61.5,0.0,31.5,0.0,1.85,30,nz,nzfcd
+NZ Beef Jerky,295,33.0,11.5,8.0,0.5,2.20,30,nz,nzfcd
+NZ Vegemite on Toast,175,8.5,32.5,1.5,1.5,0.70,72,nz,nzfcd
+NZ Marmite on Toast,175,8.5,32.0,1.5,1.5,0.55,72,nz,nzfcd
+NZ Peanut Butter on Toast,310,12.5,33.5,15.0,3.5,0.55,72,nz,nzfcd
+NZ Avocado on Toast,265,5.5,32.5,12.5,5.0,0.45,115,nz,nzfcd
+NZ Ricotta on Toast,255,10.5,33.5,8.5,1.5,0.45,115,nz,nzfcd
+NZ Hummus on Toast,280,9.5,36.5,10.5,4.5,0.55,115,nz,nzfcd
+NZ Banana on Toast,215,5.5,42.5,2.5,3.5,0.25,115,nz,nzfcd
+NZ Jam on Toast,255,4.5,53.0,2.0,1.5,0.28,72,nz,nzfcd
+NZ Honey on Toast,255,4.5,53.5,2.0,1.5,0.25,72,nz,nzfcd
