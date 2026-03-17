@@ -62,8 +62,6 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
   const [showAddFood, setShowAddFood] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [pickerTab, setPickerTab] = useState<PickerTab>("search");
-  const [showInstructions, setShowInstructions] = useState(false);
-
   const { data: myFoods = [] } = useQuery<{ items: UserSavedFood[] }, Error, UserSavedFood[]>({
     queryKey: ["/api/my-foods", "all"],
     queryFn: () => fetch("/api/my-foods?limit=100", { credentials: "include" }).then(r => r.json()),
@@ -415,28 +413,16 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
           </div>
 
           <div>
-            <button
-              type="button"
-              onClick={() => setShowInstructions(v => !v)}
-              className="flex items-center gap-1.5 w-full text-left py-1 min-h-[44px] sm:min-h-0"
-              data-testid="button-create-toggle-instructions"
-            >
-              <span className="text-xs font-medium text-zinc-600">Instructions</span>
+            <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-600 mb-1.5">
+              Instructions
               <span className="text-zinc-400 text-[10px] font-normal">(optional)</span>
-              {showInstructions
-                ? <ChevronUp className="w-3.5 h-3.5 text-zinc-400 ml-auto" />
-                : <ChevronDown className="w-3.5 h-3.5 text-zinc-400 ml-auto" />}
-            </button>
-            {showInstructions && (
-              <div className="mt-1.5">
-                <AutoGrowTextarea
-                  value={instructions}
-                  onChange={setInstructions}
-                  placeholder="Add cooking steps, tips, or notes…"
-                  testId="textarea-create-instructions"
-                />
-              </div>
-            )}
+            </label>
+            <AutoGrowTextarea
+              value={instructions}
+              onChange={setInstructions}
+              placeholder="Add cooking steps, tips, or notes…"
+              testId="textarea-create-instructions"
+            />
           </div>
         </div>
 

@@ -111,8 +111,6 @@ export function EditMealModal({
   const [showPicker, setShowPicker] = useState(false);
   const [pickerTab, setPickerTab] = useState<PickerTab>("search");
 
-  const [showInstructions, setShowInstructions] = useState(!!instructions.trim());
-
   const [manualCal, setManualCal] = useState(String(meal.caloriesPerServing));
   const [manualProt, setManualProt] = useState(String(meal.proteinPerServing));
   const [manualCarbs, setManualCarbs] = useState(String(meal.carbsPerServing));
@@ -488,28 +486,16 @@ export function EditMealModal({
           </div>
 
           <div>
-            <button
-              type="button"
-              onClick={() => setShowInstructions(v => !v)}
-              className="flex items-center gap-1.5 w-full text-left py-1 min-h-[44px] sm:min-h-0"
-              data-testid="button-toggle-instructions"
-            >
-              <span className="text-xs font-medium text-zinc-600">Instructions</span>
+            <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-600 mb-1.5">
+              Instructions
               <span className="text-zinc-400 text-[10px] font-normal">(optional)</span>
-              {showInstructions
-                ? <ChevronUp className="w-3.5 h-3.5 text-zinc-400 ml-auto" />
-                : <ChevronDown className="w-3.5 h-3.5 text-zinc-400 ml-auto" />}
-            </button>
-            {showInstructions && (
-              <div className="mt-1.5">
-                <AutoGrowTextarea
-                  value={instructions}
-                  onChange={setInstructions}
-                  placeholder="Add cooking steps, tips, or notes\u2026"
-                  testId="textarea-edit-instructions"
-                />
-              </div>
-            )}
+            </label>
+            <AutoGrowTextarea
+              value={instructions}
+              onChange={setInstructions}
+              placeholder="Add cooking steps, tips, or notes\u2026"
+              testId="textarea-edit-instructions"
+            />
           </div>
 
           {!hasStructured && (
