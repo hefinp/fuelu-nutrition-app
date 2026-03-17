@@ -146,7 +146,7 @@ router.get("/api/food-search", async (req, res) => {
         const name = brand && !rawName.toLowerCase().includes(brand.toLowerCase())
           ? `${rawName} (${brand})`
           : rawName;
-        const normName = name.toLowerCase();
+        const normName = name.toLowerCase().replace(/\s+/g, " ").trim();
         if (seenNames.has(normName)) continue;
 
         const nm = p.nutriments ?? {};
@@ -171,6 +171,9 @@ router.get("/api/food-search", async (req, res) => {
           source: "openfoodfacts",
         }).catch(() => {});
 
+        const fiber = Math.round((nm["fiber_100g"] ?? nm["fibers_100g"] ?? 0) * 10) / 10;
+        const sodium = Math.round((nm["sodium_100g"] ?? 0) * 1000 * 10) / 10;
+
         offResults.push({
           id: `off-${encodeURIComponent(formatted)}`,
           name: formatted,
@@ -178,8 +181,11 @@ router.get("/api/food-search", async (req, res) => {
           protein100g: protein,
           carbs100g: carbs,
           fat100g: fat,
+          fiber100g: fiber || undefined,
+          sodium100g: sodium || undefined,
           servingSize: "100g",
           servingGrams: 100,
+          source: "openfoodfacts",
         });
 
         if (offResults.length >= 8) break;
