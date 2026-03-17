@@ -805,7 +805,7 @@ export default function Dashboard() {
         {/* Loading */}
         {user && historyLoading && (
           <div className="flex items-center justify-center min-h-[400px]">
-            <div className="w-6 h-6 border-2 border-zinc-200 border-t-zinc-600 rounded-full animate-spin" />
+            <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
           </div>
         )}
 
@@ -1200,7 +1200,7 @@ export default function Dashboard() {
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
                   <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-2">
-                      <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                      <div className="p-2 bg-zinc-100 rounded-lg text-zinc-600">
                         <BookOpen className="w-5 h-5" />
                       </div>
                       <div>
@@ -1229,7 +1229,7 @@ export default function Dashboard() {
               >
                 <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-zinc-100 shrink-0">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-blue-100 text-blue-600 rounded-lg">
+                    <div className="p-1.5 bg-zinc-100 rounded-lg text-zinc-600">
                       <BookOpen className="w-4 h-4" />
                     </div>
                     <span className="text-sm font-semibold text-zinc-900">Saved Plans</span>

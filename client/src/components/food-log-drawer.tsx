@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Plus, X, Check, Barcode, BookOpen, UtensilsCrossed,
-  Coffee, Salad, Moon, Apple, Search, Camera, Sparkles, Send, ChevronDown, BadgeCheck,
+  Search, Camera, Sparkles, Send, ChevronDown, BadgeCheck,
   Lock, ArrowRight,
 } from "lucide-react";
 import { Link } from "wouter";
@@ -1124,12 +1124,6 @@ export function FoodLogDrawer({
                       { label: "Fibre", value: Math.round((scannedFood.fibre100g ?? 0) * f * 10) / 10, unit: "g", color: "bg-green-50 text-green-700" },
                       { label: "Sodium", value: Math.round((scannedFood.sodium100g ?? 0) * f * 10) / 10, unit: "mg", color: "bg-orange-50 text-orange-700" },
                     ];
-                    const mealSlots: { slot: MealSlot; label: string; icon: typeof Coffee }[] = [
-                      { slot: "breakfast", label: "Breakfast", icon: Coffee },
-                      { slot: "lunch", label: "Lunch", icon: Salad },
-                      { slot: "dinner", label: "Dinner", icon: Moon },
-                      { slot: "snack", label: "Snack", icon: Apple },
-                    ];
                     return (
                       <div className="space-y-3">
                         <div className="flex items-start gap-2">
@@ -1201,12 +1195,13 @@ export function FoodLogDrawer({
                         <div>
                           <p className="text-[10px] text-zinc-500 font-medium mb-1.5">Meal</p>
                           <div className="grid grid-cols-4 gap-1.5">
-                            {mealSlots.map(({ slot, label, icon: Icon }) => {
+                            {ALL_SLOTS.map((slot) => {
+                              const Icon = SLOT_ICONS[slot];
                               const active = scanMealSlot === slot;
                               return (
                                 <button key={slot} type="button" onClick={() => setScanMealSlot(active ? null : slot)} className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-medium transition-colors ${active ? "bg-zinc-900 text-white" : "bg-zinc-50 text-zinc-500 hover:bg-zinc-100"}`} data-testid={`button-scan-slot-${slot}`}>
                                   <Icon className="w-3.5 h-3.5" />
-                                  {label}
+                                  {SLOT_LABELS[slot]}
                                 </button>
                               );
                             })}
@@ -1500,12 +1495,6 @@ export function FoodLogDrawer({
                   (() => {
                     const grams = parseFloat(aiTabServingGrams) || 100;
                     const f = grams / 100;
-                    const mealSlots: { slot: MealSlot; label: string; icon: typeof Coffee }[] = [
-                      { slot: "breakfast", label: "Breakfast", icon: Coffee },
-                      { slot: "lunch", label: "Lunch", icon: Salad },
-                      { slot: "dinner", label: "Dinner", icon: Moon },
-                      { slot: "snack", label: "Snack", icon: Apple },
-                    ];
                     return (
                       <div className="space-y-3">
                         <div className="flex items-start gap-2">
@@ -1546,12 +1535,13 @@ export function FoodLogDrawer({
                           ))}
                         </div>
                         <div className="grid grid-cols-4 gap-1.5">
-                          {mealSlots.map(({ slot, label, icon: Icon }) => {
+                          {ALL_SLOTS.map((slot) => {
+                            const Icon = SLOT_ICONS[slot];
                             const active = aiTabMealSlot === slot;
                             return (
                               <button key={slot} type="button" onClick={() => setAiTabMealSlot(active ? null : slot)} className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-medium border transition-colors ${active ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"}`} data-testid={`button-ai-tab-slot-${slot}`}>
                                 <Icon className="w-3.5 h-3.5" />
-                                {label}
+                                {SLOT_LABELS[slot]}
                               </button>
                             );
                           })}

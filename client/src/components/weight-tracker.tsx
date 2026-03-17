@@ -310,7 +310,7 @@ export function WeightTracker({
           {/* Weight chart */}
           {weightLoading ? (
             <div className="h-48 flex items-center justify-center">
-              <div className="w-5 h-5 border-2 border-zinc-200 border-t-zinc-500 rounded-full animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
             </div>
           ) : chartData.length < 2 ? (
             <div className="h-48 flex flex-col items-center justify-center text-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-200">
@@ -448,7 +448,7 @@ export function WeightTracker({
           {/* Calories bar chart */}
           {calLoading ? (
             <div className="h-48 flex items-center justify-center">
-              <div className="w-5 h-5 border-2 border-zinc-200 border-t-zinc-500 rounded-full animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
             </div>
           ) : daysLogged === 0 ? (
             <div className="h-48 flex flex-col items-center justify-center text-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-200">

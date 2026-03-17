@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import { CheckCircle2, Circle, Plus, ShieldAlert, RefreshCw, Sparkles, Settings, Users, Coins, ChevronDown } from "lucide-react";
+import { CheckCircle2, Circle, Plus, ShieldAlert, RefreshCw, Sparkles, Settings, Users, Coins, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface CommunityMealBucket {
@@ -202,7 +202,7 @@ export default function AdminPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-        <RefreshCw className="w-5 h-5 animate-spin text-zinc-400" />
+        <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
       </div>
     );
   }
@@ -320,7 +320,7 @@ export default function AdminPage() {
                     className="p-1 text-zinc-400 hover:text-zinc-700 transition-colors"
                     data-testid="button-refresh-balance"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${balanceLoading ? "animate-spin" : ""}`} />
+                    {balanceLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                   </button>
                   <button
                     onClick={() => refillMutation.mutate()}
@@ -335,7 +335,7 @@ export default function AdminPage() {
               </div>
               {balanceLoading ? (
                 <div className="flex items-center justify-center py-10">
-                  <RefreshCw className="w-5 h-5 animate-spin text-zinc-300" />
+                  <Loader2 className="w-5 h-5 animate-spin text-zinc-300" />
                 </div>
               ) : !balance ? (
                 <div className="text-center py-10 text-sm text-zinc-400">No data available.</div>
@@ -376,12 +376,12 @@ export default function AdminPage() {
               <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
                 <h2 className="text-sm font-semibold text-zinc-900">All codes</h2>
                 <button onClick={() => refetch()} className="p-1 text-zinc-400 hover:text-zinc-700 transition-colors" data-testid="button-refresh-codes">
-                  <RefreshCw className={`w-3.5 h-3.5 ${codesLoading ? "animate-spin" : ""}`} />
+                  {codesLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                 </button>
               </div>
               {codesLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <RefreshCw className="w-5 h-5 animate-spin text-zinc-300" />
+                  <Loader2 className="w-5 h-5 animate-spin text-zinc-300" />
                 </div>
               ) : codes.length === 0 ? (
                 <div className="text-center py-12 text-sm text-zinc-400">No codes found.</div>
@@ -492,7 +492,7 @@ function PricingTab({ tierPricing, onSave, isSaving, creditPacks, onSavePack, on
             data-testid="button-sync-stripe-prices"
             className="flex items-center gap-1.5 text-xs text-violet-700 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg font-medium disabled:opacity-50 transition-colors"
           >
-            <RefreshCw className={`w-3 h-3 ${isSyncingStripe ? "animate-spin" : ""}`} />
+            {isSyncingStripe ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
             {isSyncingStripe ? "Syncing…" : "Sync Stripe Prices"}
           </button>
         </div>

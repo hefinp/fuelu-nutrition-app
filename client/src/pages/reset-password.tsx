@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { motion } from "framer-motion";
-import { Loader2, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { Loader2, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 export default function ResetPasswordPage() {
@@ -72,7 +72,7 @@ export default function ResetPasswordPage() {
         {done ? (
           <div className="text-center py-4">
             <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-7 h-7 text-emerald-600" />
+              <CheckCircle2 className="w-7 h-7 text-emerald-600" />
             </div>
             <h2 className="text-xl font-bold text-zinc-900 mb-2">Password updated!</h2>
             <p className="text-sm text-zinc-500">Redirecting you to sign in…</p>
