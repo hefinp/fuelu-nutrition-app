@@ -1,4 +1,5 @@
 import { pool } from "./db";
+import Stripe from "stripe";
 
 const INVITE_CODES = Array.from({ length: 20 }, (_, i) => {
   const n = String(i + 1).padStart(2, "0");
@@ -417,6 +418,53 @@ export async function runMigrations(): Promise<void> {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_foods_region ON canonical_foods (region) WHERE region IS NOT NULL`);
 
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
+
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (stripeKey) {
+      try {
+        const stripe = new Stripe(stripeKey);
+        const tiersResult = await client.query(`SELECT * FROM tier_pricing WHERE active = TRUE AND (stripe_price_id_monthly IS NULL OR stripe_price_id_annual IS NULL)`);
+        for (const row of tiersResult.rows) {
+          const tier = row.tier as string;
+          const productName = `FuelU ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
+          let productId: string | undefined;
+          const products = await stripe.products.search({ query: `name:'${productName}'` });
+          if (products.data.length > 0) {
+            productId = products.data[0].id;
+          } else {
+            const product = await stripe.products.create({ name: productName });
+            productId = product.id;
+          }
+          let monthlyPriceId = row.stripe_price_id_monthly as string | null;
+          let annualPriceId = row.stripe_price_id_annual as string | null;
+          if (!monthlyPriceId) {
+            const price = await stripe.prices.create({
+              product: productId,
+              unit_amount: row.monthly_price_usd as number,
+              currency: "usd",
+              recurring: { interval: "month" },
+            });
+            monthlyPriceId = price.id;
+          }
+          if (!annualPriceId) {
+            const price = await stripe.prices.create({
+              product: productId,
+              unit_amount: row.annual_price_usd as number,
+              currency: "usd",
+              recurring: { interval: "year" },
+            });
+            annualPriceId = price.id;
+          }
+          await client.query(
+            `UPDATE tier_pricing SET stripe_price_id_monthly = $1, stripe_price_id_annual = $2 WHERE id = $3`,
+            [monthlyPriceId, annualPriceId, row.id]
+          );
+          console.log(`[migrate] Stripe prices backfilled for tier: ${tier}`);
+        }
+      } catch (err: any) {
+        console.error("[migrate] Stripe price backfill error:", err.message);
+      }
+    }
   } finally {
     client.release();
   }

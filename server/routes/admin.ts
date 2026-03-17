@@ -123,15 +123,20 @@ router.post("/api/admin/tier-pricing", async (req, res) => {
     const existing = await storage.getTierPricingByTier(tier);
     const stripe = getStripe();
     const priceChanged = existing && (existing.monthlyPriceUsd !== monthlyPriceUsd || existing.annualPriceUsd !== annualPriceUsd);
+    const effectiveMonthlyId = stripePriceIdMonthly ?? existing?.stripePriceIdMonthly;
+    const effectiveAnnualId = stripePriceIdAnnual ?? existing?.stripePriceIdAnnual;
+    const missingPriceIds = !effectiveMonthlyId || !effectiveAnnualId;
 
-    if (stripe && priceChanged) {
+    if (stripe && (priceChanged || missingPriceIds)) {
       const productName = `FuelU ${tier.charAt(0).toUpperCase() + tier.slice(1)}`;
 
-      if (existing.stripePriceIdMonthly) {
-        try { await stripe.prices.update(existing.stripePriceIdMonthly, { active: false }); } catch {}
-      }
-      if (existing.stripePriceIdAnnual) {
-        try { await stripe.prices.update(existing.stripePriceIdAnnual, { active: false }); } catch {}
+      if (priceChanged && existing) {
+        if (existing.stripePriceIdMonthly) {
+          try { await stripe.prices.update(existing.stripePriceIdMonthly, { active: false }); } catch {}
+        }
+        if (existing.stripePriceIdAnnual) {
+          try { await stripe.prices.update(existing.stripePriceIdAnnual, { active: false }); } catch {}
+        }
       }
 
       let productId: string | undefined;
@@ -143,21 +148,25 @@ router.post("/api/admin/tier-pricing", async (req, res) => {
         productId = product.id;
       }
 
-      const newMonthly = await stripe.prices.create({
-        product: productId,
-        unit_amount: monthlyPriceUsd,
-        currency: "usd",
-        recurring: { interval: "month" },
-      });
-      stripePriceIdMonthly = newMonthly.id;
+      if (!effectiveMonthlyId || priceChanged) {
+        const newMonthly = await stripe.prices.create({
+          product: productId,
+          unit_amount: monthlyPriceUsd,
+          currency: "usd",
+          recurring: { interval: "month" },
+        });
+        stripePriceIdMonthly = newMonthly.id;
+      }
 
-      const newAnnual = await stripe.prices.create({
-        product: productId,
-        unit_amount: annualPriceUsd,
-        currency: "usd",
-        recurring: { interval: "year" },
-      });
-      stripePriceIdAnnual = newAnnual.id;
+      if (!effectiveAnnualId || priceChanged) {
+        const newAnnual = await stripe.prices.create({
+          product: productId,
+          unit_amount: annualPriceUsd,
+          currency: "usd",
+          recurring: { interval: "year" },
+        });
+        stripePriceIdAnnual = newAnnual.id;
+      }
     }
 
     const result = await storage.upsertTierPricing({
