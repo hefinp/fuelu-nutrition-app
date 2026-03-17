@@ -136,14 +136,26 @@ router.post("/api/stripe/create-portal", async (req, res) => {
   const user = await storage.getUserById(req.session.userId);
   if (!user) return res.status(401).json({ message: "User not found" });
 
-  if (!user.stripeCustomerId) {
-    return res.status(400).json({ message: "No billing account found" });
+  let stripeCustomerId = user.stripeCustomerId;
+  if (!stripeCustomerId) {
+    try {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: user.name,
+        metadata: { userId: String(user.id) },
+      });
+      stripeCustomerId = customer.id;
+      await storage.updateUserTier(user.id, { stripeCustomerId });
+    } catch (err: any) {
+      console.error("[stripe] Failed to create customer:", err.message);
+      return res.status(500).json({ message: "Failed to create billing account" });
+    }
   }
 
   try {
     const appUrl = process.env.APP_URL || "http://localhost:5000";
     const session = await stripe.billingPortal.sessions.create({
-      customer: user.stripeCustomerId,
+      customer: stripeCustomerId,
       return_url: `${appUrl}/billing`,
     });
     res.json({ url: session.url });
