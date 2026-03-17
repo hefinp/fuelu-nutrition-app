@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { type UserPreferences, type CommunityMeal } from "@shared/schema";
 import {
-  X, Loader2, UtensilsCrossed, Check, Users2, Heart, ShieldAlert,
+  X, Loader2, UtensilsCrossed, Check, Users2, Heart, ShieldAlert, Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
+import { useTierStatus } from "@/hooks/use-tier";
 
 type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
 type MealStyle = "simple" | "gourmet" | "michelin";
@@ -64,6 +66,8 @@ function detectAllergyConflicts(ingredients: string[], allergies: string[]): str
 export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { data: tierStatus } = useTierStatus();
+  const showUpgradeNudge = !!tierStatus && !tierStatus.betaUser && (tierStatus.tier === "free" || tierStatus.tier === "simple");
   const [selectedStyle, setSelectedStyle] = useState<MealStyle>("simple");
   const [selectedSlot, setSelectedSlot] = useState<MealSlot>("breakfast");
   const [expandedMealId, setExpandedMealId] = useState<number | null>(null);
@@ -507,6 +511,26 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {showUpgradeNudge && (
+            <div
+              className="mt-3 rounded-xl bg-violet-50 border border-violet-100 px-4 py-3.5 text-center"
+              data-testid="banner-community-upgrade"
+            >
+              <Sparkles className="w-4 h-4 text-violet-400 mx-auto mb-1.5" />
+              <p className="text-xs font-semibold text-zinc-800 mb-0.5">Love what you see?</p>
+              <p className="text-xs text-zinc-500 mb-2.5">Generate a personalised 7-day meal plan in seconds.</p>
+              <Link
+                href="/pricing"
+                onClick={onClose}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 transition-colors"
+                data-testid="link-community-upgrade-plans"
+              >
+                <Sparkles className="w-3 h-3" />
+                See plans
+              </Link>
             </div>
           )}
         </div>
