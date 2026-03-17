@@ -178,6 +178,7 @@ export const communityMeals = pgTable("community_meals", {
   active: boolean("active").notNull().default(true),
   source: text("source").notNull().default("user"),
   ingredients: text("ingredients").array(),
+  ingredientsJson: jsonb("ingredients_json"),
   instructions: text("instructions"),
   createdAt: timestamp("created_at").defaultNow(),
 });

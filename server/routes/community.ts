@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import OpenAI from "openai";
 import { storage } from "../storage";
+import { parseIngredientsFromArray } from "../lib/ingredient-parser";
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get("/api/community-meals", async (req, res) => {
 router.post("/api/community-meals", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
-    const { recipeId, name, slot, style, caloriesPerServing, proteinPerServing, carbsPerServing, fatPerServing, microScore } = req.body;
+    const { recipeId, name, slot, style, caloriesPerServing, proteinPerServing, carbsPerServing, fatPerServing, microScore, ingredientsJson } = req.body;
     if (!name || !slot || !style || caloriesPerServing == null || proteinPerServing == null || carbsPerServing == null || fatPerServing == null) {
       return res.status(400).json({ message: "Missing required fields" });
     }
@@ -40,6 +41,7 @@ router.post("/api/community-meals", async (req, res) => {
       fatPerServing: Number(fatPerServing),
       microScore: microScore ? Number(microScore) : 3,
       source: "user",
+      ingredientsJson: ingredientsJson ?? null,
     });
     res.status(201).json(meal);
   } catch (err) {
@@ -109,7 +111,16 @@ Macros: ${meal.caloriesPerServing} kcal, ${meal.proteinPerServing}g protein, ${m
       const instructions = typeof parsed.instructions === "string" ? parsed.instructions : "";
 
       if (ingredients.length > 0) {
-        meal = await storage.updateCommunityMealIngredients(meal.id, ingredients, instructions);
+        let parsedJson: any = undefined;
+        try {
+          const result = await parseIngredientsFromArray(ingredients);
+          if (result.length > 0) {
+            parsedJson = result;
+          }
+        } catch (e) {
+          console.error("[community-meals] Failed to parse ingredients:", e);
+        }
+        meal = await storage.updateCommunityMealIngredients(meal.id, ingredients, instructions, parsedJson);
       }
     }
 

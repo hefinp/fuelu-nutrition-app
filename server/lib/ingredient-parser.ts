@@ -301,6 +301,10 @@ export async function aiEstimateIngredient(description: string): Promise<AiEstim
   }
 }
 
+export async function parseIngredientsFromArray(ingredientLines: string[], userId?: number): Promise<IngredientResult[]> {
+  return parseIngredients(ingredientLines.join("\n"), userId);
+}
+
 export async function parseIngredients(ingredientText: string, userId?: number): Promise<IngredientResult[]> {
   const lines = ingredientText.split("\n").map(l => l.trim()).filter(Boolean);
   const results: IngredientResult[] = [];

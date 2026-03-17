@@ -104,12 +104,12 @@ export interface IStorage {
   getCommunityMeals(filters?: { slot?: string; style?: string }): Promise<CommunityMeal[]>;
   getCommunityMealsByUser(userId: number): Promise<CommunityMeal[]>;
   getCommunityMealById(id: number): Promise<CommunityMeal | undefined>;
-  createCommunityMeal(data: { sourceRecipeId?: number | null; sourceUserId?: number | null; name: string; slot: string; style: string; caloriesPerServing: number; proteinPerServing: number; carbsPerServing: number; fatPerServing: number; microScore?: number; source?: string }): Promise<CommunityMeal>;
+  createCommunityMeal(data: { sourceRecipeId?: number | null; sourceUserId?: number | null; name: string; slot: string; style: string; caloriesPerServing: number; proteinPerServing: number; carbsPerServing: number; fatPerServing: number; microScore?: number; source?: string; ingredientsJson?: any }): Promise<CommunityMeal>;
   deactivateCommunityMeal(id: number, userId: number): Promise<void>;
   incrementCommunityMealFavourite(id: number): Promise<void>;
   getCommunityMealBalance(): Promise<{ style: string; slot: string; total: number; userContributed: number; aiGenerated: number }[]>;
   getCommunityMealByRecipeId(recipeId: number): Promise<CommunityMeal | undefined>;
-  updateCommunityMealIngredients(id: number, ingredients: string[], instructions: string): Promise<CommunityMeal>;
+  updateCommunityMealIngredients(id: number, ingredients: string[], instructions: string, ingredientsJson?: any): Promise<CommunityMeal>;
 
   // Meal templates
   getMealTemplates(userId: number): Promise<MealTemplate[]>;
@@ -655,7 +655,7 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  async createCommunityMeal(data: { sourceRecipeId?: number | null; sourceUserId?: number | null; name: string; slot: string; style: string; caloriesPerServing: number; proteinPerServing: number; carbsPerServing: number; fatPerServing: number; microScore?: number; source?: string }): Promise<CommunityMeal> {
+  async createCommunityMeal(data: { sourceRecipeId?: number | null; sourceUserId?: number | null; name: string; slot: string; style: string; caloriesPerServing: number; proteinPerServing: number; carbsPerServing: number; fatPerServing: number; microScore?: number; source?: string; ingredientsJson?: any }): Promise<CommunityMeal> {
     const [created] = await db.insert(communityMeals).values({
       sourceRecipeId: data.sourceRecipeId ?? null,
       sourceUserId: data.sourceUserId ?? null,
@@ -668,6 +668,7 @@ export class DatabaseStorage implements IStorage {
       fatPerServing: data.fatPerServing,
       microScore: data.microScore ?? 3,
       source: data.source ?? "user",
+      ingredientsJson: data.ingredientsJson ?? null,
     }).returning();
     return created;
   }
@@ -684,9 +685,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(communityMeals.id, id));
   }
 
-  async updateCommunityMealIngredients(id: number, ingredients: string[], instructions: string): Promise<CommunityMeal> {
+  async updateCommunityMealIngredients(id: number, ingredients: string[], instructions: string, ingredientsJson?: any): Promise<CommunityMeal> {
+    const setData: any = { ingredients, instructions };
+    if (ingredientsJson !== undefined) {
+      setData.ingredientsJson = ingredientsJson;
+    }
     const [updated] = await db.update(communityMeals)
-      .set({ ingredients, instructions })
+      .set(setData)
       .where(eq(communityMeals.id, id))
       .returning();
     return updated;

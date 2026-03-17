@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { storage } from "../storage";
+import { parseIngredients } from "../lib/ingredient-parser";
 
 const router = Router();
 
@@ -85,6 +86,20 @@ router.post("/api/user-meals", async (req, res) => {
         if (!mealData.instructions && cm.instructions) {
           mealData.instructions = cm.instructions;
         }
+        if (!mealData.ingredientsJson && cm.ingredientsJson) {
+          mealData.ingredientsJson = cm.ingredientsJson as any;
+        }
+      }
+    }
+
+    if (!mealData.ingredientsJson && mealData.ingredients) {
+      try {
+        const parsed = await parseIngredients(mealData.ingredients, req.session.userId);
+        if (parsed.length > 0) {
+          mealData.ingredientsJson = parsed as any;
+        }
+      } catch (e) {
+        console.error("[user-meals] Failed to auto-parse ingredients:", e);
       }
     }
 
@@ -118,6 +133,18 @@ router.patch("/api/user-meals/:id", async (req, res) => {
       ingredients: z.string().nullable().optional(),
       ingredientsJson: z.array(ingredientItemSchema).nullable().optional(),
     }).parse(req.body);
+
+    if (body.ingredients && !body.ingredientsJson) {
+      try {
+        const parsed = await parseIngredients(body.ingredients, req.session.userId);
+        if (parsed.length > 0) {
+          body.ingredientsJson = parsed as any;
+        }
+      } catch (e) {
+        console.error("[user-meals] Failed to auto-parse ingredients on update:", e);
+      }
+    }
+
     const updated = await storage.updateUserMeal(id, req.session.userId, body);
     if (!updated) return res.status(404).json({ message: "Not found" });
     res.json(updated);

@@ -7,6 +7,7 @@ import { promisify } from "util";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { parseIngredientsFromArray } from "../lib/ingredient-parser";
 
 const execFileAsync = promisify(execFile);
 
@@ -271,10 +272,21 @@ router.post("/api/recipes/import", async (req, res) => {
         if (keywords.some(k => catLower.includes(k))) { aiSlot = slot; break; }
       }
 
+      const aiIngredients = Array.isArray(aiJson.ingredients) ? aiJson.ingredients : [];
+      let ingredientsJson = null;
+      try {
+        if (aiIngredients.length > 0) {
+          ingredientsJson = await parseIngredientsFromArray(aiIngredients, req.session.userId);
+        }
+      } catch (e) {
+        console.error("[import] Failed to parse ingredients to JSON:", e);
+      }
+
       return res.json({
         name: aiJson.name,
         imageUrl: null,
-        ingredients: Array.isArray(aiJson.ingredients) ? aiJson.ingredients : [],
+        ingredients: aiIngredients,
+        ingredientsJson,
         instructions: Array.isArray(aiJson.instructions) ? aiJson.instructions.map(String) : [],
         servings: typeof aiJson.servings === "number" ? aiJson.servings : 1,
         sourceUrl: url,
@@ -351,10 +363,20 @@ router.post("/api/recipes/import", async (req, res) => {
     }
   }
 
+  let ingredientsJson = null;
+  try {
+    if (ingredients.length > 0) {
+      ingredientsJson = await parseIngredientsFromArray(ingredients, req.session.userId);
+    }
+  } catch (e) {
+    console.error("[import] Failed to parse ingredients to JSON:", e);
+  }
+
   res.json({
     name,
     imageUrl,
     ingredients,
+    ingredientsJson,
     instructions,
     servings,
     sourceUrl: url,
@@ -427,10 +449,21 @@ router.post("/api/recipes/import-photo", async (req, res) => {
     if (keywords.some(k => catLower.includes(k))) { photoSlot = slot; break; }
   }
 
+  const photoIngredients = Array.isArray(aiJson.ingredients) ? aiJson.ingredients.map(String) : [];
+  let photoIngredientsJson = null;
+  try {
+    if (photoIngredients.length > 0) {
+      photoIngredientsJson = await parseIngredientsFromArray(photoIngredients, req.session.userId);
+    }
+  } catch (e) {
+    console.error("[import-photo] Failed to parse ingredients to JSON:", e);
+  }
+
   res.json({
     name: String(aiJson.name),
     imageUrl: null,
-    ingredients: Array.isArray(aiJson.ingredients) ? aiJson.ingredients.map(String) : [],
+    ingredients: photoIngredients,
+    ingredientsJson: photoIngredientsJson,
     instructions: Array.isArray(aiJson.instructions) ? aiJson.instructions.map(String) : [],
     servings: typeof aiJson.servings === "number" && aiJson.servings > 0 ? aiJson.servings : 1,
     sourceUrl: "photo://recipe-book",
@@ -749,10 +782,21 @@ router.post("/api/recipes/import-video", async (req, res) => {
       if (keywords.some(k => catLower.includes(k))) { videoSlot = slot; break; }
     }
 
+    const videoIngredients = Array.isArray(aiJson.ingredients) ? aiJson.ingredients.map(String) : [];
+    let videoIngredientsJson = null;
+    try {
+      if (videoIngredients.length > 0) {
+        videoIngredientsJson = await parseIngredientsFromArray(videoIngredients, req.session.userId);
+      }
+    } catch (e) {
+      console.error("[import-video] Failed to parse ingredients to JSON:", e);
+    }
+
     res.json({
       name: String(aiJson.name),
       imageUrl: null,
-      ingredients: Array.isArray(aiJson.ingredients) ? aiJson.ingredients.map(String) : [],
+      ingredients: videoIngredients,
+      ingredientsJson: videoIngredientsJson,
       instructions: Array.isArray(aiJson.instructions) ? aiJson.instructions.map(String) : [],
       servings: typeof aiJson.servings === "number" && aiJson.servings > 0 ? aiJson.servings : 1,
       sourceUrl: url,

@@ -72,6 +72,7 @@ Key backend functionalities include:
 -   Calorie and macronutrient calculations based on TDEE/Harris-Benedict formulas.
 -   Automatic saving of generated meal plans for logged-in users.
 -   API endpoints for weight tracking, hydration, food logging, cycle tracking, and AI insights.
+-   **Structured ingredients** (`ingredientsJson` column on `user_meals`, `user_recipes`, `favourite_meals`, `community_meals`): All 4 tables store parsed ingredient data as `IngredientResult[]` in a JSONB column. Each ingredient has `{ key, name, calories100g, protein100g, carbs100g, fat100g, grams, source }`. Auto-parsed via `parseIngredients()` / `parseIngredientsFromArray()` in `server/lib/ingredient-parser.ts` during recipe imports (URL/photo/video), user meal creation/updates, and community meal enrichment. Migration script: `scripts/migrate-ingredients-to-json.ts`.
 
 ### Shared Layer (`shared/`)
 This layer contains Drizzle ORM schema definitions for all database tables and Zod schemas for API request/response contracts, ensuring type safety and validation across both frontend and backend.
