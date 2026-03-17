@@ -117,10 +117,28 @@ export default function AccountPage() {
   const cancelMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/stripe/cancel-subscription", {});
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
       return res.json();
     },
-    onSuccess: () => {
-      toast({ title: "Subscription cancelled", description: "You'll keep access until the end of your billing period." });
+    onSuccess: (data: { message: string; periodEnd?: number }) => {
+      const endDate = data.periodEnd ? new Date(data.periodEnd * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : null;
+      toast({ title: "Subscription cancelled", description: endDate ? `You'll keep access until ${endDate}.` : "You'll keep access until the end of your billing period." });
+      queryClient.invalidateQueries({ queryKey: ["/api/tier/status"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const downgradeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/stripe/downgrade-to-free", {});
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      return res.json();
+    },
+    onSuccess: (data: { message: string; periodEnd?: number }) => {
+      const endDate = data.periodEnd ? new Date(data.periodEnd * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : null;
+      toast({ title: "Switching to Free", description: endDate ? `You'll have full access until ${endDate}.` : data.message });
       queryClient.invalidateQueries({ queryKey: ["/api/tier/status"] });
     },
     onError: (err: Error) => {
@@ -386,14 +404,20 @@ export default function AccountPage() {
                     >
                       Change plan
                     </Link>
-                    <button
-                      onClick={() => cancelMutation.mutate()}
-                      disabled={cancelMutation.isPending}
-                      className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-xl hover:bg-red-50 transition-colors disabled:opacity-40"
-                      data-testid="button-cancel-subscription"
-                    >
-                      {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Cancel subscription"}
-                    </button>
+                    {!pendingTier && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm("Switch to the Free tier? You'll keep access to your current plan until the end of your billing period.")) {
+                            downgradeMutation.mutate();
+                          }
+                        }}
+                        disabled={downgradeMutation.isPending}
+                        className="flex items-center gap-1.5 px-4 py-2 border border-zinc-200 text-zinc-600 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors disabled:opacity-40"
+                        data-testid="button-downgrade-free"
+                      >
+                        {downgradeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Switch to Free"}
+                      </button>
+                    )}
                   </>
                 )}
               </div>
@@ -506,6 +530,27 @@ export default function AccountPage() {
                 </Link>
               </div>
             </div>
+
+            {isPaid && !pendingTier && (
+              <div className="bg-white rounded-2xl border border-red-100 p-6" data-testid="card-cancel-subscription">
+                <h2 className="text-sm font-semibold text-zinc-900 mb-1">Cancel subscription</h2>
+                <p className="text-xs text-zinc-400 mb-4">
+                  You'll keep access to your current plan features until the end of your billing period. After that, your account will revert to the Free tier.
+                </p>
+                <button
+                  onClick={() => {
+                    if (window.confirm("Cancel your subscription? You'll keep access until the end of your billing period, then revert to the Free tier.")) {
+                      cancelMutation.mutate();
+                    }
+                  }}
+                  disabled={cancelMutation.isPending}
+                  className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-xl hover:bg-red-50 transition-colors disabled:opacity-40"
+                  data-testid="button-cancel-subscription"
+                >
+                  {cancelMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Cancel subscription"}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>
