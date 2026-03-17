@@ -25,6 +25,25 @@ PostgreSQL is the primary database, managed with Drizzle ORM. Key tables store u
 ### Authentication
 Session-based authentication uses `express-session` and `connect-pg-simple`. Passwords are hashed with `bcryptjs`. OAuth support for Google and Apple is provided via Passport.js, conditionally enabled by environment variables. An optional invite code beta gate can restrict new registrations.
 
+### Nutritionist Portal (Task #187)
+A dedicated portal at `/nutritionist` for nutritionists to build and deliver personalised meal plans to clients.
+
+**Features:**
+- **Client Management**: Add clients by email, view their profiles and calculation history, take internal notes
+- **AI Plan Generation**: Generate weekly or daily meal plans using GPT-4o with the client's stored profile data (goals, preferences, allergies, calorie targets)
+- **Prompt-to-Plan Workflow**: Nutritionists type a free-text clinical adjustment note (e.g. "increase protein, peak training block") injected into the AI prompt alongside the client profile
+- **Verification Queue**: AI-generated plans land in `pending_review` status for nutritionist review before delivery
+- **Plan Approval & Delivery**: Approve plans then push them to the client's account; clients can view delivered plans via `/api/my-nutritionist-plans`
+- **Plan Scheduling**: Set future delivery dates on any approved plan
+- **Plan History**: Full history of all plans created for each client with delivery dates and statuses
+- **Template Library**: Save any plan as a reusable template (e.g. "marathon taper week"), apply templates to any client
+- **Annotations**: Add guidance notes on specific meals or days within a plan, surfaced to clients
+
+**Access Control**: Nutritionist access requires the user's email to be in the `NUTRITIONIST_EMAILS` env var (comma-separated) or be the default admin email. Non-nutritionist users see an access-denied banner.
+
+**DB Tables**: `nutritionist_clients`, `nutritionist_plans`, `plan_annotations`, `plan_templates`
+**API Routes**: `/api/nutritionist/*`, `/api/my-nutritionist-plans`
+
 ## External Dependencies
 -   **PostgreSQL**: Primary database.
 -   **Google Fonts**: For typography.

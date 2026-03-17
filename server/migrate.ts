@@ -525,6 +525,61 @@ export async function runMigrations(): Promise<void> {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS is_managed_client BOOLEAN NOT NULL DEFAULT FALSE
     `);
 
+    // Nutritionist portal tables
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS nutritionist_clients (
+        id                SERIAL PRIMARY KEY,
+        nutritionist_id   INTEGER NOT NULL REFERENCES users(id),
+        client_id         INTEGER NOT NULL REFERENCES users(id),
+        status            TEXT NOT NULL DEFAULT 'onboarding',
+        goal_summary      TEXT,
+        health_notes      TEXT,
+        notes             TEXT,
+        last_activity_at  TIMESTAMP DEFAULT NOW(),
+        created_at        TIMESTAMP DEFAULT NOW(),
+        UNIQUE(nutritionist_id, client_id)
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS nutritionist_plans (
+        id                    SERIAL PRIMARY KEY,
+        nutritionist_id       INTEGER NOT NULL REFERENCES users(id),
+        client_id             INTEGER NOT NULL REFERENCES users(id),
+        name                  TEXT NOT NULL DEFAULT 'Meal Plan',
+        plan_type             TEXT NOT NULL DEFAULT 'weekly',
+        plan_data             JSONB NOT NULL,
+        status                TEXT NOT NULL DEFAULT 'draft',
+        prompt_note           TEXT,
+        scheduled_deliver_at  TIMESTAMP,
+        delivered_at          TIMESTAMP,
+        created_at            TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS plan_annotations (
+        id          SERIAL PRIMARY KEY,
+        plan_id     INTEGER NOT NULL REFERENCES nutritionist_plans(id) ON DELETE CASCADE,
+        day         TEXT NOT NULL,
+        slot        TEXT,
+        note        TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS plan_templates (
+        id                SERIAL PRIMARY KEY,
+        nutritionist_id   INTEGER NOT NULL REFERENCES users(id),
+        name              TEXT NOT NULL,
+        description       TEXT,
+        plan_type         TEXT NOT NULL DEFAULT 'weekly',
+        plan_data         JSONB NOT NULL,
+        created_at        TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
   } finally {
     client.release();
   }

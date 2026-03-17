@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type NutritionistInvitation, type NutritionistNote } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -208,8 +208,8 @@ export interface IStorage {
   // Nutritionist clients
   getNutritionistClients(nutritionistId: number): Promise<(NutritionistClient & { client: Pick<User, "id" | "name" | "email" | "isManagedClient" | "createdAt"> })[]>;
   getNutritionistClientCount(nutritionistId: number): Promise<number>;
-  addNutritionistClient(nutritionistId: number, clientId: number, data?: { status?: string; goalSummary?: string }): Promise<NutritionistClient>;
-  updateNutritionistClient(id: number, nutritionistId: number, updates: { status?: string; goalSummary?: string; healthNotes?: string; lastActivityAt?: Date }): Promise<NutritionistClient | undefined>;
+  addNutritionistClient(nutritionistId: number, clientId: number, data?: { status?: string; goalSummary?: string; notes?: string }): Promise<NutritionistClient>;
+  updateNutritionistClient(id: number, nutritionistId: number, updates: { status?: string; goalSummary?: string; healthNotes?: string; notes?: string; lastActivityAt?: Date }): Promise<NutritionistClient | undefined>;
   removeNutritionistClient(id: number, nutritionistId: number): Promise<void>;
   getNutritionistClientByClientId(nutritionistId: number, clientId: number): Promise<NutritionistClient | undefined>;
   getNutritionistClientByClientIdAny(clientId: number): Promise<NutritionistClient | undefined>;
@@ -225,6 +225,26 @@ export interface IStorage {
   createNutritionistNote(nutritionistId: number, clientId: number, note: string): Promise<NutritionistNote>;
   updateNutritionistNote(id: number, nutritionistId: number, clientId: number, note: string): Promise<NutritionistNote | undefined>;
   deleteNutritionistNote(id: number, nutritionistId: number, clientId: number): Promise<void>;
+
+  // Nutritionist plans (plan builder & AI workflow)
+  getNutritionistPlans(nutritionistId: number, clientId?: number): Promise<NutritionistPlan[]>;
+  getNutritionistPlanById(id: number, nutritionistId: number): Promise<NutritionistPlan | undefined>;
+  createNutritionistPlan(plan: InsertNutritionistPlan): Promise<NutritionistPlan>;
+  updateNutritionistPlan(id: number, nutritionistId: number, updates: Partial<Pick<NutritionistPlan, 'name' | 'planData' | 'status' | 'promptNote' | 'scheduledDeliverAt'>>): Promise<NutritionistPlan | undefined>;
+  deleteNutritionistPlan(id: number, nutritionistId: number): Promise<void>;
+  deliverNutritionistPlan(id: number, nutritionistId: number): Promise<NutritionistPlan | undefined>;
+  getPendingReviewPlans(nutritionistId: number): Promise<NutritionistPlan[]>;
+  getClientPlanHistory(nutritionistId: number, clientId: number): Promise<NutritionistPlan[]>;
+  getDeliveredPlansForClient(clientId: number): Promise<NutritionistPlan[]>;
+
+  getPlanAnnotations(planId: number): Promise<PlanAnnotation[]>;
+  upsertPlanAnnotation(entry: InsertPlanAnnotation): Promise<PlanAnnotation>;
+  deletePlanAnnotation(id: number, planId: number): Promise<void>;
+
+  getPlanTemplates(nutritionistId: number): Promise<PlanTemplate[]>;
+  createPlanTemplate(template: InsertPlanTemplate): Promise<PlanTemplate>;
+  updatePlanTemplate(id: number, nutritionistId: number, updates: Partial<Pick<PlanTemplate, 'name' | 'description' | 'planData'>>): Promise<PlanTemplate | undefined>;
+  deletePlanTemplate(id: number, nutritionistId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1587,9 +1607,105 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+
   async deleteNutritionistNote(id: number, nutritionistId: number, clientId: number): Promise<void> {
     await db.delete(nutritionistNotes)
       .where(and(eq(nutritionistNotes.id, id), eq(nutritionistNotes.nutritionistId, nutritionistId), eq(nutritionistNotes.clientId, clientId)));
+  }
+
+  async getNutritionistPlans(nutritionistId: number, clientId?: number): Promise<NutritionistPlan[]> {
+    const conditions = [eq(nutritionistPlans.nutritionistId, nutritionistId)];
+    if (clientId !== undefined) conditions.push(eq(nutritionistPlans.clientId, clientId));
+    return db.select().from(nutritionistPlans).where(and(...conditions)).orderBy(desc(nutritionistPlans.createdAt));
+  }
+
+  async getNutritionistPlanById(id: number, nutritionistId: number): Promise<NutritionistPlan | undefined> {
+    const [plan] = await db.select().from(nutritionistPlans).where(and(eq(nutritionistPlans.id, id), eq(nutritionistPlans.nutritionistId, nutritionistId)));
+    return plan;
+  }
+
+  async createNutritionistPlan(plan: InsertNutritionistPlan): Promise<NutritionistPlan> {
+    const [created] = await db.insert(nutritionistPlans).values(plan).returning();
+    return created;
+  }
+
+  async updateNutritionistPlan(id: number, nutritionistId: number, updates: Partial<Pick<NutritionistPlan, 'name' | 'planData' | 'status' | 'promptNote' | 'scheduledDeliverAt'>>): Promise<NutritionistPlan | undefined> {
+    const [updated] = await db.update(nutritionistPlans)
+      .set(updates)
+      .where(and(eq(nutritionistPlans.id, id), eq(nutritionistPlans.nutritionistId, nutritionistId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteNutritionistPlan(id: number, nutritionistId: number): Promise<void> {
+    await db.delete(nutritionistPlans).where(and(eq(nutritionistPlans.id, id), eq(nutritionistPlans.nutritionistId, nutritionistId)));
+  }
+
+  async deliverNutritionistPlan(id: number, nutritionistId: number): Promise<NutritionistPlan | undefined> {
+    const [updated] = await db.update(nutritionistPlans)
+      .set({ status: "delivered", deliveredAt: new Date() })
+      .where(and(eq(nutritionistPlans.id, id), eq(nutritionistPlans.nutritionistId, nutritionistId)))
+      .returning();
+    return updated;
+  }
+
+  async getPendingReviewPlans(nutritionistId: number): Promise<NutritionistPlan[]> {
+    return db.select().from(nutritionistPlans)
+      .where(and(eq(nutritionistPlans.nutritionistId, nutritionistId), eq(nutritionistPlans.status, "pending_review")))
+      .orderBy(desc(nutritionistPlans.createdAt));
+  }
+
+  async getClientPlanHistory(nutritionistId: number, clientId: number): Promise<NutritionistPlan[]> {
+    return db.select().from(nutritionistPlans)
+      .where(and(eq(nutritionistPlans.nutritionistId, nutritionistId), eq(nutritionistPlans.clientId, clientId)))
+      .orderBy(desc(nutritionistPlans.createdAt));
+  }
+
+  async getDeliveredPlansForClient(clientId: number): Promise<NutritionistPlan[]> {
+    return db.select().from(nutritionistPlans)
+      .where(and(eq(nutritionistPlans.clientId, clientId), eq(nutritionistPlans.status, "delivered")))
+      .orderBy(desc(nutritionistPlans.deliveredAt));
+  }
+
+  async getPlanAnnotations(planId: number): Promise<PlanAnnotation[]> {
+    return db.select().from(planAnnotations).where(eq(planAnnotations.planId, planId)).orderBy(planAnnotations.day, planAnnotations.slot);
+  }
+
+  async upsertPlanAnnotation(entry: InsertPlanAnnotation): Promise<PlanAnnotation> {
+    const existing = await db.select().from(planAnnotations)
+      .where(and(eq(planAnnotations.planId, entry.planId), eq(planAnnotations.day, entry.day), entry.slot ? eq(planAnnotations.slot, entry.slot) : sql`${planAnnotations.slot} IS NULL`))
+      .limit(1);
+    if (existing.length > 0) {
+      const [updated] = await db.update(planAnnotations).set({ note: entry.note }).where(eq(planAnnotations.id, existing[0].id)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(planAnnotations).values(entry).returning();
+    return created;
+  }
+
+  async deletePlanAnnotation(id: number, planId: number): Promise<void> {
+    await db.delete(planAnnotations).where(and(eq(planAnnotations.id, id), eq(planAnnotations.planId, planId)));
+  }
+
+  async getPlanTemplates(nutritionistId: number): Promise<PlanTemplate[]> {
+    return db.select().from(planTemplates).where(eq(planTemplates.nutritionistId, nutritionistId)).orderBy(desc(planTemplates.createdAt));
+  }
+
+  async createPlanTemplate(template: InsertPlanTemplate): Promise<PlanTemplate> {
+    const [created] = await db.insert(planTemplates).values(template).returning();
+    return created;
+  }
+
+  async updatePlanTemplate(id: number, nutritionistId: number, updates: Partial<Pick<PlanTemplate, 'name' | 'description' | 'planData'>>): Promise<PlanTemplate | undefined> {
+    const [updated] = await db.update(planTemplates)
+      .set(updates)
+      .where(and(eq(planTemplates.id, id), eq(planTemplates.nutritionistId, nutritionistId)))
+      .returning();
+    return updated;
+  }
+
+  async deletePlanTemplate(id: number, nutritionistId: number): Promise<void> {
+    await db.delete(planTemplates).where(and(eq(planTemplates.id, id), eq(planTemplates.nutritionistId, nutritionistId)));
   }
 }
 

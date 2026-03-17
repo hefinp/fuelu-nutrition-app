@@ -666,6 +666,8 @@ export const insertRecipeIngredientSchema = createInsertSchema(recipeIngredients
 export type InsertRecipeIngredient = z.infer<typeof insertRecipeIngredientSchema>;
 export type RecipeIngredient = typeof recipeIngredients.$inferSelect;
 
+// ─── Nutritionist Portal ────────────────────────────────────────────────────
+
 export const nutritionistProfiles = pgTable("nutritionist_profiles", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id).unique(),
@@ -699,6 +701,7 @@ export const nutritionistClients = pgTable("nutritionist_clients", {
   status: text("status").notNull().default("onboarding"),
   goalSummary: text("goal_summary"),
   healthNotes: text("health_notes"),
+  notes: text("notes"),
   lastActivityAt: timestamp("last_activity_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -760,3 +763,64 @@ export const insertNutritionistNoteSchema = createInsertSchema(nutritionistNotes
 
 export type InsertNutritionistNote = z.infer<typeof insertNutritionistNoteSchema>;
 export type NutritionistNote = typeof nutritionistNotes.$inferSelect;
+
+export const nutritionistPlanStatusEnum = ["draft", "pending_review", "approved", "delivered"] as const;
+export type NutritionistPlanStatus = typeof nutritionistPlanStatusEnum[number];
+
+export const nutritionistPlans = pgTable("nutritionist_plans", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  name: text("name").notNull().default("Meal Plan"),
+  planType: text("plan_type").notNull().default("weekly"),
+  planData: jsonb("plan_data").notNull(),
+  status: text("status").notNull().default("draft"),
+  promptNote: text("prompt_note"),
+  scheduledDeliverAt: timestamp("scheduled_deliver_at"),
+  deliveredAt: timestamp("delivered_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertNutritionistPlanSchema = createInsertSchema(nutritionistPlans).omit({
+  id: true,
+  createdAt: true,
+  deliveredAt: true,
+});
+
+export type InsertNutritionistPlan = z.infer<typeof insertNutritionistPlanSchema>;
+export type NutritionistPlan = typeof nutritionistPlans.$inferSelect;
+
+export const planAnnotations = pgTable("plan_annotations", {
+  id: serial("id").primaryKey(),
+  planId: integer("plan_id").notNull().references(() => nutritionistPlans.id, { onDelete: "cascade" }),
+  day: text("day").notNull(),
+  slot: text("slot"),
+  note: text("note").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPlanAnnotationSchema = createInsertSchema(planAnnotations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPlanAnnotation = z.infer<typeof insertPlanAnnotationSchema>;
+export type PlanAnnotation = typeof planAnnotations.$inferSelect;
+
+export const planTemplates = pgTable("plan_templates", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  planType: text("plan_type").notNull().default("weekly"),
+  planData: jsonb("plan_data").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPlanTemplateSchema = createInsertSchema(planTemplates).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertPlanTemplate = z.infer<typeof insertPlanTemplateSchema>;
+export type PlanTemplate = typeof planTemplates.$inferSelect;
