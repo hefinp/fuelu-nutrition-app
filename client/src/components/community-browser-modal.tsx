@@ -320,7 +320,7 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                       type="button"
                       onClick={() => handleToggleExpand(meal.id)}
                       data-testid={`button-expand-meal-${meal.id}`}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-zinc-100 transition-colors"
+                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-zinc-100 transition-colors min-h-[44px]"
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-zinc-900 leading-tight line-clamp-2">{meal.name}</p>
