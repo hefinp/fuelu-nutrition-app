@@ -96,7 +96,6 @@ export function EditMealModal({
 
   const [selected, setSelected] = useState<Ingredient[]>(parsedInitial ?? []);
   const [hasStructured, setHasStructured] = useState(parsedInitial !== null);
-  const [converting, setConverting] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [pickerTab, setPickerTab] = useState<PickerTab>("search");
 
@@ -172,24 +171,6 @@ export function EditMealModal({
     }
   }
 
-  async function convertIngredients() {
-    if (!plainIngredients.trim()) return;
-    setConverting(true);
-    try {
-      const res = await apiRequest("POST", "/api/meals/parse-ingredients", {
-        ingredients: plainIngredients,
-      });
-      const parsed: Ingredient[] = await res.json();
-      setSelected(parsed);
-      setHasStructured(true);
-      toast({ title: "Ingredients converted", description: "Review and adjust the values, then save." });
-    } catch {
-      toast({ title: "Conversion failed", description: "Try again or add ingredients manually.", variant: "destructive" });
-    } finally {
-      setConverting(false);
-    }
-  }
-
   const saveMutation = useMutation({
     mutationFn: () => {
       const cal = hasStructured ? totals.cal : parseInt(manualCal) || 0;
@@ -259,18 +240,6 @@ export function EditMealModal({
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-zinc-600">Ingredients</label>
-              {!hasStructured && plainIngredients.trim() && (
-                <button
-                  type="button"
-                  onClick={convertIngredients}
-                  disabled={converting}
-                  className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-800 disabled:opacity-50 min-h-[44px] sm:min-h-0 px-2"
-                  data-testid="button-convert-ingredients"
-                >
-                  {converting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-                  {converting ? "Converting\u2026" : "Convert ingredients"}
-                </button>
-              )}
             </div>
 
             {hasStructured ? (
@@ -441,8 +410,9 @@ export function EditMealModal({
               </div>
             ) : (
               <div className="space-y-2">
-                {plainIngredients.trim() ? (
-                  <div className="bg-zinc-50 rounded-xl p-3">
+                {plainIngredients.trim() && (
+                  <div className="bg-zinc-50 rounded-xl p-3 mb-2">
+                    <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wide mb-1.5">Legacy ingredients (read-only)</p>
                     <ul className="space-y-0.5">
                       {plainIngredients.split("\n").filter(Boolean).map((line, i) => (
                         <li key={i} className="flex items-start gap-1.5 text-xs text-zinc-600">
@@ -450,29 +420,21 @@ export function EditMealModal({
                         </li>
                       ))}
                     </ul>
-                    <p className="text-[10px] text-zinc-400 mt-2">Tap "Convert ingredients" above to enable editing with macro data.</p>
-                    <button
-                      type="button"
-                      onClick={() => { setSelected([]); setHasStructured(true); setShowPicker(true); }}
-                      className="mt-2 text-[10px] text-zinc-400 underline hover:text-zinc-600"
-                      data-testid="button-edit-start-fresh"
-                    >Or start with an empty structured list</button>
-                  </div>
-                ) : (
-                  <div className="bg-zinc-50 rounded-xl p-4 text-center space-y-2">
-                    <p className="text-xs text-zinc-500">
-                      No ingredients recorded.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => { setHasStructured(true); setShowPicker(true); }}
-                      className="text-xs text-violet-600 hover:text-violet-800 font-medium"
-                      data-testid="button-edit-add-ingredients"
-                    >
-                      Add ingredients
-                    </button>
                   </div>
                 )}
+                <div className="bg-zinc-50 rounded-xl p-4 text-center space-y-2">
+                  <p className="text-xs text-zinc-500">
+                    {plainIngredients.trim() ? "Switch to structured ingredients to edit with macro data." : "No ingredients recorded."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setHasStructured(true); setShowPicker(true); }}
+                    className="text-xs text-violet-600 hover:text-violet-800 font-medium min-h-[44px] sm:min-h-0"
+                    data-testid="button-edit-add-ingredients"
+                  >
+                    Add structured ingredients
+                  </button>
+                </div>
               </div>
             )}
           </div>
