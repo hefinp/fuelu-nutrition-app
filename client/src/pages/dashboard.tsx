@@ -813,7 +813,7 @@ export default function Dashboard() {
             transition={{ duration: 0.3 }}
           >
             {/* Dashboard welcome widget — permanent, non-dismissable, non-sortable */}
-            <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5 mb-6" data-testid="widget-welcome">
+            <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5 mb-6 snap-start" data-testid="widget-welcome">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-display font-bold text-zinc-900 tracking-tight">
