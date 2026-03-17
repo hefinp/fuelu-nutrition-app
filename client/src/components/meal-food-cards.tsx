@@ -95,7 +95,7 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={e => { e.stopPropagation(); onEdit(); }}
-            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
+            className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             data-testid={`button-edit-meal-${meal.id}`}
             title="Edit"
           >
@@ -103,7 +103,7 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
           </button>
           <button
             onClick={e => { e.stopPropagation(); onDelete(); }}
-            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             data-testid={`button-delete-meal-${meal.id}`}
             title="Remove"
           >

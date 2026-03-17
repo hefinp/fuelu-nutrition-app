@@ -15,7 +15,13 @@ const dayMap: Record<number, string> = {
 router.get("/api/meal-templates", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const templates = await storage.getMealTemplates(req.session.userId);
-  res.json(templates);
+  const mealsResult = await storage.getUserMeals(req.session.userId, { limit: 10000 });
+  const mealsMap = new Map(mealsResult.items.map(m => [m.id, m.name]));
+  const enriched = templates.map(t => ({
+    ...t,
+    mealName: mealsMap.get(t.userMealId) ?? null,
+  }));
+  res.json(enriched);
 });
 
 router.post("/api/meal-templates", async (req, res) => {

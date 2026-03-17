@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -8,6 +8,8 @@ import {
   Link2, Search, Users2, ArrowRight, Repeat,
 } from "lucide-react";
 import type { UserMeal, UserSavedFood, MealTemplate } from "@shared/schema";
+
+type EnrichedTemplate = MealTemplate & { mealName?: string | null };
 import {
   type MealSlot, type ActiveTab,
   SLOT_OPTIONS, SLOT_COLOURS, todayStr,
@@ -24,6 +26,14 @@ import { CreateMealModal } from "@/components/create-meal-modal";
 import { MealTemplateModal } from "@/components/meal-template-modal";
 
 const PAGE_SIZE = 20;
+
+function slotForTimeOfDay(): MealSlot {
+  const h = new Date().getHours();
+  if (h < 11) return "breakfast";
+  if (h < 15) return "lunch";
+  if (h < 21) return "dinner";
+  return "snack";
+}
 
 type PaginatedResponse<T> = { items: T[]; nextCursor: string | null };
 
@@ -45,13 +55,16 @@ export function MyMealsFoodWidget() {
   const [showAddFood, setShowAddFood] = useState(false);
   const [showCommunityBrowser, setShowCommunityBrowser] = useState(false);
   const [mealSearch, setMealSearch] = useState("");
+  const [foodSearch, setFoodSearch] = useState("");
   const [mealSlotFilter, setMealSlotFilter] = useState<MealSlot | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<UserMeal | null>(null);
   const [editFoodTarget, setEditFoodTarget] = useState<UserSavedFood | null>(null);
   const [templateTarget, setTemplateTarget] = useState<UserMeal | null>(null);
 
-  const { data: templates = [] } = useQuery<MealTemplate[]>({
+  useEffect(() => { setExpandedId(null); }, [activeTab]);
+
+  const { data: templates = [] } = useQuery<EnrichedTemplate[]>({
     queryKey: ["/api/meal-templates"],
   });
   const templateMealIds = new Set(templates.map(t => t.userMealId));
@@ -107,7 +120,7 @@ export function MyMealsFoodWidget() {
     onError: () => toast({ title: "Failed to log meal", variant: "destructive" }),
   });
 
-  const invalidateMeals = () => { queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] }); };
+  const invalidateMeals = () => { queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] }); queryClient.invalidateQueries({ queryKey: ["/api/meal-templates"] }); };
   const invalidateFoods = () => { queryClient.invalidateQueries({ queryKey: ["/api/my-foods"] }); };
 
   const deleteMealMutation = useMutation({
@@ -252,7 +265,7 @@ export function MyMealsFoodWidget() {
                         onToggle={() => setExpandedId(expandedId === key ? null : key)}
                         onLog={() => logMeal(meal)}
                         onEdit={() => setEditTarget(meal)}
-                        onDelete={() => deleteMealMutation.mutate(meal.id)}
+                        onDelete={() => { if (window.confirm(`Remove "${meal.name}" from your meals?`)) deleteMealMutation.mutate(meal.id); }}
                         onTemplate={() => setTemplateTarget(meal)}
                         hasTemplate={templateMealIds.has(meal.id)}
                         isLogging={logMutation.isPending}
@@ -314,9 +327,39 @@ export function MyMealsFoodWidget() {
                   <Plus className="w-3.5 h-3.5" />Add your first custom food
                 </button>
               </div>
-            ) : (
+            ) : (() => {
+              const filteredFoods = foodSearch.trim()
+                ? myFoods.filter(f => f.name.toLowerCase().includes(foodSearch.trim().toLowerCase()))
+                : myFoods;
+              return (
+              <>
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search your foods..."
+                    value={foodSearch}
+                    onChange={e => setFoodSearch(e.target.value)}
+                    className="w-full pl-8 pr-8 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-300 bg-white"
+                    data-testid="input-food-search"
+                  />
+                  {foodSearch && (
+                    <button type="button" onClick={() => setFoodSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600" data-testid="button-food-search-clear">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {filteredFoods.length === 0 ? (
+                  <div className="text-center py-8" data-testid="text-no-foods-match">
+                    <Search className="w-8 h-8 mx-auto mb-2 text-zinc-200" />
+                    <p className="text-sm text-zinc-400">No foods match your search</p>
+                    <button type="button" onClick={() => setFoodSearch("")} className="mt-2 text-xs text-zinc-500 hover:text-zinc-700 font-medium" data-testid="button-food-search-clear-all">
+                      Clear search
+                    </button>
+                  </div>
+                ) : (
               <div className="space-y-1.5">
-                {myFoods.map(food => (
+                {filteredFoods.map(food => (
                   <FoodCard
                     key={food.id}
                     food={food}
@@ -330,28 +373,31 @@ export function MyMealsFoodWidget() {
                         prot: Math.round(food.protein100g * factor),
                         carbs: Math.round(food.carbs100g * factor),
                         fat: Math.round(food.fat100g * factor),
-                        slot: null,
+                        slot: slotForTimeOfDay(),
                       });
                     }}
                     onEdit={() => setEditFoodTarget(food)}
-                    onDelete={() => deleteFoodMutation.mutate(food.id)}
+                    onDelete={() => { if (window.confirm(`Remove "${food.name}" from your foods?`)) deleteFoodMutation.mutate(food.id); }}
                     isLogging={logMutation.isPending}
                   />
                 ))}
               </div>
-            )}
-            {foodsQuery.hasNextPage && (
-              <button
-                onClick={() => foodsQuery.fetchNextPage()}
-                disabled={foodsQuery.isFetchingNextPage}
-                className="w-full mt-3 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 rounded-xl border border-zinc-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
-                data-testid="button-load-more-foods"
-              >
-                {foodsQuery.isFetchingNextPage
-                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  : "Load more foods"}
-              </button>
-            )}
+                )}
+                {foodsQuery.hasNextPage && (
+                  <button
+                    onClick={() => foodsQuery.fetchNextPage()}
+                    disabled={foodsQuery.isFetchingNextPage}
+                    className="w-full mt-3 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50 rounded-xl border border-zinc-200 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    data-testid="button-load-more-foods"
+                  >
+                    {foodsQuery.isFetchingNextPage
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : "Load more foods"}
+                  </button>
+                )}
+              </>
+              );
+            })()}
           </div>
         )}
 
@@ -367,6 +413,7 @@ export function MyMealsFoodWidget() {
               <div className="space-y-2">
                 {templates.map(t => {
                   const meal = meals.find(m => m.id === t.userMealId);
+                  const displayName = meal?.name ?? t.mealName ?? "Unknown meal";
                   return (
                     <div
                       key={t.id}
@@ -375,7 +422,7 @@ export function MyMealsFoodWidget() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-zinc-900 truncate">{meal?.name ?? "Unknown meal"}</p>
+                          <p className="text-sm font-medium text-zinc-900 truncate">{displayName}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${SLOT_COLOURS[t.mealSlot as MealSlot] ?? "bg-zinc-100 text-zinc-600"}`}>
                               {t.mealSlot}
@@ -424,7 +471,7 @@ export function MyMealsFoodWidget() {
       {showAddFood && (
         <AddFoodModal
           onClose={() => setShowAddFood(false)}
-          onSaved={() => {}}
+          onSaved={() => invalidateFoods()}
         />
       )}
       {showCommunityBrowser && (
@@ -434,14 +481,14 @@ export function MyMealsFoodWidget() {
         <EditMealModal
           meal={editTarget}
           onClose={() => setEditTarget(null)}
-          onSaved={() => setEditTarget(null)}
+          onSaved={() => { invalidateMeals(); setEditTarget(null); }}
         />
       )}
       {editFoodTarget && (
         <EditFoodModal
           food={editFoodTarget}
           onClose={() => setEditFoodTarget(null)}
-          onSaved={() => setEditFoodTarget(null)}
+          onSaved={() => { invalidateFoods(); setEditFoodTarget(null); }}
         />
       )}
       {templateTarget && (
