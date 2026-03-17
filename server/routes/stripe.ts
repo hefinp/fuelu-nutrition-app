@@ -255,6 +255,13 @@ router.post("/api/stripe/update-subscription", async (req, res) => {
   }
 });
 
+async function scheduleDowngradeToFree(userId: number, subscriptionId: string): Promise<{ periodEnd: number }> {
+  const stripe = getStripe()!;
+  const updated = await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+  await storage.updateUserTier(userId, { pendingTier: "free" });
+  return { periodEnd: (updated as unknown as { current_period_end: number }).current_period_end };
+}
+
 router.post("/api/stripe/cancel-subscription", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
 
@@ -269,11 +276,7 @@ router.post("/api/stripe/cancel-subscription", async (req, res) => {
   }
 
   try {
-    const updated = await stripe.subscriptions.update(user.stripeSubscriptionId, {
-      cancel_at_period_end: true,
-    });
-    await storage.updateUserTier(user.id, { pendingTier: "free" });
-    const periodEnd = (updated as unknown as { current_period_end: number }).current_period_end;
+    const { periodEnd } = await scheduleDowngradeToFree(user.id, user.stripeSubscriptionId);
     res.json({ message: "Subscription will cancel at end of billing period", periodEnd });
   } catch (err: any) {
     console.error("[stripe] Cancel error:", err.message);
@@ -295,11 +298,7 @@ router.post("/api/stripe/downgrade-to-free", async (req, res) => {
   }
 
   try {
-    const updated = await stripe.subscriptions.update(user.stripeSubscriptionId, {
-      cancel_at_period_end: true,
-    });
-    await storage.updateUserTier(user.id, { pendingTier: "free" });
-    const periodEnd = (updated as unknown as { current_period_end: number }).current_period_end;
+    const { periodEnd } = await scheduleDowngradeToFree(user.id, user.stripeSubscriptionId);
     res.json({ message: "Your plan will switch to Free at the end of your billing period.", periodEnd });
   } catch (err: any) {
     console.error("[stripe] Downgrade-to-free error:", err.message);
