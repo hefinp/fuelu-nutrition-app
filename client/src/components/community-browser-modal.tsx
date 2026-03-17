@@ -397,7 +397,7 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                                 <ul className="space-y-1" data-testid={`list-community-ingredients-${meal.id}`}>
                                   {(detailData!.ingredientsJson as Array<{ name: string; grams: number; calories100g: number }>).map((ing, i) => {
                                     const jRows = junctionIngredients[meal.id];
-                                    const hasCanonical = jRows?.some(j => j.name === ing.name && j.canonicalFood);
+                                    const hasCanonical = jRows?.some(j => j.name.toLowerCase().trim() === ing.name.toLowerCase().trim() && j.canonicalFood);
                                     return (
                                       <li key={i} className="flex items-start gap-1.5 text-xs text-zinc-700" data-testid={`community-ingredient-${meal.id}-${i}`}>
                                         <span className="mt-0.5 w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
