@@ -962,8 +962,9 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: a
 
 function RecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
   const recipe = RECIPES[meal.meal];
+  const hasStructuredIngredients = Array.isArray(meal.ingredientsJson) && meal.ingredientsJson.length > 0;
 
-  if (!recipe) {
+  if (!recipe && !hasStructuredIngredients) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
         <motion.div
@@ -1038,7 +1039,7 @@ function RecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
                 </li>
               ))}
             </ul>
-          ) : (
+          ) : recipe ? (
             <ul className="space-y-2">
               {recipe.ingredients.map((ing, idx) => (
                 <li key={idx} className="flex justify-between text-sm text-zinc-700">
@@ -1047,13 +1048,15 @@ function RecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
                 </li>
               ))}
             </ul>
-          )}
+          ) : null}
         </div>
 
-        <div className="bg-zinc-50 p-4 rounded-xl mb-4">
-          <h4 className="text-sm font-semibold text-zinc-900 mb-2">Instructions</h4>
-          <p className="text-sm text-zinc-600 leading-relaxed">{recipe.instructions}</p>
-        </div>
+        {recipe?.instructions && (
+          <div className="bg-zinc-50 p-4 rounded-xl mb-4">
+            <h4 className="text-sm font-semibold text-zinc-900 mb-2">Instructions</h4>
+            <p className="text-sm text-zinc-600 leading-relaxed">{recipe.instructions}</p>
+          </div>
+        )}
 
         <button
           onClick={onClose}
