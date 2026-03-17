@@ -6,3 +6,9 @@ id = "v8nHUiX0Vw_0grjBvkhva"
 uri = "file://.local/docs/fuelu-business-case.md"
 type = "text"
 title = "FuelU — Business Case"
+
+[[outputs]]
+id = "R9j-byQ8S8_yIX_NW0ZlY"
+uri = "file://.local/docs/fuelu-5yr-projection.md"
+type = "text"
+title = "FuelU — 5-Year Financial Projection"
