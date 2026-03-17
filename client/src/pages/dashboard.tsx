@@ -416,7 +416,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-zinc-50/50 pb-36 sm:pb-20">
       {/* Header */}
       <header className="bg-white border-b border-zinc-100 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center relative">
               <div className="w-3 h-3 bg-white rounded-full" />
@@ -559,30 +559,30 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-      </header>
 
-      {/* Personal / Professional tab strip — only visible to nutritionist account holders */}
-      {user && isNutritionist && (
-        <div className="bg-white border-b border-zinc-100" data-testid="tab-strip-professional">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-1 h-11">
-              <span
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg text-zinc-900 bg-zinc-100"
-                data-testid="tab-personal-active"
-              >
-                Personal
-              </span>
-              <Link
-                href="/nutritionist/portal"
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-colors"
-                data-testid="tab-professional"
-              >
-                Professional
-              </Link>
+        {/* Personal / Professional tab strip — only visible to nutritionist account holders */}
+        {user && isNutritionist && (
+          <div className="border-t border-zinc-100" data-testid="tab-strip-professional">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center gap-1 h-10">
+                <span
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md text-zinc-900 bg-zinc-100"
+                  data-testid="tab-personal-active"
+                >
+                  Personal
+                </span>
+                <Link
+                  href="/nutritionist/portal"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-colors"
+                  data-testid="tab-professional"
+                >
+                  Professional
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </header>
 
       {/* Metrics slide-over panel */}
       <AnimatePresence>
