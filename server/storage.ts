@@ -2,6 +2,7 @@ import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, pas
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
+import { isKnownZeroCalorieFood } from "./lib/ingredient-parser";
 
 export interface IStorage {
   // Auth
@@ -550,7 +551,20 @@ export class DatabaseStorage implements IStorage {
     contributedByUserId?: number | null;
   }): Promise<CanonicalFood> {
     // Sanity-check: log a warning and skip upsert for implausible calorie values
-    const { calories100g, protein100g, carbs100g, fat100g, name } = food;
+    let { calories100g, protein100g, carbs100g, fat100g } = food;
+    const { name } = food;
+
+    const isZeroCal = isKnownZeroCalorieFood(name);
+    if (isZeroCal) {
+      if (calories100g !== 0 || protein100g !== 0 || carbs100g !== 0 || fat100g !== 0) {
+        console.warn(`[upsertCanonicalFood] Forcing zero values for known zero-calorie food "${name}" (had ${calories100g} kcal)`);
+      }
+      calories100g = 0;
+      protein100g = 0;
+      carbs100g = 0;
+      fat100g = 0;
+      food = { ...food, calories100g: 0, protein100g: 0, carbs100g: 0, fat100g: 0 };
+    }
 
     // Nothing edible exceeds pure fat at ~900 kcal/100g
     if (calories100g > 950) {
@@ -610,6 +624,15 @@ export class DatabaseStorage implements IStorage {
     if (!food.barcode) {
       const existing = await this.canonicalFoodExistsByName(food.name);
       if (existing) {
+        if (isZeroCal && (existing.calories100g !== 0 || existing.protein100g !== 0 || existing.carbs100g !== 0 || existing.fat100g !== 0)) {
+          await db.update(canonicalFoods).set({
+            calories100g: 0,
+            protein100g: 0,
+            carbs100g: 0,
+            fat100g: 0,
+          }).where(eq(canonicalFoods.id, existing.id));
+          return { ...existing, calories100g: 0, protein100g: 0, carbs100g: 0, fat100g: 0 };
+        }
         const existingIsTrusted = !!existing.fdcId || TRUSTED_SOURCES.includes(existing.source ?? "");
         if (existingIsTrusted && !incomingIsTrusted) {
           return existing;
@@ -964,26 +987,30 @@ export class DatabaseStorage implements IStorage {
       const ing = ingredientsJson[i];
       if (!ing.name) continue;
       if (ing.calories100g < 0) continue;
-      const canonicalFood = await this.upsertCanonicalFood({
-        name: ing.name,
-        calories100g: Math.round(ing.calories100g),
-        protein100g: Math.round(ing.protein100g * 10) / 10,
-        carbs100g: Math.round(ing.carbs100g * 10) / 10,
-        fat100g: Math.round(ing.fat100g * 10) / 10,
-        servingGrams: 100,
-        source: "ingredient_parsed",
-      });
-      await db.insert(mealIngredients).values({
-        userMealId,
-        canonicalFoodId: canonicalFood.id,
-        name: ing.name,
-        grams: ing.grams,
-        calories100g: ing.calories100g,
-        protein100g: ing.protein100g,
-        carbs100g: ing.carbs100g,
-        fat100g: ing.fat100g,
-        orderIndex: i,
-      });
+      try {
+        const canonicalFood = await this.upsertCanonicalFood({
+          name: ing.name,
+          calories100g: Math.round(ing.calories100g),
+          protein100g: Math.round(ing.protein100g * 10) / 10,
+          carbs100g: Math.round(ing.carbs100g * 10) / 10,
+          fat100g: Math.round(ing.fat100g * 10) / 10,
+          servingGrams: 100,
+          source: "ingredient_parsed",
+        });
+        await db.insert(mealIngredients).values({
+          userMealId,
+          canonicalFoodId: canonicalFood.id,
+          name: ing.name,
+          grams: ing.grams,
+          calories100g: ing.calories100g,
+          protein100g: ing.protein100g,
+          carbs100g: ing.carbs100g,
+          fat100g: ing.fat100g,
+          orderIndex: i,
+        });
+      } catch (err) {
+        console.warn(`[syncMealIngredientsFromJson] Skipping ingredient "${ing.name}" (index ${i}) due to error:`, err);
+      }
     }
   }
 
@@ -1857,13 +1884,29 @@ export class DatabaseStorage implements IStorage {
         const row = rows[0];
         const isTrusted = !!row.fdcId || ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts", "nzfcd", "fsanz", "nz_regional", "au_regional"].includes(row.source ?? "");
         if (!isTrusted && (row.calories100g > 5 || row.protein100g > 1 || row.carbs100g > 1 || row.fat100g > 1)) {
-          console.log(`[cleanupBadCanonicalFoods] Fixing "${row.name}" — had ${row.calories100g} kcal, setting to 0`);
+          console.log(`[cleanupBadCanonicalFoods] Fixing "${row.name}" (id=${row.id}) — had ${row.calories100g} kcal, setting to 0`);
           await db.update(canonicalFoods).set({
             calories100g: 0,
             protein100g: 0,
             carbs100g: 0,
             fat100g: 0,
           }).where(eq(canonicalFoods.id, row.id));
+
+          const affectedMealRows = await db.select({ userMealId: mealIngredients.userMealId })
+            .from(mealIngredients)
+            .where(eq(mealIngredients.canonicalFoodId, row.id));
+          const uniqueMealIds = [...new Set(affectedMealRows.map(r => r.userMealId))];
+          for (const mealId of uniqueMealIds) {
+            try {
+              const meal = await db.select().from(userMeals).where(eq(userMeals.id, mealId)).limit(1);
+              if (meal.length > 0) {
+                await this.recomputeMealMacros(mealId, meal[0].userId);
+                console.log(`[cleanupBadCanonicalFoods] Recomputed meal id=${mealId} after fixing "${row.name}"`);
+              }
+            } catch (err) {
+              console.warn(`[cleanupBadCanonicalFoods] Failed to recompute meal id=${mealId}:`, err);
+            }
+          }
         }
       }
     }

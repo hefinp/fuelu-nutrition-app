@@ -321,7 +321,7 @@ const KNOWN_ZERO_CALORIE_PATTERNS = [
   /^salt$/i, /^table salt$/i, /^sea salt$/i,
 ];
 
-function isKnownZeroCalorieFood(name: string): boolean {
+export function isKnownZeroCalorieFood(name: string): boolean {
   const cleaned = name.toLowerCase().trim();
   return KNOWN_ZERO_CALORIE_PATTERNS.some(p => p.test(cleaned));
 }
