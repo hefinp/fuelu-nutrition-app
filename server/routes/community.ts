@@ -44,8 +44,8 @@ router.post("/api/community-meals", async (req, res) => {
       ingredientsJson: ingredientsJson ?? null,
     });
 
-    if (meal.ingredientsJson && Array.isArray(meal.ingredientsJson) && (meal.ingredientsJson as any[]).length > 0) {
-      storage.syncCommunityMealIngredientsFromJson(meal.id, meal.ingredientsJson as any[])
+    if (meal.ingredientsJson && Array.isArray(meal.ingredientsJson) && (meal.ingredientsJson as IngredientResult[]).length > 0) {
+      storage.syncCommunityMealIngredientsFromJson(meal.id, meal.ingredientsJson as IngredientResult[])
         .catch(err => console.error("[community-meals] Failed to sync junction on create:", err));
     }
 
@@ -138,7 +138,7 @@ Macros: ${meal.caloriesPerServing} kcal, ${meal.proteinPerServing}g protein, ${m
         meal = await storage.updateCommunityMealIngredients(meal.id, ingredients, instructions, parsedJson);
 
         if (parsedJson && parsedJson.length > 0) {
-          storage.syncCommunityMealIngredientsFromJson(meal.id, parsedJson as any[])
+          storage.syncCommunityMealIngredientsFromJson(meal.id, parsedJson)
             .catch(err => console.error("[community-meals] Failed to sync junction on detail update:", err));
         }
       }
