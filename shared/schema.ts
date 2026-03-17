@@ -85,6 +85,7 @@ export const userPreferencesSchema = z.object({
   eatingWindowStart: z.number().int().min(0).max(23).optional(),
   eatingWindowEnd: z.number().int().min(0).max(23).optional(),
   fastingDays: z.array(z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])).optional(),
+  country: z.string().optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;
@@ -248,10 +249,13 @@ export const canonicalFoods = pgTable("canonical_foods", {
   protein100g: real("protein_100g").notNull(),
   carbs100g: real("carbs_100g").notNull(),
   fat100g: real("fat_100g").notNull(),
+  fibre100g: real("fibre_100g"),
+  sodium100g: real("sodium_100g"),
   servingGrams: integer("serving_grams").notNull().default(100),
   barcode: text("barcode"),
   fdcId: text("fdc_id"),
   source: text("source").notNull().default("user_manual"),
+  region: text("region"),
   verifiedAt: timestamp("verified_at"),
   contributedByUserId: integer("contributed_by_user_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),

@@ -410,6 +410,12 @@ export async function runMigrations(): Promise<void> {
       console.warn("[migrate] Skipping fdc_id unique index — duplicate fdc_ids found:", fdcDups.rows);
     }
 
+    await client.query(`ALTER TABLE canonical_foods ADD COLUMN IF NOT EXISTS region TEXT`);
+    await client.query(`ALTER TABLE canonical_foods ADD COLUMN IF NOT EXISTS fibre_100g REAL`);
+    await client.query(`ALTER TABLE canonical_foods ADD COLUMN IF NOT EXISTS sodium_100g REAL`);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_foods_region ON canonical_foods (region) WHERE region IS NOT NULL`);
+
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
   } finally {
     client.release();

@@ -54,7 +54,7 @@ export interface IStorage {
   updateCustomFoodBarcode(id: number, barcode: string): Promise<void>;
 
   // Canonical foods (shared food database)
-  searchCanonicalFoods(query: string, limit?: number): Promise<CanonicalFood[]>;
+  searchCanonicalFoods(query: string, limit?: number, regionBoost?: string | null): Promise<CanonicalFood[]>;
   getCanonicalFoodByBarcode(barcode: string): Promise<CanonicalFood | undefined>;
   getCanonicalFoodByFdcId(fdcId: string): Promise<CanonicalFood | undefined>;
   canonicalFoodExistsByName(name: string): Promise<CanonicalFood | undefined>;
@@ -65,10 +65,13 @@ export interface IStorage {
     protein100g: number;
     carbs100g: number;
     fat100g: number;
+    fibre100g?: number | null;
+    sodium100g?: number | null;
     servingGrams?: number;
     barcode?: string | null;
     fdcId?: string | null;
     source?: string;
+    region?: string | null;
     contributedByUserId?: number | null;
   }): Promise<CanonicalFood>;
   getCanonicalFoodById(id: number): Promise<CanonicalFood | undefined>;
@@ -413,11 +416,15 @@ export class DatabaseStorage implements IStorage {
     await db.update(customFoods).set({ barcode }).where(eq(customFoods.id, id));
   }
 
-  async searchCanonicalFoods(query: string, limit = 10): Promise<CanonicalFood[]> {
+  async searchCanonicalFoods(query: string, limit = 10, regionBoost?: string | null): Promise<CanonicalFood[]> {
     const normalized = query.toLowerCase().replace(/\s+/g, " ").trim();
+    const boostRegion = regionBoost ?? null;
     return db.select().from(canonicalFoods)
       .where(ilike(canonicalFoods.canonicalName, `%${normalized}%`))
       .orderBy(
+        boostRegion
+          ? sql`CASE WHEN ${canonicalFoods.region} = ${boostRegion} THEN 0 WHEN ${canonicalFoods.region} IS NOT NULL THEN 1 ELSE 2 END`
+          : sql`CASE WHEN ${canonicalFoods.verifiedAt} IS NOT NULL THEN 0 ELSE 1 END`,
         sql`CASE WHEN ${canonicalFoods.verifiedAt} IS NOT NULL THEN 0 ELSE 1 END`,
         desc(canonicalFoods.createdAt),
       )
@@ -461,10 +468,13 @@ export class DatabaseStorage implements IStorage {
     protein100g: number;
     carbs100g: number;
     fat100g: number;
+    fibre100g?: number | null;
+    sodium100g?: number | null;
     servingGrams?: number;
     barcode?: string | null;
     fdcId?: string | null;
     source?: string;
+    region?: string | null;
     contributedByUserId?: number | null;
   }): Promise<CanonicalFood> {
     // Sanity-check: log a warning and skip upsert for implausible calorie values
@@ -511,7 +521,7 @@ export class DatabaseStorage implements IStorage {
     const existing = await this.canonicalFoodExistsByName(food.name);
     if (existing) return existing;
 
-    const trustedSource = !!food.fdcId || (!!food.barcode && ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts"].includes(food.source ?? ""));
+    const trustedSource = !!food.fdcId || (!!food.barcode && ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts"].includes(food.source ?? "")) || ["nzfcd", "fsanz", "nz_regional", "au_regional"].includes(food.source ?? "");
     try {
       const [created] = await db.insert(canonicalFoods).values({
         name: food.name,
@@ -520,10 +530,13 @@ export class DatabaseStorage implements IStorage {
         protein100g: food.protein100g,
         carbs100g: food.carbs100g,
         fat100g: food.fat100g,
+        fibre100g: food.fibre100g ?? null,
+        sodium100g: food.sodium100g ?? null,
         servingGrams: food.servingGrams ?? 100,
         barcode: food.barcode ?? null,
         fdcId: food.fdcId ?? null,
         source: food.source ?? "user_manual",
+        region: food.region ?? null,
         contributedByUserId: food.contributedByUserId ?? null,
         verifiedAt: trustedSource ? new Date() : null,
       }).returning();

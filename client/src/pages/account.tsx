@@ -5,10 +5,10 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useTierStatus } from "@/hooks/use-tier";
 import { useToast } from "@/hooks/use-toast";
-import type { PublicUser } from "@shared/schema";
+import type { PublicUser, UserPreferences } from "@shared/schema";
 import {
   Crown, CreditCard, AlertTriangle, ArrowRight, Loader2, CheckCircle2,
-  Coins, ArrowUpRight, User, Lock, ChevronRight, Zap,
+  Coins, ArrowUpRight, User, Lock, ChevronRight, Zap, Globe,
 } from "lucide-react";
 
 type Tab = "profile" | "plan";
@@ -52,9 +52,15 @@ export default function AccountPage() {
 
   const [profileName, setProfileName] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
+  const [profileCountry, setProfileCountry] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const { data: userPreferences } = useQuery<UserPreferences>({
+    queryKey: ["/api/user/preferences"],
+    enabled: !!user,
+  });
 
   useEffect(() => {
     if (user) {
@@ -62,6 +68,13 @@ export default function AccountPage() {
       setProfileEmail(user.email);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (userPreferences) {
+      // Default to NZ when no country has been saved yet
+      setProfileCountry(userPreferences.country ?? "nz");
+    }
+  }, [userPreferences]);
 
   const profileMutation = useMutation({
     mutationFn: async (data: { name?: string; email?: string }) => {
@@ -78,6 +91,21 @@ export default function AccountPage() {
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const countryMutation = useMutation({
+    mutationFn: async (country: string) => {
+      const current = userPreferences ?? {};
+      const res = await apiRequest("PUT", "/api/user/preferences", { ...current, country: country || undefined });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+      toast({ title: "Country saved", description: "Your regional food database preference has been updated." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to save country.", variant: "destructive" });
     },
   });
 
@@ -272,6 +300,42 @@ export default function AccountPage() {
                 {profileMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save changes"}
               </button>
             </form>
+
+            <div className="bg-white rounded-2xl border border-zinc-100 p-6 space-y-4" data-testid="card-region-settings">
+              <div className="flex items-center gap-2 mb-2">
+                <Globe className="w-4 h-4 text-zinc-400" />
+                <h2 className="text-sm font-semibold text-zinc-900">Regional Food Database</h2>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Select your country to prioritise local NZ and AU verified food data in search results.
+              </p>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-zinc-500">Country</label>
+                <select
+                  value={profileCountry}
+                  onChange={e => setProfileCountry(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent bg-white"
+                  data-testid="select-profile-country"
+                >
+                  <option value="">Not specified</option>
+                  <option value="nz">New Zealand</option>
+                  <option value="au">Australia</option>
+                  <option value="us">United States</option>
+                  <option value="uk">United Kingdom</option>
+                  <option value="ca">Canada</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={() => countryMutation.mutate(profileCountry)}
+                disabled={countryMutation.isPending}
+                className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors disabled:opacity-40"
+                data-testid="button-save-country"
+              >
+                {countryMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save country"}
+              </button>
+            </div>
 
             <form onSubmit={handlePasswordSave} className="bg-white rounded-2xl border border-zinc-100 p-6 space-y-4" data-testid="form-password">
               <div className="flex items-center gap-2 mb-2">

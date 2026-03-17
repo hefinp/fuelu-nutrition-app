@@ -32,12 +32,37 @@ router.delete("/api/preferences/disliked-meals/:mealName", async (req, res) => {
   res.json({ message: "Dislike removed." });
 });
 
+function detectRegionFromAcceptLanguage(acceptLanguage: string | undefined): string | null {
+  if (!acceptLanguage) return null;
+  const langs = acceptLanguage.toLowerCase().split(",").map(l => l.trim().split(";")[0]);
+  for (const lang of langs) {
+    if (lang === "en-nz" || lang.endsWith("-nz")) return "nz";
+    if (lang === "en-au" || lang.endsWith("-au")) return "au";
+  }
+  return null;
+}
+
 router.get("/api/food-search", async (req, res) => {
   const q = (req.query.q as string | undefined)?.trim();
   if (!q || q.length < 2) return res.json([]);
   try {
+    // Detect user's region for boosting local results
+    // Priority: 1. User profile country preference, 2. Accept-Language header
+    let regionBoost: string | null = null;
+    if (req.session.userId) {
+      const user = await storage.getUserById(req.session.userId);
+      const prefs = (user?.preferences ?? {}) as UserPreferences;
+      const country = (prefs.country ?? "").toLowerCase();
+      if (country === "nz" || country === "new zealand") regionBoost = "nz";
+      else if (country === "au" || country === "australia") regionBoost = "au";
+    }
+    // Fallback: detect from browser Accept-Language header for unauthenticated/unset users
+    if (!regionBoost) {
+      regionBoost = detectRegionFromAcceptLanguage(req.headers["accept-language"]);
+    }
+
     // 1. Search canonical foods DB first
-    const canonicalHits = await storage.searchCanonicalFoods(q, 10);
+    const canonicalHits = await storage.searchCanonicalFoods(q, 10, regionBoost);
     const canonicalResults = canonicalHits.map(c => ({
       id: `canonical-${c.id}`,
       canonicalFoodId: c.id,
@@ -48,7 +73,8 @@ router.get("/api/food-search", async (req, res) => {
       fat100g: c.fat100g,
       servingSize: `${c.servingGrams}g`,
       servingGrams: c.servingGrams,
-      source: "canonical",
+      source: c.source,
+      region: c.region,
       verified: c.verifiedAt != null,
     }));
 
@@ -430,7 +456,9 @@ router.get("/api/barcode/:barcode", async (req, res) => {
       fat100g: canonical.fat100g,
       servingSize: `${canonical.servingGrams}g`,
       servingGrams: canonical.servingGrams,
-      source: "canonical",
+      source: canonical.source ?? "canonical",
+      region: canonical.region ?? null,
+      verified: canonical.verifiedAt != null,
     });
   }
 

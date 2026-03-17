@@ -990,29 +990,39 @@ export function FoodLogDrawer({
                     )}
                     {foodResults.length > 0 && (
                       <div className="space-y-1.5 max-h-56 overflow-y-auto" data-testid="food-search-results">
-                        {foodResults.map(food => (
-                          <button
-                            key={food.id}
-                            type="button"
-                            onClick={() => selectFood(food)}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white hover:bg-zinc-100 hover:border-zinc-200 border border-zinc-100 transition-colors text-left"
-                            data-testid={`button-food-result-${food.id}`}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1">
-                                <p className="text-xs font-medium text-zinc-900 truncate">{food.name}</p>
-                                {food.verified && (
-                                  <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" data-testid={`badge-verified-${food.id}`} />
-                                )}
+                        {foodResults.map(food => {
+                          const isNzVerified = food.source === "nzfcd";
+                          const isAuVerified = food.source === "fsanz";
+                          return (
+                            <button
+                              key={food.id}
+                              type="button"
+                              onClick={() => selectFood(food)}
+                              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white hover:bg-zinc-100 hover:border-zinc-200 border border-zinc-100 transition-colors text-left"
+                              data-testid={`button-food-result-${food.id}`}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <p className="text-xs font-medium text-zinc-900 truncate">{food.name}</p>
+                                  {food.verified && !isNzVerified && !isAuVerified && (
+                                    <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" data-testid={`badge-verified-${food.id}`} />
+                                  )}
+                                  {isNzVerified && (
+                                    <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700 border border-green-200" data-testid={`badge-nz-${food.id}`}>NZ Verified</span>
+                                  )}
+                                  {isAuVerified && (
+                                    <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 border border-yellow-200" data-testid={`badge-au-${food.id}`}>AU Verified</span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-zinc-400 mt-0.5">P:{food.protein100g}g · C:{food.carbs100g}g · F:{food.fat100g}g per 100g</p>
                               </div>
-                              <p className="text-[10px] text-zinc-400 mt-0.5">P:{food.protein100g}g · C:{food.carbs100g}g · F:{food.fat100g}g per 100g</p>
-                            </div>
-                            <div className="ml-3 shrink-0 text-right">
-                              <p className="text-xs font-bold text-zinc-900">{food.calories100g}</p>
-                              <p className="text-[10px] text-zinc-400">kcal/100g</p>
-                            </div>
-                          </button>
-                        ))}
+                              <div className="ml-3 shrink-0 text-right">
+                                <p className="text-xs font-bold text-zinc-900">{food.calories100g}</p>
+                                <p className="text-[10px] text-zinc-400">kcal/100g</p>
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </>
@@ -1087,16 +1097,26 @@ export function FoodLogDrawer({
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-zinc-900 leading-snug" data-testid="text-scan-product-name">{scannedFood.name}</p>
                             <p className="text-[10px] text-zinc-400 mt-0.5">
-                              {scannedFood.sourceType === "label" ? "Nutrition label scan" :
+                              {scannedFood.source === "nzfcd" ? "NZ Food Composition Database" :
+                               scannedFood.source === "fsanz" ? "Food Standards AU/NZ" :
+                               scannedFood.sourceType === "label" ? "Nutrition label scan" :
                                scannedFood.sourceType === "estimated" ? "AI-estimated values" :
                                (scannedFood.source === "community" || scannedFood.source === "canonical") ? "FuelU database" :
                                scannedFood.source === "open_food_facts" ? "Open Food Facts" : "USDA database"}
                             </p>
-                            {scannedFood.sourceType === "estimated" && (
-                              <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-[9px] font-medium text-amber-700" data-testid="badge-estimated-values">
-                                Estimated values — verify before logging
-                              </span>
-                            )}
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {scannedFood.source === "nzfcd" && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 bg-green-100 text-green-700 border border-green-200 rounded text-[9px] font-bold" data-testid="badge-scan-nz-verified">NZ Verified</span>
+                              )}
+                              {scannedFood.source === "fsanz" && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 bg-yellow-100 text-yellow-700 border border-yellow-200 rounded text-[9px] font-bold" data-testid="badge-scan-au-verified">AU Verified</span>
+                              )}
+                              {scannedFood.sourceType === "estimated" && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-[9px] font-medium text-amber-700" data-testid="badge-estimated-values">
+                                  Estimated values — verify before logging
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <button type="button" onClick={resetScanner} className="p-1 hover:bg-zinc-100 rounded-lg transition-colors shrink-0" data-testid="button-scan-reset">
                             <X className="w-4 h-4 text-zinc-400" />

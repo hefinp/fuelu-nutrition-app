@@ -25,6 +25,8 @@ export interface FoodResult {
   servingSize: string;
   servingGrams: number;
   verified?: boolean;
+  source?: string;
+  region?: string | null;
 }
 
 export interface ExtendedFoodResult extends FoodResult {
