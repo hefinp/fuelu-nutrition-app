@@ -15,6 +15,7 @@ import NotFound from "@/pages/not-found";
 import AdminPage from "@/pages/admin";
 import PricingPage from "@/pages/pricing";
 import BillingPage from "@/pages/billing";
+import AccountPage from "@/pages/account";
 import { useAuth } from "@/hooks/use-auth";
 import { TrialModal } from "@/components/trial-modal";
 import type { TrialInfo } from "@shared/trial";
@@ -60,6 +61,7 @@ function Router() {
       <Route path="/admin" component={AdminPage} />
       <Route path="/pricing" component={PricingPage} />
       <Route path="/billing" component={BillingPage} />
+      <Route path="/account" component={AccountPage} />
       <Route path="/insights">{() => <Suspense fallback={<LazyFallback />}><InsightsPage /></Suspense>}</Route>
       <Route path="/diary">{() => <Suspense fallback={<LazyFallback />}><DiaryPage /></Suspense>}</Route>
       <Route path="/my-library">{() => <Suspense fallback={<LazyFallback />}><MyLibraryPage /></Suspense>}</Route>

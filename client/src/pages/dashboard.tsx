@@ -49,9 +49,43 @@ import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
   Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, Home, TrendingUp, Star,
-  Sparkles, ScanLine, Heart, ShieldCheck, Zap,
+  Sparkles, ScanLine, Heart, ShieldCheck, Zap, User,
 } from "lucide-react";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
+
+function UpgradeNudgeBanner({ tier }: { tier: string }) {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+  return (
+    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100" data-testid="banner-upgrade-nudge">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm text-amber-800">
+          <Zap className="w-4 h-4 text-amber-500 shrink-0" />
+          <span>
+            {tier === "free" ? "Unlock AI meal plans, barcode scanning, and more." : "Upgrade to Advanced for unlimited access to every feature."}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/account?tab=plan"
+            className="text-xs font-semibold text-amber-700 hover:text-amber-900 underline whitespace-nowrap"
+            data-testid="link-upgrade-nudge-banner"
+          >
+            Upgrade now
+          </Link>
+          <button
+            onClick={() => setDismissed(true)}
+            className="text-amber-400 hover:text-amber-700 transition-colors"
+            aria-label="Dismiss"
+            data-testid="button-dismiss-upgrade-banner"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Detect whether the viewport is desktop-width (xl = 1280px)
 function useIsDesktop() {
@@ -399,8 +433,13 @@ export default function Dashboard() {
                     className="flex items-center gap-2 text-sm font-medium text-zinc-700 hover:text-zinc-900 transition-colors"
                     data-testid="button-user-menu"
                   >
-                    <div className="w-8 h-8 bg-zinc-900 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                      {user.name.charAt(0).toUpperCase()}
+                    <div className="relative">
+                      <div className="w-8 h-8 bg-zinc-900 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                      {tierStatus && !tierStatus.betaUser && tierStatus.tier !== "advanced" && (
+                        <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white" data-testid="badge-upgrade-dot" />
+                      )}
                     </div>
                     <span className="hidden sm:inline max-w-[120px] truncate">{user.name}</span>
                   </button>
@@ -419,6 +458,15 @@ export default function Dashboard() {
                             <p className="text-xs font-semibold text-zinc-900 truncate">{user.name}</p>
                             <p className="text-xs text-zinc-500 truncate">{user.email}</p>
                           </div>
+                          <Link
+                            href="/account"
+                            onClick={() => setShowUserMenu(false)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                            data-testid="link-my-account"
+                          >
+                            <User className="w-4 h-4 text-zinc-400" />
+                            My Account
+                          </Link>
                           <button
                             onClick={handleOpenMetrics}
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
@@ -465,6 +513,10 @@ export default function Dashboard() {
 
       {user && (user as any).trialInfo && (
         <TrialBanner trialInfo={(user as any).trialInfo as TrialInfo} />
+      )}
+
+      {user && tierStatus && !tierStatus.betaUser && tierStatus.tier !== "advanced" && (
+        <UpgradeNudgeBanner tier={tierStatus.tier} />
       )}
 
       {/* Metrics slide-over panel */}

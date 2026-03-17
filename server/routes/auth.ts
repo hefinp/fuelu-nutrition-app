@@ -277,4 +277,50 @@ router.post("/api/auth/reset-password", async (req, res) => {
   }
 });
 
+router.put("/api/auth/profile", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const input = z.object({
+      name: z.string().min(2, "Name must be at least 2 characters").optional(),
+      email: z.string().email("Invalid email address").optional(),
+    }).refine(data => data.name !== undefined || data.email !== undefined, {
+      message: "At least one of name or email must be provided",
+    }).parse(req.body);
+    if (input.email) {
+      const existing = await storage.getUserByEmail(input.email);
+      if (existing && existing.id !== req.session.userId) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+    }
+    const updated = await storage.updateUserProfile(req.session.userId, input);
+    res.json(toPublicUser(updated));
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+    throw err;
+  }
+});
+
+router.put("/api/auth/password", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const input = z.object({
+      currentPassword: z.string().min(1, "Current password is required"),
+      newPassword: z.string().min(6, "New password must be at least 6 characters"),
+    }).parse(req.body);
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user.passwordHash) {
+      return res.status(400).json({ message: "Cannot change password for OAuth accounts" });
+    }
+    const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+    if (!valid) return res.status(400).json({ message: "Current password is incorrect" });
+    const passwordHash = await bcrypt.hash(input.newPassword, 12);
+    await storage.updateUserPassword(req.session.userId, passwordHash);
+    res.json({ message: "Password updated successfully." });
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+    throw err;
+  }
+});
+
 export default router;

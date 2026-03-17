@@ -10,6 +10,7 @@ export interface IStorage {
   getUserById(id: number): Promise<User | undefined>;
   findOrCreateOAuthUser(opts: { email: string; name: string; provider: string; providerId: string }): Promise<User>;
   updateUserPassword(userId: number, passwordHash: string): Promise<void>;
+  updateUserProfile(userId: number, updates: { name?: string; email?: string }): Promise<User>;
 
   // Calculations
   createCalculation(calc: InsertCalculation & { userId?: number; dailyCalories: number; weeklyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number }): Promise<Calculation>;
@@ -231,6 +232,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserPassword(userId: number, passwordHash: string): Promise<void> {
     await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+  }
+
+  async updateUserProfile(userId: number, updates: { name?: string; email?: string }): Promise<User> {
+    const [updated] = await db.update(users).set(updates).where(eq(users.id, userId)).returning();
+    return updated;
   }
 
   async createCalculation(calc: InsertCalculation & { userId?: number; dailyCalories: number; weeklyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number }): Promise<Calculation> {
