@@ -699,7 +699,7 @@ export function CycleTracker() {
                       {periodLogs && periodLogs.length > 0 && (
                         <div className="space-y-1.5">
                           <p className="text-[10px] text-zinc-400 uppercase tracking-wide font-medium">History</p>
-                          {periodLogs.slice(0, 5).map(log => (
+                          {periodLogs.slice(0, 6).map(log => (
                             <div
                               key={log.id}
                               className="flex items-center gap-2 px-3 py-2 bg-zinc-50 rounded-xl border border-zinc-100"
@@ -709,7 +709,11 @@ export function CycleTracker() {
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs text-zinc-700">
                                   {formatHistoryDate(log.periodStartDate)}
-                                  {log.periodEndDate && ` – ${formatHistoryDate(log.periodEndDate)}`}
+                                  {log.periodEndDate
+                                    ? ` – ${formatHistoryDate(log.periodEndDate)}`
+                                    : !openPeriod || openPeriod.id !== log.id
+                                      ? ""
+                                      : " · ongoing"}
                                 </p>
                                 {log.computedCycleLength && (
                                   <p className="text-[10px] text-zinc-400">
@@ -727,11 +731,15 @@ export function CycleTracker() {
                               </button>
                             </div>
                           ))}
-                          {periodLogs.filter(l => l.computedCycleLength).length >= 2 && (
-                            <p className="text-[10px] text-zinc-400 text-center pt-1">
-                              Avg cycle: {Math.round(periodLogs.filter(l => l.computedCycleLength).reduce((s, l) => s + l.computedCycleLength!, 0) / periodLogs.filter(l => l.computedCycleLength).length)} days
-                            </p>
-                          )}
+                          {periodLogs.filter(l => l.computedCycleLength).length >= 2 && (() => {
+                            const withLen = periodLogs.filter(l => l.computedCycleLength);
+                            const avg = Math.round(withLen.reduce((s, l) => s + l.computedCycleLength!, 0) / withLen.length);
+                            return (
+                              <p className="text-[10px] text-zinc-400 text-center pt-1" data-testid="text-avg-cycle">
+                                Avg cycle: {avg} days based on {withLen.length} cycles
+                              </p>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>

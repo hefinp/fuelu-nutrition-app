@@ -101,11 +101,19 @@ router.patch("/api/cycle/periods/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const body = z.object({
+      periodStartDate: z.string().optional().nullable(),
       periodEndDate: z.string().optional().nullable(),
       notes: z.string().optional().nullable(),
     }).parse(req.body);
-    const updated = await storage.updateCyclePeriodLog(id, req.session.userId, body);
+    const updates: { periodStartDate?: string; periodEndDate?: string | null; notes?: string | null } = {};
+    if (body.periodEndDate !== undefined) updates.periodEndDate = body.periodEndDate;
+    if (body.notes !== undefined) updates.notes = body.notes;
+    if (body.periodStartDate) updates.periodStartDate = body.periodStartDate;
+    const updated = await storage.updateCyclePeriodLog(id, req.session.userId, updates);
     if (!updated) return res.status(404).json({ message: "Not found" });
+    if (body.periodStartDate) {
+      await syncPrefsFromPeriodLogs(req.session.userId);
+    }
     res.json(updated);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
