@@ -295,18 +295,19 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     if (!touchDragging) return;
     const touch = e.changedTouches[0];
     const hit = findSlotAtPoint(touch.clientX, touch.clientY);
+    const source = { dayKey: touchDragging.dayKey, slotKey: touchDragging.slotKey, mealIdx: touchDragging.mealIdx };
+    setTouchDragging(null);
     setTouchGhost(null);
     setDropTarget(null);
-    if (hit && !(hit.dayKey === touchDragging.dayKey && hit.slotKey === touchDragging.slotKey)) {
+    if (hit && !(hit.dayKey === source.dayKey && hit.slotKey === source.slotKey)) {
       const rect = hit.el.getBoundingClientRect();
       setCopyMovePopover({
         x: rect.left + rect.width / 2,
         y: rect.top,
-        source: { dayKey: touchDragging.dayKey, slotKey: touchDragging.slotKey, mealIdx: touchDragging.mealIdx },
+        source,
         target: { dayKey: hit.dayKey, slotKey: hit.slotKey },
       });
     }
-    setTouchDragging(null);
   }, [touchDragging, findSlotAtPoint]);
 
   useEffect(() => {
@@ -1321,7 +1322,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
           </div>
         )}
 
-        {touchDragging && touchGhost && (
+        {touchDragging && touchGhost && !copyMovePopover && (
           <div
             className="fixed z-[60] pointer-events-none"
             style={{ left: touchGhost.x - 60, top: touchGhost.y - 20 }}
