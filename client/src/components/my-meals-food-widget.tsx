@@ -54,6 +54,7 @@ export function MyMealsFoodWidget() {
   const [showImport, setShowImport] = useState(false);
   const [showCreateMeal, setShowCreateMeal] = useState(false);
   const [showAddFood, setShowAddFood] = useState(false);
+  const [addFoodInitialTab, setAddFoodInitialTab] = useState<"search" | "scan" | "ai" | "manual">("search");
   const [showCommunityBrowser, setShowCommunityBrowser] = useState(false);
   const [mealSearch, setMealSearch] = useState("");
   const [foodSearch, setFoodSearch] = useState("");
@@ -304,13 +305,22 @@ export function MyMealsFoodWidget() {
         {activeTab === "foods" && (
           <div>
             <p className="text-xs text-zinc-400 mb-3" data-testid="text-my-foods-subtitle">Your personal nutrition database — custom brands, home recipes & staples with your own verified macros.</p>
-            <button
-              onClick={() => setShowAddFood(true)}
-              className="w-full flex items-center justify-center gap-1.5 py-2 mb-4 rounded-xl bg-zinc-900 text-xs font-medium text-white hover:bg-zinc-700 transition-all"
-              data-testid="button-add-food"
-            >
-              <Plus className="w-3.5 h-3.5" />Add Custom Food
-            </button>
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => { setAddFoodInitialTab("search"); setShowAddFood(true); }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-zinc-900 text-xs font-medium text-white hover:bg-zinc-700 transition-all"
+                data-testid="button-search-add-food"
+              >
+                <Search className="w-3.5 h-3.5" />Search & Add
+              </button>
+              <button
+                onClick={() => { setAddFoodInitialTab("manual"); setShowAddFood(true); }}
+                className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-zinc-200 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-all"
+                data-testid="button-add-food"
+              >
+                <Plus className="w-3.5 h-3.5" />Custom
+              </button>
+            </div>
 
             {foodsLoading ? (
               <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
@@ -322,11 +332,11 @@ export function MyMealsFoodWidget() {
                 <p className="text-sm font-medium text-zinc-700 mb-1">Your personal food list</p>
                 <p className="text-xs text-zinc-400 leading-relaxed max-w-[260px] mx-auto">Save foods you eat regularly that aren't in our database, or items with your own verified macros.</p>
                 <button
-                  onClick={() => setShowAddFood(true)}
+                  onClick={() => { setAddFoodInitialTab("search"); setShowAddFood(true); }}
                   className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-900 text-xs font-medium text-white hover:bg-zinc-700 transition-all"
                   data-testid="button-add-first-food"
                 >
-                  <Plus className="w-3.5 h-3.5" />Add your first custom food
+                  <Search className="w-3.5 h-3.5" />Search & add your first food
                 </button>
               </div>
             ) : (() => {
@@ -474,6 +484,7 @@ export function MyMealsFoodWidget() {
         <AddFoodModal
           onClose={() => setShowAddFood(false)}
           onSaved={() => invalidateFoods()}
+          initialTab={addFoodInitialTab}
         />
       )}
       {showCommunityBrowser && (

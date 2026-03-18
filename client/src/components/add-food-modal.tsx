@@ -76,11 +76,11 @@ function ConfirmPanel({ food, servGrams, setServGrams, onSave, onReset, testPref
 type DuplicateWarning = { message: string; exactMatch: boolean; existingCount: number };
 type FoodPayload = { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams: number; source?: string; confirmDuplicate?: boolean; canonicalFoodId?: number };
 
-export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSaved: (food: UserSavedFood) => void }) {
+export function AddFoodModal({ onClose, onSaved, initialTab = "search" }: { onClose: () => void; onSaved: (food: UserSavedFood) => void; initialTab?: AddFoodTab }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { overlayStyle, panelMaxHeight } = useMobileViewport(0.90);
-  const [tab, setTab] = useState<AddFoodTab>("search");
+  const [tab, setTab] = useState<AddFoodTab>(initialTab);
 
   const [name, setName] = useState("");
   const [cal, setCal] = useState("");
@@ -175,8 +175,8 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
       <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md max-h-[90dvh] flex flex-col overflow-hidden" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
           <div>
-            <h3 className="text-base font-semibold text-zinc-900" data-testid="text-addfood-title">Add Custom Food</h3>
-            <p className="text-[11px] text-zinc-400 mt-0.5">Save brands, staples & home-cooked items with your own macros</p>
+            <h3 className="text-base font-semibold text-zinc-900" data-testid="text-addfood-title">Add Food</h3>
+            <p className="text-[11px] text-zinc-400 mt-0.5">Search 3M+ foods or enter your own custom macros</p>
           </div>
           <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-700" data-testid="button-add-food-close"><X className="w-4 h-4" /></button>
         </div>

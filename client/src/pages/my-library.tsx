@@ -47,6 +47,7 @@ export default function MyLibraryPage() {
   const [showImport, setShowImport] = useState(false);
   const [showCreateMeal, setShowCreateMeal] = useState(false);
   const [showAddFood, setShowAddFood] = useState(false);
+  const [addFoodInitialTab, setAddFoodInitialTab] = useState<"search" | "scan" | "ai" | "manual">("search");
   const [showCommunityBrowser, setShowCommunityBrowser] = useState(false);
   const [mealSearch, setMealSearch] = useState("");
   const [foodSearch, setFoodSearch] = useState("");
@@ -328,13 +329,22 @@ export default function MyLibraryPage() {
         {activeTab === "foods" && (
           <div>
             <p className="text-xs text-zinc-400 mb-3" data-testid="text-library-foods-subtitle">Your personal nutrition database — save custom brands, home recipes, and staples with your own verified macros.</p>
-            <button
-              onClick={() => setShowAddFood(true)}
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 mb-4 rounded-xl bg-zinc-900 text-sm font-medium text-white hover:bg-zinc-700 transition-all"
-              data-testid="button-library-add-food"
-            >
-              <Plus className="w-4 h-4" />Add Custom Food
-            </button>
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => { setAddFoodInitialTab("search"); setShowAddFood(true); }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-zinc-900 text-sm font-medium text-white hover:bg-zinc-700 transition-all"
+                data-testid="button-library-search-add-food"
+              >
+                <Search className="w-4 h-4" />Search & Add
+              </button>
+              <button
+                onClick={() => { setAddFoodInitialTab("manual"); setShowAddFood(true); }}
+                className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-all"
+                data-testid="button-library-add-food"
+              >
+                <Plus className="w-4 h-4" />Custom
+              </button>
+            </div>
 
             {foodsLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>
@@ -346,11 +356,11 @@ export default function MyLibraryPage() {
                 <p className="text-sm font-medium text-zinc-700 mb-1">Your personal food list</p>
                 <p className="text-xs text-zinc-400 leading-relaxed max-w-[280px] mx-auto">Save foods you eat regularly that aren't in our database, or items with your own verified macros.</p>
                 <button
-                  onClick={() => setShowAddFood(true)}
+                  onClick={() => { setAddFoodInitialTab("search"); setShowAddFood(true); }}
                   className="mt-4 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-zinc-900 text-sm font-medium text-white hover:bg-zinc-700 transition-all"
                   data-testid="button-library-add-first-food"
                 >
-                  <Plus className="w-4 h-4" />Add your first custom food
+                  <Search className="w-4 h-4" />Search & add your first food
                 </button>
               </div>
             ) : (
@@ -487,6 +497,7 @@ export default function MyLibraryPage() {
         <AddFoodModal
           onClose={() => setShowAddFood(false)}
           onSaved={() => {}}
+          initialTab={addFoodInitialTab}
         />
       )}
       {showCommunityBrowser && (
