@@ -734,8 +734,8 @@ export function CycleTracker() {
                               </button>
                             </div>
                           ))}
-                          {periodLogs.filter(l => l.computedCycleLength).length >= 2 && (() => {
-                            const withLen = periodLogs.filter(l => l.computedCycleLength);
+                          {periodLogs.filter(l => l.computedCycleLength).length >= 1 && (() => {
+                            const withLen = periodLogs.filter(l => l.computedCycleLength).slice(0, 3);
                             const avg = Math.round(withLen.reduce((s, l) => s + l.computedCycleLength!, 0) / withLen.length);
                             return (
                               <p className="text-[10px] text-zinc-400 text-center pt-1" data-testid="text-avg-cycle">
