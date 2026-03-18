@@ -127,6 +127,11 @@ export async function runMigrations(): Promise<void> {
     `);
 
     await client.query(`
+      ALTER TABLE food_log_entries
+      ADD COLUMN IF NOT EXISTS source TEXT
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS meal_templates (
         id              SERIAL PRIMARY KEY,
         user_id         INTEGER NOT NULL REFERENCES users(id),
