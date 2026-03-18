@@ -203,13 +203,23 @@ export default function PricingPage() {
                         <span className="text-sm text-zinc-400">/month + credits</span>
                       </div>
                     ) : tierData ? (
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-zinc-900">${displayPrice.toFixed(2)}</span>
-                        <span className="text-sm text-zinc-400">/month</span>
-                        {billing === "annual" && (
-                          <span className="text-xs text-zinc-300 line-through ml-1">${monthlyPrice.toFixed(2)}</span>
-                        )}
-                      </div>
+                      billing === "annual" ? (
+                        <div>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-3xl font-bold text-zinc-900" data-testid={`text-annual-price-${tierKey}`}>${annualPrice.toFixed(2)}</span>
+                            <span className="text-sm text-zinc-400">/year</span>
+                            <span className="text-xs text-zinc-300 line-through ml-1">${monthlyPrice.toFixed(2)}/mo</span>
+                          </div>
+                          <div className="mt-1">
+                            <span className="text-sm text-zinc-500" data-testid={`text-monthly-equivalent-${tierKey}`}>${annualMonthly.toFixed(2)}/mo</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-bold text-zinc-900" data-testid={`text-monthly-price-${tierKey}`}>${displayPrice.toFixed(2)}</span>
+                          <span className="text-sm text-zinc-400">/month</span>
+                        </div>
+                      )
                     ) : (
                       <div className="text-sm text-zinc-400">Coming soon</div>
                     )}
