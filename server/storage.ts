@@ -754,24 +754,22 @@ export class DatabaseStorage implements IStorage {
 
   async getUserFoodBookmarks(userId: number, opts: { cursor?: string; limit?: number; search?: string } = {}): Promise<{ items: (UserFoodBookmark & { food: CanonicalFood })[]; nextCursor: string | null }> {
     const limit = opts.limit ?? 50;
-    const conditions: ReturnType<typeof eq>[] = [eq(userFoodBookmarks.userId, userId)];
+    const baseConditions = [eq(userFoodBookmarks.userId, userId)];
     if (opts.cursor) {
-      conditions.push(lt(userFoodBookmarks.id, parseInt(opts.cursor)));
+      baseConditions.push(lt(userFoodBookmarks.id, parseInt(opts.cursor)));
     }
-    if (opts.search) {
-      conditions.push(
-        or(
+    const searchCondition = opts.search
+      ? or(
           ilike(canonicalFoods.name, `%${opts.search}%`),
           ilike(userFoodBookmarks.nickname, `%${opts.search}%`),
-        )! as any
-      );
-    }
+        )
+      : undefined;
     const rows = await db.select({
       bookmark: userFoodBookmarks,
       food: canonicalFoods,
     }).from(userFoodBookmarks)
       .innerJoin(canonicalFoods, eq(userFoodBookmarks.canonicalFoodId, canonicalFoods.id))
-      .where(and(...conditions))
+      .where(and(...baseConditions, searchCondition))
       .orderBy(desc(userFoodBookmarks.createdAt))
       .limit(limit + 1);
 

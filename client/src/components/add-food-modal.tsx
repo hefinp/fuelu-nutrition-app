@@ -161,11 +161,17 @@ export function AddFoodModal({ onClose, onSaved, initialTab = "search" }: { onCl
     });
   }
 
-  const calNum = parseInt(cal) || 0;
-  const protNum = parseFloat(prot) || 0;
-  const carbsNum = parseFloat(carbs) || 0;
-  const fatNum = parseFloat(fat) || 0;
-  const manualValid = name.trim().length > 0 && (calNum > 0 || protNum > 0 || carbsNum > 0 || fatNum > 0);
+  const calNum = cal.trim() === "" ? NaN : Number(cal);
+  const protNum = prot.trim() === "" ? NaN : Number(prot);
+  const carbsNum = carbs.trim() === "" ? NaN : Number(carbs);
+  const fatNum = fat.trim() === "" ? NaN : Number(fat);
+  const calOk = !isNaN(calNum) && calNum >= 0;
+  const protOk = !isNaN(protNum) && protNum >= 0;
+  const carbsOk = !isNaN(carbsNum) && carbsNum >= 0;
+  const fatOk = !isNaN(fatNum) && fatNum >= 0;
+  const manualValid = name.trim().length > 0
+    && calOk && protOk && carbsOk && fatOk
+    && (calNum > 0 || protNum > 0 || carbsNum > 0 || fatNum > 0);
 
   const addFoodTabs: { id: AddFoodTab; label: string; icon: typeof Search }[] = [
     { id: "search", label: "Search", icon: Search },
