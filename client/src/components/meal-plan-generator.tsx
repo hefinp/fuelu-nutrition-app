@@ -733,7 +733,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
       <AnimatePresence>
         {generatorModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setGeneratorModalOpen(false)}>
+          <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setGeneratorModalOpen(false)}>
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
@@ -956,7 +956,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               </div>
 
               {mealPlan && (
-                <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
+                <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 pt-3 shrink-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}>
                   <div className="flex flex-wrap items-center gap-2">
                     {!planSaved && (
                       <button
@@ -1077,7 +1077,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
       <AnimatePresence>
         {customModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setCustomModalOpen(false)}>
+          <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setCustomModalOpen(false)}>
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1261,7 +1261,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 </div>
               </div>
 
-              <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
+              <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 pt-3 shrink-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}>
                 <div className="flex gap-2 mb-2">
                   <button
                     onClick={() => autofillMutation.mutate()}
