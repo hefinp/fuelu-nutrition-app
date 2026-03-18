@@ -86,14 +86,22 @@ router.get("/api/cycle/periods", async (req, res) => {
   res.json(logs);
 });
 
+const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
 router.post("/api/cycle/periods", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
     const body = z.object({
-      periodStartDate: z.string().min(1),
-      periodEndDate: z.string().optional().nullable(),
+      periodStartDate: z.string().regex(isoDateRegex, "Must be YYYY-MM-DD"),
+      periodEndDate: z.string().regex(isoDateRegex, "Must be YYYY-MM-DD").optional().nullable(),
       notes: z.string().optional().nullable(),
     }).parse(req.body);
+
+    const existing = await storage.getCyclePeriodLogs(req.session.userId);
+    const hasOpenPeriod = existing.some(l => !l.periodEndDate);
+    if (hasOpenPeriod && !body.periodEndDate) {
+      return res.status(400).json({ message: "You already have an open period. End it before starting a new one." });
+    }
 
     const log = await storage.createCyclePeriodLog({
       userId: req.session.userId,
@@ -116,8 +124,8 @@ router.patch("/api/cycle/periods/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const body = z.object({
-      periodStartDate: z.string().optional().nullable(),
-      periodEndDate: z.string().optional().nullable(),
+      periodStartDate: z.string().regex(isoDateRegex, "Must be YYYY-MM-DD").optional().nullable(),
+      periodEndDate: z.string().regex(isoDateRegex, "Must be YYYY-MM-DD").optional().nullable(),
       notes: z.string().optional().nullable(),
     }).parse(req.body);
     const updates: { periodStartDate?: string; periodEndDate?: string | null; notes?: string | null } = {};
