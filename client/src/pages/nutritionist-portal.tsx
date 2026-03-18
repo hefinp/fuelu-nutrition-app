@@ -9,8 +9,10 @@ import {
   Mail, Calendar, ChevronRight, Trash2, Edit2, Check, AlertCircle, ClipboardList,
   Activity, BarChart2, Bell, Building2, UserMinus, UserPlus, RefreshCw,
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
-  MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2, Download, History
+  MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2, Download, History,
+  LogOut, User,
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { exportProgressReportToPDF, type ProgressReportData } from "@/components/results-pdf";
 
 interface ClientWithUser {
@@ -2780,10 +2782,11 @@ type ViewState =
 
 export default function NutritionistPortalPage() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
+  const { user, logout, isLoggingOut } = useAuth();
   const [tab, setTab] = useState<Tab>("monitoring");
   const [view, setView] = useState<ViewState>({ kind: "list" });
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const { data: profile, isLoading: profileLoading } = useQuery<NutritionistProfile | null>({
     queryKey: ["/api/nutritionist/profile"],
@@ -2887,6 +2890,64 @@ export default function NutritionistPortalPage() {
                 </button>
               );
             })}
+
+            <div className="relative ml-2">
+              <button
+                onClick={() => setShowUserMenu(v => !v)}
+                className="flex items-center gap-2 text-sm font-medium text-zinc-700 hover:text-zinc-900 transition-colors"
+                data-testid="button-user-menu-pro"
+              >
+                <div className="w-8 h-8 bg-zinc-900 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              </button>
+
+              <AnimatePresence>
+                {showUserMenu && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowUserMenu(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                      className="absolute right-0 top-10 z-20 bg-white border border-zinc-100 rounded-xl shadow-lg py-1 w-52"
+                    >
+                      <div className="px-3 py-2.5 border-b border-zinc-100">
+                        <p className="text-xs font-semibold text-zinc-900 truncate">{user.name}</p>
+                        <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+                      </div>
+                      <Link
+                        href="/account"
+                        onClick={() => setShowUserMenu(false)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                        data-testid="link-my-account-pro"
+                      >
+                        <User className="w-4 h-4 text-zinc-400" />
+                        My Account
+                      </Link>
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setShowUserMenu(false)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+                        data-testid="link-personal-dashboard"
+                      >
+                        <Activity className="w-4 h-4 text-zinc-400" />
+                        Personal Dashboard
+                      </Link>
+                      <button
+                        onClick={async () => { setShowUserMenu(false); await logout(); }}
+                        disabled={isLoggingOut}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        data-testid="button-logout-pro"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
 
