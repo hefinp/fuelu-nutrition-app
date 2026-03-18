@@ -128,7 +128,17 @@ function DiaryContent({
     staleTime: 60_000,
     select: (d) => d.items,
   });
-  const favouriteNames = new Set(userRecipes.map(f => f.name));
+  const favouriteMealNames = new Set(userRecipes.map(f => f.name));
+
+  const { data: userFoods = [] } = useQuery<{ items: { id: number; name: string }[] }, Error, { id: number; name: string }[]>({
+    queryKey: ["/api/my-foods", "all"],
+    queryFn: () => fetch("/api/my-foods?limit=100", { credentials: "include" }).then(r => r.json()),
+    staleTime: 60_000,
+    select: (d) => d.items,
+  });
+  const favouriteFoodNames = new Set(userFoods.map(f => f.name));
+
+  const isFoodSource = (source?: string | null) => source === "search" || source === "scan" || source === "ai";
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/food-log/${id}`, undefined),
@@ -152,7 +162,7 @@ function DiaryContent({
     onError: () => toast({ title: "Failed to confirm", variant: "destructive" }),
   });
 
-  const starMutation = useMutation({
+  const starMealMutation = useMutation({
     mutationFn: (entry: { mealName: string; calories: number; protein: number; carbs: number; fat: number; mealSlot?: string | null }) =>
       apiRequest("POST", "/api/user-meals", {
         name: entry.mealName,
@@ -169,6 +179,23 @@ function DiaryContent({
       toast({ title: "Saved to My Meals" });
     },
     onError: () => toast({ title: "Failed to save meal", variant: "destructive" }),
+  });
+
+  const starFoodMutation = useMutation({
+    mutationFn: (entry: { mealName: string; calories: number; protein: number; carbs: number; fat: number }) =>
+      apiRequest("POST", "/api/my-foods", {
+        name: entry.mealName,
+        calories100g: entry.calories,
+        protein100g: entry.protein,
+        carbs100g: entry.carbs,
+        fat100g: entry.fat,
+        confirmDuplicate: true,
+      }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/my-foods"] });
+      toast({ title: "Saved to My Foods" });
+    },
+    onError: () => toast({ title: "Failed to save food", variant: "destructive" }),
   });
 
   const confirmedDaily = dailyEntries.filter(e => e.confirmed !== false);
@@ -305,17 +332,29 @@ function DiaryContent({
             <Check className="w-3.5 h-3.5" />
           </button>
         )}
-        {!isPlanned && !favouriteNames.has(entry.mealName) && (
+        {!isPlanned && !(isFoodSource(entry.source) ? favouriteFoodNames.has(entry.mealName) : favouriteMealNames.has(entry.mealName)) && (
           <button
-            onClick={() => starMutation.mutate({
-              mealName: entry.mealName,
-              calories: entry.calories,
-              protein: entry.protein,
-              carbs: entry.carbs,
-              fat: entry.fat,
-              mealSlot: entry.mealSlot ?? null,
-            })}
-            disabled={starMutation.isPending}
+            onClick={() => {
+              if (isFoodSource(entry.source)) {
+                starFoodMutation.mutate({
+                  mealName: entry.mealName,
+                  calories: entry.calories,
+                  protein: entry.protein,
+                  carbs: entry.carbs,
+                  fat: entry.fat,
+                });
+              } else {
+                starMealMutation.mutate({
+                  mealName: entry.mealName,
+                  calories: entry.calories,
+                  protein: entry.protein,
+                  carbs: entry.carbs,
+                  fat: entry.fat,
+                  mealSlot: entry.mealSlot ?? null,
+                });
+              }
+            }}
+            disabled={starMealMutation.isPending || starFoodMutation.isPending}
             className="p-1.5 text-zinc-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors shrink-0"
             data-testid={`button-star-log-${entry.id}`}
             title="Save to favourites"

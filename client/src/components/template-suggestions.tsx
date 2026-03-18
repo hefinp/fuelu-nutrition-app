@@ -46,6 +46,7 @@ export function TemplateSuggestions({ date }: Props) {
         carbs: Math.round(s.meal.carbsPerServing),
         fat: Math.round(s.meal.fatPerServing),
         mealSlot: s.mealSlot,
+        source: "meal",
       }).then(r => r.json()),
     onSuccess: (_, s) => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log", date] });

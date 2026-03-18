@@ -223,6 +223,7 @@ export const foodLogEntries = pgTable("food_log_entries", {
   mealSlot: text("meal_slot"),
   confirmed: boolean("confirmed").notNull().default(true),
   communityMealId: integer("community_meal_id"),
+  source: text("source"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

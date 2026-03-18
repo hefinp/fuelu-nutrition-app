@@ -42,6 +42,7 @@ export function FoodLogDrawer({
   const { overlayStyle, panelMaxHeight } = useMobileViewport();
 
   const [formTab, setFormTab] = useState<"manual" | "plan" | "search" | "scan" | "ai">("manual");
+  const [formSource, setFormSource] = useState<string | null>(null);
   const [form, setForm] = useState({
     mealName: "", calories: "", protein: "", carbs: "", fat: "",
     fibre: "", sugar: "", saturatedFat: "",
@@ -252,6 +253,7 @@ export function FoodLogDrawer({
       protein: number; carbs: number; fat: number;
       fibre?: number | null; sugar?: number | null; saturatedFat?: number | null;
       mealSlot?: MealSlot | null;
+      source?: string | null;
     }) => apiRequest("POST", "/api/food-log", entry).then(r => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
@@ -272,6 +274,7 @@ export function FoodLogDrawer({
   function resetFormAndClose() {
     setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", fibre: "", sugar: "", saturatedFat: "", mealSlot: null });
     setFormTab("manual");
+    setFormSource(null);
     setScanResult(null);
     
     setScannedFood(null);
@@ -323,6 +326,7 @@ export function FoodLogDrawer({
       sugar: form.sugar !== "" ? (parseInt(form.sugar) || 0) : null,
       saturatedFat: form.saturatedFat !== "" ? (parseInt(form.saturatedFat) || 0) : null,
       mealSlot: form.mealSlot,
+      source: formSource ?? "manual",
     });
   }
 
@@ -338,6 +342,7 @@ export function FoodLogDrawer({
       saturatedFat: "",
       mealSlot: normalizeSlot(m.slot),
     });
+    setFormSource("plan");
     setFormTab("manual");
   }
 
@@ -353,6 +358,7 @@ export function FoodLogDrawer({
             carbs: Number(m.carbs),
             fat: Number(m.fat),
             mealSlot: normalizeSlot(m.slot),
+            source: "plan",
           })
         )
       );
@@ -390,6 +396,7 @@ export function FoodLogDrawer({
       fat: String(Math.round(selectedFood.fat100g * factor)),
     }));
     clearSearch();
+    setFormSource("search");
     setFormTab("manual");
   }
 
@@ -409,6 +416,7 @@ export function FoodLogDrawer({
       sugar: scannedFood.sugar100g != null ? Math.round(scannedFood.sugar100g * f) : null,
       saturatedFat: scannedFood.saturatedFat100g != null ? Math.round(scannedFood.saturatedFat100g * f) : null,
       mealSlot: scanMealSlot,
+      source: "scan",
     });
   }
 
@@ -497,6 +505,7 @@ export function FoodLogDrawer({
         carbs: String(Math.round(food.carbs100g * f)),
         fat: String(Math.round(food.fat100g * f)),
       }));
+      setFormSource("ai");
       setShowAiAssist(false);
       setAiDescription("");
       setAiAssistPhotoFile(null);
@@ -573,6 +582,7 @@ export function FoodLogDrawer({
       sugar: aiTabResult.sugar100g != null ? Math.round(aiTabResult.sugar100g * f) : null,
       saturatedFat: aiTabResult.saturatedFat100g != null ? Math.round(aiTabResult.saturatedFat100g * f) : null,
       mealSlot: aiTabMealSlot,
+      source: "ai",
     });
   }
 

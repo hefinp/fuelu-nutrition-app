@@ -52,6 +52,7 @@ export interface FoodLogEntry {
   saturatedFat?: number | null;
   mealSlot: MealSlot | null;
   confirmed: boolean;
+  source?: string | null;
   createdAt: string;
 }
 

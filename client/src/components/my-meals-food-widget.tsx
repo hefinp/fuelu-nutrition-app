@@ -103,7 +103,7 @@ export function MyMealsFoodWidget() {
   });
 
   const logMutation = useMutation({
-    mutationFn: (entry: { name: string; cal: number; prot: number; carbs: number; fat: number; slot?: string | null }) =>
+    mutationFn: (entry: { name: string; cal: number; prot: number; carbs: number; fat: number; slot?: string | null; source?: string }) =>
       apiRequest("POST", "/api/food-log", {
         date: todayStr(),
         mealName: entry.name,
@@ -112,6 +112,7 @@ export function MyMealsFoodWidget() {
         carbs: entry.carbs,
         fat: entry.fat,
         mealSlot: entry.slot ?? null,
+        source: entry.source ?? "meal",
       }).then(r => r.json()),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log", todayStr()] });
@@ -386,6 +387,7 @@ export function MyMealsFoodWidget() {
                         carbs: Math.round(food.carbs100g * factor),
                         fat: Math.round(food.fat100g * factor),
                         slot: slotForTimeOfDay(),
+                        source: "search",
                       });
                     }}
                     onEdit={() => setEditFoodTarget(food)}

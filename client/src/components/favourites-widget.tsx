@@ -41,6 +41,7 @@ export function FavouritesWidget() {
         carbs: meal.carbsPerServing,
         fat: meal.fatPerServing,
         mealSlot: meal.mealSlot ?? undefined,
+        source: "meal",
       }).then(r => r.json()),
     onSuccess: (_, meal) => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log", todayStr()] });

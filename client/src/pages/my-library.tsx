@@ -100,7 +100,7 @@ export default function MyLibraryPage() {
   });
 
   const logMutation = useMutation({
-    mutationFn: (entry: { name: string; cal: number; prot: number; carbs: number; fat: number; slot?: string | null }) =>
+    mutationFn: (entry: { name: string; cal: number; prot: number; carbs: number; fat: number; slot?: string | null; source?: string }) =>
       apiRequest("POST", "/api/food-log", {
         date: todayStr(),
         mealName: entry.name,
@@ -109,6 +109,7 @@ export default function MyLibraryPage() {
         carbs: entry.carbs,
         fat: entry.fat,
         mealSlot: entry.slot ?? null,
+        source: entry.source ?? "meal",
       }).then(r => r.json()),
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log", todayStr()] });
@@ -147,6 +148,7 @@ export default function MyLibraryPage() {
       carbs: Math.round(food.carbs100g * factor),
       fat: Math.round(food.fat100g * factor),
       slot: null,
+      source: "search",
     });
   }
 
