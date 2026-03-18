@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTierPricing, useTierStatus } from "@/hooks/use-tier";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { Check, ArrowRight, Zap, Crown, Rocket, Coins, Loader2 } from "lucide-react";
 
 const TIER_META: Record<string, { name: string; icon: typeof Check; color: string; description: string }> = {
@@ -22,6 +23,16 @@ const DEFAULT_FEATURES: Record<string, string[]> = {
 };
 
 export default function PricingPage() {
+  usePageMeta({
+    title: "Pricing — FuelU | Simple, Transparent Nutrition Plans",
+    description: "Choose the FuelU plan that fits your nutrition journey. Free, Simple, Advanced, or Pay As You Go — upgrade or downgrade anytime. No ads on paid plans.",
+    ogTitle: "FuelU Pricing — Plans for Every Nutrition Goal",
+    ogDescription: "Compare FuelU plans: Free basics, Simple meal planning, Advanced AI features, or flexible Pay As You Go credits. No ads on any paid plan.",
+    ogImage: `${window.location.origin}/icon-512.png`,
+    ogUrl: "https://fuelu.app/pricing",
+    ogType: "website",
+  });
+
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const { user } = useAuth();
   const [, navigate] = useLocation();

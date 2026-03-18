@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowRight, ChefHat, Filter, FileDown, Check, ScanLine, Brain, HeartPulse } from "lucide-react";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 const features = [
   {
@@ -40,6 +41,16 @@ const goals = [
 ];
 
 export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }) {
+  usePageMeta({
+    title: "FuelU — Personalised Meal Plans in Three Cooking Tiers",
+    description: "Track macros, log meals with AI scanning, and get personalised nutrition plans in Simple, Gourmet, or Michelin-inspired tiers. Free to start — no credit card needed.",
+    ogTitle: "FuelU — Personalised Meal Plans in Three Cooking Tiers",
+    ogDescription: "AI-powered nutrition planning with three cooking tiers. Track macros, scan barcodes, export PDFs, and get cycle-aware meal plans built around how you actually eat.",
+    ogImage: `${window.location.origin}/icon-512.png`,
+    ogUrl: "https://fuelu.app",
+    ogType: "website",
+  });
+
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
