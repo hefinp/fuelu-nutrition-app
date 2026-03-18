@@ -3,11 +3,15 @@ import { useState, useEffect } from "react";
 interface MobileViewport {
   overlayStyle: React.CSSProperties;
   panelMaxHeight: number | null;
+  isKeyboardOpen: boolean;
 }
+
+const KEYBOARD_THRESHOLD = 100;
 
 export function useMobileViewport(heightFraction = 0.92): MobileViewport {
   const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({});
   const [panelMaxHeight, setPanelMaxHeight] = useState<number | null>(null);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -19,9 +23,11 @@ export function useMobileViewport(heightFraction = 0.92): MobileViewport {
         const top = vv.offsetTop;
         setOverlayStyle({ height: h, top });
         setPanelMaxHeight(h * heightFraction);
+        setIsKeyboardOpen(window.innerHeight - h > KEYBOARD_THRESHOLD);
       } else {
         setOverlayStyle({});
         setPanelMaxHeight(null);
+        setIsKeyboardOpen(false);
       }
     };
     update();
@@ -35,5 +41,5 @@ export function useMobileViewport(heightFraction = 0.92): MobileViewport {
     };
   }, [heightFraction]);
 
-  return { overlayStyle, panelMaxHeight };
+  return { overlayStyle, panelMaxHeight, isKeyboardOpen };
 }
