@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -16,7 +16,7 @@ import {
   SLOT_OPTIONS, SLOT_COLOURS, todayStr, slotForTimeOfDay,
 } from "@/components/meals-food-shared";
 import {
-  MealCard, FoodCard, getMealKey, getMealSlot,
+  MealCard, FoodCard, getMealKey,
 } from "@/components/meal-food-cards";
 import { CommunityBrowserModal } from "@/components/community-browser-modal";
 import { ImportModal } from "@/components/import-modal";
@@ -30,9 +30,14 @@ const PAGE_SIZE = 20;
 
 type PaginatedResponse<T> = { items: T[]; nextCursor: string | null };
 
-async function fetchPaginated<T>(url: string, cursor?: string): Promise<PaginatedResponse<T>> {
+async function fetchPaginated<T>(url: string, cursor?: string, filters?: Record<string, string>): Promise<PaginatedResponse<T>> {
   const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
   if (cursor) params.set("cursor", cursor);
+  if (filters) {
+    for (const [k, v] of Object.entries(filters)) {
+      if (v) params.set(k, v);
+    }
+  }
   const res = await fetch(`${url}?${params}`, { credentials: "include" });
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
   return res.json();
@@ -57,6 +62,19 @@ export function MyMealsFoodWidget() {
   const [templateTarget, setTemplateTarget] = useState<UserMeal | null>(null);
   const { confirm, dialogProps } = useConfirmDialog();
 
+  const [debouncedMealSearch, setDebouncedMealSearch] = useState("");
+  const [debouncedFoodSearch, setDebouncedFoodSearch] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedMealSearch(mealSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [mealSearch]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedFoodSearch(foodSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [foodSearch]);
+
   useEffect(() => { setExpandedId(null); }, [activeTab]);
 
   const { data: templates = [] } = useQuery<EnrichedTemplate[]>({
@@ -64,15 +82,28 @@ export function MyMealsFoodWidget() {
   });
   const templateMealIds = new Set(templates.map(t => t.userMealId));
 
+  const mealFilters = useMemo(() => {
+    const f: Record<string, string> = {};
+    if (debouncedMealSearch) f.search = debouncedMealSearch;
+    if (mealSlotFilter !== "all") f.slot = mealSlotFilter;
+    return f;
+  }, [debouncedMealSearch, mealSlotFilter]);
+
+  const foodFilters = useMemo(() => {
+    const f: Record<string, string> = {};
+    if (debouncedFoodSearch) f.search = debouncedFoodSearch;
+    return f;
+  }, [debouncedFoodSearch]);
+
   const mealsQuery = useInfiniteQuery<PaginatedResponse<UserMeal>>({
-    queryKey: ["/api/user-meals", "paginated"],
-    queryFn: ({ pageParam }) => fetchPaginated<UserMeal>("/api/user-meals", pageParam as string | undefined),
+    queryKey: ["/api/user-meals", "paginated", mealFilters],
+    queryFn: ({ pageParam }) => fetchPaginated<UserMeal>("/api/user-meals", pageParam as string | undefined, mealFilters),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
   const foodsQuery = useInfiniteQuery<PaginatedResponse<UserSavedFood>>({
-    queryKey: ["/api/my-foods", "paginated"],
-    queryFn: ({ pageParam }) => fetchPaginated<UserSavedFood>("/api/my-foods", pageParam as string | undefined),
+    queryKey: ["/api/my-foods", "paginated", foodFilters],
+    queryFn: ({ pageParam }) => fetchPaginated<UserSavedFood>("/api/my-foods", pageParam as string | undefined, foodFilters),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
@@ -83,16 +114,7 @@ export function MyMealsFoodWidget() {
   const mealsLoading = mealsQuery.isLoading;
   const foodsLoading = foodsQuery.isLoading;
 
-  const filteredMeals = meals.filter(meal => {
-    if (mealSlotFilter !== "all") {
-      const slot = getMealSlot(meal);
-      if (slot !== mealSlotFilter) return false;
-    }
-    if (mealSearch.trim()) {
-      if (!meal.name.toLowerCase().includes(mealSearch.trim().toLowerCase())) return false;
-    }
-    return true;
-  });
+  const filteredMeals = meals;
 
   const logMutation = useMutation({
     mutationFn: (entry: { name: string; cal: number; prot: number; carbs: number; fat: number; slot?: string | null; source?: string }) =>
@@ -200,7 +222,7 @@ export function MyMealsFoodWidget() {
 
             {mealsLoading ? (
               <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
-            ) : meals.length === 0 ? (
+            ) : meals.length === 0 && !debouncedMealSearch && mealSlotFilter === "all" ? (
               <div className="text-center py-10">
                 <div className="w-12 h-12 bg-zinc-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <UtensilsCrossed className="w-5 h-5 text-zinc-300" />
@@ -317,7 +339,7 @@ export function MyMealsFoodWidget() {
 
             {foodsLoading ? (
               <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
-            ) : myFoods.length === 0 ? (
+            ) : myFoods.length === 0 && !debouncedFoodSearch ? (
               <div className="text-center py-10" data-testid="text-my-foods-empty">
                 <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
                   <Wheat className="w-5 h-5 text-amber-400" />
@@ -333,9 +355,7 @@ export function MyMealsFoodWidget() {
                 </button>
               </div>
             ) : (() => {
-              const filteredFoods = foodSearch.trim()
-                ? myFoods.filter(f => f.name.toLowerCase().includes(foodSearch.trim().toLowerCase()))
-                : myFoods;
+              const filteredFoods = myFoods;
               return (
               <>
                 <div className="relative mb-3">

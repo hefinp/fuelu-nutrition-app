@@ -9,7 +9,7 @@ import type { UserSavedFood } from "@shared/schema";
 import {
   type MealSlot, type Ingredient,
   SLOT_OPTIONS, MacroChips,
-  ingredientFromSaved,
+  ingredientFromSaved, slotForTimeOfDay,
 } from "@/components/meals-food-shared";
 import { IngredientPickerModal } from "@/components/ingredient-picker-modal";
 import { AddFoodModal } from "@/components/add-food-modal";
@@ -131,7 +131,7 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
       ingredients: ingredientLines,
       ingredientsJson: selected,
       instructions: instructions.trim() || null,
-      mealSlot: mealSlot ?? "dinner",
+      mealSlot: mealSlot ?? slotForTimeOfDay(),
       mealStyle: "simple",
       ...(confirm ? { confirmDuplicate: true } : {}),
     };

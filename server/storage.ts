@@ -81,7 +81,7 @@ export interface IStorage {
   unverifyCanonicalFood(id: number): Promise<CanonicalFood | undefined>;
 
   // User food bookmarks
-  getUserFoodBookmarks(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: (UserFoodBookmark & { food: CanonicalFood })[]; nextCursor: string | null }>;
+  getUserFoodBookmarks(userId: number, opts?: { cursor?: string; limit?: number; search?: string }): Promise<{ items: (UserFoodBookmark & { food: CanonicalFood })[]; nextCursor: string | null }>;
   addUserFoodBookmark(entry: { userId: number; canonicalFoodId: number; servingGrams?: number; nickname?: string }): Promise<UserFoodBookmark & { food: CanonicalFood }>;
   removeUserFoodBookmark(id: number, userId: number): Promise<void>;
   updateUserFoodBookmark(id: number, userId: number, updates: { servingGrams?: number; nickname?: string }): Promise<(UserFoodBookmark & { food: CanonicalFood }) | undefined>;
@@ -122,7 +122,7 @@ export interface IStorage {
   upsertAiInsightsCache(userId: number, cacheKey: string, narrativeJson: object, expiresAt: Date): Promise<void>;
 
   // Unified user meals
-  getUserMeals(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserMeal[]; nextCursor: string | null }>;
+  getUserMeals(userId: number, opts?: { cursor?: string; limit?: number; search?: string; slot?: string }): Promise<{ items: UserMeal[]; nextCursor: string | null }>;
   createUserMeal(meal: InsertUserMeal & { userId: number }): Promise<UserMeal>;
   updateUserMeal(id: number, userId: number, updates: Partial<Pick<UserMeal, 'name' | 'caloriesPerServing' | 'proteinPerServing' | 'carbsPerServing' | 'fatPerServing' | 'servings' | 'sourceUrl' | 'imageUrl' | 'mealSlot' | 'mealStyle' | 'ingredients' | 'ingredientsJson' | 'instructions' | 'source' | 'sourcePhotos'>>): Promise<UserMeal | undefined>;
   deleteUserMeal(id: number, userId: number): Promise<void>;
@@ -136,7 +136,7 @@ export interface IStorage {
   deleteMealIngredients(userMealId: number): Promise<void>;
 
   // User saved foods
-  getUserSavedFoods(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserSavedFood[]; nextCursor: string | null }>;
+  getUserSavedFoods(userId: number, opts?: { cursor?: string; limit?: number; search?: string }): Promise<{ items: UserSavedFood[]; nextCursor: string | null }>;
   addUserSavedFood(entry: { userId: number; name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; servingGrams?: number; source?: string }): Promise<UserSavedFood>;
   updateUserSavedFood(id: number, userId: number, updates: { name?: string; calories100g?: number; protein100g?: number; carbs100g?: number; fat100g?: number; servingGrams?: number }): Promise<UserSavedFood | undefined>;
   removeUserSavedFood(id: number, userId: number): Promise<void>;
@@ -752,17 +752,26 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  async getUserFoodBookmarks(userId: number, opts: { cursor?: string; limit?: number } = {}): Promise<{ items: (UserFoodBookmark & { food: CanonicalFood })[]; nextCursor: string | null }> {
+  async getUserFoodBookmarks(userId: number, opts: { cursor?: string; limit?: number; search?: string } = {}): Promise<{ items: (UserFoodBookmark & { food: CanonicalFood })[]; nextCursor: string | null }> {
     const limit = opts.limit ?? 50;
+    const conditions: ReturnType<typeof eq>[] = [eq(userFoodBookmarks.userId, userId)];
+    if (opts.cursor) {
+      conditions.push(lt(userFoodBookmarks.id, parseInt(opts.cursor)));
+    }
+    if (opts.search) {
+      conditions.push(
+        or(
+          ilike(canonicalFoods.name, `%${opts.search}%`),
+          ilike(userFoodBookmarks.nickname, `%${opts.search}%`),
+        )! as any
+      );
+    }
     const rows = await db.select({
       bookmark: userFoodBookmarks,
       food: canonicalFoods,
     }).from(userFoodBookmarks)
       .innerJoin(canonicalFoods, eq(userFoodBookmarks.canonicalFoodId, canonicalFoods.id))
-      .where(and(
-        eq(userFoodBookmarks.userId, userId),
-        opts.cursor ? lt(userFoodBookmarks.id, parseInt(opts.cursor)) : undefined,
-      ))
+      .where(and(...conditions))
       .orderBy(desc(userFoodBookmarks.createdAt))
       .limit(limit + 1);
 
@@ -945,10 +954,16 @@ export class DatabaseStorage implements IStorage {
       });
   }
 
-  async getUserMeals(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserMeal[]; nextCursor: string | null }> {
+  async getUserMeals(userId: number, opts?: { cursor?: string; limit?: number; search?: string; slot?: string }): Promise<{ items: UserMeal[]; nextCursor: string | null }> {
     const limit = opts?.limit ?? 10000;
     const fetchLimit = limit + 1;
     const conditions = [eq(userMeals.userId, userId)];
+    if (opts?.search) {
+      conditions.push(ilike(userMeals.name, `%${opts.search}%`));
+    }
+    if (opts?.slot) {
+      conditions.push(eq(userMeals.mealSlot, opts.slot));
+    }
     if (opts?.cursor) {
       const [ts, idStr] = opts.cursor.split("|");
       const cursorDate = new Date(ts);
@@ -1227,10 +1242,13 @@ export class DatabaseStorage implements IStorage {
     await db.delete(recipeIngredients).where(eq(recipeIngredients.userRecipeId, userRecipeId));
   }
 
-  async getUserSavedFoods(userId: number, opts?: { cursor?: string; limit?: number }): Promise<{ items: UserSavedFood[]; nextCursor: string | null }> {
+  async getUserSavedFoods(userId: number, opts?: { cursor?: string; limit?: number; search?: string }): Promise<{ items: UserSavedFood[]; nextCursor: string | null }> {
     const limit = opts?.limit ?? 10000;
     const fetchLimit = limit + 1;
     const conditions = [eq(userSavedFoods.userId, userId)];
+    if (opts?.search) {
+      conditions.push(ilike(userSavedFoods.name, `%${opts.search}%`));
+    }
     if (opts?.cursor) {
       const [ts, idStr] = opts.cursor.split("|");
       const cursorDate = new Date(ts);

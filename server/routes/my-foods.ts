@@ -7,6 +7,7 @@ const router = Router();
 const paginationSchema = z.object({
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().max(100).optional(),
 });
 
 function formatBookmark(bm: Awaited<ReturnType<typeof storage.addUserFoodBookmark>>) {
@@ -29,7 +30,7 @@ router.get("/api/my-foods", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
     const params = paginationSchema.parse(req.query);
-    const result = await storage.getUserFoodBookmarks(req.session.userId, { cursor: params.cursor, limit: params.limit });
+    const result = await storage.getUserFoodBookmarks(req.session.userId, { cursor: params.cursor, limit: params.limit, search: params.search });
     res.json({
       items: result.items.map(formatBookmark),
       nextCursor: result.nextCursor,

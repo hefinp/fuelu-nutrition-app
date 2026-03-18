@@ -8,6 +8,8 @@ const router = Router();
 const paginationSchema = z.object({
   cursor: z.string().regex(/^\d{4}-.*\|\d+$/).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().max(100).optional(),
+  slot: z.string().max(20).optional(),
 });
 
 const ingredientItemSchema = z.object({
@@ -24,7 +26,7 @@ router.get("/api/user-meals", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
     const params = paginationSchema.parse(req.query);
-    const result = await storage.getUserMeals(req.session.userId, { cursor: params.cursor, limit: params.limit });
+    const result = await storage.getUserMeals(req.session.userId, { cursor: params.cursor, limit: params.limit, search: params.search, slot: params.slot });
     res.json(result);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });

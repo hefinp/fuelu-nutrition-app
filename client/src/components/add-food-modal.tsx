@@ -161,7 +161,11 @@ export function AddFoodModal({ onClose, onSaved, initialTab = "search" }: { onCl
     });
   }
 
-  const manualValid = name.trim().length > 0 && (parseInt(cal) >= 0);
+  const calNum = parseInt(cal) || 0;
+  const protNum = parseFloat(prot) || 0;
+  const carbsNum = parseFloat(carbs) || 0;
+  const fatNum = parseFloat(fat) || 0;
+  const manualValid = name.trim().length > 0 && (calNum > 0 || protNum > 0 || carbsNum > 0 || fatNum > 0);
 
   const addFoodTabs: { id: AddFoodTab; label: string; icon: typeof Search }[] = [
     { id: "search", label: "Search", icon: Search },
@@ -187,7 +191,7 @@ export function AddFoodModal({ onClose, onSaved, initialTab = "search" }: { onCl
               {addFoodTabs.map(t => (
                 <button
                   key={t.id}
-                  onClick={() => setTab(t.id)}
+                  onClick={() => { setTab(t.id); setDupWarning(null); setPendingPayload(null); }}
                   className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold transition-colors rounded-lg ${tab === t.id ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
                   data-testid={`button-addfood-tab-${t.id}`}
                 >

@@ -29,7 +29,7 @@ export function isPhotoImportedMeal(meal: UserMeal) {
 }
 
 export function isImportedMeal(meal: UserMeal) {
-  return isWebImportedMeal(meal);
+  return isWebImportedMeal(meal) || isVideoImportedMeal(meal) || isPhotoImportedMeal(meal);
 }
 
 interface MealCardProps {
