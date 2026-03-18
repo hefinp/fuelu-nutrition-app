@@ -1,5 +1,6 @@
 import { pool } from "./db";
 import Stripe from "stripe";
+import bcrypt from "bcryptjs";
 
 const INVITE_CODES = Array.from({ length: 20 }, (_, i) => {
   const n = String(i + 1).padStart(2, "0");
@@ -682,6 +683,20 @@ export async function runMigrations(): Promise<void> {
         updated_at        TIMESTAMP DEFAULT NOW()
       )
     `);
+
+    const TEST_EMAIL = "test@fuelr.app";
+    const TEST_PASSWORD = "TestPass123!";
+    const existing = await client.query(`SELECT id FROM users WHERE email = $1`, [TEST_EMAIL]);
+    if (existing.rows.length === 0) {
+      const hash = await bcrypt.hash(TEST_PASSWORD, 12);
+      await client.query(
+        `INSERT INTO users (email, name, password_hash, tier, beta_user, trial_status)
+         VALUES ($1, $2, $3, 'advanced', true, 'none')
+         ON CONFLICT (email) DO NOTHING`,
+        [TEST_EMAIL, "Test User", hash],
+      );
+      console.log("[migrate] Seeded test account: test@fuelr.app");
+    }
 
   } finally {
     client.release();

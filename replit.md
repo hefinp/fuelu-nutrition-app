@@ -50,6 +50,12 @@ A dedicated portal at `/nutritionist` for nutritionists to build and deliver per
 **DB Tables**: `nutritionist_clients`, `nutritionist_plans`, `plan_annotations`, `plan_templates`, `client_target_overrides`, `client_reports`
 **API Routes**: `/api/nutritionist/*`, `/api/my-nutritionist-plans`
 
+## Test Account
+A seeded test account is created automatically at startup for e2e testing:
+- **Email:** `test@fuelr.app`
+- **Password:** `TestPass123!`
+- **Tier:** `advanced` (all features unlocked)
+
 ## External Dependencies
 -   **PostgreSQL**: Primary database.
 -   **Google Fonts**: For typography.
