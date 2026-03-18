@@ -62,6 +62,11 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const [dragSource, setDragSource] = useState<{ dayKey: string; slotKey: string; mealIdx: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ dayKey: string; slotKey: string } | null>(null);
   const [copyMovePopover, setCopyMovePopover] = useState<{ x: number; y: number; source: { dayKey: string; slotKey: string; mealIdx: number }; target: { dayKey: string; slotKey: string } } | null>(null);
+  const [touchDragging, setTouchDragging] = useState<{ dayKey: string; slotKey: string; mealIdx: number; mealName: string } | null>(null);
+  const [touchGhost, setTouchGhost] = useState<{ x: number; y: number } | null>(null);
+  const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const slotRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { setFlowActive } = useActiveFlow();
@@ -234,6 +239,96 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     setCustomPlanReady(null);
     setCustomPlanSaved(false);
   }, [copyMovePopover]);
+
+  const registerSlotRef = useCallback((key: string, el: HTMLDivElement | null) => {
+    if (el) slotRefsMap.current.set(key, el);
+    else slotRefsMap.current.delete(key);
+  }, []);
+
+  const findSlotAtPoint = useCallback((x: number, y: number): { dayKey: string; slotKey: string; el: HTMLDivElement } | null => {
+    for (const [key, el] of slotRefsMap.current.entries()) {
+      const rect = el.getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        const [dayKey, slotKey] = key.split('::');
+        return { dayKey, slotKey, el };
+      }
+    }
+    return null;
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent, dayKey: string, slotKey: string, mealIdx: number, mealName: string) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    touchTimerRef.current = setTimeout(() => {
+      setTouchDragging({ dayKey, slotKey, mealIdx, mealName });
+      setTouchGhost({ x: touch.clientX, y: touch.clientY });
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, 400);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (touchTimerRef.current && touchStartRef.current) {
+      const dx = Math.abs(touch.clientX - touchStartRef.current.x);
+      const dy = Math.abs(touch.clientY - touchStartRef.current.y);
+      if (dx > 10 || dy > 10) {
+        clearTimeout(touchTimerRef.current);
+        touchTimerRef.current = null;
+      }
+    }
+    if (!touchDragging) return;
+    e.preventDefault();
+    setTouchGhost({ x: touch.clientX, y: touch.clientY });
+    const hit = findSlotAtPoint(touch.clientX, touch.clientY);
+    if (hit && !(hit.dayKey === touchDragging.dayKey && hit.slotKey === touchDragging.slotKey)) {
+      setDropTarget({ dayKey: hit.dayKey, slotKey: hit.slotKey });
+    } else {
+      setDropTarget(null);
+    }
+  }, [touchDragging, findSlotAtPoint]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+    if (!touchDragging) return;
+    const touch = e.changedTouches[0];
+    const hit = findSlotAtPoint(touch.clientX, touch.clientY);
+    setTouchGhost(null);
+    setDropTarget(null);
+    if (hit && !(hit.dayKey === touchDragging.dayKey && hit.slotKey === touchDragging.slotKey)) {
+      const rect = hit.el.getBoundingClientRect();
+      setCopyMovePopover({
+        x: rect.left + rect.width / 2,
+        y: rect.top,
+        source: { dayKey: touchDragging.dayKey, slotKey: touchDragging.slotKey, mealIdx: touchDragging.mealIdx },
+        target: { dayKey: hit.dayKey, slotKey: hit.slotKey },
+      });
+    }
+    setTouchDragging(null);
+  }, [touchDragging, findSlotAtPoint]);
+
+  useEffect(() => {
+    return () => {
+      if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+    };
+  }, []);
+
+  const getDayNutrition = useCallback((dayKey: string) => {
+    const day = customSlots[dayKey];
+    if (!day) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    let calories = 0, protein = 0, carbs = 0, fat = 0;
+    for (const slotMeals of Object.values(day)) {
+      for (const m of slotMeals) {
+        calories += m.calories;
+        protein += m.protein;
+        carbs += m.carbs;
+        fat += m.fat;
+      }
+    }
+    return { calories, protein, carbs, fat };
+  }, [customSlots]);
 
   const autofillMutation = useMutation({
     mutationFn: async () => {
@@ -971,12 +1066,38 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
             const dayLabel = planMode === 'weekly'
               ? dayKey.charAt(0).toUpperCase() + dayKey.slice(1)
               : (() => { const [y, m, d] = dayKey.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); })();
+            const dayNutrition = getDayNutrition(dayKey);
+            const hasMeals = dayNutrition.calories > 0;
+            const calPct = effectiveCals > 0 ? Math.min(100, Math.round((dayNutrition.calories / effectiveCals) * 100)) : 0;
             return (
               <div key={dayKey} className="border border-zinc-100 rounded-2xl p-3">
-                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                  <CalendarDays className="w-3.5 h-3.5" />
-                  {dayLabel}
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    {dayLabel}
+                  </p>
+                  {hasMeals && (
+                    <span className="text-[10px] font-semibold text-zinc-500" data-testid={`text-day-calories-${dayKey}`}>
+                      {dayNutrition.calories} / {effectiveCals} kcal
+                    </span>
+                  )}
+                </div>
+                {hasMeals && (
+                  <div className="mb-3" data-testid={`nutrition-summary-${dayKey}`}>
+                    <div className="w-full h-1.5 bg-zinc-100 rounded-full mb-1.5 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${calPct >= 100 ? 'bg-amber-500' : 'bg-zinc-900'}`}
+                        style={{ width: `${calPct}%` }}
+                      />
+                    </div>
+                    <div className="flex gap-3 text-[10px] text-zinc-400">
+                      <span>P: <span className="font-medium text-zinc-600">{dayNutrition.protein}g</span></span>
+                      <span>C: <span className="font-medium text-zinc-600">{dayNutrition.carbs}g</span></span>
+                      <span>F: <span className="font-medium text-zinc-600">{dayNutrition.fat}g</span></span>
+                      <span className="ml-auto font-medium text-zinc-500">{calPct}%</span>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-3">
                   {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(slotKey => {
                     const meals = customSlots[dayKey]?.[slotKey] || [];
@@ -984,6 +1105,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     return (
                       <div
                         key={slotKey}
+                        ref={(el) => registerSlotRef(`${dayKey}::${slotKey}`, el)}
                         className={`rounded-xl p-2 transition-colors ${isDropping ? 'bg-blue-50 border-2 border-dashed border-blue-300' : 'bg-zinc-50'}`}
                         onDragOver={(e) => handleDragOver(e, dayKey, slotKey)}
                         onDragLeave={handleDragLeave}
@@ -1010,10 +1132,17 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                             key={idx}
                             draggable
                             onDragStart={(e) => handleDragStart(e, dayKey, slotKey, idx)}
-                            className="flex items-center gap-1.5 py-1.5 px-2 bg-white rounded-lg border border-zinc-100 mb-1 cursor-grab active:cursor-grabbing group"
+                            onTouchStart={(e) => handleTouchStart(e, dayKey, slotKey, idx, meal.meal)}
+                            onTouchMove={handleTouchMove}
+                            onTouchEnd={handleTouchEnd}
+                            className={`flex items-center gap-1.5 py-1.5 px-2 bg-white rounded-lg border mb-1 cursor-grab active:cursor-grabbing group select-none ${
+                              touchDragging?.dayKey === dayKey && touchDragging?.slotKey === slotKey && touchDragging?.mealIdx === idx
+                                ? 'border-blue-300 bg-blue-50 opacity-50'
+                                : 'border-zinc-100'
+                            }`}
                             data-testid={`custom-meal-card-${dayKey}-${slotKey}-${idx}`}
                           >
-                            <GripVertical className="w-3 h-3 text-zinc-300 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <GripVertical className="w-3 h-3 text-zinc-300 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium text-zinc-900 truncate">{meal.meal}</p>
                               <p className="text-[10px] text-zinc-400">{meal.calories} kcal · P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g</p>
@@ -1188,6 +1317,18 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               >
                 <Move className="w-3.5 h-3.5" /> Move
               </button>
+            </div>
+          </div>
+        )}
+
+        {touchDragging && touchGhost && (
+          <div
+            className="fixed z-[60] pointer-events-none"
+            style={{ left: touchGhost.x - 60, top: touchGhost.y - 20 }}
+          >
+            <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-blue-200 px-3 py-1.5 max-w-[140px]">
+              <p className="text-[10px] font-medium text-zinc-900 truncate">{touchDragging.mealName}</p>
+              <p className="text-[8px] text-blue-500">Drop on a slot</p>
             </div>
           </div>
         )}
