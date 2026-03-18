@@ -33,6 +33,7 @@ export function IngredientPickerModal({
 }: IngredientPickerModalProps) {
   const [pickerTab, setPickerTab] = useState<PickerTab>("search");
   const picker = useFoodPicker({ activeTab: pickerTab, scanActive: true });
+  const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({});
   const [mobileMaxHeight, setMobileMaxHeight] = useState<number | null>(null);
 
   const { data: myFoods = [] } = useQuery<{ items: UserSavedFood[] }, Error, UserSavedFood[]>({
@@ -53,16 +54,22 @@ export function IngredientPickerModal({
     const mq = window.matchMedia("(max-width: 639px)");
     const update = () => {
       if (mq.matches) {
-        setMobileMaxHeight(vv.height * 0.92);
+        const h = vv.height;
+        const top = vv.offsetTop;
+        setOverlayStyle({ height: h, top });
+        setMobileMaxHeight(h * 0.92);
       } else {
+        setOverlayStyle({});
         setMobileMaxHeight(null);
       }
     };
     update();
     vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
     mq.addEventListener("change", update);
     return () => {
       vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
       mq.removeEventListener("change", update);
     };
   }, []);
@@ -83,7 +90,8 @@ export function IngredientPickerModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm"
+      style={overlayStyle}
+      className="fixed inset-x-0 top-0 bottom-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm max-h-[100dvh]"
       onClick={(e) => e.target === e.currentTarget && onClose()}
       onWheel={stopPropagation}
       onTouchMove={stopPropagation}
