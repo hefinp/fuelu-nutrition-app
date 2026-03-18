@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
@@ -8,7 +8,8 @@ import {
   Loader2, Users, Plus, Search, X, FileText, ArrowLeft,
   Mail, Calendar, ChevronRight, Trash2, Edit2, Check, AlertCircle, ClipboardList,
   Activity, BarChart2, Bell, Building2, UserMinus, UserPlus, RefreshCw,
-  TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings
+  TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
+  MessageSquare, Send
 } from "lucide-react";
 
 interface ClientWithUser {
@@ -511,11 +512,13 @@ function ClientRoster({
   capacity,
   onSelectClient,
   onInvite,
+  unreadMap,
 }: {
   clients: ClientWithUser[];
   capacity: Capacity;
   onSelectClient: (c: ClientWithUser) => void;
   onInvite: () => void;
+  unreadMap?: Map<number, number>;
 }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -628,12 +631,128 @@ function ClientRoster({
                   <p className="text-xs text-zinc-400">Last active</p>
                   <p className="text-xs font-medium text-zinc-600">{formatDate(client.lastActivityAt)}</p>
                 </div>
+                {(unreadMap?.get(client.clientId) ?? 0) > 0 && (
+                  <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-blue-600 text-white text-[10px] font-bold rounded-full flex-shrink-0" data-testid={`badge-unread-${client.clientId}`}>
+                    {unreadMap!.get(client.clientId)}
+                  </span>
+                )}
                 <ChevronRight className="w-4 h-4 text-zinc-300 flex-shrink-0" />
               </button>
             );
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+interface NutMessage {
+  id: number;
+  nutritionistId: number;
+  clientId: number;
+  senderId: number;
+  body: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+function MessageThread({
+  clientId,
+  currentUserId,
+}: {
+  clientId: number;
+  currentUserId: number;
+}) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [newMessage, setNewMessage] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { data: messages = [], isLoading } = useQuery<NutMessage[]>({
+    queryKey: ["/api/nutritionist/clients", clientId, "messages"],
+    queryFn: () => apiRequest("GET", `/api/nutritionist/clients/${clientId}/messages`).then(r => r.json()),
+    refetchInterval: 5000,
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: (body: string) =>
+      apiRequest("POST", `/api/nutritionist/clients/${clientId}/messages`, { body }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientId, "messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/messages/unread-counts"] });
+      setNewMessage("");
+    },
+    onError: () => toast({ title: "Failed to send message", variant: "destructive" }),
+  });
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages.length]);
+
+  const sorted = [...messages].reverse();
+
+  return (
+    <div className="flex flex-col h-[500px]">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3" data-testid="message-thread">
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+          </div>
+        ) : sorted.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <MessageSquare className="w-10 h-10 text-zinc-200 mb-3" />
+            <p className="text-sm text-zinc-400" data-testid="state-no-messages">No messages yet</p>
+            <p className="text-xs text-zinc-300 mt-1">Send a message to start the conversation</p>
+          </div>
+        ) : (
+          sorted.map(msg => {
+            const isMe = msg.senderId === currentUserId;
+            return (
+              <div
+                key={msg.id}
+                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                data-testid={`message-${msg.id}`}
+              >
+                <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${isMe ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-900"}`}>
+                  <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>
+                  <p className={`text-[10px] mt-1 ${isMe ? "text-zinc-400" : "text-zinc-400"}`}>
+                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    {" · "}
+                    {new Date(msg.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+      <div className="border-t border-zinc-100 p-3 flex items-end gap-2">
+        <textarea
+          value={newMessage}
+          onChange={e => setNewMessage(e.target.value)}
+          placeholder="Type a message..."
+          rows={1}
+          className="flex-1 px-3 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 resize-none max-h-32"
+          onKeyDown={e => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              if (newMessage.trim()) sendMutation.mutate(newMessage.trim());
+            }
+          }}
+          data-testid="input-message"
+        />
+        <button
+          type="button"
+          onClick={() => newMessage.trim() && sendMutation.mutate(newMessage.trim())}
+          disabled={!newMessage.trim() || sendMutation.isPending}
+          className="flex items-center justify-center w-10 h-10 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors flex-shrink-0"
+          data-testid="button-send-message"
+        >
+          {sendMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+        </button>
+      </div>
     </div>
   );
 }
@@ -649,6 +768,8 @@ function ClientProfile({
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [activeSection, setActiveSection] = useState<"profile" | "messages">("profile");
 
   const { data: profileData, isLoading: profileLoading } = useQuery<ClientProfileData>({
     queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "profile"],
@@ -833,6 +954,35 @@ function ClientProfile({
         )}
       </div>
 
+      <div className="flex gap-1 mb-4">
+        <button
+          type="button"
+          onClick={() => setActiveSection("profile")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeSection === "profile" ? "bg-zinc-900 text-white" : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
+          data-testid="tab-client-profile"
+        >
+          <FileText className="w-3.5 h-3.5" />
+          Profile
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection("messages")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeSection === "messages" ? "bg-zinc-900 text-white" : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
+          data-testid="tab-client-messages"
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          Messages
+        </button>
+      </div>
+
+      {activeSection === "messages" && user && (
+        <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+          <MessageThread clientId={clientRecord.clientId} currentUserId={user.id} />
+        </div>
+      )}
+
+      {activeSection === "profile" && (
+        <>
       {clientRecord.healthNotes && (
         <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-4">
           <h3 className="text-sm font-semibold text-zinc-900 mb-3 flex items-center gap-2">
@@ -994,6 +1144,8 @@ function ClientProfile({
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1413,6 +1565,15 @@ export default function NutritionistPortalPage() {
     enabled: !!profile,
   });
 
+  const { data: unreadCounts = [] } = useQuery<{ clientId: number; count: number }[]>({
+    queryKey: ["/api/nutritionist/messages/unread-counts"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/messages/unread-counts").then(r => r.json()),
+    enabled: !!profile,
+    refetchInterval: 10000,
+  });
+
+  const unreadMap = new Map(unreadCounts.map(u => [u.clientId, u.count]));
+
   if (!user) {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
@@ -1552,6 +1713,7 @@ export default function NutritionistPortalPage() {
                 capacity={capacity}
                 onSelectClient={(c) => setView({ kind: "profile", client: c })}
                 onInvite={() => setShowInviteModal(true)}
+                unreadMap={unreadMap}
               />
             )
           )

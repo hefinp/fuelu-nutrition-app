@@ -48,9 +48,25 @@ import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
   Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, Home, TrendingUp, Star,
-  Sparkles, ScanLine, Heart, ShieldCheck, Zap, User, Crown, Briefcase,
+  Sparkles, ScanLine, Heart, ShieldCheck, Zap, User, Crown, Briefcase, MessageSquare,
 } from "lucide-react";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
+
+function ClientUnreadBadge() {
+  const { user } = useAuth();
+  const { data } = useQuery<{ count: number }>({
+    queryKey: ["/api/my-nutritionist/messages/unread-count"],
+    queryFn: () => apiRequest("GET", "/api/my-nutritionist/messages/unread-count").then(r => r.json()),
+    enabled: !!user?.isManagedClient,
+    refetchInterval: 10000,
+  });
+  if (!data?.count) return null;
+  return (
+    <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-blue-600 text-white text-[10px] font-bold rounded-full" data-testid="badge-client-unread">
+      {data.count}
+    </span>
+  );
+}
 
 function FreeWeeklySummaryCard() {
   const { user } = useAuth();
@@ -440,6 +456,18 @@ export default function Dashboard() {
                   <BookOpen className="w-4 h-4" />
                   <span>My Plans</span>
                 </button>
+
+                {user.isManagedClient && (
+                  <Link
+                    href="/messages"
+                    className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg text-zinc-600 hover:bg-zinc-100 transition-colors relative"
+                    data-testid="link-messages"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span className="hidden sm:inline">Messages</span>
+                    <ClientUnreadBadge />
+                  </Link>
+                )}
 
                 {tierStatus && !user.isManagedClient && (tierStatus.tier === "free" || tierStatus.tier === "simple") && (
                   <Link

@@ -30,6 +30,7 @@ const DiaryPage = lazy(() => import("@/pages/diary"));
 const MyLibraryPage = lazy(() => import("@/pages/my-library"));
 const VitalityInsightsPage = lazy(() => import("@/pages/vitality-insights"));
 const NutritionistPage = lazy(() => import("@/pages/nutritionist"));
+const ClientMessagesPage = lazy(() => import("@/pages/client-messages"));
 
 function LazyFallback() {
   return (
@@ -75,6 +76,7 @@ function Router() {
       <Route path="/my-library">{() => <Suspense fallback={<LazyFallback />}><MyLibraryPage /></Suspense>}</Route>
       <Route path="/vitality-insights">{() => <Suspense fallback={<LazyFallback />}><VitalityInsightsPage /></Suspense>}</Route>
       <Route path="/nutritionist">{() => <Suspense fallback={<LazyFallback />}><NutritionistPage /></Suspense>}</Route>
+      <Route path="/messages">{() => <Suspense fallback={<LazyFallback />}><ClientMessagesPage /></Suspense>}</Route>
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -258,6 +258,13 @@ export interface IStorage {
   addPracticeMember(practiceId: number, nutritionistUserId: number, role?: string): Promise<PracticeMember>;
   removePracticeMember(practiceId: number, nutritionistUserId: number): Promise<void>;
   updatePracticeMemberRole(practiceId: number, nutritionistUserId: number, role: string): Promise<PracticeMember | undefined>;
+
+  // Nutritionist messages
+  getMessages(nutritionistId: number, clientId: number, limit?: number, before?: number): Promise<NutritionistMessage[]>;
+  createMessage(nutritionistId: number, clientId: number, senderId: number, body: string): Promise<NutritionistMessage>;
+  markMessagesRead(nutritionistId: number, clientId: number, readerId: number): Promise<void>;
+  getUnreadCountForNutritionist(nutritionistId: number): Promise<{ clientId: number; count: number }[]>;
+  getUnreadCountForClient(clientId: number): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2042,6 +2049,68 @@ export class DatabaseStorage implements IStorage {
         }
       }
     }
+  }
+  async getMessages(nutritionistId: number, clientId: number, limit = 50, before?: number): Promise<NutritionistMessage[]> {
+    const conditions = [
+      eq(nutritionistMessages.nutritionistId, nutritionistId),
+      eq(nutritionistMessages.clientId, clientId),
+    ];
+    if (before) {
+      conditions.push(lt(nutritionistMessages.id, before));
+    }
+    return db.select().from(nutritionistMessages)
+      .where(and(...conditions))
+      .orderBy(desc(nutritionistMessages.createdAt))
+      .limit(limit);
+  }
+
+  async createMessage(nutritionistId: number, clientId: number, senderId: number, body: string): Promise<NutritionistMessage> {
+    const [msg] = await db.insert(nutritionistMessages).values({
+      nutritionistId,
+      clientId,
+      senderId,
+      body,
+    }).returning();
+    return msg;
+  }
+
+  async markMessagesRead(nutritionistId: number, clientId: number, readerId: number): Promise<void> {
+    await db.update(nutritionistMessages)
+      .set({ isRead: true })
+      .where(and(
+        eq(nutritionistMessages.nutritionistId, nutritionistId),
+        eq(nutritionistMessages.clientId, clientId),
+        eq(nutritionistMessages.isRead, false),
+        sql`${nutritionistMessages.senderId} != ${readerId}`
+      ));
+  }
+
+  async getUnreadCountForNutritionist(nutritionistId: number): Promise<{ clientId: number; count: number }[]> {
+    const rows = await db.select({
+      clientId: nutritionistMessages.clientId,
+      count: sql<number>`count(*)`,
+    })
+      .from(nutritionistMessages)
+      .where(and(
+        eq(nutritionistMessages.nutritionistId, nutritionistId),
+        eq(nutritionistMessages.isRead, false),
+        sql`${nutritionistMessages.senderId} != ${nutritionistId}`
+      ))
+      .groupBy(nutritionistMessages.clientId);
+    return rows.map(r => ({ clientId: r.clientId, count: Number(r.count) }));
+  }
+
+  async getUnreadCountForClient(clientId: number): Promise<number> {
+    const [result] = await db.select({
+      count: sql<number>`count(*)`,
+    })
+      .from(nutritionistMessages)
+      .where(and(
+        eq(nutritionistMessages.clientId, clientId),
+        eq(nutritionistMessages.isRead, false),
+        sql`${nutritionistMessages.senderId} != ${clientId}`
+      ));
+    return Number(result?.count ?? 0);
   }
 }
 

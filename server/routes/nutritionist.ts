@@ -838,4 +838,130 @@ router.get("/api/my-nutritionist-plans", async (req, res) => {
   }
 });
 
+// ─── Messaging ───────────────────────────────────────────────────────────────
+
+router.get("/api/nutritionist/clients/:clientId/messages", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+  const before = req.query.before ? parseInt(req.query.before as string) : undefined;
+
+  const messages = await storage.getMessages(userId, clientId, limit, before);
+  await storage.markMessagesRead(userId, clientId, userId);
+  res.json(messages);
+});
+
+router.post("/api/nutritionist/clients/:clientId/messages", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const schema = z.object({ body: z.string().min(1).max(5000) });
+  try {
+    const { body } = schema.parse(req.body);
+    const message = await storage.createMessage(userId, clientId, userId, body);
+    res.status(201).json(message);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.post("/api/nutritionist/clients/:clientId/messages/mark-read", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  await storage.markMessagesRead(userId, clientId, userId);
+  res.json({ success: true });
+});
+
+router.get("/api/nutritionist/messages/unread-counts", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const counts = await storage.getUnreadCountForNutritionist(userId);
+  res.json(counts);
+});
+
+router.get("/api/my-nutritionist/messages", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const clientId = req.session.userId;
+  const relationship = await storage.getNutritionistClientByClientIdAny(clientId);
+  if (!relationship) return res.status(403).json({ message: "You are not linked to a nutritionist." });
+
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+  const before = req.query.before ? parseInt(req.query.before as string) : undefined;
+
+  const messages = await storage.getMessages(relationship.nutritionistId, clientId, limit, before);
+  await storage.markMessagesRead(relationship.nutritionistId, clientId, clientId);
+  res.json(messages);
+});
+
+router.post("/api/my-nutritionist/messages", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const clientId = req.session.userId;
+  const relationship = await storage.getNutritionistClientByClientIdAny(clientId);
+  if (!relationship) return res.status(403).json({ message: "You are not linked to a nutritionist." });
+
+  const schema = z.object({ body: z.string().min(1).max(5000) });
+  try {
+    const { body } = schema.parse(req.body);
+    const message = await storage.createMessage(relationship.nutritionistId, clientId, clientId, body);
+    res.status(201).json(message);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.post("/api/my-nutritionist/messages/mark-read", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const clientId = req.session.userId;
+  const relationship = await storage.getNutritionistClientByClientIdAny(clientId);
+  if (!relationship) return res.status(403).json({ message: "You are not linked to a nutritionist." });
+
+  await storage.markMessagesRead(relationship.nutritionistId, clientId, clientId);
+  res.json({ success: true });
+});
+
+router.get("/api/my-nutritionist/messages/unread-count", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const count = await storage.getUnreadCountForClient(req.session.userId);
+  res.json({ count });
+});
+
 export default router;

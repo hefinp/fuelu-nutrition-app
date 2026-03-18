@@ -605,6 +605,27 @@ export async function runMigrations(): Promise<void> {
       )
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS nutritionist_messages (
+        id                SERIAL PRIMARY KEY,
+        nutritionist_id   INTEGER NOT NULL REFERENCES users(id),
+        client_id         INTEGER NOT NULL REFERENCES users(id),
+        sender_id         INTEGER NOT NULL REFERENCES users(id),
+        body              TEXT NOT NULL,
+        is_read           BOOLEAN NOT NULL DEFAULT false,
+        created_at        TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_nutritionist_messages_thread
+        ON nutritionist_messages (nutritionist_id, client_id, created_at DESC)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_nutritionist_messages_unread
+        ON nutritionist_messages (nutritionist_id, client_id, is_read)
+        WHERE is_read = false
+    `);
+
   } finally {
     client.release();
   }

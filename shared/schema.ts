@@ -864,3 +864,24 @@ export const insertPracticeMemberSchema = createInsertSchema(practiceMembers).om
 
 export type InsertPracticeMember = z.infer<typeof insertPracticeMemberSchema>;
 export type PracticeMember = typeof practiceMembers.$inferSelect;
+
+export const nutritionistMessages = pgTable("nutritionist_messages", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  senderId: integer("sender_id").notNull().references(() => users.id),
+  body: text("body").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertNutritionistMessageSchema = createInsertSchema(nutritionistMessages).omit({
+  id: true,
+  createdAt: true,
+  isRead: true,
+}).extend({
+  body: z.string().min(1, "Message cannot be empty").max(5000),
+});
+
+export type InsertNutritionistMessage = z.infer<typeof insertNutritionistMessageSchema>;
+export type NutritionistMessage = typeof nutritionistMessages.$inferSelect;
