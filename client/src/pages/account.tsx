@@ -10,6 +10,7 @@ import {
   Crown, CreditCard, AlertTriangle, ArrowRight, Loader2, CheckCircle2,
   Coins, ArrowUpRight, User, Lock, ChevronRight, Zap, Globe,
 } from "lucide-react";
+import { ConfirmDialog, useConfirmDialog } from "@/components/confirm-dialog";
 
 type Tab = "profile" | "plan";
 
@@ -18,6 +19,7 @@ export default function AccountPage() {
   const search = useSearch();
   const { toast } = useToast();
   const { data: tierStatus, isLoading: tierLoading } = useTierStatus();
+  const { confirm, dialogProps } = useConfirmDialog();
 
   const searchParams = new URLSearchParams(search);
   const initialTab = (searchParams.get("tab") as Tab) || "profile";
@@ -459,11 +461,12 @@ export default function AccountPage() {
                 </Link>
                 {isPaid && !pendingTier && (
                   <button
-                    onClick={() => {
-                      if (window.confirm("Switch to the Free tier? You'll keep access to your current plan until the end of your billing period.")) {
-                        downgradeMutation.mutate();
-                      }
-                    }}
+                    onClick={() => confirm({
+                      title: "Switch to Free tier?",
+                      description: "You'll keep access to your current plan until the end of your billing period. After that, your account will revert to the Free tier.",
+                      confirmLabel: "Switch to Free",
+                      onConfirm: () => downgradeMutation.mutate(),
+                    })}
                     disabled={downgradeMutation.isPending}
                     className="flex items-center gap-1.5 px-4 py-2 border border-zinc-200 text-zinc-600 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors disabled:opacity-40"
                     data-testid="button-downgrade-free"
@@ -621,11 +624,12 @@ export default function AccountPage() {
                   You'll keep access to your current plan features until the end of your billing period. After that, your account will revert to the Free tier.
                 </p>
                 <button
-                  onClick={() => {
-                    if (window.confirm("Cancel your subscription? You'll keep access until the end of your billing period, then revert to the Free tier.")) {
-                      cancelMutation.mutate();
-                    }
-                  }}
+                  onClick={() => confirm({
+                    title: "Cancel subscription?",
+                    description: "You'll keep access until the end of your billing period, then revert to the Free tier.",
+                    confirmLabel: "Cancel subscription",
+                    onConfirm: () => cancelMutation.mutate(),
+                  })}
                   disabled={cancelMutation.isPending}
                   className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-xl hover:bg-red-50 transition-colors disabled:opacity-40"
                   data-testid="button-cancel-subscription"
@@ -637,6 +641,7 @@ export default function AccountPage() {
           </div>
         )}
       </main>
+      <ConfirmDialog {...dialogProps} />
     </div>
   );
 }

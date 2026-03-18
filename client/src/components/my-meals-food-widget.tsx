@@ -8,6 +8,7 @@ import {
   Link2, Search, Users2, ArrowRight, Repeat,
 } from "lucide-react";
 import type { UserMeal, UserSavedFood, MealTemplate } from "@shared/schema";
+import { ConfirmDialog, useConfirmDialog } from "@/components/confirm-dialog";
 
 type EnrichedTemplate = MealTemplate & { mealName?: string | null };
 import {
@@ -61,6 +62,7 @@ export function MyMealsFoodWidget() {
   const [editTarget, setEditTarget] = useState<UserMeal | null>(null);
   const [editFoodTarget, setEditFoodTarget] = useState<UserSavedFood | null>(null);
   const [templateTarget, setTemplateTarget] = useState<UserMeal | null>(null);
+  const { confirm, dialogProps } = useConfirmDialog();
 
   useEffect(() => { setExpandedId(null); }, [activeTab]);
 
@@ -265,7 +267,7 @@ export function MyMealsFoodWidget() {
                         onToggle={() => setExpandedId(expandedId === key ? null : key)}
                         onLog={() => logMeal(meal)}
                         onEdit={() => setEditTarget(meal)}
-                        onDelete={() => { if (window.confirm(`Remove "${meal.name}" from your meals?`)) deleteMealMutation.mutate(meal.id); }}
+                        onDelete={() => confirm({ title: `Remove "${meal.name}"?`, description: `This will permanently remove "${meal.name}" from your saved meals.`, confirmLabel: "Remove", onConfirm: () => deleteMealMutation.mutate(meal.id) })}
                         onTemplate={() => setTemplateTarget(meal)}
                         hasTemplate={templateMealIds.has(meal.id)}
                         isLogging={logMutation.isPending}
@@ -377,7 +379,7 @@ export function MyMealsFoodWidget() {
                       });
                     }}
                     onEdit={() => setEditFoodTarget(food)}
-                    onDelete={() => { if (window.confirm(`Remove "${food.name}" from your foods?`)) deleteFoodMutation.mutate(food.id); }}
+                    onDelete={() => confirm({ title: `Remove "${food.name}"?`, description: `This will permanently remove "${food.name}" from your saved foods.`, confirmLabel: "Remove", onConfirm: () => deleteFoodMutation.mutate(food.id) })}
                     isLogging={logMutation.isPending}
                   />
                 ))}
@@ -498,6 +500,7 @@ export function MyMealsFoodWidget() {
           onClose={() => setTemplateTarget(null)}
         />
       )}
+      <ConfirmDialog {...dialogProps} />
     </div>
   );
 }
