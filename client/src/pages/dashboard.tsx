@@ -53,10 +53,12 @@ import {
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
 
 function FreeWeeklySummaryCard() {
+  const { user } = useAuth();
   const { data, isLoading } = useQuery<{ summary: string | null; insufficientData?: boolean; cached?: boolean }>({
     queryKey: ["/api/food-log/free-weekly-summary"],
     staleTime: 60 * 60 * 1000,
     retry: false,
+    enabled: !!user,
   });
 
   if (isLoading) {
@@ -130,7 +132,7 @@ export default function Dashboard() {
   const [showFoodLogPopup, setShowFoodLogPopup] = useState(false);
   const [showInsightsPopup, setShowInsightsPopup] = useState(false);
   const [showVitalityInsightsPopup, setShowVitalityInsightsPopup] = useState(false);
-  const { data: history, isLoading: historyLoading } = useCalculations();
+  const { data: history, isLoading: historyLoading, isFetched: historyFetched } = useCalculations();
   const { user, logout, isLoggingOut } = useAuth();
   const { data: tierStatus } = useTierStatus();
   const [, setLocation] = useLocation();
@@ -869,7 +871,7 @@ export default function Dashboard() {
         )}
 
         {/* No metrics CTA */}
-        {!historyLoading && !hasMetrics && (
+        {!historyLoading && historyFetched && !hasMetrics && (
           <AnimatePresence>
             <motion.div
               key="empty"

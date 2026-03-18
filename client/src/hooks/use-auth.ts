@@ -31,6 +31,9 @@ export function useAuth() {
       queryClient.removeQueries({ queryKey: ["/api/nutritionist/profile"] });
       queryClient.invalidateQueries({ queryKey: ["/api/calculations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/saved-meal-plans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tier/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log/free-weekly-summary"] });
     },
   });
 
@@ -48,6 +51,9 @@ export function useAuth() {
       queryClient.removeQueries({ queryKey: ["/api/nutritionist/profile"] });
       queryClient.invalidateQueries({ queryKey: ["/api/calculations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/saved-meal-plans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tier/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log/free-weekly-summary"] });
     },
   });
 
@@ -59,8 +65,11 @@ export function useAuth() {
       queryClient.setQueryData(["/api/auth/me"], null);
       queryClient.removeQueries({ queryKey: ["/api/nutritionist/profile"] });
       queryClient.removeQueries({ queryKey: ["/api/nutritionist/clients"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/calculations"] });
+      queryClient.removeQueries({ queryKey: ["/api/calculations"] });
       queryClient.removeQueries({ queryKey: ["/api/saved-meal-plans"] });
+      queryClient.removeQueries({ queryKey: ["/api/user/preferences"] });
+      queryClient.removeQueries({ queryKey: ["/api/tier/status"] });
+      queryClient.removeQueries({ queryKey: ["/api/food-log/free-weekly-summary"] });
     },
   });
 

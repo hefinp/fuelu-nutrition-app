@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { useAuth } from "./use-auth";
+import { queryClient } from "@/lib/queryClient";
 
-// Parse function with logging to catch serialization issues silently failing
 function parseWithLogging<T>(schema: z.ZodSchema<T>, data: unknown, label: string): T {
   const result = schema.safeParse(data);
   if (!result.success) {
@@ -13,14 +14,20 @@ function parseWithLogging<T>(schema: z.ZodSchema<T>, data: unknown, label: strin
 }
 
 export function useCalculations() {
+  const { user } = useAuth();
   return useQuery({
     queryKey: [api.calculations.list.path],
     queryFn: async () => {
       const res = await fetch(api.calculations.list.path, { credentials: "include" });
+      if (res.status === 401) {
+        queryClient.setQueryData(["/api/auth/me"], null);
+        throw new Error("Not authenticated");
+      }
       if (!res.ok) throw new Error("Failed to fetch history");
       const data = await res.json();
       return parseWithLogging(api.calculations.list.responses[200], data, "calculations.list");
     },
+    enabled: !!user,
   });
 }
 
