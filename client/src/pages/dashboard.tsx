@@ -16,6 +16,7 @@ import { OnboardingTour } from "@/components/onboarding-tour";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { InstallPrompt } from "@/components/install-prompt";
+import ClientIntakeFormWidget from "@/components/client-intake-form";
 const InsightsPage = lazy(() => import("@/pages/insights"));
 const VitalityInsightsPage = lazy(() => import("@/pages/vitality-insights"));
 import { SortableWidget } from "@/components/sortable-widget";
@@ -895,6 +896,8 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {user && !isNutritionist && <ClientIntakeFormWidget />}
 
         {/* Loading */}
         {user && historyLoading && (

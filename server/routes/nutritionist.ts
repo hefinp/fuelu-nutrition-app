@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import crypto from "crypto";
 import { storage } from "../storage";
-import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier } from "@shared/schema";
+import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier, goalTypeEnum } from "@shared/schema";
 
 import OpenAI from "openai";
 import { generateMealPlan } from "../meal-data";
@@ -860,6 +860,199 @@ router.get("/api/nutritionist/clients/:clientId/target-overrides", async (req, r
   });
 });
 
+// ─── Client Intake Forms ──────────────────────────────────────────────────────
+
+router.get("/api/nutritionist/clients/:clientId/intake", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const form = await storage.getClientIntakeForm(userId, clientId);
+  res.json(form ?? null);
+});
+
+router.post("/api/nutritionist/clients/:clientId/intake", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const existing = await storage.getClientIntakeForm(userId, clientId);
+  if (existing) return res.status(409).json({ message: "Intake form already exists for this client." });
+
+  const schema = z.object({
+    medicalHistory: z.string().max(5000).optional(),
+    medications: z.string().max(3000).optional(),
+    lifestyle: z.string().max(3000).optional(),
+    dietaryRestrictions: z.string().max(3000).optional(),
+    foodPreferences: z.string().max(3000).optional(),
+    notes: z.string().max(5000).optional(),
+  });
+
+  try {
+    const data = schema.parse(req.body);
+    const form = await storage.createClientIntakeForm({
+      nutritionistClientId: relationship.id,
+      nutritionistId: userId,
+      clientId,
+      ...data,
+      completedAt: new Date(),
+    });
+
+    await storage.updateNutritionistClient(relationship.id, userId, { status: "active", lastActivityAt: new Date() });
+
+    res.status(201).json(form);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.put("/api/nutritionist/clients/:clientId/intake", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const existing = await storage.getClientIntakeForm(userId, clientId);
+  if (!existing) return res.status(404).json({ message: "No intake form found." });
+
+  const schema = z.object({
+    medicalHistory: z.string().max(5000).optional(),
+    medications: z.string().max(3000).optional(),
+    lifestyle: z.string().max(3000).optional(),
+    dietaryRestrictions: z.string().max(3000).optional(),
+    foodPreferences: z.string().max(3000).optional(),
+    notes: z.string().max(5000).optional(),
+  });
+
+  try {
+    const data = schema.parse(req.body);
+    const updated = await storage.updateClientIntakeForm(existing.id, userId, data);
+    res.json(updated);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+// ─── Client Goals ─────────────────────────────────────────────────────────────
+
+router.get("/api/nutritionist/clients/:clientId/goals", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const goals = await storage.getClientGoals(userId, clientId);
+
+  const enrichedGoals = await Promise.all(goals.map(async (goal) => {
+    let computedCurrentValue = goal.currentValue;
+
+    if (goal.goalType === "weight") {
+      const weightEntries = await storage.getWeightEntries(clientId);
+      if (weightEntries.length > 0) {
+        computedCurrentValue = weightEntries[weightEntries.length - 1].weight;
+      }
+    } else if (goal.goalType === "macro_average") {
+      const now = new Date();
+      const weekAgo = new Date(now);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const fromStr = weekAgo.toISOString().split("T")[0];
+      const toStr = now.toISOString().split("T")[0];
+      const foodLogs = await storage.getFoodLogEntriesRange(clientId, fromStr, toStr);
+      if (foodLogs.length > 0) {
+        const unit = (goal.unit || "").toLowerCase();
+        let total = 0;
+        for (const entry of foodLogs) {
+          if (unit.includes("protein")) total += entry.protein ?? 0;
+          else if (unit.includes("carb")) total += entry.carbs ?? 0;
+          else if (unit.includes("fat")) total += entry.fat ?? 0;
+          else if (unit.includes("cal")) total += entry.calories ?? 0;
+        }
+        const uniqueDays = new Set(foodLogs.map(e => e.date)).size;
+        computedCurrentValue = uniqueDays > 0 ? String(Math.round(total / uniqueDays)) : computedCurrentValue;
+      }
+    }
+
+    let progress = null;
+    const baseline = goal.currentValue ? parseFloat(String(goal.currentValue)) : null;
+    if (goal.targetValue && computedCurrentValue) {
+      const target = parseFloat(String(goal.targetValue));
+      const current = parseFloat(String(computedCurrentValue));
+      if (!isNaN(target) && !isNaN(current)) {
+        if (baseline !== null && !isNaN(baseline) && baseline !== target) {
+          const totalChange = Math.abs(target - baseline);
+          const actualChange = Math.abs(current - baseline);
+          const movingCorrectDirection =
+            (target > baseline && current >= baseline) ||
+            (target < baseline && current <= baseline);
+          if (movingCorrectDirection) {
+            progress = Math.min(100, Math.round((actualChange / totalChange) * 100));
+          } else {
+            progress = 0;
+          }
+        } else if (target > 0) {
+          if (current <= target) {
+            progress = Math.min(100, Math.round((current / target) * 100));
+          } else {
+            progress = 100;
+          }
+        }
+      }
+    }
+
+    let onTrack = null;
+    if (goal.targetDate && progress !== null) {
+      const now = new Date();
+      const targetDate = new Date(goal.targetDate);
+      const createdAt = new Date(goal.createdAt!);
+      const totalDuration = targetDate.getTime() - createdAt.getTime();
+      const elapsed = now.getTime() - createdAt.getTime();
+      const expectedProgress = totalDuration > 0 ? Math.min(100, (elapsed / totalDuration) * 100) : 100;
+      onTrack = progress >= expectedProgress * 0.8;
+    }
+
+    return {
+      ...goal,
+      currentValue: computedCurrentValue,
+      progress,
+      onTrack,
+    };
+  }));
+
+  res.json(enrichedGoals);
+});
+
 router.put("/api/nutritionist/clients/:clientId/target-overrides", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
@@ -893,6 +1086,50 @@ router.put("/api/nutritionist/clients/:clientId/target-overrides", async (req, r
   }
 });
 
+router.post("/api/nutritionist/clients/:clientId/goals", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const schema = z.object({
+    goalType: z.enum(goalTypeEnum).default("custom"),
+    title: z.string().min(1).max(200),
+    targetValue: z.string().optional(),
+    unit: z.string().max(50).optional(),
+    targetDate: z.string().optional().refine(
+      (v) => !v || !isNaN(new Date(v).getTime()),
+      { message: "Invalid date format" }
+    ),
+  });
+
+  try {
+    const data = schema.parse(req.body);
+    const goal = await storage.createClientGoal({
+      nutritionistClientId: relationship.id,
+      nutritionistId: userId,
+      clientId,
+      goalType: data.goalType,
+      title: data.title,
+      targetValue: data.targetValue,
+      unit: data.unit,
+      targetDate: data.targetDate,
+      status: "active",
+    });
+    res.status(201).json(goal);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
 router.delete("/api/nutritionist/clients/:clientId/target-overrides", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
@@ -908,6 +1145,130 @@ router.delete("/api/nutritionist/clients/:clientId/target-overrides", async (req
 
   await storage.clearClientTargetOverrides(userId, clientId);
   res.json({ success: true });
+});
+
+router.put("/api/nutritionist/clients/:clientId/goals/:goalId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  const goalId = parseInt(req.params.goalId);
+  if (isNaN(clientId) || isNaN(goalId)) return res.status(400).json({ message: "Invalid ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const schema = z.object({
+    title: z.string().min(1).max(200).optional(),
+    goalType: z.enum(goalTypeEnum).optional(),
+    targetValue: z.string().optional(),
+    currentValue: z.string().optional(),
+    unit: z.string().max(50).optional(),
+    targetDate: z.string().optional().refine(
+      (v) => !v || !isNaN(new Date(v).getTime()),
+      { message: "Invalid date format" }
+    ),
+    status: z.enum(["active", "completed", "paused"]).optional(),
+  });
+
+  try {
+    const data = schema.parse(req.body);
+    const updates: Partial<{ title: string; goalType: string; targetValue: string; currentValue: string; unit: string; targetDate: Date; status: string }> = {};
+    if (data.title !== undefined) updates.title = data.title;
+    if (data.goalType !== undefined) updates.goalType = data.goalType;
+    if (data.targetValue !== undefined) updates.targetValue = data.targetValue;
+    if (data.currentValue !== undefined) updates.currentValue = data.currentValue;
+    if (data.unit !== undefined) updates.unit = data.unit;
+    if (data.targetDate !== undefined) updates.targetDate = new Date(data.targetDate);
+    if (data.status !== undefined) updates.status = data.status;
+    const updated = await storage.updateClientGoal(goalId, userId, clientId, updates);
+    if (!updated) return res.status(404).json({ message: "Goal not found" });
+    res.json(updated);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.delete("/api/nutritionist/clients/:clientId/goals/:goalId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  const goalId = parseInt(req.params.goalId);
+  if (isNaN(clientId) || isNaN(goalId)) return res.status(400).json({ message: "Invalid ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  await storage.deleteClientGoal(goalId, userId, clientId);
+  res.json({ success: true });
+});
+
+// ─── Client-facing intake form ───────────────────────────────────────────────
+
+router.get("/api/my-intake-form", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const relationship = await storage.getNutritionistClientByClientIdAny(req.session.userId);
+  if (!relationship) return res.status(404).json({ message: "You are not linked to a nutritionist." });
+
+  const form = await storage.getClientIntakeForm(relationship.nutritionistId, req.session.userId);
+  res.json(form ?? null);
+});
+
+router.post("/api/my-intake-form", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const relationship = await storage.getNutritionistClientByClientIdAny(req.session.userId);
+  if (!relationship) return res.status(404).json({ message: "You are not linked to a nutritionist." });
+
+  const existing = await storage.getClientIntakeForm(relationship.nutritionistId, req.session.userId);
+
+  const schema = z.object({
+    medicalHistory: z.string().max(5000).optional(),
+    medications: z.string().max(3000).optional(),
+    lifestyle: z.string().max(3000).optional(),
+    dietaryRestrictions: z.string().max(3000).optional(),
+    foodPreferences: z.string().max(3000).optional(),
+    notes: z.string().max(5000).optional(),
+  });
+
+  try {
+    const data = schema.parse(req.body);
+
+    if (existing) {
+      const updated = await storage.updateClientIntakeForm(existing.id, relationship.nutritionistId, {
+        ...data,
+        completedAt: existing.completedAt ? undefined : new Date(),
+      });
+      res.json(updated);
+    } else {
+      const form = await storage.createClientIntakeForm({
+        nutritionistClientId: relationship.id,
+        nutritionistId: relationship.nutritionistId,
+        clientId: req.session.userId,
+        ...data,
+        completedAt: new Date(),
+      });
+
+      await storage.updateNutritionistClient(relationship.id, relationship.nutritionistId, {
+        status: "active",
+        lastActivityAt: new Date(),
+      });
+
+      res.status(201).json(form);
+    }
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
 });
 
 router.get("/api/my-nutritionist-plans", async (req, res) => {

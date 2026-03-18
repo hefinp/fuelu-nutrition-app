@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientGoal, type InsertClientGoal } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -252,6 +252,18 @@ export interface IStorage {
   upsertClientTargetOverrides(nutritionistId: number, clientId: number, overrides: Partial<InsertClientTargetOverride>): Promise<ClientTargetOverride>;
   clearClientTargetOverrides(nutritionistId: number, clientId: number): Promise<void>;
   getEffectiveTargets(clientId: number): Promise<{ dailyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number; fibreGoal: number | null; hasOverrides: boolean; overriddenFields: string[] } | null>;
+
+  // Client intake forms
+  getClientIntakeForm(nutritionistId: number, clientId: number): Promise<ClientIntakeForm | undefined>;
+  createClientIntakeForm(data: InsertClientIntakeForm): Promise<ClientIntakeForm>;
+  updateClientIntakeForm(id: number, nutritionistId: number, updates: Partial<Pick<ClientIntakeForm, 'medicalHistory' | 'medications' | 'lifestyle' | 'dietaryRestrictions' | 'foodPreferences' | 'notes' | 'completedAt'>>): Promise<ClientIntakeForm | undefined>;
+
+  // Client goals
+  getClientGoals(nutritionistId: number, clientId: number): Promise<ClientGoal[]>;
+  getClientGoalById(id: number, nutritionistId: number): Promise<ClientGoal | undefined>;
+  createClientGoal(data: InsertClientGoal): Promise<ClientGoal>;
+  updateClientGoal(id: number, nutritionistId: number, clientId: number, updates: Partial<Pick<ClientGoal, 'title' | 'goalType' | 'targetValue' | 'currentValue' | 'unit' | 'targetDate' | 'status'>>): Promise<ClientGoal | undefined>;
+  deleteClientGoal(id: number, nutritionistId: number, clientId: number): Promise<void>;
 
   // Practice accounts
   getPracticeByAdmin(adminUserId: number): Promise<PracticeAccount | undefined>;
@@ -1846,6 +1858,59 @@ export class DatabaseStorage implements IStorage {
 
   async deletePlanTemplate(id: number, nutritionistId: number): Promise<void> {
     await db.delete(planTemplates).where(and(eq(planTemplates.id, id), eq(planTemplates.nutritionistId, nutritionistId)));
+  }
+
+  async getClientIntakeForm(nutritionistId: number, clientId: number): Promise<ClientIntakeForm | undefined> {
+    const [form] = await db.select().from(clientIntakeForms)
+      .where(and(eq(clientIntakeForms.nutritionistId, nutritionistId), eq(clientIntakeForms.clientId, clientId)));
+    return form;
+  }
+
+  async createClientIntakeForm(data: InsertClientIntakeForm): Promise<ClientIntakeForm> {
+    const [created] = await db.insert(clientIntakeForms).values(data).returning();
+    return created;
+  }
+
+  async updateClientIntakeForm(id: number, nutritionistId: number, updates: Partial<Pick<ClientIntakeForm, 'medicalHistory' | 'medications' | 'lifestyle' | 'dietaryRestrictions' | 'foodPreferences' | 'notes' | 'completedAt'>>): Promise<ClientIntakeForm | undefined> {
+    const [updated] = await db.update(clientIntakeForms)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(clientIntakeForms.id, id), eq(clientIntakeForms.nutritionistId, nutritionistId)))
+      .returning();
+    return updated;
+  }
+
+  async getClientGoals(nutritionistId: number, clientId: number): Promise<ClientGoal[]> {
+    return db.select().from(clientGoals)
+      .where(and(eq(clientGoals.nutritionistId, nutritionistId), eq(clientGoals.clientId, clientId)))
+      .orderBy(desc(clientGoals.createdAt));
+  }
+
+  async getClientGoalById(id: number, nutritionistId: number): Promise<ClientGoal | undefined> {
+    const [goal] = await db.select().from(clientGoals)
+      .where(and(eq(clientGoals.id, id), eq(clientGoals.nutritionistId, nutritionistId)));
+    return goal;
+  }
+
+  async createClientGoal(data: InsertClientGoal): Promise<ClientGoal> {
+    const insertData = {
+      ...data,
+      targetDate: data.targetDate ? new Date(data.targetDate) : undefined,
+    };
+    const [created] = await db.insert(clientGoals).values(insertData).returning();
+    return created;
+  }
+
+  async updateClientGoal(id: number, nutritionistId: number, clientId: number, updates: Partial<Pick<ClientGoal, 'title' | 'goalType' | 'targetValue' | 'currentValue' | 'unit' | 'targetDate' | 'status'>>): Promise<ClientGoal | undefined> {
+    const [updated] = await db.update(clientGoals)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(clientGoals.id, id), eq(clientGoals.nutritionistId, nutritionistId), eq(clientGoals.clientId, clientId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteClientGoal(id: number, nutritionistId: number, clientId: number): Promise<void> {
+    await db.delete(clientGoals)
+      .where(and(eq(clientGoals.id, id), eq(clientGoals.nutritionistId, nutritionistId), eq(clientGoals.clientId, clientId)));
   }
 
   async getPracticeByAdmin(adminUserId: number): Promise<PracticeAccount | undefined> {

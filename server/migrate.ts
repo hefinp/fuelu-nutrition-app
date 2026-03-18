@@ -498,6 +498,47 @@ export async function runMigrations(): Promise<void> {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_practice_members_practice ON practice_members (practice_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_practice_members_nutritionist ON practice_members (nutritionist_user_id)`);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS client_intake_forms (
+        id                      SERIAL PRIMARY KEY,
+        nutritionist_client_id  INTEGER NOT NULL REFERENCES nutritionist_clients(id) ON DELETE CASCADE,
+        nutritionist_id         INTEGER NOT NULL REFERENCES users(id),
+        client_id               INTEGER NOT NULL REFERENCES users(id),
+        medical_history         TEXT,
+        medications             TEXT,
+        lifestyle               TEXT,
+        dietary_restrictions    TEXT,
+        food_preferences        TEXT,
+        notes                   TEXT,
+        completed_at            TIMESTAMP,
+        created_at              TIMESTAMP DEFAULT NOW(),
+        updated_at              TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_client_intake_forms_relationship ON client_intake_forms (nutritionist_client_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_client_intake_forms_nutritionist_client ON client_intake_forms (nutritionist_id, client_id)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS client_goals (
+        id                      SERIAL PRIMARY KEY,
+        nutritionist_client_id  INTEGER NOT NULL REFERENCES nutritionist_clients(id) ON DELETE CASCADE,
+        nutritionist_id         INTEGER NOT NULL REFERENCES users(id),
+        client_id               INTEGER NOT NULL REFERENCES users(id),
+        goal_type               TEXT NOT NULL DEFAULT 'custom',
+        title                   TEXT NOT NULL,
+        target_value            TEXT,
+        current_value           TEXT,
+        unit                    TEXT,
+        target_date             TIMESTAMP,
+        status                  TEXT NOT NULL DEFAULT 'active',
+        created_at              TIMESTAMP DEFAULT NOW(),
+        updated_at              TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_client_goals_nutritionist_client ON client_goals (nutritionist_id, client_id)`);
+
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;

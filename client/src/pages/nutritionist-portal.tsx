@@ -9,7 +9,7 @@ import {
   Mail, Calendar, ChevronRight, Trash2, Edit2, Check, AlertCircle, ClipboardList,
   Activity, BarChart2, Bell, Building2, UserMinus, UserPlus, RefreshCw,
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
-  MessageSquare, Send, Target, RotateCcw
+  MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2
 } from "lucide-react";
 
 interface ClientWithUser {
@@ -96,6 +96,40 @@ interface NutritionistProfile {
   bio: string | null;
   credentials: string | null;
   specializations: string[] | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ClientIntakeForm {
+  id: number;
+  nutritionistClientId: number;
+  nutritionistId: number;
+  clientId: number;
+  medicalHistory: string | null;
+  medications: string | null;
+  lifestyle: string | null;
+  dietaryRestrictions: string | null;
+  foodPreferences: string | null;
+  notes: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ClientGoal {
+  id: number;
+  nutritionistClientId: number;
+  nutritionistId: number;
+  clientId: number;
+  goalType: string;
+  title: string;
+  targetValue: string | null;
+  currentValue: string | null;
+  unit: string | null;
+  targetDate: string | null;
+  status: string;
+  progress: number | null;
+  onTrack: boolean | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -974,6 +1008,496 @@ function TargetOverridesPanel({ clientId }: { clientId: number }) {
   );
 }
 
+function IntakeFormPanel({ clientRecord }: { clientRecord: ClientWithUser }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [formData, setFormData] = useState({
+    medicalHistory: "",
+    medications: "",
+    lifestyle: "",
+    dietaryRestrictions: "",
+    foodPreferences: "",
+    notes: "",
+  });
+
+  const { data: intakeForm, isLoading } = useQuery<ClientIntakeForm | null>({
+    queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "intake"],
+    queryFn: () => apiRequest("GET", `/api/nutritionist/clients/${clientRecord.clientId}/intake`).then(r => r.json()),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: typeof formData) =>
+      apiRequest("POST", `/api/nutritionist/clients/${clientRecord.clientId}/intake`, data).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "intake"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients"] });
+      toast({ title: "Intake form submitted — client is now active" });
+      setIsEditing(false);
+    },
+    onError: (err: Error) => toast({ title: "Failed to save", description: err.message, variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: typeof formData) =>
+      apiRequest("PUT", `/api/nutritionist/clients/${clientRecord.clientId}/intake`, data).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "intake"] });
+      toast({ title: "Intake form updated" });
+      setIsEditing(false);
+    },
+    onError: (err: Error) => toast({ title: "Failed to update", description: err.message, variant: "destructive" }),
+  });
+
+  const startEditing = () => {
+    if (intakeForm) {
+      setFormData({
+        medicalHistory: intakeForm.medicalHistory ?? "",
+        medications: intakeForm.medications ?? "",
+        lifestyle: intakeForm.lifestyle ?? "",
+        dietaryRestrictions: intakeForm.dietaryRestrictions ?? "",
+        foodPreferences: intakeForm.foodPreferences ?? "",
+        notes: intakeForm.notes ?? "",
+      });
+    }
+    setIsEditing(true);
+  };
+
+  const handleSubmit = () => {
+    if (intakeForm) {
+      updateMutation.mutate(formData);
+    } else {
+      createMutation.mutate(formData);
+    }
+  };
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
+  const sections = [
+    { key: "medicalHistory" as const, label: "Medical History", icon: Heart, placeholder: "Previous conditions, surgeries, family history..." },
+    { key: "medications" as const, label: "Medications & Supplements", icon: Pill, placeholder: "Current medications, vitamins, supplements..." },
+    { key: "lifestyle" as const, label: "Lifestyle Habits", icon: Activity, placeholder: "Exercise routine, sleep patterns, stress levels, occupation..." },
+    { key: "dietaryRestrictions" as const, label: "Dietary Restrictions", icon: AlertCircle, placeholder: "Allergies, intolerances, religious/ethical restrictions..." },
+    { key: "foodPreferences" as const, label: "Food Preferences", icon: Utensils, placeholder: "Preferred cuisines, liked/disliked foods, cooking ability..." },
+    { key: "notes" as const, label: "Additional Notes", icon: StickyNote, placeholder: "Any other relevant information..." },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-4">
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
+      </div>
+    );
+  }
+
+  const handleSendIntakeLink = () => {
+    const intakeUrl = `${window.location.origin}/dashboard`;
+    navigator.clipboard.writeText(intakeUrl).then(() => {
+      setLinkCopied(true);
+      toast({ title: "Intake link copied", description: "Share this link with your client so they can complete their intake form from their dashboard." });
+      setTimeout(() => setLinkCopied(false), 3000);
+    }).catch(() => {
+      toast({ title: "Link ready", description: `Share this link with your client: ${intakeUrl}` });
+    });
+  };
+
+  if (!intakeForm && !isEditing) {
+    return (
+      <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-zinc-400" />
+            <h3 className="text-sm font-semibold text-zinc-900">Client Intake Form</h3>
+          </div>
+        </div>
+        <div className="text-center py-6">
+          <ClipboardList className="w-10 h-10 text-zinc-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-zinc-600 mb-1">No intake form completed</p>
+          <p className="text-xs text-zinc-400 mb-4">Complete the intake form yourself or send a link to your client.</p>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={startEditing}
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors"
+              data-testid="button-start-intake"
+            >
+              <Plus className="w-4 h-4" />
+              Fill Form
+            </button>
+            <button
+              type="button"
+              onClick={handleSendIntakeLink}
+              className="flex items-center gap-2 px-4 py-2 border border-zinc-200 text-zinc-700 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors"
+              data-testid="button-send-intake-link"
+            >
+              <Mail className="w-4 h-4" />
+              {linkCopied ? "Link Copied!" : "Send to Client"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isEditing) {
+    return (
+      <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-zinc-400" />
+            <h3 className="text-sm font-semibold text-zinc-900">
+              {intakeForm ? "Edit Intake Form" : "Client Intake Form"}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsEditing(false)}
+            className="text-sm text-zinc-500 hover:text-zinc-700"
+            data-testid="button-cancel-intake"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {sections.map(({ key, label, icon: Icon, placeholder }) => (
+            <div key={key}>
+              <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 mb-1.5">
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </label>
+              <textarea
+                value={formData[key]}
+                onChange={e => setFormData(prev => ({ ...prev, [key]: e.target.value }))}
+                placeholder={placeholder}
+                rows={3}
+                className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 resize-none"
+                data-testid={`textarea-intake-${key}`}
+              />
+            </div>
+          ))}
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isPending}
+              className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+              data-testid="button-submit-intake"
+            >
+              {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              {intakeForm ? "Update Form" : "Submit & Activate Client"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEditing(false)}
+              className="px-4 py-2 border border-zinc-200 text-sm rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+              data-testid="button-cancel-intake-form"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-zinc-400" />
+          <h3 className="text-sm font-semibold text-zinc-900">Client Intake Form</h3>
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700">Completed</span>
+        </div>
+        <button
+          type="button"
+          onClick={startEditing}
+          className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 transition-colors"
+          data-testid="button-edit-intake"
+        >
+          <Edit2 className="w-3 h-3" />
+          Edit
+        </button>
+      </div>
+      <div className="space-y-3">
+        {sections.map(({ key, label, icon: Icon }) => {
+          const value = intakeForm?.[key];
+          if (!value) return null;
+          return (
+            <div key={key}>
+              <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 mb-1">
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </div>
+              <p className="text-sm text-zinc-700 whitespace-pre-wrap pl-5" data-testid={`text-intake-${key}`}>{value}</p>
+            </div>
+          );
+        })}
+      </div>
+      {intakeForm?.completedAt && (
+        <p className="text-xs text-zinc-400 mt-4 pt-3 border-t border-zinc-100">
+          Completed {formatDate(intakeForm.completedAt)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function GoalsPanel({ clientRecord }: { clientRecord: ClientWithUser }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [newGoal, setNewGoal] = useState({
+    title: "",
+    goalType: "custom" as string,
+    targetValue: "",
+    unit: "",
+    targetDate: "",
+  });
+
+  const { data: goals = [], isLoading } = useQuery<ClientGoal[]>({
+    queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "goals"],
+    queryFn: () => apiRequest("GET", `/api/nutritionist/clients/${clientRecord.clientId}/goals`).then(r => r.json()),
+  });
+
+  const createGoalMutation = useMutation({
+    mutationFn: (data: typeof newGoal) =>
+      apiRequest("POST", `/api/nutritionist/clients/${clientRecord.clientId}/goals`, data).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "goals"] });
+      toast({ title: "Goal created" });
+      setShowAddGoal(false);
+      setNewGoal({ title: "", goalType: "custom", targetValue: "", unit: "", targetDate: "" });
+    },
+    onError: (err: Error) => toast({ title: "Failed to create goal", description: err.message, variant: "destructive" }),
+  });
+
+  const updateGoalMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: number; status?: string }) =>
+      apiRequest("PUT", `/api/nutritionist/clients/${clientRecord.clientId}/goals/${id}`, data).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "goals"] });
+      toast({ title: "Goal updated" });
+    },
+    onError: (err: Error) => toast({ title: "Failed to update goal", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteGoalMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest("DELETE", `/api/nutritionist/clients/${clientRecord.clientId}/goals/${id}`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "goals"] });
+      toast({ title: "Goal removed" });
+    },
+    onError: (err: Error) => toast({ title: "Failed to delete goal", description: err.message, variant: "destructive" }),
+  });
+
+  const GOAL_TYPE_LABELS: Record<string, string> = {
+    weight: "Weight",
+    macro_average: "Macro Average",
+    body_fat: "Body Fat",
+    custom: "Custom",
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Target className="w-4 h-4 text-zinc-400" />
+          <h3 className="text-sm font-semibold text-zinc-900">Goals</h3>
+          {goals.length > 0 && (
+            <span className="text-xs text-zinc-400">{goals.filter(g => g.status === "active").length} active</span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowAddGoal(v => !v)}
+          className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-900 transition-colors"
+          data-testid="button-add-goal"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Add Goal
+        </button>
+      </div>
+
+      {showAddGoal && (
+        <div className="border border-zinc-200 rounded-xl p-4 mb-4 space-y-3" data-testid="form-add-goal">
+          <div>
+            <label className="text-xs font-medium text-zinc-500 block mb-1">Goal Title</label>
+            <input
+              type="text"
+              value={newGoal.title}
+              onChange={e => setNewGoal(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="e.g. Reach 75 kg"
+              className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+              data-testid="input-goal-title"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-zinc-500 block mb-1">Type</label>
+              <select
+                value={newGoal.goalType}
+                onChange={e => setNewGoal(prev => ({ ...prev, goalType: e.target.value }))}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none bg-white"
+                data-testid="select-goal-type"
+              >
+                <option value="weight">Weight</option>
+                <option value="macro_average">Macro Average</option>
+                <option value="body_fat">Body Fat</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-500 block mb-1">Unit</label>
+              <input
+                type="text"
+                value={newGoal.unit}
+                onChange={e => setNewGoal(prev => ({ ...prev, unit: e.target.value }))}
+                placeholder="kg, g protein/day, %"
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-goal-unit"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-zinc-500 block mb-1">Target Value</label>
+              <input
+                type="text"
+                value={newGoal.targetValue}
+                onChange={e => setNewGoal(prev => ({ ...prev, targetValue: e.target.value }))}
+                placeholder="75"
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-goal-target"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-500 block mb-1">Target Date</label>
+              <input
+                type="date"
+                value={newGoal.targetDate}
+                onChange={e => setNewGoal(prev => ({ ...prev, targetDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-goal-date"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => newGoal.title.trim() && createGoalMutation.mutate(newGoal)}
+              disabled={!newGoal.title.trim() || createGoalMutation.isPending}
+              className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+              data-testid="button-save-goal"
+            >
+              {createGoalMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              Save Goal
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddGoal(false)}
+              className="px-4 py-2 border border-zinc-200 text-sm rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+              data-testid="button-cancel-goal"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
+      ) : goals.length === 0 ? (
+        <div className="text-center py-6">
+          <Target className="w-8 h-8 text-zinc-300 mx-auto mb-2" />
+          <p className="text-sm text-zinc-400" data-testid="state-no-goals">No goals set yet</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {goals.map(goal => {
+            const progressPct = goal.progress ?? 0;
+            const progressColor = goal.onTrack === null ? "bg-zinc-300" : goal.onTrack ? "bg-emerald-400" : "bg-amber-400";
+            return (
+              <div key={goal.id} className="border border-zinc-100 rounded-xl p-3" data-testid={`goal-${goal.id}`}>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-medium text-zinc-900">{goal.title}</span>
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-600">
+                        {GOAL_TYPE_LABELS[goal.goalType] ?? goal.goalType}
+                      </span>
+                      {goal.status === "completed" && (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-zinc-500">
+                      {goal.currentValue && goal.targetValue && (
+                        <span data-testid={`goal-progress-text-${goal.id}`}>
+                          {goal.currentValue} / {goal.targetValue} {goal.unit ?? ""}
+                        </span>
+                      )}
+                      {goal.targetValue && !goal.currentValue && (
+                        <span>Target: {goal.targetValue} {goal.unit ?? ""}</span>
+                      )}
+                      {goal.targetDate && (
+                        <span className="flex items-center gap-0.5">
+                          <Calendar className="w-3 h-3" />
+                          {formatDate(goal.targetDate)}
+                        </span>
+                      )}
+                      {goal.onTrack !== null && (
+                        <span className={`font-medium ${goal.onTrack ? "text-emerald-600" : "text-amber-600"}`} data-testid={`goal-status-${goal.id}`}>
+                          {goal.onTrack ? "On track" : "Off track"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    {goal.status === "active" && (
+                      <button
+                        type="button"
+                        onClick={() => updateGoalMutation.mutate({ id: goal.id, status: "completed" })}
+                        disabled={updateGoalMutation.isPending}
+                        className="p-1 text-zinc-400 hover:text-emerald-600 transition-colors"
+                        title="Mark complete"
+                        data-testid={`button-complete-goal-${goal.id}`}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => deleteGoalMutation.mutate(goal.id)}
+                      disabled={deleteGoalMutation.isPending}
+                      className="p-1 text-zinc-400 hover:text-red-600 transition-colors"
+                      title="Delete goal"
+                      data-testid={`button-delete-goal-${goal.id}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                {goal.targetValue && (
+                  <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden" data-testid={`goal-progress-bar-${goal.id}`}>
+                    <div
+                      className={`h-full rounded-full transition-all ${progressColor}`}
+                      style={{ width: `${Math.min(100, progressPct)}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function ClientProfile({
   clientRecord,
   onBack,
@@ -1241,6 +1765,9 @@ function ClientProfile({
       )}
 
       <TargetOverridesPanel clientId={clientRecord.clientId} />
+      <IntakeFormPanel clientRecord={clientRecord} />
+
+      <GoalsPanel clientRecord={clientRecord} />
 
       <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-4">
         <div className="flex items-center justify-between mb-3">

@@ -826,6 +826,74 @@ export const insertPlanTemplateSchema = createInsertSchema(planTemplates).omit({
 export type InsertPlanTemplate = z.infer<typeof insertPlanTemplateSchema>;
 export type PlanTemplate = typeof planTemplates.$inferSelect;
 
+export const clientIntakeForms = pgTable("client_intake_forms", {
+  id: serial("id").primaryKey(),
+  nutritionistClientId: integer("nutritionist_client_id").notNull().references(() => nutritionistClients.id, { onDelete: "cascade" }),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  medicalHistory: text("medical_history"),
+  medications: text("medications"),
+  lifestyle: text("lifestyle"),
+  dietaryRestrictions: text("dietary_restrictions"),
+  foodPreferences: text("food_preferences"),
+  notes: text("notes"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertClientIntakeFormSchema = createInsertSchema(clientIntakeForms).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  medicalHistory: z.string().max(5000).optional(),
+  medications: z.string().max(3000).optional(),
+  lifestyle: z.string().max(3000).optional(),
+  dietaryRestrictions: z.string().max(3000).optional(),
+  foodPreferences: z.string().max(3000).optional(),
+  notes: z.string().max(5000).optional(),
+});
+
+export type InsertClientIntakeForm = z.infer<typeof insertClientIntakeFormSchema>;
+export type ClientIntakeForm = typeof clientIntakeForms.$inferSelect;
+
+export const goalTypeEnum = ["weight", "macro_average", "body_fat", "custom"] as const;
+export type GoalType = typeof goalTypeEnum[number];
+
+export const clientGoals = pgTable("client_goals", {
+  id: serial("id").primaryKey(),
+  nutritionistClientId: integer("nutritionist_client_id").notNull().references(() => nutritionistClients.id, { onDelete: "cascade" }),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  goalType: text("goal_type").notNull().default("custom"),
+  title: text("title").notNull(),
+  targetValue: numeric("target_value"),
+  currentValue: numeric("current_value"),
+  unit: text("unit"),
+  targetDate: timestamp("target_date"),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertClientGoalSchema = createInsertSchema(clientGoals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  currentValue: true,
+}).extend({
+  goalType: z.enum(goalTypeEnum).default("custom"),
+  title: z.string().min(1).max(200),
+  targetValue: z.string().optional(),
+  unit: z.string().max(50).optional(),
+  targetDate: z.string().optional(),
+  status: z.enum(["active", "completed", "paused"]).default("active"),
+});
+
+export type InsertClientGoal = z.infer<typeof insertClientGoalSchema>;
+export type ClientGoal = typeof clientGoals.$inferSelect;
+
 export const practiceAccounts = pgTable("practice_accounts", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
