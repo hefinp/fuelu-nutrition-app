@@ -147,7 +147,7 @@ export function CycleTracker() {
   const { data: periodLogs } = useQuery<CyclePeriodLog[]>({
     queryKey: ["/api/cycle/periods"],
     queryFn: () => apiRequest("GET", "/api/cycle/periods").then(r => r.json()),
-    enabled: isPremium && !!cycleInfo,
+    enabled: isPremium,
   });
 
   const [periodExpanded, setPeriodExpanded] = useState(false);
@@ -172,7 +172,10 @@ export function CycleTracker() {
   const endPeriodMutation = useMutation({
     mutationFn: ({ id, periodEndDate }: { id: number; periodEndDate: string }) =>
       apiRequest("PATCH", `/api/cycle/periods/${id}`, { periodEndDate }).then(r => r.json()),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/cycle/periods"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cycle/periods"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+    },
   });
 
   const deletePeriodMutation = useMutation({
@@ -760,14 +763,88 @@ export function CycleTracker() {
             </Link>
           </>
         ) : (
-          <div className="flex flex-col items-center text-center py-4 gap-2">
-            <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mb-1">
-              <CalendarDays className="w-5 h-5 text-zinc-400" />
+          <div className="space-y-4">
+            <div className="flex flex-col items-center text-center py-4 gap-2">
+              <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mb-1">
+                <CalendarDays className="w-5 h-5 text-zinc-400" />
+              </div>
+              <p className="text-sm font-medium text-zinc-700">Get started</p>
+              <p className="text-xs text-zinc-400">
+                Log your first period to start tracking your cycle, or open <span className="font-medium text-zinc-600">Settings → Metrics</span> to enter your details manually.
+              </p>
             </div>
-            <p className="text-sm font-medium text-zinc-700">Cycle setup incomplete</p>
-            <p className="text-xs text-zinc-400">
-              Open <span className="font-medium text-zinc-600">Settings → Metrics</span> to enter your last period date and cycle details.
-            </p>
+
+            {/* Period log bootstrap — available without existing lastPeriodDate */}
+            <div className="border border-zinc-100 rounded-2xl overflow-hidden">
+              <button
+                onClick={() => setPeriodExpanded(e => !e)}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 transition-colors"
+                data-testid="button-period-log-toggle-bootstrap"
+              >
+                <div className="flex items-center gap-2">
+                  <Droplet className="w-4 h-4 text-rose-400" />
+                  <span className="text-xs font-medium text-zinc-700">Log your first period</span>
+                </div>
+                {periodExpanded ? (
+                  <ChevronUp className="w-3.5 h-3.5 text-zinc-400" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                )}
+              </button>
+              <AnimatePresence>
+                {periodExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 pt-1 space-y-3">
+                      {!showStartForm ? (
+                        <button
+                          onClick={() => setShowStartForm(true)}
+                          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-rose-200 text-rose-500 text-xs font-medium hover:bg-rose-50 transition-colors"
+                          data-testid="button-log-period-start-bootstrap"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Log period start
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <label className="text-xs text-zinc-500 font-medium">Period start date</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="date"
+                              max={today}
+                              value={logStartDate}
+                              onChange={e => setLogStartDate(e.target.value)}
+                              className="flex-1 px-2.5 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                              data-testid="input-period-start-date-bootstrap"
+                            />
+                            <button
+                              onClick={() => createPeriodMutation.mutate({ periodStartDate: logStartDate })}
+                              disabled={createPeriodMutation.isPending || !logStartDate}
+                              className="px-3 py-2 rounded-xl bg-rose-500 text-white text-xs font-medium hover:bg-rose-600 transition-colors disabled:opacity-50"
+                              data-testid="button-confirm-period-start-bootstrap"
+                            >
+                              {createPeriodMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+                            </button>
+                            <button
+                              onClick={() => setShowStartForm(false)}
+                              className="p-2 rounded-xl hover:bg-zinc-100 transition-colors"
+                              data-testid="button-cancel-period-start-bootstrap"
+                            >
+                              <X className="w-3.5 h-3.5 text-zinc-400" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         )}
       </div>

@@ -108,7 +108,7 @@ export interface IStorage {
   // Cycle period logs
   getCyclePeriodLogs(userId: number): Promise<CyclePeriodLog[]>;
   createCyclePeriodLog(entry: { userId: number; periodStartDate: string; periodEndDate?: string | null; computedCycleLength?: number | null; notes?: string | null }): Promise<CyclePeriodLog>;
-  updateCyclePeriodLog(id: number, userId: number, updates: { periodStartDate?: string; periodEndDate?: string | null; notes?: string | null }): Promise<CyclePeriodLog | undefined>;
+  updateCyclePeriodLog(id: number, userId: number, updates: { periodStartDate?: string; periodEndDate?: string | null; computedCycleLength?: number | null; notes?: string | null }): Promise<CyclePeriodLog | undefined>;
   deleteCyclePeriodLog(id: number, userId: number): Promise<void>;
   deleteAllCycleData(userId: number): Promise<void>;
 
@@ -873,7 +873,7 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateCyclePeriodLog(id: number, userId: number, updates: { periodStartDate?: string; periodEndDate?: string | null; notes?: string | null }): Promise<CyclePeriodLog | undefined> {
+  async updateCyclePeriodLog(id: number, userId: number, updates: { periodStartDate?: string; periodEndDate?: string | null; computedCycleLength?: number | null; notes?: string | null }): Promise<CyclePeriodLog | undefined> {
     const [updated] = await db.update(cyclePeriodLogs)
       .set(updates)
       .where(and(eq(cyclePeriodLogs.id, id), eq(cyclePeriodLogs.userId, userId)))

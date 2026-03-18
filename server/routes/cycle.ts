@@ -41,11 +41,33 @@ router.get("/api/cycle/daily-tip", async (req, res) => {
   }
 });
 
+async function recomputeAllCycleLengths(userId: number): Promise<void> {
+  const logs = await storage.getCyclePeriodLogs(userId);
+  for (let i = 0; i < logs.length; i++) {
+    const current = logs[i];
+    const next = logs[i + 1];
+    let computedLen: number | null = null;
+    if (next) {
+      const curr = new Date(current.periodStartDate + "T00:00:00");
+      const prev = new Date(next.periodStartDate + "T00:00:00");
+      const diff = Math.round((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24));
+      if (diff > 14 && diff < 60) computedLen = diff;
+    }
+    if (computedLen !== current.computedCycleLength) {
+      await storage.updateCyclePeriodLog(current.id, userId, { computedCycleLength: computedLen });
+    }
+  }
+}
+
 async function syncPrefsFromPeriodLogs(userId: number): Promise<void> {
+  await recomputeAllCycleLengths(userId);
   const logs = await storage.getCyclePeriodLogs(userId);
   const user = await storage.getUserById(userId);
   const currentPrefs: UserPreferences = (user as any)?.preferences ?? {};
-  if (logs.length === 0) return;
+  if (logs.length === 0) {
+    await storage.updateUserPreferences(userId, { ...currentPrefs, lastPeriodDate: undefined, cycleLength: undefined });
+    return;
+  }
   const updates: Partial<UserPreferences> = { lastPeriodDate: logs[0].periodStartDate };
   const withLen = logs.filter(l => l.computedCycleLength != null).slice(0, 3);
   if (withLen.length >= 2) {
@@ -71,20 +93,11 @@ router.post("/api/cycle/periods", async (req, res) => {
       notes: z.string().optional().nullable(),
     }).parse(req.body);
 
-    const existing = await storage.getCyclePeriodLogs(req.session.userId);
-    let computedCycleLength: number | null = null;
-    if (existing.length > 0) {
-      const prev = new Date(existing[0].periodStartDate + "T00:00:00");
-      const curr = new Date(body.periodStartDate + "T00:00:00");
-      const diff = Math.round((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24));
-      if (diff > 14 && diff < 60) computedCycleLength = diff;
-    }
-
     const log = await storage.createCyclePeriodLog({
       userId: req.session.userId,
       periodStartDate: body.periodStartDate,
       periodEndDate: body.periodEndDate ?? null,
-      computedCycleLength,
+      computedCycleLength: null,
       notes: body.notes ?? null,
     });
 
@@ -111,9 +124,7 @@ router.patch("/api/cycle/periods/:id", async (req, res) => {
     if (body.periodStartDate) updates.periodStartDate = body.periodStartDate;
     const updated = await storage.updateCyclePeriodLog(id, req.session.userId, updates);
     if (!updated) return res.status(404).json({ message: "Not found" });
-    if (body.periodStartDate) {
-      await syncPrefsFromPeriodLogs(req.session.userId);
-    }
+    await syncPrefsFromPeriodLogs(req.session.userId);
     res.json(updated);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
