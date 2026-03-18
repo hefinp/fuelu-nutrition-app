@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Wand2 } from "lucide-react";
 import { Link } from "wouter";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences } from "@shared/schema";
 import { getCyclePhase } from "@/lib/cycle";
@@ -44,6 +44,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const effectiveFat = overrideTargets?.fatGoal ?? data.fatGoal;
   const { user } = useAuth();
   const isMealPremium = !!(user?.betaUser || (user?.tier && user.tier !== "free"));
+  const [widgetMode, setWidgetMode] = useState<'generator' | 'custom'>('generator');
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [planMode, setPlanMode] = useState<'daily' | 'weekly'>('daily');
   const [mealStyle, setMealStyle] = useState<'simple' | 'gourmet' | 'michelin'>('simple');
@@ -53,6 +54,14 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const [selectedDates, setSelectedDates] = useState<string[]>([toDateStr(new Date())]);
   const [weekStart, setWeekStart] = useState<string>(getMonday(toDateStr(new Date())));
   const [ignoreCycle, setIgnoreCycle] = useState(false);
+  const [customSlots, setCustomSlots] = useState<Record<string, Record<string, Meal[]>>>({});
+  const [customPlanReady, setCustomPlanReady] = useState<MealPlan | null>(null);
+  const [customPlanSaved, setCustomPlanSaved] = useState(false);
+  const [addMealPopover, setAddMealPopover] = useState<{ dayKey: string; slotKey: string } | null>(null);
+  const [mealSearchQuery, setMealSearchQuery] = useState("");
+  const [dragSource, setDragSource] = useState<{ dayKey: string; slotKey: string; mealIdx: number } | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ dayKey: string; slotKey: string } | null>(null);
+  const [copyMovePopover, setCopyMovePopover] = useState<{ x: number; y: number; source: { dayKey: string; slotKey: string; mealIdx: number }; target: { dayKey: string; slotKey: string } } | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { setFlowActive } = useActiveFlow();
@@ -117,10 +126,173 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     : null;
 
   useEffect(() => {
-    const isActive = generateMealPlan.isPending || mealPlan !== null;
+    const isActive = generateMealPlan.isPending || mealPlan !== null || customPlanReady !== null;
     setFlowActive("meal-plan", isActive);
     return () => setFlowActive("meal-plan", false);
-  }, [generateMealPlan.isPending, mealPlan, setFlowActive]);
+  }, [generateMealPlan.isPending, mealPlan, customPlanReady, setFlowActive]);
+
+  const { data: userMealsData } = useQuery<{ items: any[] }>({
+    queryKey: ["/api/user-meals"],
+    enabled: widgetMode === "custom",
+  });
+  const filteredUserMeals = (userMealsData?.items ?? []).filter(m =>
+    m.caloriesPerServing > 0 && (!mealSearchQuery || m.name.toLowerCase().includes(mealSearchQuery.toLowerCase()))
+  );
+
+  const getCustomDayKeys = useCallback(() => {
+    if (planMode === 'weekly') {
+      return ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    }
+    return selectedDates.length > 0 ? selectedDates : [toDateStr(new Date())];
+  }, [planMode, selectedDates]);
+
+  const addMealToSlot = useCallback((dayKey: string, slotKey: string, userMeal: any) => {
+    const meal: Meal = {
+      meal: userMeal.name,
+      calories: userMeal.caloriesPerServing,
+      protein: userMeal.proteinPerServing,
+      carbs: userMeal.carbsPerServing,
+      fat: userMeal.fatPerServing,
+    };
+    setCustomSlots(prev => {
+      const day = { ...(prev[dayKey] || {}) };
+      day[slotKey] = [...(day[slotKey] || []), meal];
+      return { ...prev, [dayKey]: day };
+    });
+    setAddMealPopover(null);
+    setMealSearchQuery("");
+    setCustomPlanReady(null);
+    setCustomPlanSaved(false);
+  }, []);
+
+  const removeMealFromSlot = useCallback((dayKey: string, slotKey: string, idx: number) => {
+    setCustomSlots(prev => {
+      const day = { ...(prev[dayKey] || {}) };
+      const arr = [...(day[slotKey] || [])];
+      arr.splice(idx, 1);
+      day[slotKey] = arr;
+      return { ...prev, [dayKey]: day };
+    });
+    setCustomPlanReady(null);
+    setCustomPlanSaved(false);
+  }, []);
+
+  const handleDragStart = useCallback((e: React.DragEvent, dayKey: string, slotKey: string, mealIdx: number) => {
+    setDragSource({ dayKey, slotKey, mealIdx });
+    e.dataTransfer.effectAllowed = 'copyMove';
+    e.dataTransfer.setData('text/plain', '');
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, dayKey: string, slotKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDropTarget({ dayKey, slotKey });
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDropTarget(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, dayKey: string, slotKey: string) => {
+    e.preventDefault();
+    setDropTarget(null);
+    if (!dragSource) return;
+    if (dragSource.dayKey === dayKey && dragSource.slotKey === slotKey) {
+      setDragSource(null);
+      return;
+    }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setCopyMovePopover({
+      x: rect.left + rect.width / 2,
+      y: rect.top,
+      source: dragSource,
+      target: { dayKey, slotKey },
+    });
+    setDragSource(null);
+  }, [dragSource]);
+
+  const executeCopyMove = useCallback((action: 'copy' | 'move') => {
+    if (!copyMovePopover) return;
+    const { source, target } = copyMovePopover;
+    setCustomSlots(prev => {
+      const updated = { ...prev };
+      const sourceDay = { ...(updated[source.dayKey] || {}) };
+      const sourceSlotArr = [...(sourceDay[source.slotKey] || [])];
+      const meal = sourceSlotArr[source.mealIdx];
+      if (!meal) { setCopyMovePopover(null); return prev; }
+      const targetDay = { ...(updated[target.dayKey] || {}) };
+      targetDay[target.slotKey] = [...(targetDay[target.slotKey] || []), { ...meal }];
+      updated[target.dayKey] = targetDay;
+      if (action === 'move') {
+        sourceSlotArr.splice(source.mealIdx, 1);
+        sourceDay[source.slotKey] = sourceSlotArr;
+        updated[source.dayKey] = sourceDay;
+      }
+      return updated;
+    });
+    setCopyMovePopover(null);
+    setCustomPlanReady(null);
+    setCustomPlanSaved(false);
+  }, [copyMovePopover]);
+
+  const autofillMutation = useMutation({
+    mutationFn: async () => {
+      const dayKeys = getCustomDayKeys();
+      const slots: Record<string, Record<string, Meal[]>> = {};
+      for (const dk of dayKeys) {
+        slots[dk] = customSlots[dk] || {};
+      }
+      const res = await apiRequest('POST', '/api/meal-plans/autofill', {
+        dailyCalories: effectiveCals,
+        proteinGoal: effectiveProtein,
+        carbsGoal: effectiveCarbs,
+        fatGoal: effectiveFat,
+        mealStyle,
+        slots,
+        planType: planMode,
+        ...(planMode === 'daily' ? { targetDate: dayKeys[0] } : { weekStartDate: weekStart }),
+      });
+      return await res.json();
+    },
+    onSuccess: (planData) => {
+      setCustomPlanReady(planData);
+      setCustomPlanSaved(false);
+    },
+    onError: () => {
+      toast({ title: "Autofill failed", description: "Something went wrong. Please try again.", variant: "destructive" });
+    },
+  });
+
+  const customSavePlanMutation = useMutation({
+    mutationFn: async () => {
+      if (!customPlanReady) throw new Error("No plan to save");
+      const planTypeLabel = customPlanReady.planType === 'weekly' ? 'Custom Weekly' : 'Custom Daily';
+      const dateLabel = customPlanReady.planType === 'weekly'
+        ? ` (${formatShort(weekStart)} – ${formatShort(addDays(weekStart, 6))})`
+        : selectedDates.length === 1
+          ? ` (${formatShort(selectedDates[0])})`
+          : '';
+      const res = await apiRequest('POST', '/api/saved-meal-plans', {
+        planData: customPlanReady,
+        planType: customPlanReady.planType === 'weekly' ? 'weekly' : 'daily',
+        mealStyle,
+        calculationId: data.id,
+        name: `${planTypeLabel} Plan${dateLabel}`,
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      setCustomPlanSaved(true);
+      queryClient.invalidateQueries({ queryKey: ["/api/saved-meal-plans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
+      toast({ title: "Custom plan saved", description: "Meals added to your food log as planned entries." });
+    },
+    onError: () => {
+      toast({ title: "Failed to save", description: "Please try again.", variant: "destructive" });
+    },
+  });
+
+  const customHasAnyMeals = Object.values(customSlots).some(day => Object.values(day).some(arr => arr.length > 0));
 
   const savePlanMutation = useMutation({
     mutationFn: async () => {
@@ -176,13 +348,32 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
   return (
     <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-2 mb-4">
         <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
           <UtensilsCrossed className="w-5 h-5" />
         </div>
         <h2 className="text-lg font-display font-bold text-zinc-900">Meal Planning</h2>
       </div>
 
+      <div className="flex bg-zinc-100 rounded-xl p-1 mb-6">
+        <button
+          onClick={() => { setWidgetMode("generator"); }}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${widgetMode === "generator" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+          data-testid="button-tab-generator"
+        >
+          Generator
+        </button>
+        <button
+          onClick={() => { setWidgetMode("custom"); }}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${widgetMode === "custom" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+          data-testid="button-tab-custom"
+        >
+          Custom
+        </button>
+      </div>
+
+      {widgetMode === "generator" ? (
+      <>
       <div className="mb-4">
         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Plan Type</p>
         <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="plan-type-toggle">
@@ -653,6 +844,354 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
             </div>
           </motion.div>
         </div>
+      )}
+      </>
+      ) : (
+      <>
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Plan Type</p>
+          <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="custom-plan-type-toggle">
+            <div
+              className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
+              style={{ width: `calc((100% - 8px) / 2)`, left: planMode === 'daily' ? '4px' : `calc(4px + (100% - 8px) / 2)` }}
+            />
+            {([
+              { key: 'daily' as const, label: 'Daily' },
+              { key: 'weekly' as const, label: 'Weekly' },
+            ]).map(opt => (
+              <button
+                key={opt.key}
+                type="button"
+                data-testid={`toggle-custom-plan-type-${opt.key}`}
+                onClick={() => { setPlanMode(opt.key); setCustomPlanReady(null); setCustomPlanSaved(false); }}
+                className={`relative z-10 flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-200 ${
+                  planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Meal Style</p>
+          {(() => {
+            const styles = [
+              { key: 'simple' as const, icon: Salad, label: 'Simple' },
+              { key: 'gourmet' as const, icon: ChefHat, label: 'Fancy' },
+              { key: 'michelin' as const, icon: Star, label: 'Michelin' },
+            ];
+            const idx = styles.findIndex(s => s.key === mealStyle);
+            return (
+              <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="custom-meal-style-scale">
+                <div
+                  className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
+                  style={{ width: `calc((100% - 8px) / 3)`, left: `calc(4px + ${idx} * (100% - 8px) / 3)` }}
+                />
+                {styles.map((style) => (
+                  <button
+                    key={style.key}
+                    type="button"
+                    data-testid={`toggle-custom-meal-style-${style.key}`}
+                    onClick={() => { setMealStyle(style.key); setCustomPlanReady(null); }}
+                    className={`relative z-10 flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold transition-colors duration-200 ${
+                      mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                    }`}
+                  >
+                    <style.icon className="w-4 h-4" />
+                    <span>{style.label}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Schedule</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setWeekStart(prev => addDays(prev, -7))}
+              className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-500"
+              data-testid="button-custom-week-prev"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-medium text-zinc-700 min-w-[120px] text-center" data-testid="text-custom-week-label">
+              {formatShort(weekStart)} – {formatShort(addDays(weekStart, 6))}
+            </span>
+            <button
+              onClick={() => setWeekStart(prev => addDays(prev, 7))}
+              className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-500"
+              data-testid="button-custom-week-next"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {planMode === 'daily' && (
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Days</p>
+            <div className="flex gap-1.5 flex-wrap">
+              {DAY_LABELS.map((label, i) => {
+                const dateStr = addDays(weekStart, i);
+                const isSelected = selectedDates.includes(dateStr);
+                return (
+                  <button
+                    key={dateStr}
+                    type="button"
+                    data-testid={`chip-custom-day-${label.toLowerCase()}`}
+                    onClick={() => {
+                      setSelectedDates(prev =>
+                        isSelected
+                          ? prev.filter(d => d !== dateStr).length > 0 ? prev.filter(d => d !== dateStr) : prev
+                          : [...prev, dateStr].sort()
+                      );
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                      isSelected
+                        ? "bg-zinc-900 text-white"
+                        : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs text-zinc-400 mb-4">Add your meals to slots below, then use Autofill to complete the plan. Drag meals between slots to copy or move them.</p>
+
+        <div className="space-y-4 mb-4">
+          {getCustomDayKeys().map(dayKey => {
+            const dayLabel = planMode === 'weekly'
+              ? dayKey.charAt(0).toUpperCase() + dayKey.slice(1)
+              : (() => { const [y, m, d] = dayKey.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); })();
+            return (
+              <div key={dayKey} className="border border-zinc-100 rounded-2xl p-3">
+                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  {dayLabel}
+                </p>
+                <div className="space-y-3">
+                  {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(slotKey => {
+                    const meals = customSlots[dayKey]?.[slotKey] || [];
+                    const isDropping = dropTarget?.dayKey === dayKey && dropTarget?.slotKey === slotKey;
+                    return (
+                      <div
+                        key={slotKey}
+                        className={`rounded-xl p-2 transition-colors ${isDropping ? 'bg-blue-50 border-2 border-dashed border-blue-300' : 'bg-zinc-50'}`}
+                        onDragOver={(e) => handleDragOver(e, dayKey, slotKey)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, dayKey, slotKey)}
+                        data-testid={`custom-slot-${dayKey}-${slotKey}`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <h5 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">
+                            {slotKey.charAt(0).toUpperCase() + slotKey.slice(1)}
+                          </h5>
+                          <button
+                            onClick={() => { setAddMealPopover({ dayKey, slotKey }); setMealSearchQuery(""); }}
+                            className="flex items-center gap-1 text-[10px] font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
+                            data-testid={`button-add-meal-${dayKey}-${slotKey}`}
+                          >
+                            <Plus className="w-3 h-3" /> Add
+                          </button>
+                        </div>
+                        {meals.length === 0 && (
+                          <p className="text-[10px] text-zinc-300 py-1">Drop a meal here or click Add</p>
+                        )}
+                        {meals.map((meal, idx) => (
+                          <div
+                            key={idx}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, dayKey, slotKey, idx)}
+                            className="flex items-center gap-1.5 py-1.5 px-2 bg-white rounded-lg border border-zinc-100 mb-1 cursor-grab active:cursor-grabbing group"
+                            data-testid={`custom-meal-card-${dayKey}-${slotKey}-${idx}`}
+                          >
+                            <GripVertical className="w-3 h-3 text-zinc-300 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-zinc-900 truncate">{meal.meal}</p>
+                              <p className="text-[10px] text-zinc-400">{meal.calories} kcal · P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g</p>
+                            </div>
+                            <button
+                              onClick={() => removeMealFromSlot(dayKey, slotKey, idx)}
+                              className="p-1 text-zinc-300 hover:text-red-500 transition-colors shrink-0"
+                              data-testid={`button-remove-meal-${dayKey}-${slotKey}-${idx}`}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => autofillMutation.mutate()}
+            disabled={autofillMutation.isPending}
+            className="flex-1 flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold text-sm transition-colors"
+            data-testid="button-autofill-plan"
+          >
+            {autofillMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+            {customHasAnyMeals ? 'Autofill Empty Slots' : 'Generate Full Plan'}
+          </button>
+        </div>
+
+        {customPlanReady && (
+          <div className="mt-6 pt-6 border-t border-zinc-100">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-display font-bold text-zinc-900">
+                  Custom {customPlanReady.planType === 'weekly' ? 'Weekly' : 'Daily'} Plan
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {!customPlanSaved && (
+                  <button
+                    onClick={() => { setCustomPlanReady(null); setCustomPlanSaved(false); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
+                    data-testid="button-discard-custom-plan"
+                  >
+                    <X className="w-3.5 h-3.5" /> Discard
+                  </button>
+                )}
+                <button
+                  onClick={() => customSavePlanMutation.mutate()}
+                  disabled={customSavePlanMutation.isPending || customPlanSaved}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors min-h-[36px] ${
+                    customPlanSaved
+                      ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
+                      : "bg-zinc-900 hover:bg-zinc-700 text-white"
+                  }`}
+                  data-testid="button-save-custom-plan"
+                >
+                  {customSavePlanMutation.isPending ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+                  ) : customPlanSaved ? (
+                    <><Check className="w-3.5 h-3.5" /> Saved</>
+                  ) : (
+                    <><Save className="w-3.5 h-3.5" /> Save Plan</>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 mb-5">
+              <button
+                onClick={() => exportShoppingListToPDF(customPlanReady, data)}
+                className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
+                data-testid="button-export-custom-shopping-list"
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                Shopping List
+              </button>
+              <button
+                onClick={() => exportMealPlanToPDF(customPlanReady, data)}
+                className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
+                data-testid="button-export-custom-pdf"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Export PDF
+              </button>
+            </div>
+
+            {customPlanReady.planType === 'weekly' ? (
+              <WeeklyMealView plan={customPlanReady} onLogMeal={onLogMeal} />
+            ) : (
+              <DailyMealView plan={customPlanReady} onLogMeal={onLogMeal} />
+            )}
+          </div>
+        )}
+
+        {addMealPopover && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setAddMealPopover(null); setMealSearchQuery(""); }}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-zinc-900">Add Meal to {addMealPopover.slotKey.charAt(0).toUpperCase() + addMealPopover.slotKey.slice(1)}</h3>
+                <button onClick={() => { setAddMealPopover(null); setMealSearchQuery(""); }} className="p-1 hover:bg-zinc-100 rounded-lg" data-testid="button-close-add-meal">
+                  <X className="w-4 h-4 text-zinc-400" />
+                </button>
+              </div>
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Search your meals..."
+                  value={mealSearchQuery}
+                  onChange={e => setMealSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 border border-zinc-200 rounded-xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                  autoFocus
+                  data-testid="input-search-meal"
+                />
+              </div>
+              <div className="max-h-60 overflow-y-auto space-y-1">
+                {filteredUserMeals.length === 0 ? (
+                  <p className="text-xs text-zinc-400 py-4 text-center" data-testid="text-no-meals-found">
+                    {userMealsData?.items?.length === 0 ? "No meals in your library yet. Add some from My Meals first." : "No meals match your search."}
+                  </p>
+                ) : (
+                  filteredUserMeals.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => addMealToSlot(addMealPopover.dayKey, addMealPopover.slotKey, m)}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 text-left transition-colors"
+                      data-testid={`button-pick-meal-${m.id}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-zinc-900 truncate">{m.name}</p>
+                        <p className="text-[10px] text-zinc-400">P:{m.proteinPerServing}g C:{m.carbsPerServing}g F:{m.fatPerServing}g</p>
+                      </div>
+                      <span className="text-xs font-semibold text-zinc-700 ml-2 shrink-0">{m.caloriesPerServing} kcal</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {copyMovePopover && (
+          <div className="fixed inset-0 z-50" onClick={() => setCopyMovePopover(null)}>
+            <div
+              className="absolute bg-white rounded-xl shadow-2xl border border-zinc-200 p-1 flex gap-1"
+              style={{ left: Math.min(copyMovePopover.x - 80, window.innerWidth - 170), top: Math.max(copyMovePopover.y - 44, 8) }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => executeCopyMove('copy')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
+                data-testid="button-copy-meal"
+              >
+                <Copy className="w-3.5 h-3.5" /> Copy
+              </button>
+              <div className="w-px bg-zinc-200 my-1" />
+              <button
+                onClick={() => executeCopyMove('move')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
+                data-testid="button-move-meal"
+              >
+                <Move className="w-3.5 h-3.5" /> Move
+              </button>
+            </div>
+          </div>
+        )}
+      </>
       )}
     </div>
   );

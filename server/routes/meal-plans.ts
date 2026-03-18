@@ -147,6 +147,122 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
   }
 });
 
+const autofillSchema = z.object({
+  dailyCalories: z.number(),
+  proteinGoal: z.number(),
+  carbsGoal: z.number(),
+  fatGoal: z.number(),
+  mealStyle: z.enum(['simple', 'gourmet', 'michelin']).optional().default('simple'),
+  slots: z.record(z.string(), z.record(z.string(), z.array(z.object({
+    meal: z.string(),
+    calories: z.number(),
+    protein: z.number(),
+    carbs: z.number(),
+    fat: z.number(),
+    ingredientsJson: z.any().optional(),
+  })))),
+  planType: z.enum(['daily', 'weekly']).default('daily'),
+  targetDate: z.string().optional(),
+  weekStartDate: z.string().optional(),
+});
+
+router.post("/api/meal-plans/autofill", async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Login required" });
+    }
+    const user = await storage.getUserById(req.session.userId);
+    if (user && !(await hasTierAccess(user, "ai_meal_plan"))) {
+      return res.status(403).json({ message: "Upgrade your plan to use autofill" });
+    }
+
+    const input = autofillSchema.parse(req.body);
+
+    let baseDb: MealDb = input.mealStyle === 'michelin' ? MICHELIN_MEAL_DATABASE : input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
+
+    let prefs: UserPreferences | null = null;
+    if (user) {
+      prefs = (user.preferences as UserPreferences | null) ?? null;
+      if (prefs?.hormoneBoostingMeals && !(user.betaUser || user.tier !== "free")) {
+        prefs = { ...prefs, hormoneBoostingMeals: false };
+      }
+      baseDb = filterMealDbByPreferences(baseDb, prefs);
+    }
+
+    const hasCycle = !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate);
+    const slotKeys = ['breakfast', 'lunch', 'dinner', 'snacks'] as const;
+
+    if (input.planType === 'weekly') {
+      const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      const result: Record<string, any> = {};
+      let weekTotalCalories = 0, weekTotalProtein = 0, weekTotalCarbs = 0, weekTotalFat = 0;
+
+      for (const dayName of dayNames) {
+        const userSlots = input.slots[dayName] || {};
+        const hasAnyUserMeals = slotKeys.some(s => (userSlots[s]?.length ?? 0) > 0);
+
+        if (hasAnyUserMeals) {
+          const cyclePhase = hasCycle && input.weekStartDate
+            ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, addDaysToDate(input.weekStartDate, dayNames.indexOf(dayName)))
+            : null;
+          const generated = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, cyclePhase, dayName);
+          const dayPlan: Record<string, any> = {};
+          for (const sk of slotKeys) {
+            dayPlan[sk] = (userSlots[sk]?.length ?? 0) > 0 ? userSlots[sk] : generated[sk];
+          }
+          const allMeals = slotKeys.flatMap(s => dayPlan[s] || []);
+          dayPlan.dayTotalCalories = allMeals.reduce((sum: number, m: any) => sum + m.calories, 0);
+          dayPlan.dayTotalProtein = allMeals.reduce((sum: number, m: any) => sum + m.protein, 0);
+          dayPlan.dayTotalCarbs = allMeals.reduce((sum: number, m: any) => sum + m.carbs, 0);
+          dayPlan.dayTotalFat = allMeals.reduce((sum: number, m: any) => sum + m.fat, 0);
+          result[dayName] = dayPlan;
+        } else {
+          const cyclePhase = hasCycle && input.weekStartDate
+            ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, addDaysToDate(input.weekStartDate, dayNames.indexOf(dayName)))
+            : null;
+          const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, cyclePhase, dayName);
+          result[dayName] = dayPlan;
+        }
+        weekTotalCalories += result[dayName].dayTotalCalories;
+        weekTotalProtein += result[dayName].dayTotalProtein;
+        weekTotalCarbs += result[dayName].dayTotalCarbs;
+        weekTotalFat += result[dayName].dayTotalFat;
+      }
+
+      if (input.weekStartDate) (result as any).weekStartDate = input.weekStartDate;
+      res.status(200).json({
+        planType: 'weekly',
+        ...result,
+        weekStartDate: input.weekStartDate,
+        weekTotalCalories, weekTotalProtein, weekTotalCarbs, weekTotalFat,
+      });
+    } else {
+      const userSlots = Object.values(input.slots)[0] || {};
+      const cyclePhase = hasCycle
+        ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, input.targetDate)
+        : null;
+      const generated = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, cyclePhase);
+      const dayPlan: Record<string, any> = {};
+      for (const sk of slotKeys) {
+        dayPlan[sk] = (userSlots[sk]?.length ?? 0) > 0 ? userSlots[sk] : generated[sk];
+      }
+      const allMeals = slotKeys.flatMap(s => dayPlan[s] || []);
+      dayPlan.dayTotalCalories = allMeals.reduce((sum: number, m: any) => sum + m.calories, 0);
+      dayPlan.dayTotalProtein = allMeals.reduce((sum: number, m: any) => sum + m.protein, 0);
+      dayPlan.dayTotalCarbs = allMeals.reduce((sum: number, m: any) => sum + m.carbs, 0);
+      dayPlan.dayTotalFat = allMeals.reduce((sum: number, m: any) => sum + m.fat, 0);
+      dayPlan.planType = 'daily';
+      if (input.targetDate) dayPlan.targetDate = input.targetDate;
+      res.status(200).json(dayPlan);
+    }
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ message: err.errors[0].message });
+    }
+    throw err;
+  }
+});
+
 const replaceMealSchema = z.object({
   slot: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
   mealStyle: z.enum(['simple', 'gourmet', 'michelin']).optional().default('simple'),

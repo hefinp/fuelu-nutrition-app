@@ -50,6 +50,16 @@ A dedicated portal at `/nutritionist` for nutritionists to build and deliver per
 **DB Tables**: `nutritionist_clients`, `nutritionist_plans`, `plan_annotations`, `plan_templates`, `client_target_overrides`, `client_reports`
 **API Routes**: `/api/nutritionist/*`, `/api/my-nutritionist-plans`
 
+### Custom Meal Plan Builder (Task #222)
+The Meal Planning widget has a "Generator / Custom" segmented toggle. Generator mode shows the existing AI meal plan generation UI. Custom mode allows users to:
+- Manually place their saved meals (from My Meals library) into Breakfast/Lunch/Dinner/Snacks slots per day
+- Drag and drop meals between slots with a Copy/Move choice popover
+- Use Autofill to have the AI fill remaining empty slots while preserving user-placed meals
+- Save, export PDF, and generate shopping lists from the custom plan
+- Supports both Daily and Weekly plan types with the same date picker and schedule controls
+
+**Server endpoint:** `POST /api/meal-plans/autofill` — accepts partial plan with user-placed meals, fills empty slots using the existing meal generation algorithm.
+
 ## Test Account
 A seeded test account is created automatically at startup for e2e testing:
 - **Email:** `test@fuelr.app`
