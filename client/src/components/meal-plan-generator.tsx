@@ -351,26 +351,99 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       return await res.json();
     },
     onSuccess: (planData) => {
-      setCustomPlanReady(planData);
+      const slotKeys = ['breakfast', 'lunch', 'dinner', 'snacks'] as const;
+      const mapMeals = (arr: any[]) => arr.map((m: any) => ({
+        meal: m.meal, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat,
+        ...(m.ingredientsJson ? { ingredientsJson: m.ingredientsJson } : {}),
+      }));
+
+      setCustomSlots(prev => {
+        const merged = { ...prev };
+
+        if (planData.planType === 'weekly') {
+          const weekDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+          for (const dayName of weekDays) {
+            const dayPlan = planData[dayName];
+            if (!dayPlan) continue;
+            merged[dayName] = { ...(merged[dayName] || {}) };
+            for (const sk of slotKeys) {
+              merged[dayName][sk] = mapMeals(dayPlan[sk] || []);
+            }
+          }
+        } else {
+          const dayKeys = getCustomDayKeys();
+          const dayKey = dayKeys[0];
+          merged[dayKey] = { ...(merged[dayKey] || {}) };
+          for (const sk of slotKeys) {
+            merged[dayKey][sk] = mapMeals(planData[sk] || []);
+          }
+        }
+
+        return merged;
+      });
       setCustomPlanSaved(false);
+      toast({ title: "Slots filled", description: "Empty slots have been filled. You can still edit before saving." });
     },
     onError: () => {
       toast({ title: "Autofill failed", description: "Something went wrong. Please try again.", variant: "destructive" });
     },
   });
 
+  const buildPlanFromSlots = useCallback(() => {
+    const slotKeys = ['breakfast', 'lunch', 'dinner', 'snacks'] as const;
+    const dayKeys = getCustomDayKeys();
+
+    if (planMode === 'weekly') {
+      const weekDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      const plan: Record<string, any> = { planType: 'weekly', weekStartDate: weekStart };
+      let weekTotalCalories = 0, weekTotalProtein = 0, weekTotalCarbs = 0, weekTotalFat = 0;
+      for (const dayName of weekDays) {
+        const daySlots = customSlots[dayName] || {};
+        const dayPlan: Record<string, any> = {};
+        for (const sk of slotKeys) dayPlan[sk] = daySlots[sk] || [];
+        const allMeals = slotKeys.flatMap(s => dayPlan[s]);
+        dayPlan.dayTotalCalories = allMeals.reduce((sum, m) => sum + m.calories, 0);
+        dayPlan.dayTotalProtein = allMeals.reduce((sum, m) => sum + m.protein, 0);
+        dayPlan.dayTotalCarbs = allMeals.reduce((sum, m) => sum + m.carbs, 0);
+        dayPlan.dayTotalFat = allMeals.reduce((sum, m) => sum + m.fat, 0);
+        plan[dayName] = dayPlan;
+        weekTotalCalories += dayPlan.dayTotalCalories;
+        weekTotalProtein += dayPlan.dayTotalProtein;
+        weekTotalCarbs += dayPlan.dayTotalCarbs;
+        weekTotalFat += dayPlan.dayTotalFat;
+      }
+      plan.weekTotalCalories = weekTotalCalories;
+      plan.weekTotalProtein = weekTotalProtein;
+      plan.weekTotalCarbs = weekTotalCarbs;
+      plan.weekTotalFat = weekTotalFat;
+      return plan;
+    } else {
+      const dayKey = dayKeys[0];
+      const daySlots = customSlots[dayKey] || {};
+      const plan: Record<string, any> = { planType: 'daily' };
+      for (const sk of slotKeys) plan[sk] = daySlots[sk] || [];
+      const allMeals = slotKeys.flatMap(s => plan[s]);
+      plan.dayTotalCalories = allMeals.reduce((sum: number, m: any) => sum + m.calories, 0);
+      plan.dayTotalProtein = allMeals.reduce((sum: number, m: any) => sum + m.protein, 0);
+      plan.dayTotalCarbs = allMeals.reduce((sum: number, m: any) => sum + m.carbs, 0);
+      plan.dayTotalFat = allMeals.reduce((sum: number, m: any) => sum + m.fat, 0);
+      if (dayKey) plan.targetDate = dayKey;
+      return plan;
+    }
+  }, [customSlots, getCustomDayKeys, planMode, weekStart]);
+
   const customSavePlanMutation = useMutation({
     mutationFn: async () => {
-      if (!customPlanReady) throw new Error("No plan to save");
-      const planTypeLabel = customPlanReady.planType === 'weekly' ? 'Custom Weekly' : 'Custom Daily';
-      const dateLabel = customPlanReady.planType === 'weekly'
+      const planData = buildPlanFromSlots();
+      const planTypeLabel = planData.planType === 'weekly' ? 'Custom Weekly' : 'Custom Daily';
+      const dateLabel = planData.planType === 'weekly'
         ? ` (${formatShort(weekStart)} – ${formatShort(addDays(weekStart, 6))})`
         : selectedDates.length === 1
           ? ` (${formatShort(selectedDates[0])})`
           : '';
       const res = await apiRequest('POST', '/api/saved-meal-plans', {
-        planData: customPlanReady,
-        planType: customPlanReady.planType === 'weekly' ? 'weekly' : 'daily',
+        planData,
+        planType: planData.planType === 'weekly' ? 'weekly' : 'daily',
         mealStyle,
         calculationId: data.id,
         name: `${planTypeLabel} Plan${dateLabel}`,
@@ -1178,69 +1251,42 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
           </button>
         </div>
 
-        {customPlanReady && (
-          <div className="mt-6 pt-6 border-t border-zinc-100">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-display font-bold text-zinc-900">
-                  Custom {customPlanReady.planType === 'weekly' ? 'Weekly' : 'Daily'} Plan
-                </h3>
-              </div>
-              <div className="flex items-center gap-2">
-                {!customPlanSaved && (
-                  <button
-                    onClick={() => { setCustomPlanReady(null); setCustomPlanSaved(false); }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
-                    data-testid="button-discard-custom-plan"
-                  >
-                    <X className="w-3.5 h-3.5" /> Discard
-                  </button>
-                )}
-                <button
-                  onClick={() => customSavePlanMutation.mutate()}
-                  disabled={customSavePlanMutation.isPending || customPlanSaved}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors min-h-[36px] ${
-                    customPlanSaved
-                      ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
-                      : "bg-zinc-900 hover:bg-zinc-700 text-white"
-                  }`}
-                  data-testid="button-save-custom-plan"
-                >
-                  {customSavePlanMutation.isPending ? (
-                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
-                  ) : customPlanSaved ? (
-                    <><Check className="w-3.5 h-3.5" /> Saved</>
-                  ) : (
-                    <><Save className="w-3.5 h-3.5" /> Save Plan</>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 mb-5">
-              <button
-                onClick={() => exportShoppingListToPDF(customPlanReady, data)}
-                className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
-                data-testid="button-export-custom-shopping-list"
-              >
-                <ShoppingCart className="w-3.5 h-3.5" />
-                Shopping List
-              </button>
-              <button
-                onClick={() => exportMealPlanToPDF(customPlanReady, data)}
-                className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
-                data-testid="button-export-custom-pdf"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Export PDF
-              </button>
-            </div>
-
-            {customPlanReady.planType === 'weekly' ? (
-              <WeeklyMealView plan={customPlanReady} onLogMeal={onLogMeal} />
-            ) : (
-              <DailyMealView plan={customPlanReady} onLogMeal={onLogMeal} />
-            )}
+        {customHasAnyMeals && (
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <button
+              onClick={() => customSavePlanMutation.mutate()}
+              disabled={customSavePlanMutation.isPending || customPlanSaved}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors min-h-[36px] ${
+                customPlanSaved
+                  ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
+                  : "bg-zinc-900 hover:bg-zinc-700 text-white"
+              }`}
+              data-testid="button-save-custom-plan"
+            >
+              {customSavePlanMutation.isPending ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+              ) : customPlanSaved ? (
+                <><Check className="w-3.5 h-3.5" /> Saved</>
+              ) : (
+                <><Save className="w-3.5 h-3.5" /> Save Plan</>
+              )}
+            </button>
+            <button
+              onClick={() => exportShoppingListToPDF(buildPlanFromSlots(), data)}
+              className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
+              data-testid="button-export-custom-shopping-list"
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              Shopping List
+            </button>
+            <button
+              onClick={() => exportMealPlanToPDF(buildPlanFromSlots(), data)}
+              className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
+              data-testid="button-export-custom-pdf"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export PDF
+            </button>
           </div>
         )}
 
