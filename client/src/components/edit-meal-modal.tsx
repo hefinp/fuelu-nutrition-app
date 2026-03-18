@@ -6,6 +6,7 @@ import type { UserMeal, UserSavedFood } from "@shared/schema";
 import {
   X, Loader2, Check, Plus, Wand2,
 } from "lucide-react";
+import { useMobileViewport } from "@/hooks/use-mobile-viewport";
 
 type JunctionIngredient = {
   id: number;
@@ -95,6 +96,7 @@ export function EditMealModal({
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { overlayStyle, panelMaxHeight } = useMobileViewport();
 
   const plainIngredients = meal.ingredients ?? "";
   const parsedInitial = parseIngredientsJson(meal.ingredientsJson);
@@ -234,8 +236,8 @@ export function EditMealModal({
   });
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={onClose} onWheel={stopScrollLeak} onTouchMove={stopScrollLeak}>
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-x-0 top-0 bottom-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm max-h-[100dvh]" style={overlayStyle} onClick={onClose} onWheel={stopScrollLeak} onTouchMove={stopScrollLeak}>
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[85vh] flex flex-col overflow-hidden" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-zinc-100 shrink-0">
           <h3 className="text-base font-semibold text-zinc-900">Edit Meal</h3>
           <button onClick={onClose} className="p-2 -mr-1 text-zinc-500 hover:text-zinc-700 rounded-xl hover:bg-zinc-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center" data-testid="button-edit-meal-close"><X className="w-5 h-5" /></button>

@@ -11,6 +11,7 @@ import { ingredientFromSaved, ingredientFromSearch } from "@/components/meals-fo
 import {
   useFoodPicker, SearchPanel, ScannerView, ScannedFoodPanel, AiPanel,
 } from "@/components/food-picker-tabs";
+import { useMobileViewport } from "@/hooks/use-mobile-viewport";
 
 interface IngredientPickerModalProps {
   onClose: () => void;
@@ -33,8 +34,7 @@ export function IngredientPickerModal({
 }: IngredientPickerModalProps) {
   const [pickerTab, setPickerTab] = useState<PickerTab>("search");
   const picker = useFoodPicker({ activeTab: pickerTab, scanActive: true });
-  const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({});
-  const [mobileMaxHeight, setMobileMaxHeight] = useState<number | null>(null);
+  const { overlayStyle, panelMaxHeight } = useMobileViewport();
 
   const { data: myFoods = [] } = useQuery<{ items: UserSavedFood[] }, Error, UserSavedFood[]>({
     queryKey: ["/api/my-foods", "all"],
@@ -46,32 +46,6 @@ export function IngredientPickerModal({
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
-  }, []);
-
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const mq = window.matchMedia("(max-width: 639px)");
-    const update = () => {
-      if (mq.matches) {
-        const h = vv.height;
-        const top = vv.offsetTop;
-        setOverlayStyle({ height: h, top });
-        setMobileMaxHeight(h * 0.92);
-      } else {
-        setOverlayStyle({});
-        setMobileMaxHeight(null);
-      }
-    };
-    update();
-    vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
-    mq.addEventListener("change", update);
-    return () => {
-      vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
-      mq.removeEventListener("change", update);
-    };
   }, []);
 
   const stopPropagation = useCallback((e: React.TouchEvent | React.WheelEvent) => {
@@ -102,7 +76,7 @@ export function IngredientPickerModal({
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 40, opacity: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 350 }}
-        style={mobileMaxHeight != null ? { maxHeight: mobileMaxHeight } : undefined}
+        style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined}
         className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
       >
         <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-zinc-100 shrink-0">

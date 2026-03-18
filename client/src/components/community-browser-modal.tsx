@@ -10,6 +10,7 @@ import {
 import { motion } from "framer-motion";
 import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
 import { useTierStatus } from "@/hooks/use-tier";
+import { useMobileViewport } from "@/hooks/use-mobile-viewport";
 import { useAuth } from "@/hooks/use-auth";
 
 type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
@@ -67,6 +68,7 @@ function detectAllergyConflicts(ingredients: string[], allergies: string[]): str
 export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { overlayStyle, panelMaxHeight } = useMobileViewport();
   const { data: tierStatus } = useTierStatus();
   const { user } = useAuth();
   const showUpgradeNudge = !!tierStatus && !tierStatus.betaUser && !user?.isManagedClient && (tierStatus.tier === "free" || tierStatus.tier === "simple");
@@ -208,7 +210,8 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm"
+      className="fixed inset-x-0 top-0 bottom-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm max-h-[100dvh]"
+      style={overlayStyle}
       onClick={(e) => e.target === e.currentTarget && onClose()}
       onWheel={stopScrollLeak}
       onTouchMove={stopScrollLeak}
@@ -218,7 +221,8 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 40, opacity: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 350 }}
-        className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
+        style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined}
+        className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
         data-testid="modal-community-browser"
       >
         <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-zinc-100 shrink-0">

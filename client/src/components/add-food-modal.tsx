@@ -12,6 +12,7 @@ import {
   useFoodPicker, MacroGrid, SearchPanel, ScannerView, ScannedFoodPanel, AiPanel,
 } from "@/components/food-picker-tabs";
 import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
+import { useMobileViewport } from "@/hooks/use-mobile-viewport";
 
 function ConfirmPanel({ food, servGrams, setServGrams, onSave, onReset, testPrefix, saving, dupWarning, onConfirmDuplicate, onCancelDuplicate }: {
   food: FoodResult | ExtendedFoodResult;
@@ -78,6 +79,7 @@ type FoodPayload = { name: string; calories100g: number; protein100g: number; ca
 export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSaved: (food: UserSavedFood) => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { overlayStyle, panelMaxHeight } = useMobileViewport(0.90);
   const [tab, setTab] = useState<AddFoodTab>("search");
 
   const [name, setName] = useState("");
@@ -169,8 +171,8 @@ export function AddFoodModal({ onClose, onSaved }: { onClose: () => void; onSave
   ];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm pb-16 sm:pb-0" onClick={onClose}>
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-x-0 top-0 bottom-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm pb-16 sm:pb-0 max-h-[100dvh]" style={overlayStyle} onClick={onClose}>
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md max-h-[90dvh] flex flex-col overflow-hidden" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
           <div>
             <h3 className="text-base font-semibold text-zinc-900" data-testid="text-addfood-title">Add Custom Food</h3>
