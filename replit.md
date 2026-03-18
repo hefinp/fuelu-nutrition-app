@@ -45,7 +45,9 @@ A dedicated portal at `/nutritionist` for nutritionists to build and deliver per
 
 **Target Overrides (Task #217):** Nutritionists can override any client's calculated macro targets (calories, protein, carbs, fat, fibre) with custom values and a clinical rationale note. Overrides are stored in `client_target_overrides` (one row per client, unique on `client_id`). `getEffectiveTargets(clientId)` merges overrides over calculated values and is used throughout the app (monitoring dashboard, adherence, alerts, meal plan generation, client dashboard/diary). The nutritionist portal shows a "Nutrition Targets" panel with visual distinction for overridden fields (amber highlight) and a "Revert to Calculated" option. Clients see effective targets seamlessly via `/api/calculations/effective-targets`.
 
-**DB Tables**: `nutritionist_clients`, `nutritionist_plans`, `plan_annotations`, `plan_templates`, `client_target_overrides`
+**Client Progress Reports (Task #218):** Nutritionists can generate, save, and export progress reports for any linked client. Reports aggregate food log data, weight trends, adherence scores, intake averages, clinical notes, and target info over a configurable date range. Reports are stored in `client_reports` with full snapshot data (`reportData` JSONB) and are re-accessible from a "Progress Reports" history panel on each client's profile. Reports can be exported as branded PDFs with weight trend charts, intake summaries, adherence metrics, clinical summaries, and disclaimer. The clinical summary can be edited after generation before export. UI includes a `GenerateReportDialog` modal and `ReportHistoryPanel` component integrated into the client profile view.
+
+**DB Tables**: `nutritionist_clients`, `nutritionist_plans`, `plan_annotations`, `plan_templates`, `client_target_overrides`, `client_reports`
 **API Routes**: `/api/nutritionist/*`, `/api/my-nutritionist-plans`
 
 ## External Dependencies

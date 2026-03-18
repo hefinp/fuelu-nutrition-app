@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientGoal, type InsertClientGoal } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientGoal, type InsertClientGoal, type ClientReport } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -283,6 +283,13 @@ export interface IStorage {
   markMessagesRead(nutritionistId: number, clientId: number, readerId: number): Promise<void>;
   getUnreadCountForNutritionist(nutritionistId: number): Promise<{ clientId: number; count: number }[]>;
   getUnreadCountForClient(clientId: number): Promise<number>;
+
+  // Client reports
+  getClientReports(nutritionistId: number, clientId: number): Promise<ClientReport[]>;
+  getClientReportById(id: number, nutritionistId: number): Promise<ClientReport | undefined>;
+  createClientReport(nutritionistId: number, clientId: number, data: { title: string; fromDate: string; toDate: string; clinicalSummary: string | null; reportData: object }): Promise<ClientReport>;
+  updateClientReport(id: number, nutritionistId: number, updates: { clinicalSummary?: string | null; title?: string }): Promise<ClientReport | undefined>;
+  deleteClientReport(id: number, nutritionistId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1680,12 +1687,13 @@ export class DatabaseStorage implements IStorage {
     return Number(result?.count ?? 0);
   }
 
-  async addNutritionistClient(nutritionistId: number, clientId: number, data?: { status?: string; goalSummary?: string }): Promise<NutritionistClient> {
+  async addNutritionistClient(nutritionistId: number, clientId: number, data?: { status?: string; goalSummary?: string; notes?: string }): Promise<NutritionistClient> {
     const [client] = await db.insert(nutritionistClients).values({
       nutritionistId,
       clientId,
       status: data?.status ?? "onboarding",
       goalSummary: data?.goalSummary,
+      healthNotes: data?.notes,
       lastActivityAt: new Date(),
     }).returning();
     return client;
@@ -2240,6 +2248,44 @@ export class DatabaseStorage implements IStorage {
       hasOverrides: overriddenFields.length > 0,
       overriddenFields,
     };
+  }
+
+  async getClientReports(nutritionistId: number, clientId: number): Promise<ClientReport[]> {
+    return await db.select().from(clientReports)
+      .where(and(eq(clientReports.nutritionistId, nutritionistId), eq(clientReports.clientId, clientId)))
+      .orderBy(desc(clientReports.createdAt));
+  }
+
+  async getClientReportById(id: number, nutritionistId: number): Promise<ClientReport | undefined> {
+    const [row] = await db.select().from(clientReports)
+      .where(and(eq(clientReports.id, id), eq(clientReports.nutritionistId, nutritionistId)));
+    return row;
+  }
+
+  async createClientReport(nutritionistId: number, clientId: number, data: { title: string; fromDate: string; toDate: string; clinicalSummary: string | null; reportData: object }): Promise<ClientReport> {
+    const [created] = await db.insert(clientReports).values({
+      nutritionistId,
+      clientId,
+      title: data.title,
+      fromDate: data.fromDate,
+      toDate: data.toDate,
+      clinicalSummary: data.clinicalSummary,
+      reportData: data.reportData,
+    }).returning();
+    return created;
+  }
+
+  async updateClientReport(id: number, nutritionistId: number, updates: { clinicalSummary?: string | null; title?: string }): Promise<ClientReport | undefined> {
+    const [updated] = await db.update(clientReports)
+      .set(updates)
+      .where(and(eq(clientReports.id, id), eq(clientReports.nutritionistId, nutritionistId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteClientReport(id: number, nutritionistId: number): Promise<void> {
+    await db.delete(clientReports)
+      .where(and(eq(clientReports.id, id), eq(clientReports.nutritionistId, nutritionistId)));
   }
 }
 

@@ -9,8 +9,9 @@ import {
   Mail, Calendar, ChevronRight, Trash2, Edit2, Check, AlertCircle, ClipboardList,
   Activity, BarChart2, Bell, Building2, UserMinus, UserPlus, RefreshCw,
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
-  MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2
+  MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2, Download, History
 } from "lucide-react";
+import { exportProgressReportToPDF, type ProgressReportData } from "@/components/results-pdf";
 
 interface ClientWithUser {
   id: number;
@@ -1008,6 +1009,472 @@ function TargetOverridesPanel({ clientId }: { clientId: number }) {
   );
 }
 
+interface ClientReportEntry {
+  id: number;
+  nutritionistId: number;
+  clientId: number;
+  title: string;
+  fromDate: string;
+  toDate: string;
+  clinicalSummary: string | null;
+  reportData: ProgressReportData;
+  createdAt: string;
+}
+
+function GenerateReportDialog({
+  clientId,
+  clientName,
+  onClose,
+}: {
+  clientId: number;
+  clientName: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const today = new Date().toISOString().split("T")[0];
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
+
+  const [fromDate, setFromDate] = useState(thirtyDaysAgo);
+  const [toDate, setToDate] = useState(today);
+  const [clinicalSummary, setClinicalSummary] = useState("");
+  const [title, setTitle] = useState("");
+  const [previewData, setPreviewData] = useState<ClientReportEntry | null>(null);
+  const [editingSummary, setEditingSummary] = useState(false);
+
+  const generateMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", `/api/nutritionist/clients/${clientId}/reports/generate`, {
+        fromDate,
+        toDate,
+        clinicalSummary: clinicalSummary.trim() || null,
+        title: title.trim() || undefined,
+      }).then(r => r.json()),
+    onSuccess: (data: ClientReportEntry) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientId, "reports"] });
+      setPreviewData(data);
+      toast({ title: "Report generated" });
+    },
+    onError: (err: Error) => toast({ title: "Failed to generate report", description: err.message, variant: "destructive" }),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (updates: { clinicalSummary?: string | null }) =>
+      apiRequest("PATCH", `/api/nutritionist/clients/${clientId}/reports/${previewData!.id}`, updates).then(r => r.json()),
+    onSuccess: (data: ClientReportEntry) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientId, "reports"] });
+      setPreviewData(data);
+      setEditingSummary(false);
+      toast({ title: "Report updated" });
+    },
+    onError: (err: Error) => toast({ title: "Failed to update", description: err.message, variant: "destructive" }),
+  });
+
+  const handleExportPDF = async () => {
+    if (!previewData) return;
+    const rd = previewData.reportData;
+    await exportProgressReportToPDF(rd, previewData.clinicalSummary, previewData.title);
+    toast({ title: "PDF downloaded" });
+  };
+
+  if (previewData) {
+    const rd = previewData.reportData;
+    return (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="modal-report-preview">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 sticky top-0 bg-white z-10">
+            <h2 className="font-semibold text-zinc-900">{previewData.title}</h2>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExportPDF}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-white text-sm rounded-xl hover:bg-zinc-800 transition-colors"
+                data-testid="button-export-pdf"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Export PDF
+              </button>
+              <button type="button" onClick={onClose} className="p-1.5 text-zinc-400 hover:text-zinc-700 rounded-lg" data-testid="button-close-report">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-5">
+            <div className="bg-zinc-50 rounded-xl p-4">
+              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Client</h3>
+              <p className="text-sm font-medium text-zinc-900">{rd.client.name}</p>
+              <p className="text-xs text-zinc-500">{rd.client.email}</p>
+              {rd.goalSummary && <p className="text-xs text-zinc-500 mt-1">Goal: {rd.goalSummary}</p>}
+            </div>
+
+            <div className="bg-zinc-50 rounded-xl p-4">
+              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Period</h3>
+              <p className="text-sm text-zinc-700">
+                {formatDate(rd.period.fromDate)} — {formatDate(rd.period.toDate)} ({rd.period.totalDays} days)
+              </p>
+            </div>
+
+            {rd.targets && (
+              <div className="bg-zinc-50 rounded-xl p-4">
+                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                  Targets {rd.targets.hasOverrides && <span className="text-amber-600">(overridden)</span>}
+                </h3>
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { l: "Calories", v: `${rd.targets.dailyCalories} kcal` },
+                    { l: "Protein", v: `${rd.targets.proteinGoal}g` },
+                    { l: "Carbs", v: `${rd.targets.carbsGoal}g` },
+                    { l: "Fat", v: `${rd.targets.fatGoal}g` },
+                  ].map(item => (
+                    <div key={item.l} className="text-center">
+                      <p className="text-sm font-bold text-zinc-900">{item.v}</p>
+                      <p className="text-[10px] text-zinc-400">{item.l}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {rd.weightTrend.length > 0 && (
+              <div className="bg-zinc-50 rounded-xl p-4">
+                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Weight Trend</h3>
+                <div className="flex gap-3 overflow-x-auto pb-1">
+                  {rd.weightTrend.map(w => (
+                    <div key={w.date} className="text-center flex-shrink-0">
+                      <p className="text-sm font-bold text-zinc-900">{w.weight}</p>
+                      <p className="text-[10px] text-zinc-400">{formatDateShort(w.date)}</p>
+                    </div>
+                  ))}
+                </div>
+                {rd.weightTrend.length >= 2 && (
+                  <p className="text-xs text-zinc-500 mt-2">
+                    {rd.weightTrend[0].weight} → {rd.weightTrend[rd.weightTrend.length - 1].weight} kg
+                    ({(rd.weightTrend[rd.weightTrend.length - 1].weight - rd.weightTrend[0].weight) >= 0 ? "+" : ""}
+                    {(rd.weightTrend[rd.weightTrend.length - 1].weight - rd.weightTrend[0].weight).toFixed(1)} kg)
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="bg-zinc-50 rounded-xl p-4">
+              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Intake & Adherence</h3>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <p className="text-sm font-bold text-zinc-900">{rd.avgIntake ? `${rd.avgIntake.calories} kcal` : "—"}</p>
+                  <p className="text-[10px] text-zinc-400">Avg daily calories</p>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-zinc-900">{rd.daysLogged} / {rd.totalDays}</p>
+                  <p className="text-[10px] text-zinc-400">Days logged</p>
+                </div>
+                <div>
+                  <p className={`text-sm font-bold ${rd.adherenceScore !== null ? (rd.adherenceScore >= 80 ? "text-emerald-600" : rd.adherenceScore >= 60 ? "text-amber-600" : "text-red-600") : "text-zinc-400"}`}>
+                    {rd.adherenceScore !== null ? `${rd.adherenceScore}%` : "—"}
+                  </p>
+                  <p className="text-[10px] text-zinc-400">Adherence</p>
+                </div>
+              </div>
+              {rd.avgIntake && (
+                <div className="grid grid-cols-3 gap-3 text-center mt-3 pt-3 border-t border-zinc-200">
+                  <div>
+                    <p className="text-xs font-medium text-zinc-700">{rd.avgIntake.protein}g</p>
+                    <p className="text-[10px] text-zinc-400">Avg protein</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-zinc-700">{rd.avgIntake.carbs}g</p>
+                    <p className="text-[10px] text-zinc-400">Avg carbs</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-zinc-700">{rd.avgIntake.fat}g</p>
+                    <p className="text-[10px] text-zinc-400">Avg fat</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {rd.intakeVsTargets && (
+              <div className="bg-zinc-50 rounded-xl p-4">
+                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Intake vs Targets</h3>
+                <div className="grid grid-cols-4 gap-3 text-center">
+                  {[
+                    { l: "Calories", v: rd.intakeVsTargets.caloriesDelta, u: " kcal" },
+                    { l: "Protein", v: rd.intakeVsTargets.proteinDelta, u: "g" },
+                    { l: "Carbs", v: rd.intakeVsTargets.carbsDelta, u: "g" },
+                    { l: "Fat", v: rd.intakeVsTargets.fatDelta, u: "g" },
+                  ].map(item => (
+                    <div key={item.l}>
+                      <p className={`text-sm font-bold ${Math.abs(item.v) <= 10 ? "text-emerald-600" : "text-amber-600"}`}>
+                        {item.v >= 0 ? "+" : ""}{item.v}{item.u}
+                      </p>
+                      <p className="text-[10px] text-zinc-400">{item.l}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {rd.goalProgress && rd.goalProgress.length > 0 && (
+              <div className="bg-zinc-50 rounded-xl p-4" data-testid="report-goals-section">
+                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Goals</h3>
+                <div className="space-y-2">
+                  {rd.goalProgress.map((goal: { title: string; goalType: string; targetValue: string | null; currentValue: string | null; unit: string | null; status: string; targetDate: string | null }, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between border border-zinc-200 rounded-lg p-2">
+                      <div>
+                        <p className="text-sm font-medium text-zinc-900">{goal.title}</p>
+                        <p className="text-[10px] text-zinc-400">
+                          {goal.targetValue && `Target: ${goal.targetValue}${goal.unit ? ` ${goal.unit}` : ""}`}
+                          {goal.currentValue && ` · Current: ${goal.currentValue}${goal.unit ? ` ${goal.unit}` : ""}`}
+                        </p>
+                      </div>
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${goal.status === "completed" ? "bg-emerald-50 text-emerald-700" : goal.status === "active" ? "bg-zinc-100 text-zinc-700" : "bg-zinc-100 text-zinc-400"}`}>
+                        {goal.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="bg-zinc-50 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Clinical Summary</h3>
+                <button
+                  type="button"
+                  onClick={() => { setEditingSummary(!editingSummary); setClinicalSummary(previewData.clinicalSummary ?? ""); }}
+                  className="text-xs text-blue-600 hover:text-blue-700"
+                  data-testid="button-edit-clinical-summary"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              {editingSummary ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={clinicalSummary}
+                    onChange={e => setClinicalSummary(e.target.value)}
+                    rows={4}
+                    maxLength={5000}
+                    placeholder="Add clinical observations, recommendations, and notes for this report..."
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 resize-none"
+                    data-testid="textarea-clinical-summary"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => updateMutation.mutate({ clinicalSummary: clinicalSummary.trim() || null })}
+                      disabled={updateMutation.isPending}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-zinc-900 text-white text-xs rounded-lg disabled:opacity-50"
+                      data-testid="button-save-clinical-summary"
+                    >
+                      {updateMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Save
+                    </button>
+                    <button type="button" onClick={() => setEditingSummary(false)} className="px-3 py-1.5 border border-zinc-200 text-xs rounded-lg text-zinc-600">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-700 whitespace-pre-wrap" data-testid="text-clinical-summary">
+                  {previewData.clinicalSummary || <span className="italic text-zinc-400">No clinical summary added yet. Click edit to add one before exporting.</span>}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" data-testid="modal-generate-report">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
+          <h2 className="font-semibold text-zinc-900">Generate Progress Report</h2>
+          <button type="button" onClick={onClose} className="p-1.5 text-zinc-400 hover:text-zinc-700 rounded-lg" data-testid="button-close-generate-report">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-zinc-500">Generate a progress report for <strong>{clientName}</strong> over a selected date range.</p>
+
+          <div>
+            <label className="text-xs font-medium text-zinc-500 block mb-1">Report Title (optional)</label>
+            <input
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder={`Progress Report — ${clientName}`}
+              maxLength={200}
+              className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+              data-testid="input-report-title"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-zinc-500 block mb-1">From</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={e => setFromDate(e.target.value)}
+                max={toDate}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-report-from"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-500 block mb-1">To</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={e => setToDate(e.target.value)}
+                min={fromDate}
+                max={today}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-report-to"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-zinc-500 block mb-1">Clinical Summary (optional — can be added later)</label>
+            <textarea
+              value={clinicalSummary}
+              onChange={e => setClinicalSummary(e.target.value)}
+              rows={3}
+              maxLength={5000}
+              placeholder="Clinical observations, recommendations, and notes for the report..."
+              className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 resize-none"
+              data-testid="textarea-report-summary"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => generateMutation.mutate()}
+            disabled={!fromDate || !toDate || generateMutation.isPending}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+            data-testid="button-generate-report"
+          >
+            {generateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            Generate Report
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReportHistoryPanel({ clientId }: { clientId: number }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [expandedReport, setExpandedReport] = useState<number | null>(null);
+
+  const { data: reports = [], isLoading } = useQuery<ClientReportEntry[]>({
+    queryKey: ["/api/nutritionist/clients", clientId, "reports"],
+    queryFn: () => apiRequest("GET", `/api/nutritionist/clients/${clientId}/reports`).then(r => r.json()),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (reportId: number) =>
+      apiRequest("DELETE", `/api/nutritionist/clients/${clientId}/reports/${reportId}`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientId, "reports"] });
+      toast({ title: "Report deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete report", variant: "destructive" }),
+  });
+
+  const handleDownload = async (report: ClientReportEntry) => {
+    await exportProgressReportToPDF(report.reportData, report.clinicalSummary, report.title);
+    toast({ title: "PDF downloaded" });
+  };
+
+  if (isLoading) {
+    return <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>;
+  }
+
+  if (reports.length === 0) {
+    return (
+      <p className="text-sm text-zinc-400 text-center py-4" data-testid="state-no-reports">
+        No reports generated yet.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2" data-testid="report-history-list">
+      {reports.map(report => (
+        <div key={report.id} className="border border-zinc-100 rounded-xl p-3" data-testid={`report-${report.id}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-zinc-900 truncate">{report.title}</p>
+              <p className="text-xs text-zinc-400">
+                {formatDate(report.fromDate)} — {formatDate(report.toDate)} · Created {formatDate(report.createdAt)}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => handleDownload(report)}
+                className="p-1.5 text-zinc-400 hover:text-zinc-700 transition-colors"
+                title="Download PDF"
+                data-testid={`button-download-report-${report.id}`}
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpandedReport(expandedReport === report.id ? null : report.id)}
+                className="p-1.5 text-zinc-400 hover:text-zinc-700 transition-colors"
+                data-testid={`button-expand-report-${report.id}`}
+              >
+                {expandedReport === report.id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteMutation.mutate(report.id)}
+                disabled={deleteMutation.isPending}
+                className="p-1.5 text-zinc-400 hover:text-red-600 transition-colors"
+                data-testid={`button-delete-report-${report.id}`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+          {expandedReport === report.id && (
+            <div className="mt-3 pt-3 border-t border-zinc-100 space-y-2">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-xs font-bold text-zinc-900">
+                    {report.reportData.avgIntake ? `${report.reportData.avgIntake.calories} kcal` : "—"}
+                  </p>
+                  <p className="text-[10px] text-zinc-400">Avg calories</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-zinc-900">{report.reportData.daysLogged} / {report.reportData.totalDays}</p>
+                  <p className="text-[10px] text-zinc-400">Days logged</p>
+                </div>
+                <div>
+                  <p className={`text-xs font-bold ${report.reportData.adherenceScore !== null ? (report.reportData.adherenceScore >= 80 ? "text-emerald-600" : "text-amber-600") : "text-zinc-400"}`}>
+                    {report.reportData.adherenceScore !== null ? `${report.reportData.adherenceScore}%` : "—"}
+                  </p>
+                  <p className="text-[10px] text-zinc-400">Adherence</p>
+                </div>
+              </div>
+              {report.clinicalSummary && (
+                <div className="bg-zinc-50 rounded-lg p-2">
+                  <p className="text-xs text-zinc-600 whitespace-pre-wrap">{report.clinicalSummary}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function IntakeFormPanel({ clientRecord }: { clientRecord: ClientWithUser }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -1497,7 +1964,6 @@ function GoalsPanel({ clientRecord }: { clientRecord: ClientWithUser }) {
   );
 }
 
-
 function ClientProfile({
   clientRecord,
   onBack,
@@ -1529,6 +1995,7 @@ function ClientProfile({
   const [editingGoal, setEditingGoal] = useState(clientRecord.goalSummary ?? "");
   const [editingHealthNotes, setEditingHealthNotes] = useState(clientRecord.healthNotes ?? "");
   const [editMode, setEditMode] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
 
   const addNoteMutation = useMutation({
     mutationFn: (note: string) =>
@@ -1597,6 +2064,15 @@ function ClientProfile({
             </div>
           </div>
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowReportDialog(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-xl text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
+              data-testid="button-generate-report"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Report
+            </button>
             <button
               type="button"
               onClick={onViewAdherence}
@@ -1890,7 +2366,23 @@ function ClientProfile({
           </div>
         )}
       </div>
+
+      <div className="bg-white rounded-2xl border border-zinc-100 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <History className="w-4 h-4 text-zinc-400" />
+          <h3 className="text-sm font-semibold text-zinc-900">Progress Reports</h3>
+        </div>
+        <ReportHistoryPanel clientId={clientRecord.clientId} />
+      </div>
         </>
+      )}
+
+      {showReportDialog && (
+        <GenerateReportDialog
+          clientId={clientRecord.clientId}
+          clientName={clientRecord.client.name}
+          onClose={() => setShowReportDialog(false)}
+        />
       )}
     </div>
   );

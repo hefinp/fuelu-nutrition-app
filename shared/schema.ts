@@ -978,3 +978,25 @@ export const insertClientTargetOverrideSchema = createInsertSchema(clientTargetO
 
 export type InsertClientTargetOverride = z.infer<typeof insertClientTargetOverrideSchema>;
 export type ClientTargetOverride = typeof clientTargetOverrides.$inferSelect;
+
+export const clientReports = pgTable("client_reports", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  fromDate: text("from_date").notNull(),
+  toDate: text("to_date").notNull(),
+  clinicalSummary: text("clinical_summary"),
+  reportData: jsonb("report_data").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertClientReportSchema = createInsertSchema(clientReports).omit({
+  id: true,
+  createdAt: true,
+  nutritionistId: true,
+  clientId: true,
+});
+
+export type InsertClientReport = z.infer<typeof insertClientReportSchema>;
+export type ClientReport = typeof clientReports.$inferSelect;
