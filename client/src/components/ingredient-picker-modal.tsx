@@ -33,6 +33,7 @@ export function IngredientPickerModal({
 }: IngredientPickerModalProps) {
   const [pickerTab, setPickerTab] = useState<PickerTab>("search");
   const picker = useFoodPicker({ activeTab: pickerTab, scanActive: true });
+  const [viewportHeight, setViewportHeight] = useState(() => window.visualViewport?.height ?? window.innerHeight);
 
   const { data: myFoods = [] } = useQuery<{ items: UserSavedFood[] }, Error, UserSavedFood[]>({
     queryKey: ["/api/my-foods", "all"],
@@ -44,6 +45,14 @@ export function IngredientPickerModal({
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => setViewportHeight(vv.height);
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
   }, []);
 
   const stopPropagation = useCallback((e: React.TouchEvent | React.WheelEvent) => {
@@ -73,7 +82,8 @@ export function IngredientPickerModal({
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 40, opacity: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 350 }}
-        className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
+        style={{ maxHeight: viewportHeight * 0.92 }}
+        className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl sm:max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
       >
         <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-zinc-100 shrink-0">
           <div className="flex items-center gap-2">
