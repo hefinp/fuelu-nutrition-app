@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -278,16 +278,27 @@ export function SearchPanel({ picker, onSelectFood, testPrefix, showTryAi, onSwi
   onSwitchToAi?: () => void;
   extraButton?: React.ReactNode;
 }) {
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => { clearTimeout(scrollTimerRef.current); }, []);
+  const handleSearchFocus = useCallback(() => {
+    scrollTimerRef.current = setTimeout(() => {
+      searchInputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 300);
+  }, []);
+
   return (
     <div className="space-y-2">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
         <input
+          ref={searchInputRef}
           type="text"
           autoFocus
           placeholder="Search foods, brands..."
           value={picker.searchQuery}
           onChange={e => picker.setSearchQuery(e.target.value)}
+          onFocus={handleSearchFocus}
           className="w-full pl-8 pr-8 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-300 bg-white"
           data-testid={`input-${testPrefix}-search`}
         />

@@ -103,7 +103,7 @@ export function IngredientPickerModal({
         exit={{ y: 40, opacity: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 350 }}
         style={mobileMaxHeight != null ? { maxHeight: mobileMaxHeight } : undefined}
-        className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[92vh] sm:max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
+        className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
       >
         <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-zinc-100 shrink-0">
           <div className="flex items-center gap-2">
