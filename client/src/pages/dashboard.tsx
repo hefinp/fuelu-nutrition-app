@@ -167,6 +167,11 @@ export default function Dashboard() {
     retry: false,
   });
 
+  const { data: effectiveTargets } = useQuery<{ dailyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number; fibreGoal: number | null; hasOverrides: boolean } | null>({
+    queryKey: ["/api/calculations/effective-targets"],
+    enabled: !!user,
+  });
+
   const isNutritionist = !!nutritionistProfile;
 
   // Local hidden-widget state: derived from prefs, updated optimistically on toggle
@@ -321,24 +326,24 @@ export default function Dashboard() {
     if (hiddenWidgets.includes(id)) return null;
     switch (id) {
       case "nutrition":
-        return <NutritionDisplay data={activeResult!} />;
+        return <NutritionDisplay data={activeResult!} overrideTargets={effectiveTargets ? { dailyCalories: effectiveTargets.dailyCalories, proteinGoal: effectiveTargets.proteinGoal, carbsGoal: effectiveTargets.carbsGoal, fatGoal: effectiveTargets.fatGoal, fibreGoal: effectiveTargets.fibreGoal } : null} />;
       case "my-meals-food":
         return user ? <MyMealsFoodWidget /> : null;
       case "food-log":
         return user ? (
           <div id="food-log-section">
             <FoodLog
-              dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
-              dailyProteinTarget={activeResult?.proteinGoal ?? undefined}
-              dailyCarbsTarget={activeResult?.carbsGoal ?? undefined}
-              dailyFatTarget={activeResult?.fatGoal ?? undefined}
+              dailyCaloriesTarget={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
+              dailyProteinTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
+              dailyCarbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
+              dailyFatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
               prefill={logPrefill}
               onPrefillConsumed={handlePrefillConsumed}
             />
           </div>
         ) : null;
       case "meal-plan":
-        return <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} />;
+        return <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} overrideTargets={effectiveTargets ? { dailyCalories: effectiveTargets.dailyCalories, proteinGoal: effectiveTargets.proteinGoal, carbsGoal: effectiveTargets.carbsGoal, fatGoal: effectiveTargets.fatGoal } : null} />;
       case "hydration":
         return user ? <HydrationTracker /> : null;
       case "cycle":
@@ -405,7 +410,7 @@ export default function Dashboard() {
         return user ? (
           <WeightTracker
             targetWeight={targetWeight}
-            dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
+            dailyCaloriesTarget={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
           />
         ) : (
           <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 flex flex-col items-center text-center justify-center">
@@ -1436,10 +1441,10 @@ export default function Dashboard() {
               </div>
               <div className="flex-1 overflow-y-auto px-4 py-4">
                 <FoodLog
-                  dailyCaloriesTarget={activeResult?.dailyCalories ?? undefined}
-                  dailyProteinTarget={activeResult?.proteinGoal ?? undefined}
-                  dailyCarbsTarget={activeResult?.carbsGoal ?? undefined}
-                  dailyFatTarget={activeResult?.fatGoal ?? undefined}
+                  dailyCaloriesTarget={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
+                  dailyProteinTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
+                  dailyCarbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
+                  dailyFatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
                   prefill={logPrefill}
                   onPrefillConsumed={handlePrefillConsumed}
                 />

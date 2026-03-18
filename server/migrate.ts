@@ -626,6 +626,22 @@ export async function runMigrations(): Promise<void> {
         WHERE is_read = false
     `);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS client_target_overrides (
+        id                SERIAL PRIMARY KEY,
+        nutritionist_id   INTEGER NOT NULL REFERENCES users(id),
+        client_id         INTEGER NOT NULL REFERENCES users(id) UNIQUE,
+        daily_calories    INTEGER,
+        protein_goal      INTEGER,
+        carbs_goal        INTEGER,
+        fat_goal          INTEGER,
+        fibre_goal        INTEGER,
+        rationale         TEXT,
+        created_at        TIMESTAMP DEFAULT NOW(),
+        updated_at        TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
   } finally {
     client.release();
   }

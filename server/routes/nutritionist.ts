@@ -603,6 +603,7 @@ router.post("/api/nutritionist/plans/generate", async (req, res) => {
 
     const clientUser = clientEntry.client;
     const clientPrefs = (clientUser.preferences as UserPreferences | null) ?? {};
+    const effectiveTargets = await storage.getEffectiveTargets(input.clientId);
     const calculations = await storage.getCalculations(input.clientId);
     const latestCalc = calculations[0];
 
@@ -617,8 +618,8 @@ router.post("/api/nutritionist/plans/generate", async (req, res) => {
 
     const clientContext = [
       `Client name: ${clientUser.name}`,
-      latestCalc ? `Daily calorie target: ${latestCalc.dailyCalories} kcal` : null,
-      latestCalc ? `Protein: ${latestCalc.proteinGoal}g, Carbs: ${latestCalc.carbsGoal}g, Fat: ${latestCalc.fatGoal}g` : null,
+      effectiveTargets ? `Daily calorie target: ${effectiveTargets.dailyCalories} kcal${effectiveTargets.hasOverrides ? " (nutritionist override)" : ""}` : null,
+      effectiveTargets ? `Protein: ${effectiveTargets.proteinGoal}g, Carbs: ${effectiveTargets.carbsGoal}g, Fat: ${effectiveTargets.fatGoal}g` : null,
       latestCalc ? `Goal: ${latestCalc.goal}, Activity: ${latestCalc.activityLevel}` : null,
       clientPrefs.diet ? `Dietary preference: ${clientPrefs.diet}` : null,
       clientPrefs.allergies?.length ? `Allergies: ${clientPrefs.allergies.join(", ")}` : null,
@@ -827,6 +828,87 @@ router.post("/api/nutritionist/plans/:id/save-as-template", async (req, res) => 
 });
 
 // ─── Client-facing: delivered plans ──────────────────────────────────────────
+
+router.get("/api/nutritionist/clients/:clientId/target-overrides", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const calcs = await storage.getCalculations(clientId);
+  const latestCalc = calcs.length > 0 ? calcs[0] : null;
+  const overrides = await storage.getClientTargetOverrides(clientId);
+  const effective = await storage.getEffectiveTargets(clientId);
+
+  res.json({
+    calculated: latestCalc ? {
+      dailyCalories: latestCalc.dailyCalories,
+      proteinGoal: latestCalc.proteinGoal,
+      carbsGoal: latestCalc.carbsGoal,
+      fatGoal: latestCalc.fatGoal,
+      fibreGoal: latestCalc.fibreGoal,
+    } : null,
+    overrides: overrides ?? null,
+    effective,
+  });
+});
+
+router.put("/api/nutritionist/clients/:clientId/target-overrides", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const schema = z.object({
+    dailyCalories: z.number().int().min(500).max(10000).nullable().optional(),
+    proteinGoal: z.number().int().min(0).max(1000).nullable().optional(),
+    carbsGoal: z.number().int().min(0).max(1000).nullable().optional(),
+    fatGoal: z.number().int().min(0).max(500).nullable().optional(),
+    fibreGoal: z.number().int().min(0).max(200).nullable().optional(),
+    rationale: z.string().max(500).nullable().optional(),
+  });
+
+  try {
+    const data = schema.parse(req.body);
+    const result = await storage.upsertClientTargetOverrides(userId, clientId, data);
+    const effective = await storage.getEffectiveTargets(clientId);
+    res.json({ overrides: result, effective });
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.delete("/api/nutritionist/clients/:clientId/target-overrides", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  await storage.clearClientTargetOverrides(userId, clientId);
+  res.json({ success: true });
+});
 
 router.get("/api/my-nutritionist-plans", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });

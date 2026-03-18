@@ -5,7 +5,15 @@ import { useState } from "react";
 import type { Calculation } from "@shared/schema";
 import { getMicronutrients } from "./results-micronutrients";
 
-export function NutritionDisplay({ data }: { data: Calculation }) {
+export function NutritionDisplay({ data, overrideTargets }: { data: Calculation; overrideTargets?: { dailyCalories?: number; proteinGoal?: number; carbsGoal?: number; fatGoal?: number; fibreGoal?: number | null } | null }) {
+  const displayData = overrideTargets ? {
+    ...data,
+    dailyCalories: overrideTargets.dailyCalories ?? data.dailyCalories,
+    proteinGoal: overrideTargets.proteinGoal ?? data.proteinGoal,
+    carbsGoal: overrideTargets.carbsGoal ?? data.carbsGoal,
+    fatGoal: overrideTargets.fatGoal ?? data.fatGoal,
+    fibreGoal: overrideTargets.fibreGoal !== undefined ? overrideTargets.fibreGoal : data.fibreGoal,
+  } : data;
   const [expanded, setExpanded] = useState(false);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(["Vitamins"]));
   const toggleSection = (label: string) =>
@@ -15,21 +23,21 @@ export function NutritionDisplay({ data }: { data: Calculation }) {
       return next;
     });
 
-  const microCategories = getMicronutrients(data.age ?? 30, data.gender ?? 'male');
+  const microCategories = getMicronutrients(displayData.age ?? 30, displayData.gender ?? 'male');
 
   const chartData = [
-    { name: "Protein", value: data.proteinGoal, color: "hsl(var(--chart-1))" },
-    { name: "Carbs", value: data.carbsGoal, color: "hsl(var(--chart-2))" },
-    { name: "Fat", value: data.fatGoal, color: "hsl(var(--chart-3))" },
+    { name: "Protein", value: displayData.proteinGoal, color: "hsl(var(--chart-1))" },
+    { name: "Carbs", value: displayData.carbsGoal, color: "hsl(var(--chart-2))" },
+    { name: "Fat", value: displayData.fatGoal, color: "hsl(var(--chart-3))" },
   ];
 
   const subMacros = [
-    { name: "Fibre", value: data.fibreGoal ?? 30, color: "#10b981", unit: "g", tip: "Daily target" },
-    { name: "Sugar", value: data.sugarGoal ?? Math.round((data.dailyCalories * 0.1) / 4), color: "#f472b6", unit: "g", tip: "Max (total)" },
-    { name: "Sat. Fat", value: data.saturatedFatGoal ?? Math.round((data.dailyCalories * 0.1) / 9), color: "#fb923c", unit: "g", tip: "Max" },
+    { name: "Fibre", value: displayData.fibreGoal ?? 30, color: "#10b981", unit: "g", tip: "Daily target" },
+    { name: "Sugar", value: displayData.sugarGoal ?? Math.round((displayData.dailyCalories * 0.1) / 4), color: "#f472b6", unit: "g", tip: "Max (total)" },
+    { name: "Sat. Fat", value: displayData.saturatedFatGoal ?? Math.round((displayData.dailyCalories * 0.1) / 9), color: "#fb923c", unit: "g", tip: "Max" },
   ];
 
-  const totalCal = data.dailyCalories;
+  const totalCal = displayData.dailyCalories;
 
   return (
     <div className="space-y-4">

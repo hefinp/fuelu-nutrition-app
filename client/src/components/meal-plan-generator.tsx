@@ -37,7 +37,11 @@ interface DayMealPlan {
 
 type MealPlan = any;
 
-export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLogMeal?: (meal: Meal) => void }) {
+export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: Calculation; onLogMeal?: (meal: Meal) => void; overrideTargets?: { dailyCalories?: number; proteinGoal?: number; carbsGoal?: number; fatGoal?: number } | null }) {
+  const effectiveCals = overrideTargets?.dailyCalories ?? data.dailyCalories;
+  const effectiveProtein = overrideTargets?.proteinGoal ?? data.proteinGoal;
+  const effectiveCarbs = overrideTargets?.carbsGoal ?? data.carbsGoal;
+  const effectiveFat = overrideTargets?.fatGoal ?? data.fatGoal;
   const { user } = useAuth();
   const isMealPremium = !!(user?.betaUser || (user?.tier && user.tier !== "free"));
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
@@ -66,11 +70,11 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
   const generateMealPlan = useMutation({
     mutationFn: async (planType: 'daily' | 'weekly') => {
       const res = await apiRequest('POST', '/api/meal-plans', {
-        dailyCalories: data.dailyCalories,
+        dailyCalories: effectiveCals,
         weeklyCalories: data.weeklyCalories,
-        proteinGoal: data.proteinGoal,
-        carbsGoal: data.carbsGoal,
-        fatGoal: data.fatGoal,
+        proteinGoal: effectiveProtein,
+        carbsGoal: effectiveCarbs,
+        fatGoal: effectiveFat,
         planType,
         mealStyle,
         calculationId: data.id,
@@ -156,10 +160,10 @@ export function MealPlanGenerator({ data, onLogMeal }: { data: Calculation; onLo
       const res = await apiRequest('POST', '/api/meal-plans/replace-meal', {
         slot,
         mealStyle,
-        dailyCalories: data.dailyCalories,
-        proteinGoal: data.proteinGoal,
-        carbsGoal: data.carbsGoal,
-        fatGoal: data.fatGoal,
+        dailyCalories: effectiveCals,
+        proteinGoal: effectiveProtein,
+        carbsGoal: effectiveCarbs,
+        fatGoal: effectiveFat,
         currentMealName,
         ...(targetDate ? { targetDate } : {}),
       });

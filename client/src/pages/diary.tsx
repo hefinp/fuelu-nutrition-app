@@ -44,6 +44,11 @@ export default function DiaryPage() {
   });
   const calcData = calcHistory[0] ?? null;
 
+  const { data: effectiveTargets } = useQuery<{ dailyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number; fibreGoal: number | null } | null>({
+    queryKey: ["/api/calculations/effective-targets"],
+    enabled: !!user,
+  });
+
   if (authLoading) return null;
   if (!user) {
     navigate("/auth");
@@ -54,11 +59,11 @@ export default function DiaryPage() {
   const dateParam = params.get("date") ?? undefined;
 
   const targets = {
-    dailyCaloriesTarget: calcData?.dailyCalories ?? undefined,
-    dailyProteinTarget: calcData?.proteinGoal ?? undefined,
-    dailyCarbsTarget: calcData?.carbsGoal ?? undefined,
-    dailyFatTarget: calcData?.fatGoal ?? undefined,
-    dailyFibreTarget: calcData?.fibreGoal ?? undefined,
+    dailyCaloriesTarget: effectiveTargets?.dailyCalories ?? calcData?.dailyCalories ?? undefined,
+    dailyProteinTarget: effectiveTargets?.proteinGoal ?? calcData?.proteinGoal ?? undefined,
+    dailyCarbsTarget: effectiveTargets?.carbsGoal ?? calcData?.carbsGoal ?? undefined,
+    dailyFatTarget: effectiveTargets?.fatGoal ?? calcData?.fatGoal ?? undefined,
+    dailyFibreTarget: effectiveTargets?.fibreGoal ?? calcData?.fibreGoal ?? undefined,
     dailySugarTarget: calcData?.sugarGoal ?? undefined,
     dailySaturatedFatTarget: calcData?.saturatedFatGoal ?? undefined,
     initialDate: dateParam,

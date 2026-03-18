@@ -74,6 +74,12 @@ router.get(api.calculations.list.path, async (req, res) => {
   res.status(200).json(calcs);
 });
 
+router.get("/api/calculations/effective-targets", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  const effective = await storage.getEffectiveTargets(req.session.userId);
+  res.json(effective);
+});
+
 router.get("/api/user/preferences", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const user = await storage.getUserById(req.session.userId);

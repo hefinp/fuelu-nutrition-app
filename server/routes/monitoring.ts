@@ -52,15 +52,14 @@ router.get("/api/nutritionist/monitoring/dashboard", async (req, res) => {
       ? Math.floor((new Date(today).getTime() - new Date(lastLogDate).getTime()) / 86400000)
       : 7;
 
-    const calcs = await storage.getCalculations(c.clientId);
-    const latestCalc = calcs.length > 0 ? calcs[0] : null;
+    const effectiveTargets = await storage.getEffectiveTargets(c.clientId);
 
     let adherenceScore: number | null = null;
     let avgCalories: number | null = null;
     let targetCalories: number | null = null;
 
-    if (latestCalc && daysLogged > 0) {
-      targetCalories = latestCalc.dailyCalories;
+    if (effectiveTargets && daysLogged > 0) {
+      targetCalories = effectiveTargets.dailyCalories;
       const totalCalories = logs.reduce((sum, l) => sum + l.calories, 0);
       avgCalories = Math.round(totalCalories / daysLogged);
 
@@ -130,8 +129,7 @@ router.get("/api/nutritionist/monitoring/clients/:clientId/adherence", async (re
   const today = getDateStr(new Date());
 
   const logs = await storage.getFoodLogEntriesRange(clientId, fromDate, today);
-  const calcs = await storage.getCalculations(clientId);
-  const latestCalc = calcs.length > 0 ? calcs[0] : null;
+  const effectiveTargets = await storage.getEffectiveTargets(clientId);
 
   const logsByDate: Record<string, typeof logs> = {};
   for (const entry of logs) {
@@ -161,12 +159,12 @@ router.get("/api/nutritionist/monitoring/clients/:clientId/adherence", async (re
 
     let target = null;
     let adherencePct = null;
-    if (latestCalc) {
+    if (effectiveTargets) {
       target = {
-        calories: latestCalc.dailyCalories,
-        protein: latestCalc.proteinGoal,
-        carbs: latestCalc.carbsGoal,
-        fat: latestCalc.fatGoal,
+        calories: effectiveTargets.dailyCalories,
+        protein: effectiveTargets.proteinGoal,
+        carbs: effectiveTargets.carbsGoal,
+        fat: effectiveTargets.fatGoal,
       };
       if (dayLogs.length > 0) {
         const variance = Math.abs(actual.calories - target.calories) / target.calories;
@@ -197,14 +195,16 @@ router.get("/api/nutritionist/monitoring/clients/:clientId/adherence", async (re
     toDate: today,
     dailyBreakdown,
     weightTrend: recentWeights,
-    targets: latestCalc
+    targets: effectiveTargets
       ? {
-          calories: latestCalc.dailyCalories,
-          protein: latestCalc.proteinGoal,
-          carbs: latestCalc.carbsGoal,
-          fat: latestCalc.fatGoal,
+          calories: effectiveTargets.dailyCalories,
+          protein: effectiveTargets.proteinGoal,
+          carbs: effectiveTargets.carbsGoal,
+          fat: effectiveTargets.fatGoal,
         }
       : null,
+    hasOverrides: effectiveTargets?.hasOverrides ?? false,
+    overriddenFields: effectiveTargets?.overriddenFields ?? [],
   });
 });
 
@@ -260,12 +260,11 @@ router.get("/api/nutritionist/monitoring/alerts", async (req, res) => {
       });
     }
 
-    const calcs = await storage.getCalculations(c.clientId);
-    const latestCalc = calcs.length > 0 ? calcs[0] : null;
-    if (latestCalc && logDates.length >= 3) {
+    const effectiveTargetsForAlerts = await storage.getEffectiveTargets(c.clientId);
+    if (effectiveTargetsForAlerts && logDates.length >= 3) {
       const totalCalories = logs.reduce((s, l) => s + l.calories, 0);
       const avgCalories = totalCalories / logDates.length;
-      const targetCalories = latestCalc.dailyCalories;
+      const targetCalories = effectiveTargetsForAlerts.dailyCalories;
       const variance = (avgCalories - targetCalories) / targetCalories;
 
       if (variance > 0.25) {

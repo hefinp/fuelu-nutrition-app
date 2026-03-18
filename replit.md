@@ -43,7 +43,9 @@ A dedicated portal at `/nutritionist` for nutritionists to build and deliver per
 
 **Access Control**: Nutritionist access requires the user's email to be in the `NUTRITIONIST_EMAILS` env var (comma-separated) or be the default admin email. Non-nutritionist users see an access-denied banner.
 
-**DB Tables**: `nutritionist_clients`, `nutritionist_plans`, `plan_annotations`, `plan_templates`
+**Target Overrides (Task #217):** Nutritionists can override any client's calculated macro targets (calories, protein, carbs, fat, fibre) with custom values and a clinical rationale note. Overrides are stored in `client_target_overrides` (one row per client, unique on `client_id`). `getEffectiveTargets(clientId)` merges overrides over calculated values and is used throughout the app (monitoring dashboard, adherence, alerts, meal plan generation, client dashboard/diary). The nutritionist portal shows a "Nutrition Targets" panel with visual distinction for overridden fields (amber highlight) and a "Revert to Calculated" option. Clients see effective targets seamlessly via `/api/calculations/effective-targets`.
+
+**DB Tables**: `nutritionist_clients`, `nutritionist_plans`, `plan_annotations`, `plan_templates`, `client_target_overrides`
 **API Routes**: `/api/nutritionist/*`, `/api/my-nutritionist-plans`
 
 ## External Dependencies

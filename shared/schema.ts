@@ -885,3 +885,28 @@ export const insertNutritionistMessageSchema = createInsertSchema(nutritionistMe
 
 export type InsertNutritionistMessage = z.infer<typeof insertNutritionistMessageSchema>;
 export type NutritionistMessage = typeof nutritionistMessages.$inferSelect;
+
+export const clientTargetOverrides = pgTable("client_target_overrides", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id).unique(),
+  dailyCalories: integer("daily_calories"),
+  proteinGoal: integer("protein_goal"),
+  carbsGoal: integer("carbs_goal"),
+  fatGoal: integer("fat_goal"),
+  fibreGoal: integer("fibre_goal"),
+  rationale: text("rationale"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertClientTargetOverrideSchema = createInsertSchema(clientTargetOverrides).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  nutritionistId: true,
+  clientId: true,
+});
+
+export type InsertClientTargetOverride = z.infer<typeof insertClientTargetOverrideSchema>;
+export type ClientTargetOverride = typeof clientTargetOverrides.$inferSelect;

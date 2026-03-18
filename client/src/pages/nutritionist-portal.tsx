@@ -9,7 +9,7 @@ import {
   Mail, Calendar, ChevronRight, Trash2, Edit2, Check, AlertCircle, ClipboardList,
   Activity, BarChart2, Bell, Building2, UserMinus, UserPlus, RefreshCw,
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
-  MessageSquare, Send
+  MessageSquare, Send, Target, RotateCcw
 } from "lucide-react";
 
 interface ClientWithUser {
@@ -757,6 +757,223 @@ function MessageThread({
   );
 }
 
+interface TargetOverridesData {
+  calculated: { dailyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number; fibreGoal: number | null } | null;
+  overrides: { id: number; dailyCalories: number | null; proteinGoal: number | null; carbsGoal: number | null; fatGoal: number | null; fibreGoal: number | null; rationale: string | null } | null;
+  effective: { dailyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number; fibreGoal: number | null; hasOverrides: boolean; overriddenFields: string[] } | null;
+}
+
+const TARGET_FIELDS = [
+  { key: "dailyCalories", label: "Calories", unit: "kcal" },
+  { key: "proteinGoal", label: "Protein", unit: "g" },
+  { key: "carbsGoal", label: "Carbs", unit: "g" },
+  { key: "fatGoal", label: "Fat", unit: "g" },
+  { key: "fibreGoal", label: "Fibre", unit: "g" },
+] as const;
+
+function TargetOverridesPanel({ clientId }: { clientId: number }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [editMode, setEditMode] = useState(false);
+  const [overrideValues, setOverrideValues] = useState<Record<string, string>>({});
+  const [rationale, setRationale] = useState("");
+
+  const { data, isLoading } = useQuery<TargetOverridesData>({
+    queryKey: ["/api/nutritionist/clients", clientId, "target-overrides"],
+    queryFn: () => apiRequest("GET", `/api/nutritionist/clients/${clientId}/target-overrides`).then(r => r.json()),
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: Record<string, unknown>) =>
+      apiRequest("PUT", `/api/nutritionist/clients/${clientId}/target-overrides`, payload).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientId, "target-overrides"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/monitoring"] });
+      setEditMode(false);
+      toast({ title: "Target overrides saved" });
+    },
+    onError: (err: Error) => toast({ title: "Failed to save overrides", description: err.message, variant: "destructive" }),
+  });
+
+  const clearMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("DELETE", `/api/nutritionist/clients/${clientId}/target-overrides`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientId, "target-overrides"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/monitoring"] });
+      setEditMode(false);
+      toast({ title: "Overrides cleared — reverted to calculated targets" });
+    },
+    onError: (err: Error) => toast({ title: "Failed to clear overrides", description: err.message, variant: "destructive" }),
+  });
+
+  const startEdit = () => {
+    const vals: Record<string, string> = {};
+    for (const f of TARGET_FIELDS) {
+      const overrideVal = data?.overrides?.[f.key as keyof typeof data.overrides];
+      vals[f.key] = overrideVal != null ? String(overrideVal) : "";
+    }
+    setRationale(data?.overrides?.rationale ?? "");
+    setOverrideValues(vals);
+    setEditMode(true);
+  };
+
+  const handleSave = () => {
+    const payload: Record<string, unknown> = { rationale: rationale || null };
+    for (const f of TARGET_FIELDS) {
+      const v = overrideValues[f.key]?.trim();
+      payload[f.key] = v ? parseInt(v, 10) : null;
+    }
+    saveMutation.mutate(payload);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-4">
+        <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
+      </div>
+    );
+  }
+
+  const hasCalc = !!data?.calculated;
+  const hasOverrides = data?.effective?.hasOverrides ?? false;
+
+  return (
+    <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-4" data-testid="panel-target-overrides">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Target className="w-4 h-4 text-zinc-400" />
+          <h3 className="text-sm font-semibold text-zinc-900">Nutrition Targets</h3>
+          {hasOverrides && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700" data-testid="badge-has-overrides">
+              Overridden
+            </span>
+          )}
+        </div>
+        {!editMode && (
+          <button
+            type="button"
+            onClick={startEdit}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-xl text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
+            data-testid="button-edit-overrides"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+            Override
+          </button>
+        )}
+      </div>
+
+      {!hasCalc && !hasOverrides && !editMode && (
+        <p className="text-sm text-zinc-400 text-center py-3" data-testid="text-no-targets">
+          No targets set. This client has not completed their nutrition calculator yet.
+        </p>
+      )}
+
+      {editMode ? (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {TARGET_FIELDS.map(f => {
+              const calcVal = data?.calculated?.[f.key as keyof NonNullable<typeof data.calculated>];
+              return (
+                <div key={f.key}>
+                  <label className="text-[10px] font-medium text-zinc-500 block mb-1">{f.label} ({f.unit})</label>
+                  <input
+                    type="number"
+                    value={overrideValues[f.key] ?? ""}
+                    onChange={e => setOverrideValues(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    placeholder={calcVal != null ? String(calcVal) : "—"}
+                    className="w-full px-2.5 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                    data-testid={`input-override-${f.key}`}
+                  />
+                  {calcVal != null && (
+                    <p className="text-[10px] text-zinc-400 mt-0.5">Calculated: {calcVal}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div>
+            <label className="text-[10px] font-medium text-zinc-500 block mb-1">Clinical Rationale (optional)</label>
+            <textarea
+              value={rationale}
+              onChange={e => setRationale(e.target.value)}
+              placeholder="e.g. Reduced carbs per endocrinologist recommendation"
+              rows={2}
+              maxLength={500}
+              className="w-full px-2.5 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 resize-none"
+              data-testid="textarea-override-rationale"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saveMutation.isPending}
+              className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+              data-testid="button-save-overrides"
+            >
+              {saveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              Save Overrides
+            </button>
+            {hasOverrides && (
+              <button
+                type="button"
+                onClick={() => clearMutation.mutate()}
+                disabled={clearMutation.isPending}
+                className="flex items-center gap-1.5 px-3 py-2 border border-zinc-200 text-sm rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+                data-testid="button-clear-overrides"
+              >
+                {clearMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                Revert to Calculated
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setEditMode(false)}
+              className="px-3 py-2 border border-zinc-200 text-sm rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+              data-testid="button-cancel-overrides"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (hasCalc || hasOverrides) ? (
+        <div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {TARGET_FIELDS.map(f => {
+              const effectiveVal = data?.effective?.[f.key as keyof NonNullable<typeof data.effective>];
+              const isOverridden = data?.effective?.overriddenFields?.includes(f.key) ?? false;
+              const calcVal = data?.calculated?.[f.key as keyof NonNullable<typeof data.calculated>];
+              return (
+                <div
+                  key={f.key}
+                  className={`rounded-xl p-3 text-center ${isOverridden ? "bg-amber-50 border border-amber-200" : "bg-zinc-50 border border-zinc-100"}`}
+                  data-testid={`target-${f.key}`}
+                >
+                  <p className={`text-lg font-bold ${isOverridden ? "text-amber-800" : "text-zinc-900"}`}>
+                    {effectiveVal != null ? effectiveVal : "—"}
+                  </p>
+                  <p className="text-[10px] text-zinc-500">{f.label} ({f.unit})</p>
+                  {isOverridden && calcVal != null && (
+                    <p className="text-[10px] text-zinc-400 mt-0.5 line-through">{calcVal}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {data?.overrides?.rationale && (
+            <div className="mt-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl" data-testid="text-override-rationale">
+              <p className="text-xs text-amber-800">
+                <span className="font-medium">Rationale:</span> {data.overrides.rationale}
+              </p>
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ClientProfile({
   clientRecord,
   onBack,
@@ -1022,6 +1239,8 @@ function ClientProfile({
           </div>
         </div>
       )}
+
+      <TargetOverridesPanel clientId={clientRecord.clientId} />
 
       <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-4">
         <div className="flex items-center justify-between mb-3">

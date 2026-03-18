@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -246,6 +246,12 @@ export interface IStorage {
   createPlanTemplate(template: InsertPlanTemplate): Promise<PlanTemplate>;
   updatePlanTemplate(id: number, nutritionistId: number, updates: Partial<Pick<PlanTemplate, 'name' | 'description' | 'planData'>>): Promise<PlanTemplate | undefined>;
   deletePlanTemplate(id: number, nutritionistId: number): Promise<void>;
+
+  // Client target overrides
+  getClientTargetOverrides(clientId: number): Promise<ClientTargetOverride | undefined>;
+  upsertClientTargetOverrides(nutritionistId: number, clientId: number, overrides: Partial<InsertClientTargetOverride>): Promise<ClientTargetOverride>;
+  clearClientTargetOverrides(nutritionistId: number, clientId: number): Promise<void>;
+  getEffectiveTargets(clientId: number): Promise<{ dailyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number; fibreGoal: number | null; hasOverrides: boolean; overriddenFields: string[] } | null>;
 
   // Practice accounts
   getPracticeByAdmin(adminUserId: number): Promise<PracticeAccount | undefined>;
@@ -2111,6 +2117,64 @@ export class DatabaseStorage implements IStorage {
         sql`${nutritionistMessages.senderId} != ${clientId}`
       ));
     return Number(result?.count ?? 0);
+  }
+
+  async getClientTargetOverrides(clientId: number): Promise<ClientTargetOverride | undefined> {
+    const [row] = await db.select().from(clientTargetOverrides).where(eq(clientTargetOverrides.clientId, clientId)).limit(1);
+    return row;
+  }
+
+  async upsertClientTargetOverrides(nutritionistId: number, clientId: number, overrides: Partial<InsertClientTargetOverride>): Promise<ClientTargetOverride> {
+    const existing = await this.getClientTargetOverrides(clientId);
+    if (existing) {
+      const [updated] = await db.update(clientTargetOverrides)
+        .set({ ...overrides, nutritionistId, updatedAt: new Date() })
+        .where(eq(clientTargetOverrides.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(clientTargetOverrides)
+      .values({ nutritionistId, clientId, ...overrides })
+      .returning();
+    return created;
+  }
+
+  async clearClientTargetOverrides(_nutritionistId: number, clientId: number): Promise<void> {
+    await db.delete(clientTargetOverrides)
+      .where(eq(clientTargetOverrides.clientId, clientId));
+  }
+
+  async getEffectiveTargets(clientId: number): Promise<{ dailyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number; fibreGoal: number | null; hasOverrides: boolean; overriddenFields: string[] } | null> {
+    const calcs = await this.getCalculations(clientId);
+    const latestCalc = calcs.length > 0 ? calcs[0] : null;
+    const overrides = await this.getClientTargetOverrides(clientId);
+
+    if (!latestCalc && !overrides) return null;
+
+    const overriddenFields: string[] = [];
+    if (overrides?.dailyCalories !== null && overrides?.dailyCalories !== undefined) overriddenFields.push("dailyCalories");
+    if (overrides?.proteinGoal !== null && overrides?.proteinGoal !== undefined) overriddenFields.push("proteinGoal");
+    if (overrides?.carbsGoal !== null && overrides?.carbsGoal !== undefined) overriddenFields.push("carbsGoal");
+    if (overrides?.fatGoal !== null && overrides?.fatGoal !== undefined) overriddenFields.push("fatGoal");
+    if (overrides?.fibreGoal !== null && overrides?.fibreGoal !== undefined) overriddenFields.push("fibreGoal");
+
+    const dailyCalories = overrides?.dailyCalories ?? latestCalc?.dailyCalories;
+    const proteinGoal = overrides?.proteinGoal ?? latestCalc?.proteinGoal;
+    const carbsGoal = overrides?.carbsGoal ?? latestCalc?.carbsGoal;
+    const fatGoal = overrides?.fatGoal ?? latestCalc?.fatGoal;
+    const fibreGoal = overrides?.fibreGoal ?? latestCalc?.fibreGoal ?? null;
+
+    if (dailyCalories == null || proteinGoal == null || carbsGoal == null || fatGoal == null) return null;
+
+    return {
+      dailyCalories,
+      proteinGoal,
+      carbsGoal,
+      fatGoal,
+      fibreGoal,
+      hasOverrides: overriddenFields.length > 0,
+      overriddenFields,
+    };
   }
 }
 
