@@ -2081,6 +2081,57 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  private static readonly INGREDIENT_CORRECTIONS: Record<string, { cal: number; pro: number; carb: number; fat: number }> = {
+    "greek yogurt": { cal: 59, pro: 10, carb: 3.6, fat: 0.4 },
+    "crème fraîche": { cal: 292, pro: 2.4, carb: 3.5, fat: 30 },
+    "cherry tomatoes, halved": { cal: 18, pro: 0.9, carb: 3.9, fat: 0.2 },
+    "cherry tomatoes": { cal: 18, pro: 0.9, carb: 3.9, fat: 0.2 },
+    "mint": { cal: 44, pro: 3.3, carb: 8.4, fat: 0.7 },
+    "mint leaves": { cal: 44, pro: 3.3, carb: 8.4, fat: 0.7 },
+    "sage leaves": { cal: 315, pro: 10.6, carb: 60.7, fat: 12.8 },
+    "truffle oil": { cal: 800, pro: 0, carb: 0, fat: 89 },
+    "lemon zest": { cal: 47, pro: 1.5, carb: 16, fat: 0.3 },
+    "quinoa": { cal: 120, pro: 4.4, carb: 21.3, fat: 1.9 },
+    "cooked quinoa": { cal: 120, pro: 4.4, carb: 21.3, fat: 1.9 },
+    "granola": { cal: 471, pro: 10, carb: 64, fat: 20 },
+    "heavy cream": { cal: 340, pro: 2.1, carb: 2.8, fat: 36 },
+    "unsalted butter": { cal: 717, pro: 0.9, carb: 0.1, fat: 81 },
+    "brie cheese": { cal: 334, pro: 20.8, carb: 0.5, fat: 27.7 },
+    "grated parmesan cheese": { cal: 431, pro: 38, carb: 4.1, fat: 29 },
+    "grilled chicken breast, sliced": { cal: 165, pro: 31, carb: 0, fat: 3.6 },
+    "salmon fillet": { cal: 208, pro: 20, carb: 0, fat: 13 },
+    "smoked salmon": { cal: 117, pro: 18, carb: 0, fat: 4.3 },
+    "firm tofu, cubed": { cal: 76, pro: 8, carb: 1.9, fat: 4.8 },
+    "fresh goat cheese": { cal: 364, pro: 22, carb: 0.1, fat: 30 },
+    "spinach, chopped": { cal: 23, pro: 2.9, carb: 3.6, fat: 0.4 },
+    "fresh spinach": { cal: 23, pro: 2.9, carb: 3.6, fat: 0.4 },
+    "baby spinach": { cal: 23, pro: 2.9, carb: 3.6, fat: 0.4 },
+    "mixed greens": { cal: 17, pro: 1.5, carb: 2.8, fat: 0.2 },
+    "mixed salad greens (spinach, arugula, lettuce)": { cal: 20, pro: 2, carb: 3, fat: 0.3 },
+    "cucumber, diced": { cal: 15, pro: 0.7, carb: 3.6, fat: 0.1 },
+    "cucumber": { cal: 15, pro: 0.7, carb: 3.6, fat: 0.1 },
+    "garlic": { cal: 149, pro: 6.4, carb: 33, fat: 0.5 },
+    "maple syrup": { cal: 260, pro: 0, carb: 67, fat: 0.1 },
+    "coconut milk": { cal: 197, pro: 2.3, carb: 2.8, fat: 21 },
+    "balsamic vinaigrette": { cal: 88, pro: 0.5, carb: 12, fat: 3.9 },
+    "dark chocolate chips": { cal: 546, pro: 5, carb: 60, fat: 31 },
+    "butternut squash ravioli": { cal: 271, pro: 7.1, carb: 36.5, fat: 10.6 },
+    "sourdough bread": { cal: 274, pro: 10, carb: 51, fat: 3.3 },
+    "microgreens": { cal: 25, pro: 2.5, carb: 3, fat: 0.5 },
+    "tahini": { cal: 595, pro: 17, carb: 21, fat: 54 },
+    "feta cheese, crumbled": { cal: 264, pro: 14, carb: 4.1, fat: 21 },
+    "black pepper": { cal: 251, pro: 10.4, carb: 64, fat: 3.3 },
+    "sesame seeds": { cal: 573, pro: 18, carb: 23, fat: 50 },
+    "shredded coconut": { cal: 354, pro: 3.3, carb: 15, fat: 33 },
+    "dried fruit": { cal: 240, pro: 2.3, carb: 63, fat: 0.4 },
+    "mixed nuts": { cal: 607, pro: 20, carb: 21, fat: 54 },
+    "5-6 crackers or breadsticks": { cal: 421, pro: 10, carb: 72, fat: 10 },
+    "assorted seasonal fruits": { cal: 50, pro: 0.6, carb: 12, fat: 0.2 },
+    "fresh berries": { cal: 57, pro: 0.7, carb: 14, fat: 0.3 },
+    "mixed berries": { cal: 57, pro: 0.7, carb: 14, fat: 0.3 },
+    "frozen mixed berries": { cal: 49, pro: 0.8, carb: 12, fat: 0.4 },
+  };
+
   async fixCommunityMealIngredients(): Promise<void> {
     const allCM = await db.select().from(communityMeals);
     let fixed = 0;
@@ -2090,47 +2141,67 @@ export class DatabaseStorage implements IStorage {
 
       const rawTotal = ings.reduce((acc, ing) => acc + Math.round(ing.calories100g * ing.grams / 100), 0);
       const ratio = cm.caloriesPerServing > 0 ? rawTotal / cm.caloriesPerServing : 1;
-      if (ratio < 1.3) continue;
+      if (ratio >= 0.7 && ratio <= 1.3) continue;
 
       let anyUpdated = false;
       const updatedIngs = [];
       for (const ing of ings) {
         const canonical = await this.canonicalFoodExistsByName(ing.name);
+        const correction = DatabaseStorage.INGREDIENT_CORRECTIONS[ing.name.toLowerCase().trim()];
+
+        let newCal = ing.calories100g;
+        let newPro = ing.protein100g;
+        let newCarb = ing.carbs100g;
+        let newFat = ing.fat100g;
+
         if (canonical && canonical.calories100g > 0) {
-          const oldCal = ing.calories100g;
-          const newCal = canonical.calories100g;
-          if (Math.abs(oldCal - newCal) / newCal > 0.3) {
-            updatedIngs.push({
-              ...ing,
-              calories100g: canonical.calories100g,
-              protein100g: canonical.protein100g,
-              carbs100g: canonical.carbs100g,
-              fat100g: canonical.fat100g,
-            });
-            anyUpdated = true;
-            continue;
-          }
+          newCal = canonical.calories100g;
+          newPro = canonical.protein100g;
+          newCarb = canonical.carbs100g;
+          newFat = canonical.fat100g;
+        } else if (correction) {
+          newCal = correction.cal;
+          newPro = correction.pro;
+          newCarb = correction.carb;
+          newFat = correction.fat;
         }
-        updatedIngs.push(ing);
+
+        if (Math.abs(ing.calories100g - newCal) / Math.max(newCal, 1) > 0.2) {
+          updatedIngs.push({ ...ing, calories100g: newCal, protein100g: newPro, carbs100g: newCarb, fat100g: newFat });
+          anyUpdated = true;
+        } else {
+          updatedIngs.push(ing);
+        }
+      }
+
+      let finalIngs = anyUpdated ? updatedIngs : [...ings];
+
+      const correctedTotal = finalIngs.reduce((acc, ing) => acc + Math.round(ing.calories100g * ing.grams / 100), 0);
+      const correctedRatio = cm.caloriesPerServing > 0 ? correctedTotal / cm.caloriesPerServing : 1;
+
+      if ((correctedRatio > 1.3 || correctedRatio < 0.7) && cm.caloriesPerServing > 0) {
+        const scale = cm.caloriesPerServing / correctedTotal;
+        finalIngs = finalIngs.map(ing => ({ ...ing, grams: Math.round(ing.grams * scale) }));
+        anyUpdated = true;
       }
 
       if (!anyUpdated) continue;
 
-      const newTotal = updatedIngs.reduce((acc, ing) => acc + Math.round(ing.calories100g * ing.grams / 100), 0);
+      const newTotal = finalIngs.reduce((acc, ing) => acc + Math.round(ing.calories100g * ing.grams / 100), 0);
       const newRatio = cm.caloriesPerServing > 0 ? newTotal / cm.caloriesPerServing : 1;
 
       if (newRatio >= 0.7 && newRatio <= 1.3) {
         await db.update(communityMeals).set({
-          ingredientsJson: updatedIngs,
+          ingredientsJson: finalIngs,
           caloriesPerServing: newTotal,
-          proteinPerServing: Math.round(updatedIngs.reduce((acc, ing) => acc + ing.protein100g * ing.grams / 100, 0)),
-          carbsPerServing: Math.round(updatedIngs.reduce((acc, ing) => acc + ing.carbs100g * ing.grams / 100, 0)),
-          fatPerServing: Math.round(updatedIngs.reduce((acc, ing) => acc + ing.fat100g * ing.grams / 100, 0)),
+          proteinPerServing: Math.round(finalIngs.reduce((acc, ing) => acc + ing.protein100g * ing.grams / 100, 0)),
+          carbsPerServing: Math.round(finalIngs.reduce((acc, ing) => acc + ing.carbs100g * ing.grams / 100, 0)),
+          fatPerServing: Math.round(finalIngs.reduce((acc, ing) => acc + ing.fat100g * ing.grams / 100, 0)),
         }).where(eq(communityMeals.id, cm.id));
         fixed++;
         console.log(`[fixCommunityMealIngredients] Fixed "${cm.name}" (id=${cm.id}): ${rawTotal} → ${newTotal} kcal`);
       } else {
-        await db.update(communityMeals).set({ ingredientsJson: updatedIngs }).where(eq(communityMeals.id, cm.id));
+        await db.update(communityMeals).set({ ingredientsJson: finalIngs }).where(eq(communityMeals.id, cm.id));
         fixed++;
         console.log(`[fixCommunityMealIngredients] Updated ingredients for "${cm.name}" (id=${cm.id}), kept stated macros (${cm.caloriesPerServing} kcal)`);
       }
