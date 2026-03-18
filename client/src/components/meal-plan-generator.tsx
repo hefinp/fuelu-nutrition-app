@@ -616,62 +616,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         })()}
       </div>
 
-      <div className="mb-4">
-        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Schedule</p>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setWeekStart(prev => addDays(prev, -7))}
-            className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-500"
-            data-testid="button-week-prev"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-xs font-medium text-zinc-700 min-w-[120px] text-center" data-testid="text-week-label">
-            {formatShort(weekStart)} – {formatShort(addDays(weekStart, 6))}
-          </span>
-          <button
-            onClick={() => setWeekStart(prev => addDays(prev, 7))}
-            className="p-1 hover:bg-zinc-100 rounded-lg text-zinc-500"
-            data-testid="button-week-next"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {planMode === 'daily' && (
-        <div className="mb-4">
-          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Days</p>
-          <div className="flex gap-1.5 flex-wrap">
-            {DAY_LABELS.map((label, i) => {
-              const dateStr = addDays(weekStart, i);
-              const isSelected = selectedDates.includes(dateStr);
-              return (
-                <button
-                  key={dateStr}
-                  type="button"
-                  data-testid={`chip-day-${label.toLowerCase()}`}
-                  onClick={() => {
-                    setSelectedDates(prev =>
-                      isSelected
-                        ? prev.filter(d => d !== dateStr).length > 0 ? prev.filter(d => d !== dateStr) : prev
-                        : [...prev, dateStr].sort()
-                    );
-                  }}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                    isSelected
-                      ? "bg-zinc-900 text-white"
-                      : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {widgetMode === "generator" && (
         <>
           {cycleEnabledButMissing && !ignoreCycle && (
@@ -766,25 +710,13 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
           )}
 
           <button
-            onClick={() => generateMealPlan.mutate(planMode)}
-            disabled={generateMealPlan.isPending}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold text-sm transition-colors"
+            onClick={() => setGeneratorModalOpen(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-semibold text-sm transition-colors"
             data-testid="button-create-plan"
           >
-            {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
-            Create Plan
+            <UtensilsCrossed className="w-4 h-4" />
+            {mealPlan ? 'View / Create Plan' : 'Create Plan'}
           </button>
-
-          {mealPlan && !generatorModalOpen && (
-            <button
-              onClick={() => setGeneratorModalOpen(true)}
-              className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-sm transition-colors"
-              data-testid="button-view-plan"
-            >
-              <ClipboardList className="w-4 h-4" />
-              View Generated Plan
-            </button>
-          )}
         </>
       )}
 
@@ -800,7 +732,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       )}
 
       <AnimatePresence>
-        {generatorModalOpen && mealPlan && (
+        {generatorModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setGeneratorModalOpen(false)}>
             <motion.div
               initial={{ opacity: 0, y: 40 }}
@@ -813,21 +745,27 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               <div className="sticky top-0 z-10 bg-white border-b border-zinc-100 px-4 sm:px-6 py-4 flex items-center justify-between shrink-0">
                 <div>
                   <h3 className="text-lg font-display font-bold text-zinc-900 capitalize" data-testid="text-modal-plan-title">
-                    {generatorPlanTitle}
+                    {mealPlan ? generatorPlanTitle : `${planMode === 'weekly' ? 'Weekly' : 'Daily'} Meal Plan`}
                   </h3>
-                  {mealPlan.planType === 'weekly' && (mealPlan as any).weekStartDate && (
-                    <p className="text-xs text-zinc-400 mt-0.5">
-                      <CalendarDays className="w-3 h-3 inline mr-1" />
-                      {formatShort((mealPlan as any).weekStartDate)} – {formatShort(addDays((mealPlan as any).weekStartDate, 6))}
-                    </p>
-                  )}
-                  {(mealPlan.planType === 'daily' || mealPlan.planType === 'multi-daily') && selectedDates.length > 0 && (
-                    <p className="text-xs text-zinc-400 mt-0.5">
-                      <CalendarDays className="w-3 h-3 inline mr-1" />
-                      {selectedDates.length === 1
-                        ? formatShort(selectedDates[0])
-                        : `${formatShort(selectedDates[0])} + ${selectedDates.length - 1} more`}
-                    </p>
+                  {mealPlan ? (
+                    <>
+                      {mealPlan.planType === 'weekly' && (mealPlan as any).weekStartDate && (
+                        <p className="text-xs text-zinc-400 mt-0.5">
+                          <CalendarDays className="w-3 h-3 inline mr-1" />
+                          {formatShort((mealPlan as any).weekStartDate)} – {formatShort(addDays((mealPlan as any).weekStartDate, 6))}
+                        </p>
+                      )}
+                      {(mealPlan.planType === 'daily' || mealPlan.planType === 'multi-daily') && selectedDates.length > 0 && (
+                        <p className="text-xs text-zinc-400 mt-0.5">
+                          <CalendarDays className="w-3 h-3 inline mr-1" />
+                          {selectedDates.length === 1
+                            ? formatShort(selectedDates[0])
+                            : `${formatShort(selectedDates[0])} + ${selectedDates.length - 1} more`}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-zinc-400 mt-0.5">Pick your schedule, then generate</p>
                   )}
                 </div>
                 <button
@@ -839,8 +777,77 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 </button>
               </div>
 
+              <div className="bg-zinc-50 border-b border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setWeekStart(prev => addDays(prev, -7))}
+                    className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
+                    data-testid="button-week-prev"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs font-medium text-zinc-700 min-w-[120px] text-center" data-testid="text-week-label">
+                    {formatShort(weekStart)} – {formatShort(addDays(weekStart, 6))}
+                  </span>
+                  <button
+                    onClick={() => setWeekStart(prev => addDays(prev, 7))}
+                    className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
+                    data-testid="button-week-next"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+                {planMode === 'daily' && (
+                  <div className="flex gap-1.5 flex-wrap mt-2">
+                    {DAY_LABELS.map((label, i) => {
+                      const dateStr = addDays(weekStart, i);
+                      const isSelected = selectedDates.includes(dateStr);
+                      return (
+                        <button
+                          key={dateStr}
+                          type="button"
+                          data-testid={`chip-day-${label.toLowerCase()}`}
+                          onClick={() => {
+                            setSelectedDates(prev =>
+                              isSelected
+                                ? prev.filter(d => d !== dateStr).length > 0 ? prev.filter(d => d !== dateStr) : prev
+                                : [...prev, dateStr].sort()
+                            );
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                            isSelected
+                              ? "bg-zinc-900 text-white"
+                              : "bg-white text-zinc-500 hover:bg-zinc-200 border border-zinc-200"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
-                {mealPlan.planType === 'multi-daily' ? (
+                {!mealPlan ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mb-4">
+                      <UtensilsCrossed className="w-7 h-7 text-zinc-400" />
+                    </div>
+                    <p className="text-sm text-zinc-500 mb-6 max-w-xs">
+                      Choose your week and {planMode === 'daily' ? 'days' : 'schedule'} above, then generate your {planMode} meal plan.
+                    </p>
+                    <button
+                      onClick={() => generateMealPlan.mutate(planMode)}
+                      disabled={generateMealPlan.isPending}
+                      className="flex items-center justify-center gap-2 px-8 py-3 bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold text-sm transition-colors"
+                      data-testid="button-generate-plan"
+                    >
+                      {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
+                      {generateMealPlan.isPending ? 'Generating…' : 'Generate Plan'}
+                    </button>
+                  </div>
+                ) : mealPlan.planType === 'multi-daily' ? (
                   <div className="space-y-6">
                     {(mealPlan as any).targetDates?.map((dateStr: string) => {
                       const dayPlan = (mealPlan as any).days?.[dateStr];
@@ -948,59 +955,61 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 )}
               </div>
 
-              <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  {!planSaved && (
-                    <button
-                      onClick={() => { setMealPlan(null); setPlanSaved(false); setGeneratorModalOpen(false); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
-                      data-testid="button-discard-plan"
-                    >
-                      <X className="w-3.5 h-3.5" /> Discard
-                    </button>
-                  )}
-                  <button
-                    onClick={() => savePlanMutation.mutate()}
-                    disabled={savePlanMutation.isPending || planSaved}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors min-h-[36px] ${
-                      planSaved
-                        ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
-                        : "bg-zinc-900 hover:bg-zinc-700 text-white"
-                    }`}
-                    data-testid="button-save-plan"
-                  >
-                    {savePlanMutation.isPending ? (
-                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
-                    ) : planSaved ? (
-                      <><Check className="w-3.5 h-3.5" /> Saved</>
-                    ) : (
-                      <><Save className="w-3.5 h-3.5" /> Save Plan</>
+              {mealPlan && (
+                <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!planSaved && (
+                      <button
+                        onClick={() => { setMealPlan(null); setPlanSaved(false); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
+                        data-testid="button-discard-plan"
+                      >
+                        <X className="w-3.5 h-3.5" /> Discard
+                      </button>
                     )}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (mealPlan.planType === 'daily') {
-                        setShoppingDaysOpen(true);
-                      } else {
-                        exportShoppingListToPDF(mealPlan, data);
-                      }
-                    }}
-                    className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
-                    data-testid="button-export-shopping-list"
-                  >
-                    <ShoppingCart className="w-3.5 h-3.5" />
-                    Shopping List
-                  </button>
-                  <button
-                    onClick={() => exportMealPlanToPDF(mealPlan, data)}
-                    className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
-                    data-testid="button-export-pdf"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    Export PDF
-                  </button>
+                    <button
+                      onClick={() => savePlanMutation.mutate()}
+                      disabled={savePlanMutation.isPending || planSaved}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors min-h-[36px] ${
+                        planSaved
+                          ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
+                          : "bg-zinc-900 hover:bg-zinc-700 text-white"
+                      }`}
+                      data-testid="button-save-plan"
+                    >
+                      {savePlanMutation.isPending ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+                      ) : planSaved ? (
+                        <><Check className="w-3.5 h-3.5" /> Saved</>
+                      ) : (
+                        <><Save className="w-3.5 h-3.5" /> Save Plan</>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (mealPlan.planType === 'daily') {
+                          setShoppingDaysOpen(true);
+                        } else {
+                          exportShoppingListToPDF(mealPlan, data);
+                        }
+                      }}
+                      className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
+                      data-testid="button-export-shopping-list"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5" />
+                      Shopping List
+                    </button>
+                    <button
+                      onClick={() => exportMealPlanToPDF(mealPlan, data)}
+                      className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
+                      data-testid="button-export-pdf"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Export PDF
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </motion.div>
           </div>
         )}
@@ -1093,6 +1102,57 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 >
                   <X className="w-5 h-5 text-zinc-400" />
                 </button>
+              </div>
+
+              <div className="bg-zinc-50 border-b border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setWeekStart(prev => addDays(prev, -7))}
+                    className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
+                    data-testid="button-custom-week-prev"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs font-medium text-zinc-700 min-w-[120px] text-center" data-testid="text-custom-week-label">
+                    {formatShort(weekStart)} – {formatShort(addDays(weekStart, 6))}
+                  </span>
+                  <button
+                    onClick={() => setWeekStart(prev => addDays(prev, 7))}
+                    className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
+                    data-testid="button-custom-week-next"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+                {planMode === 'daily' && (
+                  <div className="flex gap-1.5 flex-wrap mt-2">
+                    {DAY_LABELS.map((label, i) => {
+                      const dateStr = addDays(weekStart, i);
+                      const isSelected = selectedDates.includes(dateStr);
+                      return (
+                        <button
+                          key={dateStr}
+                          type="button"
+                          data-testid={`chip-custom-day-${label.toLowerCase()}`}
+                          onClick={() => {
+                            setSelectedDates(prev =>
+                              isSelected
+                                ? prev.filter(d => d !== dateStr).length > 0 ? prev.filter(d => d !== dateStr) : prev
+                                : [...prev, dateStr].sort()
+                            );
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                            isSelected
+                              ? "bg-zinc-900 text-white"
+                              : "bg-white text-zinc-500 hover:bg-zinc-200 border border-zinc-200"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
