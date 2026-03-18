@@ -71,6 +71,7 @@ function ClientUnreadBadge() {
 
 function FreeWeeklySummaryCard() {
   const { user } = useAuth();
+  const [expanded, setExpanded] = useState(false);
   const { data, isLoading } = useQuery<{ summary: string | null; insufficientData?: boolean; cached?: boolean }>({
     queryKey: ["/api/food-log/free-weekly-summary"],
     staleTime: 60 * 60 * 1000,
@@ -100,23 +101,47 @@ function FreeWeeklySummaryCard() {
 
   return (
     <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-4 mb-6 snap-start" data-testid="card-free-weekly-summary">
-      <div className="flex items-center gap-2 mb-3">
+      <button
+        type="button"
+        className="flex items-center gap-2 w-full text-left cursor-pointer"
+        onClick={() => setExpanded(prev => !prev)}
+        aria-expanded={expanded}
+        aria-controls="weekly-summary-content"
+        data-testid="button-toggle-weekly-summary"
+      >
         <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
           <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
         </div>
-        <div>
+        <div className="flex-1">
           <span className="text-sm font-semibold text-emerald-800">Weekly Nutrition Summary</span>
           <span className="ml-2 text-[10px] text-emerald-600 font-medium bg-emerald-100 px-1.5 py-0.5 rounded-full">Free</span>
         </div>
-      </div>
-      <ul className="space-y-1.5">
-        {displayLines.slice(0, 4).map((line, i) => (
-          <li key={i} className="flex items-start gap-2 text-xs text-emerald-900 leading-relaxed">
-            <span className="text-emerald-500 shrink-0 mt-0.5">•</span>
-            <span>{line.replace(/^•\s*/, "")}</span>
-          </li>
-        ))}
-      </ul>
+        <motion.div
+          animate={{ rotate: expanded ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <ChevronDown className="w-4 h-4 text-emerald-500 shrink-0" />
+        </motion.div>
+      </button>
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.ul
+            id="weekly-summary-content"
+            className="space-y-1.5 overflow-hidden mt-3"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+          >
+            {displayLines.slice(0, 4).map((line, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-emerald-900 leading-relaxed">
+                <span className="text-emerald-500 shrink-0 mt-0.5">•</span>
+                <span>{line.replace(/^•\s*/, "")}</span>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
