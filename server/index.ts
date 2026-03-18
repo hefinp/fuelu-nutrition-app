@@ -149,8 +149,12 @@ app.use((req, res, next) => {
 
   const { storage } = await import("./storage");
   storage.cleanupBadCanonicalFoods()
-    .then(() => console.log("[init] Canonical food cleanup complete"))
-    .catch(err => console.error("[init] Canonical food cleanup failed:", err));
+    .then(() => {
+      console.log("[init] Canonical food cleanup complete");
+      return storage.fixCommunityMealIngredients();
+    })
+    .then(() => console.log("[init] Community meal ingredient fix complete"))
+    .catch(err => console.error("[init] Canonical/community cleanup failed:", err));
 
   await registerRoutes(httpServer, app);
 

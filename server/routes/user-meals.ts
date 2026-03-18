@@ -133,11 +133,15 @@ router.post("/api/user-meals", async (req, res) => {
       await storage.incrementCommunityMealFavourite(communityMealId).catch(() => {});
     }
 
-    // Sync junction rows then immediately recompute macros from canonical DB
     if (created.ingredientsJson && Array.isArray(created.ingredientsJson) && (created.ingredientsJson as any[]).length > 0) {
-      storage.syncMealIngredientsFromJson(created.id, created.ingredientsJson as any[])
-        .then(() => storage.recomputeMealMacros(created.id, req.session.userId!))
-        .catch(err => console.error("[user-meals] Failed to sync/recompute on create:", err));
+      if (mealData.source === "community" || communityMealId) {
+        storage.syncMealIngredientsFromJson(created.id, created.ingredientsJson as any[])
+          .catch(err => console.error("[user-meals] Failed to sync junction on community create:", err));
+      } else {
+        storage.syncMealIngredientsFromJson(created.id, created.ingredientsJson as any[])
+          .then(() => storage.recomputeMealMacros(created.id, req.session.userId!))
+          .catch(err => console.error("[user-meals] Failed to sync/recompute on create:", err));
+      }
     }
 
     res.status(201).json(created);

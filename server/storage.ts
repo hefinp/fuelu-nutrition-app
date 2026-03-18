@@ -2081,6 +2081,63 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async fixCommunityMealIngredients(): Promise<void> {
+    const allCM = await db.select().from(communityMeals);
+    let fixed = 0;
+    for (const cm of allCM) {
+      if (!cm.ingredientsJson || !Array.isArray(cm.ingredientsJson) || cm.ingredientsJson.length === 0) continue;
+      const ings = cm.ingredientsJson as Array<{ key?: string; name: string; grams: number; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; source?: string }>;
+
+      const rawTotal = ings.reduce((acc, ing) => acc + Math.round(ing.calories100g * ing.grams / 100), 0);
+      const ratio = cm.caloriesPerServing > 0 ? rawTotal / cm.caloriesPerServing : 1;
+      if (ratio < 1.3) continue;
+
+      let anyUpdated = false;
+      const updatedIngs = [];
+      for (const ing of ings) {
+        const canonical = await this.canonicalFoodExistsByName(ing.name);
+        if (canonical && canonical.calories100g > 0) {
+          const oldCal = ing.calories100g;
+          const newCal = canonical.calories100g;
+          if (Math.abs(oldCal - newCal) / newCal > 0.3) {
+            updatedIngs.push({
+              ...ing,
+              calories100g: canonical.calories100g,
+              protein100g: canonical.protein100g,
+              carbs100g: canonical.carbs100g,
+              fat100g: canonical.fat100g,
+            });
+            anyUpdated = true;
+            continue;
+          }
+        }
+        updatedIngs.push(ing);
+      }
+
+      if (!anyUpdated) continue;
+
+      const newTotal = updatedIngs.reduce((acc, ing) => acc + Math.round(ing.calories100g * ing.grams / 100), 0);
+      const newRatio = cm.caloriesPerServing > 0 ? newTotal / cm.caloriesPerServing : 1;
+
+      if (newRatio >= 0.7 && newRatio <= 1.3) {
+        await db.update(communityMeals).set({
+          ingredientsJson: updatedIngs,
+          caloriesPerServing: newTotal,
+          proteinPerServing: Math.round(updatedIngs.reduce((acc, ing) => acc + ing.protein100g * ing.grams / 100, 0)),
+          carbsPerServing: Math.round(updatedIngs.reduce((acc, ing) => acc + ing.carbs100g * ing.grams / 100, 0)),
+          fatPerServing: Math.round(updatedIngs.reduce((acc, ing) => acc + ing.fat100g * ing.grams / 100, 0)),
+        }).where(eq(communityMeals.id, cm.id));
+        fixed++;
+        console.log(`[fixCommunityMealIngredients] Fixed "${cm.name}" (id=${cm.id}): ${rawTotal} → ${newTotal} kcal`);
+      } else {
+        await db.update(communityMeals).set({ ingredientsJson: updatedIngs }).where(eq(communityMeals.id, cm.id));
+        fixed++;
+        console.log(`[fixCommunityMealIngredients] Updated ingredients for "${cm.name}" (id=${cm.id}), kept stated macros (${cm.caloriesPerServing} kcal)`);
+      }
+    }
+    if (fixed > 0) console.log(`[fixCommunityMealIngredients] Fixed ${fixed} community meals`);
+  }
+
   async cleanupBadCanonicalFoods(): Promise<void> {
     await this.cleanupUntrustedWithTrustedAlternatives();
     await this.fixBadTrustedEntries();
