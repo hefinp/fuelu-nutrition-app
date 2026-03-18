@@ -13,7 +13,7 @@ import { ConfirmDialog, useConfirmDialog } from "@/components/confirm-dialog";
 type EnrichedTemplate = MealTemplate & { mealName?: string | null };
 import {
   type MealSlot, type ActiveTab,
-  SLOT_OPTIONS, SLOT_COLOURS, todayStr, slotForTimeOfDay,
+  SLOT_OPTIONS, SLOT_COLOURS, todayStr,
 } from "@/components/meals-food-shared";
 import {
   MealCard, FoodCard, getMealKey,
@@ -113,8 +113,6 @@ export function MyMealsFoodWidget() {
 
   const mealsLoading = mealsQuery.isLoading;
   const foodsLoading = foodsQuery.isLoading;
-
-  const filteredMeals = meals;
 
   const logMutation = useMutation({
     mutationFn: (entry: { name: string; cal: number; prot: number; carbs: number; fat: number; slot?: string | null; source?: string }) =>
@@ -263,7 +261,7 @@ export function MyMealsFoodWidget() {
                   </div>
                 </div>
 
-                {filteredMeals.length === 0 ? (
+                {meals.length === 0 ? (
                   <div className="text-center py-8" data-testid="text-no-meals-match">
                     <Search className="w-8 h-8 mx-auto mb-2 text-zinc-200" />
                     <p className="text-sm text-zinc-400">No meals match your filters</p>
@@ -273,7 +271,7 @@ export function MyMealsFoodWidget() {
                   </div>
                 ) : (
                 <div className="space-y-1.5">
-                  {filteredMeals.map(meal => {
+                  {meals.map(meal => {
                     const key = getMealKey(meal);
                     return (
                       <MealCard

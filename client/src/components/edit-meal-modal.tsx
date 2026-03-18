@@ -22,7 +22,7 @@ type JunctionIngredient = {
 import {
   type MealSlot, type Ingredient,
   SLOT_OPTIONS, MacroChips,
-  ingredientFromSaved,
+  ingredientFromSaved, slotForTimeOfDay,
 } from "@/components/meals-food-shared";
 import { IngredientPickerModal } from "@/components/ingredient-picker-modal";
 import type { ExtendedFoodResult } from "@/components/food-log-shared";
@@ -102,7 +102,7 @@ export function EditMealModal({
   const parsedInitial = parseIngredientsJson(meal.ingredientsJson);
 
   const [name, setName] = useState(meal.name);
-  const [mealSlot, setMealSlot] = useState<MealSlot>((meal.mealSlot as MealSlot) ?? "dinner");
+  const [mealSlot, setMealSlot] = useState<MealSlot>((meal.mealSlot as MealSlot) ?? slotForTimeOfDay());
   const [instructions, setInstructions] = useState(meal.instructions ?? "");
 
   const [selected, setSelected] = useState<Ingredient[]>(parsedInitial ?? []);

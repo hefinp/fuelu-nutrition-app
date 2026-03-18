@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "wouter";
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -13,10 +13,10 @@ import {
 import type { UserMeal, UserSavedFood, MealTemplate } from "@shared/schema";
 import {
   type MealSlot, type ActiveTab,
-  SLOT_OPTIONS, SLOT_COLOURS, todayStr, slotForTimeOfDay,
+  SLOT_OPTIONS, SLOT_COLOURS, todayStr,
 } from "@/components/meals-food-shared";
 import {
-  MealCard, FoodCard, getMealKey, getMealSlot,
+  MealCard, FoodCard, getMealKey,
 } from "@/components/meal-food-cards";
 import { CommunityBrowserModal } from "@/components/community-browser-modal";
 import { ImportModal } from "@/components/import-modal";
@@ -30,9 +30,14 @@ const PAGE_SIZE = 20;
 
 type PaginatedResponse<T> = { items: T[]; nextCursor: string | null };
 
-async function fetchPaginated<T>(url: string, cursor?: string): Promise<PaginatedResponse<T>> {
+async function fetchPaginated<T>(url: string, cursor?: string, filters?: Record<string, string>): Promise<PaginatedResponse<T>> {
   const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
   if (cursor) params.set("cursor", cursor);
+  if (filters) {
+    for (const [k, v] of Object.entries(filters)) {
+      if (v) params.set(k, v);
+    }
+  }
   const res = await fetch(`${url}?${params}`, { credentials: "include" });
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
   return res.json();
@@ -57,20 +62,46 @@ export default function MyLibraryPage() {
   const [editFoodTarget, setEditFoodTarget] = useState<UserSavedFood | null>(null);
   const [templateTarget, setTemplateTarget] = useState<UserMeal | null>(null);
 
+  const [debouncedMealSearch, setDebouncedMealSearch] = useState("");
+  const [debouncedFoodSearch, setDebouncedFoodSearch] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedMealSearch(mealSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [mealSearch]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedFoodSearch(foodSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [foodSearch]);
+
   const { data: templates = [] } = useQuery<MealTemplate[]>({
     queryKey: ["/api/meal-templates"],
   });
   const templateMealIds = new Set(templates.map(t => t.userMealId));
 
+  const mealFilters = useMemo(() => {
+    const f: Record<string, string> = {};
+    if (debouncedMealSearch) f.search = debouncedMealSearch;
+    if (mealSlotFilter !== "all") f.slot = mealSlotFilter;
+    return f;
+  }, [debouncedMealSearch, mealSlotFilter]);
+
+  const foodFilters = useMemo(() => {
+    const f: Record<string, string> = {};
+    if (debouncedFoodSearch) f.search = debouncedFoodSearch;
+    return f;
+  }, [debouncedFoodSearch]);
+
   const mealsQuery = useInfiniteQuery<PaginatedResponse<UserMeal>>({
-    queryKey: ["/api/user-meals", "paginated"],
-    queryFn: ({ pageParam }) => fetchPaginated<UserMeal>("/api/user-meals", pageParam as string | undefined),
+    queryKey: ["/api/user-meals", "paginated", mealFilters],
+    queryFn: ({ pageParam }) => fetchPaginated<UserMeal>("/api/user-meals", pageParam as string | undefined, mealFilters),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
   const foodsQuery = useInfiniteQuery<PaginatedResponse<UserSavedFood>>({
-    queryKey: ["/api/my-foods", "paginated"],
-    queryFn: ({ pageParam }) => fetchPaginated<UserSavedFood>("/api/my-foods", pageParam as string | undefined),
+    queryKey: ["/api/my-foods", "paginated", foodFilters],
+    queryFn: ({ pageParam }) => fetchPaginated<UserSavedFood>("/api/my-foods", pageParam as string | undefined, foodFilters),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
@@ -80,24 +111,6 @@ export default function MyLibraryPage() {
 
   const mealsLoading = mealsQuery.isLoading;
   const foodsLoading = foodsQuery.isLoading;
-
-  const filteredMeals = meals.filter(meal => {
-    if (mealSlotFilter !== "all") {
-      const slot = getMealSlot(meal);
-      if (slot !== mealSlotFilter) return false;
-    }
-    if (mealSearch.trim()) {
-      if (!meal.name.toLowerCase().includes(mealSearch.trim().toLowerCase())) return false;
-    }
-    return true;
-  });
-
-  const filteredFoods = myFoods.filter(food => {
-    if (foodSearch.trim()) {
-      return food.name.toLowerCase().includes(foodSearch.trim().toLowerCase());
-    }
-    return true;
-  });
 
   const logMutation = useMutation({
     mutationFn: (entry: { name: string; cal: number; prot: number; carbs: number; fat: number; slot?: string | null; source?: string }) =>
@@ -235,7 +248,7 @@ export default function MyLibraryPage() {
 
             {mealsLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>
-            ) : meals.length === 0 ? (
+            ) : meals.length === 0 && !debouncedMealSearch && mealSlotFilter === "all" ? (
               <div className="text-center py-16">
                 <div className="w-14 h-14 bg-zinc-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <UtensilsCrossed className="w-6 h-6 text-zinc-300" />
@@ -276,7 +289,7 @@ export default function MyLibraryPage() {
                   </div>
                 </div>
 
-                {filteredMeals.length === 0 ? (
+                {meals.length === 0 ? (
                   <div className="text-center py-12" data-testid="text-library-no-meals-match">
                     <Search className="w-8 h-8 mx-auto mb-2 text-zinc-200" />
                     <p className="text-sm text-zinc-400">No meals match your filters</p>
@@ -286,7 +299,7 @@ export default function MyLibraryPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {filteredMeals.map(meal => (
+                    {meals.map(meal => (
                       <MealCard
                         key={getMealKey(meal)}
                         meal={meal}
@@ -350,7 +363,7 @@ export default function MyLibraryPage() {
 
             {foodsLoading ? (
               <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>
-            ) : myFoods.length === 0 ? (
+            ) : myFoods.length === 0 && !debouncedFoodSearch ? (
               <div className="text-center py-16" data-testid="text-library-foods-empty">
                 <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                   <Wheat className="w-6 h-6 text-amber-400" />
@@ -386,7 +399,7 @@ export default function MyLibraryPage() {
                   </div>
                 </div>
 
-                {filteredFoods.length === 0 ? (
+                {myFoods.length === 0 ? (
                   <div className="text-center py-12" data-testid="text-library-no-foods-match">
                     <Search className="w-8 h-8 mx-auto mb-2 text-zinc-200" />
                     <p className="text-sm text-zinc-400">No foods match your search</p>
@@ -396,7 +409,7 @@ export default function MyLibraryPage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {filteredFoods.map(food => (
+                    {myFoods.map(food => (
                       <FoodCard
                         key={food.id}
                         food={food}
