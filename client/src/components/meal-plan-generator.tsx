@@ -922,6 +922,40 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     })}
                   </div>
                 )}
+
+                <div className="mt-3">
+                  <div className="flex justify-center gap-2">
+                    {([
+                      { key: 'breakfast', label: 'Breakfast', icon: Coffee },
+                      { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
+                      { key: 'dinner', label: 'Dinner', icon: ChefHat },
+                      { key: 'snack', label: 'Snacks', icon: Cookie },
+                    ] as const).map(({ key, label, icon: Icon }) => {
+                      const active = enabledSlots.has(key);
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => toggleSlot(key)}
+                          className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                            active
+                              ? 'bg-zinc-900 text-white shadow-sm'
+                              : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
+                          }`}
+                          data-testid={`toggle-slot-${key}`}
+                        >
+                          <Icon className="w-4 h-4" />
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {excludeSlotsArray.length > 0 && (
+                    <p className="text-[10px] text-zinc-400 mt-1.5 text-center">
+                      {excludeSlotsArray.map(s => s === 'snack' ? 'Snacks' : s.charAt(0).toUpperCase() + s.slice(1)).join(', ')} will be skipped
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
@@ -931,43 +965,8 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                       <UtensilsCrossed className="w-7 h-7 text-zinc-400" />
                     </div>
                     <p className="text-sm text-zinc-500 mb-5 max-w-xs">
-                      Choose your week and {planMode === 'daily' ? 'days' : 'schedule'} above, then generate your {planMode} meal plan.
+                      Choose your week, days, and meals above, then hit generate.
                     </p>
-
-                    <div className="w-full max-w-xs mb-5">
-                      <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-2">Include Meal Slots</p>
-                      <div className="flex justify-center gap-2">
-                        {([
-                          { key: 'breakfast', label: 'Breakfast', icon: Coffee },
-                          { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
-                          { key: 'dinner', label: 'Dinner', icon: ChefHat },
-                          { key: 'snack', label: 'Snacks', icon: Cookie },
-                        ] as const).map(({ key, label, icon: Icon }) => {
-                          const active = enabledSlots.has(key);
-                          return (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => toggleSlot(key)}
-                              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                                active
-                                  ? 'bg-zinc-900 text-white shadow-sm'
-                                  : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
-                              }`}
-                              data-testid={`toggle-slot-${key}`}
-                            >
-                              <Icon className="w-4 h-4" />
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {excludeSlotsArray.length > 0 && (
-                        <p className="text-[10px] text-zinc-400 mt-1.5">
-                          {excludeSlotsArray.map(s => s === 'snack' ? 'Snacks' : s.charAt(0).toUpperCase() + s.slice(1)).join(', ')} will be skipped
-                        </p>
-                      )}
-                    </div>
 
                     {(fastingEnabled || hasCycleData || hasVitalityBoost) && (
                       <div className="flex flex-wrap justify-center gap-2 mb-5">
