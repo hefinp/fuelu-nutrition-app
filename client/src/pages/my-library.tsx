@@ -13,7 +13,7 @@ import {
 import type { UserMeal, UserSavedFood, MealTemplate } from "@shared/schema";
 import {
   type MealSlot, type ActiveTab,
-  SLOT_OPTIONS, SLOT_COLOURS, todayStr,
+  SLOT_OPTIONS, SLOT_COLOURS, todayStr, slotForTimeOfDay,
 } from "@/components/meals-food-shared";
 import {
   MealCard, FoodCard, getMealKey, getMealSlot,
@@ -135,11 +135,11 @@ export default function MyLibraryPage() {
     onError: () => toast({ title: "Failed to remove", variant: "destructive" }),
   });
 
-  function logMeal(meal: UserMeal) {
-    logMutation.mutate({ name: meal.name, cal: meal.caloriesPerServing, prot: meal.proteinPerServing, carbs: meal.carbsPerServing, fat: meal.fatPerServing, slot: meal.mealSlot });
+  function logMeal(meal: UserMeal, slot: MealSlot) {
+    logMutation.mutate({ name: meal.name, cal: meal.caloriesPerServing, prot: meal.proteinPerServing, carbs: meal.carbsPerServing, fat: meal.fatPerServing, slot });
   }
 
-  function logFood(food: UserSavedFood) {
+  function logFood(food: UserSavedFood, slot: MealSlot) {
     const factor = food.servingGrams / 100;
     logMutation.mutate({
       name: food.name,
@@ -147,7 +147,7 @@ export default function MyLibraryPage() {
       prot: Math.round(food.protein100g * factor),
       carbs: Math.round(food.carbs100g * factor),
       fat: Math.round(food.fat100g * factor),
-      slot: null,
+      slot,
       source: "search",
     });
   }
@@ -292,7 +292,7 @@ export default function MyLibraryPage() {
                         meal={meal}
                         isOpen={expandedId === getMealKey(meal)}
                         onToggle={() => setExpandedId(expandedId === getMealKey(meal) ? null : getMealKey(meal))}
-                        onLog={() => logMeal(meal)}
+                        onLog={(slot) => logMeal(meal, slot)}
                         onEdit={() => setEditTarget(meal)}
                         onDelete={() => deleteMealMutation.mutate(meal.id)}
                         onTemplate={() => setTemplateTarget(meal)}
@@ -402,7 +402,7 @@ export default function MyLibraryPage() {
                         food={food}
                         isOpen={expandedId === `food-${food.id}`}
                         onToggle={() => setExpandedId(expandedId === `food-${food.id}` ? null : `food-${food.id}`)}
-                        onLog={() => logFood(food)}
+                        onLog={(slot) => logFood(food, slot)}
                         onEdit={() => setEditFoodTarget(food)}
                         onDelete={() => deleteFoodMutation.mutate(food.id)}
                         isLogging={logMutation.isPending}

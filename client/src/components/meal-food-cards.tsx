@@ -5,7 +5,7 @@ import {
   ScanBarcode, Sparkles, Search, Link, Camera,
 } from "lucide-react";
 import type { UserMeal, UserSavedFood } from "@shared/schema";
-import { type MealSlot, SLOT_COLOURS, MacroBar, MacroChips } from "@/components/meals-food-shared";
+import { type MealSlot, SLOT_COLOURS, MacroBar, MacroChips, SlotPicker, slotForTimeOfDay } from "@/components/meals-food-shared";
 
 export function getMealKey(meal: UserMeal) {
   return `meal-${meal.id}`;
@@ -36,7 +36,7 @@ interface MealCardProps {
   meal: UserMeal;
   isOpen: boolean;
   onToggle: () => void;
-  onLog: () => void;
+  onLog: (slot: MealSlot) => void;
   onEdit: () => void;
   onDelete: () => void;
   onTemplate?: () => void;
@@ -46,6 +46,10 @@ interface MealCardProps {
 
 export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTemplate, isLogging, hasTemplate }: MealCardProps) {
   const slot = getMealSlot(meal);
+  const [showSlotPicker, setShowSlotPicker] = useState(false);
+
+  useEffect(() => { if (!isOpen) setShowSlotPicker(false); }, [isOpen]);
+
   const isCustom = meal.source === "manual";
   const hasSourceLink = isWebImportedMeal(meal);
   const isVideo = isVideoImportedMeal(meal);
@@ -215,14 +219,25 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
                 {hasTemplate ? "Recurring" : "Set recurring"}
               </button>
             )}
-            <button
-              onClick={onLog}
-              disabled={isLogging}
-              className="flex-1 py-2.5 bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-              data-testid={`button-log-meal-${meal.id}`}
-            >
-              {isLogging ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Utensils className="w-3.5 h-3.5" />Log today</>}
-            </button>
+            {showSlotPicker ? (
+              <div className="flex-1">
+                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Log to:</p>
+                <SlotPicker
+                  defaultSlot={(slot as MealSlot) ?? slotForTimeOfDay()}
+                  onSelect={(s) => { setShowSlotPicker(false); onLog(s); }}
+                  onClose={() => setShowSlotPicker(false)}
+                />
+              </div>
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowSlotPicker(true); }}
+                disabled={isLogging}
+                className="flex-1 py-2.5 bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                data-testid={`button-log-meal-${meal.id}`}
+              >
+                {isLogging ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Utensils className="w-3.5 h-3.5" />Log today</>}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -234,7 +249,7 @@ interface FoodCardProps {
   food: UserSavedFood;
   isOpen: boolean;
   onToggle: () => void;
-  onLog: () => void;
+  onLog: (slot: MealSlot) => void;
   onEdit: () => void;
   onDelete: () => void;
   isLogging?: boolean;
@@ -259,6 +274,10 @@ function FoodSourceBadge({ source }: { source?: string | null }) {
 }
 
 export function FoodCard({ food, isOpen, onToggle, onLog, onEdit, onDelete, isLogging }: FoodCardProps) {
+  const [showSlotPicker, setShowSlotPicker] = useState(false);
+
+  useEffect(() => { if (!isOpen) setShowSlotPicker(false); }, [isOpen]);
+
   return (
     <div className="group relative rounded-xl border border-zinc-100 overflow-hidden">
       <button
@@ -320,14 +339,25 @@ export function FoodCard({ food, isOpen, onToggle, onLog, onEdit, onDelete, isLo
             </div>
           </div>
           <p className="text-xs text-zinc-400 mt-2">Default serving: {food.servingGrams}g</p>
-          <button
-            onClick={onLog}
-            disabled={isLogging}
-            className="w-full mt-3 py-2.5 bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-            data-testid={`button-log-food-${food.id}`}
-          >
-            {isLogging ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Utensils className="w-3.5 h-3.5" />Log {food.servingGrams}g today</>}
-          </button>
+          {showSlotPicker ? (
+            <div className="mt-3">
+              <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Log {food.servingGrams}g to:</p>
+              <SlotPicker
+                defaultSlot={slotForTimeOfDay()}
+                onSelect={(s) => { setShowSlotPicker(false); onLog(s); }}
+                onClose={() => setShowSlotPicker(false)}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowSlotPicker(true); }}
+              disabled={isLogging}
+              className="w-full mt-3 py-2.5 bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+              data-testid={`button-log-food-${food.id}`}
+            >
+              {isLogging ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Utensils className="w-3.5 h-3.5" />Log {food.servingGrams}g today</>}
+            </button>
+          )}
         </div>
       )}
     </div>

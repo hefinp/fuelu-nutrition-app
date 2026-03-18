@@ -1,3 +1,5 @@
+import { useState, useRef, useEffect } from "react";
+import { Sun, Sunset, Moon, Cookie } from "lucide-react";
 import type { UserSavedFood } from "@shared/schema";
 import type { FoodResult, ExtendedFoodResult } from "@/components/food-log-shared";
 
@@ -100,4 +102,59 @@ export function ingredientFromSaved(f: UserSavedFood): Ingredient {
 
 export function ingredientFromSearch(f: FoodResult | ExtendedFoodResult): Ingredient {
   return { key: `search-${f.id}-${Date.now()}`, name: f.name, calories100g: f.calories100g, protein100g: f.protein100g, carbs100g: f.carbs100g, fat100g: f.fat100g, grams: 100 };
+}
+
+export function slotForTimeOfDay(): MealSlot {
+  const h = new Date().getHours();
+  if (h < 11) return "breakfast";
+  if (h < 15) return "lunch";
+  if (h < 21) return "dinner";
+  return "snack";
+}
+
+const SLOT_PICKER_OPTIONS: { value: MealSlot; label: string; icon: typeof Sun }[] = [
+  { value: "breakfast", label: "Breakfast", icon: Sunset },
+  { value: "lunch", label: "Lunch", icon: Sun },
+  { value: "dinner", label: "Dinner", icon: Moon },
+  { value: "snack", label: "Snack", icon: Cookie },
+];
+
+interface SlotPickerProps {
+  defaultSlot: MealSlot;
+  onSelect: (slot: MealSlot) => void;
+  onClose: () => void;
+}
+
+export function SlotPicker({ defaultSlot, onSelect, onClose }: SlotPickerProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  return (
+    <div ref={ref} className="flex gap-1.5 flex-wrap" data-testid="slot-picker">
+      {SLOT_PICKER_OPTIONS.map(opt => (
+        <button
+          key={opt.value}
+          onClick={(e) => { e.stopPropagation(); onSelect(opt.value); }}
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            opt.value === defaultSlot
+              ? "bg-zinc-900 text-white"
+              : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+          }`}
+          data-testid={`slot-option-${opt.value}`}
+        >
+          <opt.icon className="w-3 h-3" />
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
 }

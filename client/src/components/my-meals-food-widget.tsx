@@ -13,7 +13,7 @@ import { ConfirmDialog, useConfirmDialog } from "@/components/confirm-dialog";
 type EnrichedTemplate = MealTemplate & { mealName?: string | null };
 import {
   type MealSlot, type ActiveTab,
-  SLOT_OPTIONS, SLOT_COLOURS, todayStr,
+  SLOT_OPTIONS, SLOT_COLOURS, todayStr, slotForTimeOfDay,
 } from "@/components/meals-food-shared";
 import {
   MealCard, FoodCard, getMealKey, getMealSlot,
@@ -27,14 +27,6 @@ import { CreateMealModal } from "@/components/create-meal-modal";
 import { MealTemplateModal } from "@/components/meal-template-modal";
 
 const PAGE_SIZE = 20;
-
-function slotForTimeOfDay(): MealSlot {
-  const h = new Date().getHours();
-  if (h < 11) return "breakfast";
-  if (h < 15) return "lunch";
-  if (h < 21) return "dinner";
-  return "snack";
-}
 
 type PaginatedResponse<T> = { items: T[]; nextCursor: string | null };
 
@@ -139,8 +131,8 @@ export function MyMealsFoodWidget() {
     onError: () => toast({ title: "Failed to remove", variant: "destructive" }),
   });
 
-  function logMeal(meal: UserMeal) {
-    logMutation.mutate({ name: meal.name, cal: meal.caloriesPerServing, prot: meal.proteinPerServing, carbs: meal.carbsPerServing, fat: meal.fatPerServing, slot: meal.mealSlot });
+  function logMeal(meal: UserMeal, slot: MealSlot) {
+    logMutation.mutate({ name: meal.name, cal: meal.caloriesPerServing, prot: meal.proteinPerServing, carbs: meal.carbsPerServing, fat: meal.fatPerServing, slot });
   }
 
   return (
@@ -267,7 +259,7 @@ export function MyMealsFoodWidget() {
                         meal={meal}
                         isOpen={expandedId === key}
                         onToggle={() => setExpandedId(expandedId === key ? null : key)}
-                        onLog={() => logMeal(meal)}
+                        onLog={(slot) => logMeal(meal, slot)}
                         onEdit={() => setEditTarget(meal)}
                         onDelete={() => confirm({ title: `Remove "${meal.name}"?`, description: `This will permanently remove "${meal.name}" from your saved meals.`, confirmLabel: "Remove", onConfirm: () => deleteMealMutation.mutate(meal.id) })}
                         onTemplate={() => setTemplateTarget(meal)}
@@ -378,7 +370,7 @@ export function MyMealsFoodWidget() {
                     food={food}
                     isOpen={expandedId === `food-${food.id}`}
                     onToggle={() => setExpandedId(expandedId === `food-${food.id}` ? null : `food-${food.id}`)}
-                    onLog={() => {
+                    onLog={(slot) => {
                       const factor = food.servingGrams / 100;
                       logMutation.mutate({
                         name: food.name,
@@ -386,7 +378,7 @@ export function MyMealsFoodWidget() {
                         prot: Math.round(food.protein100g * factor),
                         carbs: Math.round(food.carbs100g * factor),
                         fat: Math.round(food.fat100g * factor),
-                        slot: slotForTimeOfDay(),
+                        slot,
                         source: "search",
                       });
                     }}
