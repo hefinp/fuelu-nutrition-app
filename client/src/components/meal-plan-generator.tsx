@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Wand2 } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -61,6 +61,10 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const [addMealPopover, setAddMealPopover] = useState<{ dayKey: string; slotKey: string } | null>(null);
   const [mealSearchQuery, setMealSearchQuery] = useState("");
+  const [enabledSlots, setEnabledSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snack']));
+  const [replacePicker, setReplacePicker] = useState<{ dayKey: string; slotKey: string; mealIdx: number; context: 'generator' | 'custom' } | null>(null);
+  const [replaceSearchQuery, setReplaceSearchQuery] = useState("");
+  const [addFoodForm, setAddFoodForm] = useState<{ name: string; calories: string; protein: string; carbs: string; fat: string } | null>(null);
   const [dragSource, setDragSource] = useState<{ dayKey: string; slotKey: string; mealIdx: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ dayKey: string; slotKey: string } | null>(null);
   const [copyMovePopover, setCopyMovePopover] = useState<{ x: number; y: number; source: { dayKey: string; slotKey: string; mealIdx: number }; target: { dayKey: string; slotKey: string } } | null>(null);
@@ -83,6 +87,44 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
   const { data: mealPlanPrefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
 
+  const SLOT_HOURS: Record<string, number> = { breakfast: 8, lunch: 12, dinner: 19, snack: 15 };
+  const fastingEnabled = !!(mealPlanPrefs?.fastingEnabled && mealPlanPrefs?.fastingProtocol);
+  const fastingProtocol = mealPlanPrefs?.fastingProtocol;
+
+  useEffect(() => {
+    if (!mealPlanPrefs) return;
+    const allSlots = new Set(['breakfast', 'lunch', 'dinner', 'snack']);
+    if (!mealPlanPrefs.fastingEnabled || !mealPlanPrefs.fastingProtocol) {
+      setEnabledSlots(allSlots);
+      return;
+    }
+    const protocol = mealPlanPrefs.fastingProtocol;
+    if (protocol === 'omad') {
+      allSlots.delete('breakfast');
+      allSlots.delete('snack');
+    } else if (protocol === '5:2') {
+      // 5:2 is day-specific; backend handles fasting days automatically
+    } else {
+      const wStart = mealPlanPrefs.eatingWindowStart ?? 12;
+      const wEnd = mealPlanPrefs.eatingWindowEnd ?? 20;
+      for (const [slot, hour] of Object.entries(SLOT_HOURS)) {
+        const inWindow = wStart < wEnd ? (hour >= wStart && hour < wEnd) : (hour >= wStart || hour < wEnd);
+        if (!inWindow) allSlots.delete(slot);
+      }
+    }
+    setEnabledSlots(allSlots);
+  }, [mealPlanPrefs]);
+
+  const toggleSlot = useCallback((slot: string) => {
+    setEnabledSlots(prev => {
+      const next = new Set(prev);
+      if (next.has(slot)) next.delete(slot); else next.add(slot);
+      return next;
+    });
+  }, []);
+
+  const excludeSlotsArray = ['breakfast', 'lunch', 'dinner', 'snack'].filter(s => !enabledSlots.has(s));
+
   const generateMealPlan = useMutation({
     mutationFn: async (planType: 'daily' | 'weekly') => {
       const res = await apiRequest('POST', '/api/meal-plans', {
@@ -95,6 +137,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         mealStyle,
         calculationId: data.id,
         ...(planType === 'daily' ? { targetDates: selectedDates } : { weekStartDate: weekStart }),
+        ...(excludeSlotsArray.length > 0 ? { excludeSlots: excludeSlotsArray } : {}),
       });
       return await res.json();
     },
@@ -141,10 +184,18 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
   const { data: userMealsData } = useQuery<{ items: any[] }>({
     queryKey: ["/api/user-meals"],
-    enabled: widgetMode === "custom",
+    enabled: widgetMode === "custom" || replacePicker !== null,
   });
   const filteredUserMeals = (userMealsData?.items ?? []).filter(m =>
     m.caloriesPerServing > 0 && (!mealSearchQuery || m.name.toLowerCase().includes(mealSearchQuery.toLowerCase()))
+  );
+
+  const { data: userFoodsData } = useQuery<{ items: any[] }>({
+    queryKey: ["/api/my-foods"],
+    enabled: replacePicker !== null,
+  });
+  const filteredUserFoods = (userFoodsData?.items ?? []).filter(f =>
+    !replaceSearchQuery || f.name.toLowerCase().includes(replaceSearchQuery.toLowerCase())
   );
 
   const getCustomDayKeys = useCallback(() => {
@@ -518,6 +569,51 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     },
   });
 
+  const recalcDayTotals = (dayPlan: any) => {
+    const all = [...(dayPlan.breakfast || []), ...(dayPlan.lunch || []), ...(dayPlan.dinner || []), ...(dayPlan.snacks || [])];
+    dayPlan.dayTotalCalories = all.reduce((s: number, m: any) => s + m.calories, 0);
+    dayPlan.dayTotalProtein = all.reduce((s: number, m: any) => s + m.protein, 0);
+    dayPlan.dayTotalCarbs = all.reduce((s: number, m: any) => s + m.carbs, 0);
+    dayPlan.dayTotalFat = all.reduce((s: number, m: any) => s + m.fat, 0);
+  };
+
+  const recalcWeekTotals = (plan: any) => {
+    const weekDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    let wCal = 0, wPro = 0, wCarb = 0, wFat = 0;
+    for (const d of weekDays) {
+      if (plan[d]) { wCal += plan[d].dayTotalCalories || 0; wPro += plan[d].dayTotalProtein || 0; wCarb += plan[d].dayTotalCarbs || 0; wFat += plan[d].dayTotalFat || 0; }
+    }
+    plan.weekTotalCalories = wCal; plan.weekTotalProtein = wPro; plan.weekTotalCarbs = wCarb; plan.weekTotalFat = wFat;
+  };
+
+  const handleLibraryReplace = useCallback((item: { name: string; calories: number; protein: number; carbs: number; fat: number }) => {
+    if (!replacePicker || !mealPlan) return;
+    const { dayKey, slotKey, mealIdx, context } = replacePicker;
+    const newMeal: Meal = { meal: item.name, calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat };
+    if (context === 'generator') {
+      setMealPlan((prev: any) => {
+        if (!prev) return prev;
+        const plan = JSON.parse(JSON.stringify(prev));
+        const backendSlotKey = slotKey === 'snack' ? 'snacks' : slotKey;
+        if (plan.planType === 'weekly') {
+          const dayPlan = plan[dayKey];
+          if (dayPlan?.[backendSlotKey]) { dayPlan[backendSlotKey][mealIdx] = newMeal; recalcDayTotals(dayPlan); recalcWeekTotals(plan); }
+        } else if (plan.planType === 'multi-daily') {
+          const dayPlan = plan.days?.[dayKey];
+          if (dayPlan?.[backendSlotKey]) { dayPlan[backendSlotKey][mealIdx] = newMeal; recalcDayTotals(dayPlan); }
+        } else {
+          if (plan[backendSlotKey]) { plan[backendSlotKey][mealIdx] = newMeal; recalcDayTotals(plan); }
+        }
+        return plan;
+      });
+      setPlanSaved(false);
+    }
+    setReplacePicker(null);
+    setReplaceSearchQuery("");
+    setAddFoodForm(null);
+    toast({ title: "Meal replaced", description: `Swapped with ${item.name}` });
+  }, [replacePicker, mealPlan, toast]);
+
   const generatorPlanTitle = mealPlan
     ? `${mealPlan.planType === 'multi-daily' ? 'Multi-Day' : mealPlan.planType === 'weekly' ? 'Weekly' : 'Daily'} Meal Plan`
     : '';
@@ -830,16 +926,75 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
                 {!mealPlan ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
                     <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mb-4">
                       <UtensilsCrossed className="w-7 h-7 text-zinc-400" />
                     </div>
-                    <p className="text-sm text-zinc-500 mb-6 max-w-xs">
+                    <p className="text-sm text-zinc-500 mb-5 max-w-xs">
                       Choose your week and {planMode === 'daily' ? 'days' : 'schedule'} above, then generate your {planMode} meal plan.
                     </p>
+
+                    <div className="w-full max-w-xs mb-5">
+                      <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-2">Include Meal Slots</p>
+                      <div className="flex justify-center gap-2">
+                        {([
+                          { key: 'breakfast', label: 'Breakfast', icon: Coffee },
+                          { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
+                          { key: 'dinner', label: 'Dinner', icon: ChefHat },
+                          { key: 'snack', label: 'Snacks', icon: Cookie },
+                        ] as const).map(({ key, label, icon: Icon }) => {
+                          const active = enabledSlots.has(key);
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => toggleSlot(key)}
+                              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                                active
+                                  ? 'bg-zinc-900 text-white shadow-sm'
+                                  : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
+                              }`}
+                              data-testid={`toggle-slot-${key}`}
+                            >
+                              <Icon className="w-4 h-4" />
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {excludeSlotsArray.length > 0 && (
+                        <p className="text-[10px] text-zinc-400 mt-1.5">
+                          {excludeSlotsArray.map(s => s === 'snack' ? 'Snacks' : s.charAt(0).toUpperCase() + s.slice(1)).join(', ')} will be skipped
+                        </p>
+                      )}
+                    </div>
+
+                    {(fastingEnabled || hasCycleData || hasVitalityBoost) && (
+                      <div className="flex flex-wrap justify-center gap-2 mb-5">
+                        {fastingEnabled && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-[10px] font-medium border border-amber-100" data-testid="badge-fasting">
+                            <Timer className="w-3 h-3" />
+                            {fastingProtocol?.toUpperCase()} fasting
+                          </span>
+                        )}
+                        {hasCycleData && !ignoreCycle && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-pink-50 text-pink-700 text-[10px] font-medium border border-pink-100" data-testid="badge-cycle">
+                            <Moon className="w-3 h-3" />
+                            Cycle-optimised
+                          </span>
+                        )}
+                        {hasVitalityBoost && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-[10px] font-medium border border-blue-100" data-testid="badge-vitality">
+                            <Shield className="w-3 h-3" />
+                            Vitality boost
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     <button
                       onClick={() => generateMealPlan.mutate(planMode)}
-                      disabled={generateMealPlan.isPending}
+                      disabled={generateMealPlan.isPending || enabledSlots.size === 0}
                       className="flex items-center justify-center gap-2 px-8 py-3 bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold text-sm transition-colors"
                       data-testid="button-generate-plan"
                     >
@@ -863,6 +1018,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                           <DailyMealView
                             plan={{ ...dayPlan, planType: 'daily' }}
                             onLogMeal={onLogMeal}
+                            onReplaceFromLibrary={(slot, idx) => setReplacePicker({ dayKey: dateStr, slotKey: slot === 'snacks' ? 'snack' : slot, mealIdx: idx, context: 'generator' })}
                             onReplace={(slot, mealName, idx) => {
                               replaceMealMutation.mutate({ slot, currentMealName: mealName, targetDate: dateStr }, {
                                 onSuccess: ({ slot: s, meal: newMeal }) => {
@@ -891,6 +1047,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                   <DailyMealView
                     plan={mealPlan}
                     onLogMeal={onLogMeal}
+                    onReplaceFromLibrary={(slot, idx) => setReplacePicker({ dayKey: '__daily__', slotKey: slot === 'snacks' ? 'snack' : slot, mealIdx: idx, context: 'generator' })}
                     onReplace={(slot, mealName, idx) => {
                       const dailyTargetDate = (mealPlan as any).targetDate;
                       replaceMealMutation.mutate({ slot, currentMealName: mealName, ...(dailyTargetDate ? { targetDate: dailyTargetDate } : {}) }, {
@@ -919,6 +1076,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                   <WeeklyMealView
                     plan={mealPlan}
                     onLogMeal={onLogMeal}
+                    onReplaceFromLibrary={(day, slot, idx) => setReplacePicker({ dayKey: day, slotKey: slot === 'snacks' ? 'snack' : slot, mealIdx: idx, context: 'generator' })}
                     onReplace={(day, slot, mealName, idx) => {
                       const dayOffsets: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6 };
                       const ws = (mealPlan as any).weekStartDate as string | undefined;
@@ -1422,11 +1580,143 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
           </div>
         </div>
       )}
+
+      {replacePicker && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setReplacePicker(null); setReplaceSearchQuery(""); setAddFoodForm(null); }}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-zinc-900">
+                <ArrowLeftRight className="w-3.5 h-3.5 inline mr-1.5" />
+                Replace from Library
+              </h3>
+              <button onClick={() => { setReplacePicker(null); setReplaceSearchQuery(""); setAddFoodForm(null); }} className="p-1 hover:bg-zinc-100 rounded-lg" data-testid="button-close-replace-picker">
+                <X className="w-4 h-4 text-zinc-400" />
+              </button>
+            </div>
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+              <input
+                type="text"
+                placeholder={replacePicker.slotKey === 'snack' ? "Search your foods..." : "Search your meals..."}
+                value={replaceSearchQuery}
+                onChange={e => setReplaceSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 border border-zinc-200 rounded-xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+                autoFocus
+                data-testid="input-search-replace"
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-1">
+              {replacePicker.slotKey === 'snack' ? (
+                <>
+                  {filteredUserFoods.length === 0 ? (
+                    <p className="text-xs text-zinc-400 py-4 text-center" data-testid="text-no-foods-found">
+                      {userFoodsData?.items?.length === 0 ? "No foods saved yet." : "No foods match your search."}
+                    </p>
+                  ) : (
+                    filteredUserFoods.map((f: any) => (
+                      <button
+                        key={f.id}
+                        onClick={() => handleLibraryReplace({
+                          name: f.name,
+                          calories: Math.round((f.calories100g ?? 0) * (f.servingGrams ?? 100) / 100),
+                          protein: Math.round((f.protein100g ?? 0) * (f.servingGrams ?? 100) / 100),
+                          carbs: Math.round((f.carbs100g ?? 0) * (f.servingGrams ?? 100) / 100),
+                          fat: Math.round((f.fat100g ?? 0) * (f.servingGrams ?? 100) / 100),
+                        })}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 text-left transition-colors"
+                        data-testid={`button-pick-food-${f.id}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-zinc-900 truncate">{f.name}</p>
+                          <p className="text-[10px] text-zinc-400">{f.servingGrams ?? 100}g serving</p>
+                        </div>
+                        <span className="text-xs font-semibold text-zinc-700 ml-2 shrink-0">
+                          {Math.round((f.calories100g ?? 0) * (f.servingGrams ?? 100) / 100)} kcal
+                        </span>
+                      </button>
+                    ))
+                  )}
+                  {!addFoodForm ? (
+                    <button
+                      onClick={() => setAddFoodForm({ name: '', calories: '', protein: '', carbs: '', fat: '' })}
+                      className="w-full flex items-center gap-2 px-3 py-2 mt-1 rounded-lg text-sm font-medium text-zinc-500 hover:bg-zinc-50 transition-colors"
+                      data-testid="button-add-food-inline"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add New Food
+                    </button>
+                  ) : (
+                    <div className="border border-zinc-200 rounded-xl p-3 mt-2 space-y-2">
+                      <input placeholder="Food name" value={addFoodForm.name} onChange={e => setAddFoodForm(p => p ? { ...p, name: e.target.value } : p)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400" data-testid="input-new-food-name" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input placeholder="Calories" type="number" value={addFoodForm.calories} onChange={e => setAddFoodForm(p => p ? { ...p, calories: e.target.value } : p)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400" data-testid="input-new-food-cal" />
+                        <input placeholder="Protein (g)" type="number" value={addFoodForm.protein} onChange={e => setAddFoodForm(p => p ? { ...p, protein: e.target.value } : p)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400" data-testid="input-new-food-protein" />
+                        <input placeholder="Carbs (g)" type="number" value={addFoodForm.carbs} onChange={e => setAddFoodForm(p => p ? { ...p, carbs: e.target.value } : p)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400" data-testid="input-new-food-carbs" />
+                        <input placeholder="Fat (g)" type="number" value={addFoodForm.fat} onChange={e => setAddFoodForm(p => p ? { ...p, fat: e.target.value } : p)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400" data-testid="input-new-food-fat" />
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (!addFoodForm.name || !addFoodForm.calories) return;
+                          handleLibraryReplace({
+                            name: addFoodForm.name,
+                            calories: parseInt(addFoodForm.calories) || 0,
+                            protein: parseInt(addFoodForm.protein) || 0,
+                            carbs: parseInt(addFoodForm.carbs) || 0,
+                            fat: parseInt(addFoodForm.fat) || 0,
+                          });
+                        }}
+                        disabled={!addFoodForm.name || !addFoodForm.calories}
+                        className="w-full py-1.5 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-40 transition-colors"
+                        data-testid="button-confirm-new-food"
+                      >
+                        Use This Food
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {(userMealsData?.items ?? []).filter(m => m.caloriesPerServing > 0 && (!replaceSearchQuery || m.name.toLowerCase().includes(replaceSearchQuery.toLowerCase()))).length === 0 ? (
+                    <p className="text-xs text-zinc-400 py-4 text-center" data-testid="text-no-replace-meals-found">
+                      {(userMealsData?.items ?? []).length === 0 ? "No meals in your library yet." : "No meals match your search."}
+                    </p>
+                  ) : (
+                    (userMealsData?.items ?? []).filter(m => m.caloriesPerServing > 0 && (!replaceSearchQuery || m.name.toLowerCase().includes(replaceSearchQuery.toLowerCase()))).map((m: any) => (
+                      <button
+                        key={m.id}
+                        onClick={() => handleLibraryReplace({
+                          name: m.name,
+                          calories: m.caloriesPerServing,
+                          protein: m.proteinPerServing,
+                          carbs: m.carbsPerServing,
+                          fat: m.fatPerServing,
+                        })}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 text-left transition-colors"
+                        data-testid={`button-pick-replace-meal-${m.id}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-zinc-900 truncate">{m.name}</p>
+                          <p className="text-[10px] text-zinc-400">P:{m.proteinPerServing}g C:{m.carbsPerServing}g F:{m.fatPerServing}g</p>
+                        </div>
+                        <span className="text-xs font-semibold text-zinc-700 ml-2 shrink-0">{m.caloriesPerServing} kcal</span>
+                      </button>
+                    ))
+                  )}
+                </>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
 
-function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: any; onReplace?: (slot: string, mealName: string, idx: number) => void; replacingSlot?: string; onLogMeal?: (meal: Meal) => void }) {
+function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal, onReplaceFromLibrary }: { plan: any; onReplace?: (slot: string, mealName: string, idx: number) => void; replacingSlot?: string; onLogMeal?: (meal: Meal) => void; onReplaceFromLibrary?: (slot: string, idx: number) => void }) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [localDisliked, setLocalDisliked] = useState<Set<string>>(new Set());
   const { toast } = useToast();
@@ -1541,6 +1831,16 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: an
                 >
                   <ThumbsDown className="w-3.5 h-3.5" />
                 </button>
+                {onReplaceFromLibrary && (
+                  <button
+                    onClick={() => onReplaceFromLibrary(slotKey, idx)}
+                    className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0"
+                    title="Replace from library"
+                    data-testid={`button-library-replace-daily-${slotKey}-${idx}`}
+                  >
+                    <ArrowLeftRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 {onReplace && (
                   <button
                     onClick={() => onReplace(slotKey, meal.meal, idx)}
@@ -1565,7 +1865,7 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: an
   );
 }
 
-function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: any; onReplace?: (day: string, slot: string, mealName: string, idx: number) => void; replacingSlot?: string; onLogMeal?: (meal: Meal) => void }) {
+function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal, onReplaceFromLibrary }: { plan: any; onReplace?: (day: string, slot: string, mealName: string, idx: number) => void; replacingSlot?: string; onLogMeal?: (meal: Meal) => void; onReplaceFromLibrary?: (day: string, slot: string, idx: number) => void }) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [expandedDay, setExpandedDay] = useState<string | null>("monday");
   const [localDisliked, setLocalDisliked] = useState<Set<string>>(new Set());
@@ -1711,6 +2011,16 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal }: { plan: a
                                 >
                                   <ThumbsDown className="w-3.5 h-3.5" />
                                 </button>
+                                {onReplaceFromLibrary && (
+                                  <button
+                                    onClick={() => onReplaceFromLibrary(day, slotKey, idx)}
+                                    className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0"
+                                    title="Replace from library"
+                                    data-testid={`button-library-replace-${day}-${slotKey}-${idx}`}
+                                  >
+                                    <ArrowLeftRight className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                                 {onReplace && (
                                   <button
                                     onClick={() => onReplace(day, slotKey, meal.meal, idx)}

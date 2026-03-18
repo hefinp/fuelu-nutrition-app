@@ -586,8 +586,13 @@ export function computeFastingOverride(
   return { isFastingDay: true, skipSlots };
 }
 
-export function generateDayPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, db: MealDb, preferences?: UserPreferences | null, cyclePhase?: string | null, dayName?: string) {
-  const fastingOverride = computeFastingOverride(preferences, dayName);
+export function generateDayPlan(dailyCalories: number, proteinGoal: number, carbsGoal: number, fatGoal: number, db: MealDb, preferences?: UserPreferences | null, cyclePhase?: string | null, dayName?: string, excludeSlots?: string[]) {
+  let fastingOverride = computeFastingOverride(preferences, dayName);
+  if (excludeSlots && excludeSlots.length > 0) {
+    const merged = new Set(fastingOverride?.skipSlots ?? []);
+    for (const s of excludeSlots) merged.add(s);
+    fastingOverride = { isFastingDay: true, ...fastingOverride, skipSlots: merged };
+  }
   return buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences, cyclePhase, fastingOverride);
 }
 
@@ -604,6 +609,7 @@ export function generateMealPlan(
   cyclePhase?: string | null,
   perDayPhases?: Record<string, string | null>,
   dayName?: string,
+  excludeSlots?: string[],
 ) {
   const lunchTarget = Math.round(dailyCalories * 0.30);
 
@@ -625,7 +631,12 @@ export function generateMealPlan(
 
     days.forEach((day, index) => {
       const dayPhase = perDayPhases?.[day] ?? cyclePhase ?? null;
-      const dayFasting = computeFastingOverride(preferences, day);
+      let dayFasting = computeFastingOverride(preferences, day);
+      if (excludeSlots && excludeSlots.length > 0) {
+        const merged = new Set(dayFasting?.skipSlots ?? []);
+        for (const s of excludeSlots) merged.add(s);
+        dayFasting = { isFastingDay: true, ...dayFasting, skipSlots: merged };
+      }
       let dayPlan: ReturnType<typeof buildDayPlan>;
 
       if (dayFasting) {
@@ -680,7 +691,12 @@ export function generateMealPlan(
       cyclePhaseByDay: perDayPhases ?? null,
     };
   } else {
-    const fastingOverride = computeFastingOverride(preferences, dayName);
+    let fastingOverride = computeFastingOverride(preferences, dayName);
+    if (excludeSlots && excludeSlots.length > 0) {
+      const merged = new Set(fastingOverride?.skipSlots ?? []);
+      for (const s of excludeSlots) merged.add(s);
+      fastingOverride = { isFastingDay: true, ...fastingOverride, skipSlots: merged };
+    }
     const dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences, cyclePhase, fastingOverride);
     return {
       planType: 'daily' as const,

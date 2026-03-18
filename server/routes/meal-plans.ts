@@ -100,7 +100,7 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
         });
       }
       const fallbackPhase = hasCycle ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28) : null;
-      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, true, baseDb, prefs, fallbackPhase, perDayPhases);
+      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, true, baseDb, prefs, fallbackPhase, perDayPhases, undefined, input.excludeSlots);
       if (input.weekStartDate) (mealPlan as any).weekStartDate = input.weekStartDate;
       if (req.session.userId) await deductCredits(req.session.userId, "ai_meal_plan");
       res.status(201).json(mealPlan);
@@ -114,7 +114,7 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
         const dateObj = new Date(y, mo - 1, da);
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         const dayName = dayNames[dateObj.getDay()];
-        const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, phase, dayName);
+        const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, phase, dayName, input.excludeSlots);
         plans[dateStr] = { ...dayPlan, cyclePhase: phase };
       }
       if (req.session.userId) await deductCredits(req.session.userId, "ai_meal_plan");
@@ -131,7 +131,7 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         singleDayName = dayNames[dateObj.getDay()];
       }
-      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, false, baseDb, prefs, cyclePhase, undefined, singleDayName);
+      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, false, baseDb, prefs, cyclePhase, undefined, singleDayName, input.excludeSlots);
       if (targetDate) (mealPlan as any).targetDate = targetDate;
       if (req.session.userId) await deductCredits(req.session.userId, "ai_meal_plan");
       res.status(201).json(mealPlan);
