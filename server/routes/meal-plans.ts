@@ -164,6 +164,7 @@ const autofillSchema = z.object({
   planType: z.enum(['daily', 'weekly']).default('daily'),
   targetDate: z.string().optional(),
   weekStartDate: z.string().optional(),
+  excludeSlots: z.array(z.string()).optional(),
 });
 
 router.post("/api/meal-plans/autofill", async (req, res) => {
@@ -191,6 +192,9 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
 
     const hasCycle = !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate);
     const slotKeys = ['breakfast', 'lunch', 'dinner', 'snacks'] as const;
+    const normalizedExclude = (input.excludeSlots ?? []).map(s => s === 'snacks' ? 'snack' : s);
+    const excludeSet = new Set([...(input.excludeSlots ?? []), ...normalizedExclude]);
+    const backendExclude = (s: string) => excludeSet.has(s) || excludeSet.has(s === 'snacks' ? 'snack' : s);
 
     if (input.planType === 'weekly') {
       const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -205,9 +209,10 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
           const cyclePhase = hasCycle && input.weekStartDate
             ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, addDaysToDate(input.weekStartDate, dayNames.indexOf(dayName)))
             : null;
-          const generated = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, cyclePhase, dayName);
+          const generated = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, cyclePhase, dayName, normalizedExclude);
           const dayPlan: Record<string, any> = {};
           for (const sk of slotKeys) {
+            if (backendExclude(sk)) { dayPlan[sk] = userSlots[sk] || []; continue; }
             dayPlan[sk] = (userSlots[sk]?.length ?? 0) > 0 ? userSlots[sk] : generated[sk];
           }
           const allMeals = slotKeys.flatMap(s => dayPlan[s] || []);
@@ -220,7 +225,7 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
           const cyclePhase = hasCycle && input.weekStartDate
             ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, addDaysToDate(input.weekStartDate, dayNames.indexOf(dayName)))
             : null;
-          const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, cyclePhase, dayName);
+          const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, cyclePhase, dayName, normalizedExclude);
           result[dayName] = dayPlan;
         }
         weekTotalCalories += result[dayName].dayTotalCalories;
@@ -241,9 +246,10 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
       const cyclePhase = hasCycle
         ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, input.targetDate)
         : null;
-      const generated = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, cyclePhase);
+      const generated = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, cyclePhase, undefined, normalizedExclude);
       const dayPlan: Record<string, any> = {};
       for (const sk of slotKeys) {
+        if (backendExclude(sk)) { dayPlan[sk] = userSlots[sk] || []; continue; }
         dayPlan[sk] = (userSlots[sk]?.length ?? 0) > 0 ? userSlots[sk] : generated[sk];
       }
       const allMeals = slotKeys.flatMap(s => dayPlan[s] || []);

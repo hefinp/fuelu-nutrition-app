@@ -65,6 +65,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const [replacePicker, setReplacePicker] = useState<{ dayKey: string; slotKey: string; mealIdx: number; context: 'generator' | 'custom' } | null>(null);
   const [replaceSearchQuery, setReplaceSearchQuery] = useState("");
   const [addFoodForm, setAddFoodForm] = useState<{ name: string; calories: string; protein: string; carbs: string; fat: string } | null>(null);
+  const [customEnabledSlots, setCustomEnabledSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snacks']));
   const [dragSource, setDragSource] = useState<{ dayKey: string; slotKey: string; mealIdx: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ dayKey: string; slotKey: string } | null>(null);
   const [copyMovePopover, setCopyMovePopover] = useState<{ x: number; y: number; source: { dayKey: string; slotKey: string; mealIdx: number }; target: { dayKey: string; slotKey: string } } | null>(null);
@@ -392,6 +393,8 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       for (const dk of dayKeys) {
         slots[dk] = customSlots[dk] || {};
       }
+      const allSlotKeys = ['breakfast', 'lunch', 'dinner', 'snacks'];
+      const excludeSlots = allSlotKeys.filter(s => !customEnabledSlots.has(s));
       const res = await apiRequest('POST', '/api/meal-plans/autofill', {
         dailyCalories: effectiveCals,
         proteinGoal: effectiveProtein,
@@ -401,6 +404,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         slots,
         planType: planMode,
         ...(planMode === 'daily' ? { targetDate: dayKeys[0] } : { weekStartDate: weekStart }),
+        ...(excludeSlots.length > 0 ? { excludeSlots } : {}),
       });
       return await res.json();
     },
@@ -1435,10 +1439,41 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               </div>
 
               <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 pt-3 shrink-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}>
+                <p className="text-[11px] text-zinc-400 text-center mb-1.5" data-testid="text-custom-slot-caption">Which meals to auto-complete?</p>
+                <div className="flex justify-center gap-2 mb-2">
+                  {([
+                    { key: 'breakfast', label: 'Breakfast', icon: Coffee },
+                    { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
+                    { key: 'dinner', label: 'Dinner', icon: ChefHat },
+                    { key: 'snacks', label: 'Snacks', icon: Cookie },
+                  ] as const).map(({ key, label, icon: Icon }) => {
+                    const active = customEnabledSlots.has(key);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setCustomEnabledSlots(prev => {
+                          const next = new Set(prev);
+                          if (next.has(key)) next.delete(key); else next.add(key);
+                          return next;
+                        })}
+                        className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                          active
+                            ? 'bg-zinc-900 text-white shadow-sm'
+                            : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
+                        }`}
+                        data-testid={`toggle-custom-slot-${key}`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
                 <div className="flex gap-2 mb-2">
                   <button
                     onClick={() => autofillMutation.mutate()}
-                    disabled={autofillMutation.isPending}
+                    disabled={autofillMutation.isPending || customEnabledSlots.size === 0}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold text-sm transition-colors"
                     data-testid="button-autofill-plan"
                   >
