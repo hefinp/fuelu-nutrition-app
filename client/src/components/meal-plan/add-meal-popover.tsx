@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { X, Search, Loader2, Link2, Plus } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { AddMealPopoverState, Meal } from "./types";
 import { ImportModal } from "@/components/import-modal";
 import { CreateMealModal } from "@/components/create-meal-modal";
@@ -16,7 +16,17 @@ export function AddMealPopover({ popoverState, onClose, onAddMeal }: AddMealPopo
   const [mealSearchQuery, setMealSearchQuery] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [showCreateMeal, setShowCreateMeal] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setViewportHeight(vv.height);
+    update();
+    vv.addEventListener("resize", update);
+    return () => vv.removeEventListener("resize", update);
+  }, []);
 
   const { data: userMealsData, isLoading: userMealsLoading } = useQuery<{ items: any[] }>({
     queryKey: ["/api/user-meals"],
@@ -27,25 +37,29 @@ export function AddMealPopover({ popoverState, onClose, onAddMeal }: AddMealPopo
     !mealSearchQuery || m.name.toLowerCase().includes(mealSearchQuery.toLowerCase())
   );
 
+  const maxH = viewportHeight ? `${Math.round(viewportHeight * 0.85)}px` : "80dvh";
+
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 40 }}
-        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl p-5 max-h-[80vh] overflow-y-auto"
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl p-5 flex flex-col"
+        style={{ maxHeight: maxH }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 shrink-0">
           <h3 className="text-sm font-bold text-zinc-900">Add Meal</h3>
           <button onClick={onClose} className="p-1 hover:bg-zinc-100 rounded-lg" data-testid="button-close-add-meal">
             <X className="w-4 h-4 text-zinc-400" />
           </button>
         </div>
-        <div className="relative mb-3">
+        <div className="relative mb-3 shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
           <input
             type="text"
+            inputMode="search"
             placeholder="Search your meals..."
             value={mealSearchQuery}
             onChange={e => setMealSearchQuery(e.target.value)}
@@ -54,7 +68,7 @@ export function AddMealPopover({ popoverState, onClose, onAddMeal }: AddMealPopo
             data-testid="input-search-meal"
           />
         </div>
-        <div className="flex gap-2 mb-3">
+        <div className="flex gap-2 mb-3 shrink-0">
           <button
             onClick={() => setShowImport(true)}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-zinc-200 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-all"
@@ -70,7 +84,7 @@ export function AddMealPopover({ popoverState, onClose, onAddMeal }: AddMealPopo
             <Plus className="w-3.5 h-3.5" />Create Meal
           </button>
         </div>
-        <div className="max-h-60 overflow-y-auto space-y-1">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-1 overscroll-contain">
           {userMealsLoading ? (
             <div className="flex items-center justify-center py-6" data-testid="loading-meals"><Loader2 className="w-4 h-4 animate-spin text-zinc-400" /></div>
           ) : filteredUserMeals.length === 0 ? (
