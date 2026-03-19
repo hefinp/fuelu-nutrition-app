@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -69,6 +69,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const [replaceSearchQuery, setReplaceSearchQuery] = useState("");
   const [addFoodForm, setAddFoodForm] = useState<{ name: string; calories: string; protein: string; carbs: string; fat: string } | null>(null);
   const [customEnabledSlots, setCustomEnabledSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snacks']));
+  const [bannerCollapsed, setBannerCollapsed] = useState(false);
   const [dragSource, setDragSource] = useState<{ dayKey: string; slotKey: string; mealIdx: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ dayKey: string; slotKey: string } | null>(null);
   const [copyMovePopover, setCopyMovePopover] = useState<{ x: number; y: number; source: { dayKey: string; slotKey: string; mealIdx: number }; target: { dayKey: string; slotKey: string } } | null>(null);
@@ -149,6 +150,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       setMealPlan(planData);
       setPlanSaved(false);
       setGeneratorModalOpen(true);
+      setBannerCollapsed(true);
     },
     onError: (error: Error) => {
       let title = "Failed to generate meal plan";
@@ -489,6 +491,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         return merged;
       });
       setCustomPlanSaved(false);
+      setBannerCollapsed(true);
       toast({ title: "Slots filled", description: "Empty slots have been filled. You can still edit before saving." });
     },
     onError: () => {
@@ -710,7 +713,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       </div>
 
       <button
-        onClick={() => widgetMode === "generator" ? setGeneratorModalOpen(true) : setCustomModalOpen(true)}
+        onClick={() => { setBannerCollapsed(false); widgetMode === "generator" ? setGeneratorModalOpen(true) : setCustomModalOpen(true); }}
         className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-semibold text-sm transition-colors"
         data-testid="button-launch-planner"
       >
@@ -818,75 +821,86 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 </button>
               </div>
 
-              <div className="bg-zinc-50 border-b border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
-                <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch mb-2" data-testid="plan-type-toggle">
-                  <div
-                    className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
-                    style={{ width: `calc((100% - 4px) / 2)`, left: planMode === 'daily' ? '2px' : `calc(2px + (100% - 4px) / 2)` }}
-                  />
-                  {([
-                    { key: 'daily' as const, label: 'Daily' },
-                    { key: 'weekly' as const, label: 'Weekly' },
-                  ]).map(opt => (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      data-testid={`toggle-plan-type-${opt.key}`}
-                      onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
-                      className={`relative z-10 flex-1 py-1 rounded-lg text-xs font-semibold transition-colors duration-200 ${
-                        planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-                <DateRangePicker
-                  weekStart={weekStart}
-                  onWeekChange={(dir) => setWeekStart(prev => addDays(prev, dir))}
-                  planMode={planMode}
-                  selectedDates={selectedDates}
-                  onToggleDate={(dateStr) => {
-                    setSelectedDates(prev => {
-                      const without = prev.filter(d => d !== dateStr);
-                      return prev.includes(dateStr) && without.length > 0 ? without : [...prev.filter(d => d !== dateStr), dateStr].sort();
-                    });
-                  }}
-                />
-
-                <div className="mt-3">
-                  <div className="flex justify-center gap-2.5 sm:gap-3">
-                    {([
-                      { key: 'breakfast', label: 'Breakfast', icon: Coffee },
-                      { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
-                      { key: 'dinner', label: 'Dinner', icon: ChefHat },
-                      { key: 'snack', label: 'Snacks', icon: Cookie },
-                    ] as const).map(({ key, label, icon: Icon }) => {
-                      const active = enabledSlots.has(key);
-                      return (
+              <div className="bg-zinc-50 border-b border-zinc-100 shrink-0">
+                <div className={`transition-all duration-300 ease-in-out overflow-hidden sm:!max-h-none ${bannerCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
+                  <div className="px-4 sm:px-6 py-3">
+                    <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch mb-2" data-testid="plan-type-toggle">
+                      <div
+                        className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
+                        style={{ width: `calc((100% - 4px) / 2)`, left: planMode === 'daily' ? '2px' : `calc(2px + (100% - 4px) / 2)` }}
+                      />
+                      {([
+                        { key: 'daily' as const, label: 'Daily' },
+                        { key: 'weekly' as const, label: 'Weekly' },
+                      ]).map(opt => (
                         <button
-                          key={key}
+                          key={opt.key}
                           type="button"
-                          onClick={() => toggleSlot(key)}
-                          className={`flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-medium transition-all ${
-                            active
-                              ? 'bg-zinc-900 text-white shadow-sm'
-                              : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
+                          data-testid={`toggle-plan-type-${opt.key}`}
+                          onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
+                          className={`relative z-10 flex-1 py-1 rounded-lg text-xs font-semibold transition-colors duration-200 ${
+                            planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
                           }`}
-                          data-testid={`toggle-slot-${key}`}
                         >
-                          <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          {label}
+                          {opt.label}
                         </button>
-                      );
-                    })}
+                      ))}
+                    </div>
+                    <DateRangePicker
+                      weekStart={weekStart}
+                      onWeekChange={(dir) => setWeekStart(prev => addDays(prev, dir))}
+                      planMode={planMode}
+                      selectedDates={selectedDates}
+                      onToggleDate={(dateStr) => {
+                        setSelectedDates(prev => {
+                          const without = prev.filter(d => d !== dateStr);
+                          return prev.includes(dateStr) && without.length > 0 ? without : [...prev.filter(d => d !== dateStr), dateStr].sort();
+                        });
+                      }}
+                    />
+
+                    <div className="mt-3">
+                      <div className="flex justify-center gap-2.5 sm:gap-3">
+                        {([
+                          { key: 'breakfast', label: 'Breakfast', icon: Coffee },
+                          { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
+                          { key: 'dinner', label: 'Dinner', icon: ChefHat },
+                          { key: 'snack', label: 'Snacks', icon: Cookie },
+                        ] as const).map(({ key, label, icon: Icon }) => {
+                          const active = enabledSlots.has(key);
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => toggleSlot(key)}
+                              className={`flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-medium transition-all ${
+                                active
+                                  ? 'bg-zinc-900 text-white shadow-sm'
+                                  : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
+                              }`}
+                              data-testid={`toggle-slot-${key}`}
+                            >
+                              <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {excludeSlotsArray.length > 0 && (
+                        <p className="text-[10px] text-zinc-400 mt-1.5 text-center">
+                          {excludeSlotsArray.map(s => s === 'snack' ? 'Snacks' : s.charAt(0).toUpperCase() + s.slice(1)).join(', ')} will be skipped
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  {excludeSlotsArray.length > 0 && (
-                    <p className="text-[10px] text-zinc-400 mt-1.5 text-center">
-                      {excludeSlotsArray.map(s => s === 'snack' ? 'Snacks' : s.charAt(0).toUpperCase() + s.slice(1)).join(', ')} will be skipped
-                    </p>
-                  )}
                 </div>
+                <button
+                  onClick={() => setBannerCollapsed(prev => !prev)}
+                  className="w-full flex items-center justify-center py-1 sm:hidden"
+                  data-testid="button-toggle-generator-banner"
+                >
+                  {bannerCollapsed ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronUp className="w-4 h-4 text-zinc-400" />}
+                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
@@ -1181,7 +1195,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                   <div className="flex flex-wrap items-center gap-2">
                     {!planSaved && (
                       <button
-                        onClick={() => { setMealPlan(null); setPlanSaved(false); }}
+                        onClick={() => { setMealPlan(null); setPlanSaved(false); setBannerCollapsed(false); }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
                         data-testid="button-discard-plan"
                       >
@@ -1325,42 +1339,53 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 </button>
               </div>
 
-              <div className="bg-zinc-50 border-b border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
-                <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch mb-3" data-testid="custom-plan-type-toggle">
-                  <div
-                    className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
-                    style={{ width: `calc((100% - 4px) / 2)`, left: planMode === 'daily' ? '2px' : `calc(2px + (100% - 4px) / 2)` }}
-                  />
-                  {([
-                    { key: 'daily' as const, label: 'Daily' },
-                    { key: 'weekly' as const, label: 'Weekly' },
-                  ]).map(opt => (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      data-testid={`toggle-custom-plan-type-${opt.key}`}
-                      onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
-                      className={`relative z-10 flex-1 py-1 rounded-lg text-xs font-semibold transition-colors duration-200 ${
-                        planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+              <div className="bg-zinc-50 border-b border-zinc-100 shrink-0">
+                <div className={`transition-all duration-300 ease-in-out overflow-hidden sm:!max-h-none ${bannerCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
+                  <div className="px-4 sm:px-6 py-3">
+                    <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch mb-3" data-testid="custom-plan-type-toggle">
+                      <div
+                        className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
+                        style={{ width: `calc((100% - 4px) / 2)`, left: planMode === 'daily' ? '2px' : `calc(2px + (100% - 4px) / 2)` }}
+                      />
+                      {([
+                        { key: 'daily' as const, label: 'Daily' },
+                        { key: 'weekly' as const, label: 'Weekly' },
+                      ]).map(opt => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          data-testid={`toggle-custom-plan-type-${opt.key}`}
+                          onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
+                          className={`relative z-10 flex-1 py-1 rounded-lg text-xs font-semibold transition-colors duration-200 ${
+                            planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <DateRangePicker
+                      weekStart={weekStart}
+                      onWeekChange={(dir) => setWeekStart(prev => addDays(prev, dir))}
+                      planMode={planMode}
+                      selectedDates={selectedDates}
+                      onToggleDate={(dateStr) => {
+                        setSelectedDates(prev => {
+                          const without = prev.filter(d => d !== dateStr);
+                          return prev.includes(dateStr) && without.length > 0 ? without : [...prev.filter(d => d !== dateStr), dateStr].sort();
+                        });
+                      }}
+                      testIdPrefix="custom"
+                    />
+                  </div>
                 </div>
-                <DateRangePicker
-                  weekStart={weekStart}
-                  onWeekChange={(dir) => setWeekStart(prev => addDays(prev, dir))}
-                  planMode={planMode}
-                  selectedDates={selectedDates}
-                  onToggleDate={(dateStr) => {
-                    setSelectedDates(prev => {
-                      const without = prev.filter(d => d !== dateStr);
-                      return prev.includes(dateStr) && without.length > 0 ? without : [...prev.filter(d => d !== dateStr), dateStr].sort();
-                    });
-                  }}
-                  testIdPrefix="custom"
-                />
+                <button
+                  onClick={() => setBannerCollapsed(prev => !prev)}
+                  className="w-full flex items-center justify-center py-1 sm:hidden"
+                  data-testid="button-toggle-custom-banner"
+                >
+                  {bannerCollapsed ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronUp className="w-4 h-4 text-zinc-400" />}
+                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
