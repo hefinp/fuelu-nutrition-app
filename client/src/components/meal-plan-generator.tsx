@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield, BookOpen } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +13,7 @@ import { useActiveFlow } from "@/contexts/active-flow-context";
 import { RECIPES } from "./results-recipes";
 import { toDateStr, addDays, getMonday, formatShort, DAY_LABELS } from "./results-pdf";
 import { exportMealPlanToPDF, exportShoppingListToPDF } from "./results-pdf";
+import { SavedMealPlans } from "./saved-meal-plans";
 
 export interface Meal {
   meal: string;
@@ -71,6 +72,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const [addFoodForm, setAddFoodForm] = useState<{ name: string; calories: string; protein: string; carbs: string; fat: string } | null>(null);
   const [customEnabledSlots, setCustomEnabledSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snacks']));
   const [bannerCollapsed, setBannerCollapsed] = useState(false);
+  const [showSavedPlansInline, setShowSavedPlansInline] = useState(false);
   const [dragSource, setDragSource] = useState<{ dayKey: string; slotKey: string; mealIdx: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ dayKey: string; slotKey: string } | null>(null);
   const [copyMovePopover, setCopyMovePopover] = useState<{ x: number; y: number; source: { dayKey: string; slotKey: string; mealIdx: number }; target: { dayKey: string; slotKey: string } } | null>(null);
@@ -796,6 +798,33 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
           })}
         </div>
       )}
+
+      <div className="mt-4 border-t border-zinc-100 pt-4">
+        <button
+          onClick={() => setShowSavedPlansInline(v => !v)}
+          className="w-full flex items-center justify-between gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-800 transition-colors"
+          data-testid="button-toggle-saved-plans-inline"
+        >
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4" />
+            My saved plans
+          </div>
+          {showSavedPlansInline ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        <AnimatePresence>
+          {showSavedPlansInline && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden mt-4"
+            >
+              <SavedMealPlans onLogMeal={onLogMeal as any} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       <AnimatePresence>
         {generatorModalOpen && (
