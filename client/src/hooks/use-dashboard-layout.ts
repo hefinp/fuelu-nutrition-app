@@ -12,21 +12,40 @@ export type WidgetId =
   | "hydration"
   | "weight"
   | "cycle"
-  | "vitality";
+  | "vitality"
+  | "weekly-summary"
+  | "adaptive-tdee"
+  | "macro-compliance";
 
 // Planning widgets go in the left desktop column and the Planning mobile tab
 export const PLANNING_WIDGETS = new Set<WidgetId>(["meal-plan", "my-meals-food", "nutrition"]);
 
-// Default stacking order — planning widgets first so Meal Planner is at top of Planning tab
+// Insights widgets go in the right-most desktop column and the Insights mobile tab
+export const INSIGHTS_WIDGETS = new Set<WidgetId>([
+  "weight",
+  "cycle",
+  "vitality",
+  "weekly-summary",
+  "adaptive-tdee",
+  "macro-compliance",
+]);
+
+// Tracking widgets = everything not in PLANNING_WIDGETS and not in INSIGHTS_WIDGETS
+// (currently: food-log, hydration)
+
+// Default stacking order
 export const DEFAULT_ORDER: WidgetId[] = [
   "meal-plan",
   "my-meals-food",
   "nutrition",
   "food-log",
+  "hydration",
+  "weekly-summary",
+  "adaptive-tdee",
+  "macro-compliance",
+  "weight",
   "cycle",
   "vitality",
-  "hydration",
-  "weight",
 ];
 
 // All known widget IDs — used to merge new widgets into saved layouts
@@ -73,40 +92,51 @@ export function useDashboardLayout(isLoggedIn: boolean) {
     }
   }, [prefs]);
 
-  // Desktop: derived left (planning) / right (tracking) from flat order
+  // Desktop: derived left (planning) / centre (tracking) / right (insights) from flat order
   const leftOrder = widgetOrder.filter(id => PLANNING_WIDGETS.has(id));
-  const rightOrder = widgetOrder.filter(id => !PLANNING_WIDGETS.has(id));
+  const rightOrder = widgetOrder.filter(id => !PLANNING_WIDGETS.has(id) && !INSIGHTS_WIDGETS.has(id));
+  const insightsOrder = widgetOrder.filter(id => INSIGHTS_WIDGETS.has(id));
 
   // Reorder within the left column (desktop drag)
   const setLeftOrder = useCallback((updater: (prev: WidgetId[]) => WidgetId[]) => {
     setWidgetOrder(prev => {
       const newLeft = updater(prev.filter(id => PLANNING_WIDGETS.has(id)));
-      const right = prev.filter(id => !PLANNING_WIDGETS.has(id));
-      return mergeOrders(prev, newLeft, right);
+      const centre = prev.filter(id => !PLANNING_WIDGETS.has(id) && !INSIGHTS_WIDGETS.has(id));
+      const right = prev.filter(id => INSIGHTS_WIDGETS.has(id));
+      return mergeThreeOrders(prev, newLeft, centre, right);
     });
   }, []);
 
   const setRightOrder = useCallback((updater: (prev: WidgetId[]) => WidgetId[]) => {
     setWidgetOrder(prev => {
       const left = prev.filter(id => PLANNING_WIDGETS.has(id));
-      const newRight = updater(prev.filter(id => !PLANNING_WIDGETS.has(id)));
-      return mergeOrders(prev, left, newRight);
+      const newCentre = updater(prev.filter(id => !PLANNING_WIDGETS.has(id) && !INSIGHTS_WIDGETS.has(id)));
+      const right = prev.filter(id => INSIGHTS_WIDGETS.has(id));
+      return mergeThreeOrders(prev, left, newCentre, right);
+    });
+  }, []);
+
+  const setInsightsOrder = useCallback((updater: (prev: WidgetId[]) => WidgetId[]) => {
+    setWidgetOrder(prev => {
+      const left = prev.filter(id => PLANNING_WIDGETS.has(id));
+      const centre = prev.filter(id => !PLANNING_WIDGETS.has(id) && !INSIGHTS_WIDGETS.has(id));
+      const newRight = updater(prev.filter(id => INSIGHTS_WIDGETS.has(id)));
+      return mergeThreeOrders(prev, left, centre, newRight);
     });
   }, []);
 
   // Mobile: move a widget up or down within its tab group in the flat list
   const moveUp = useCallback((id: WidgetId) => {
     setWidgetOrder(prev => {
-      const isPlanning = PLANNING_WIDGETS.has(id);
-      const groupIds = prev.filter(w => PLANNING_WIDGETS.has(w) === isPlanning);
+      const group = getGroup(id);
+      const groupIds = prev.filter(w => getGroup(w) === group);
       const groupIdx = groupIds.indexOf(id);
       if (groupIdx <= 0) return prev;
       const newGroup = arrayMove(groupIds, groupIdx, groupIdx - 1);
-      // Rebuild full order preserving the other group's positions
       const result: WidgetId[] = [];
       let gi = 0;
       for (const w of prev) {
-        if (PLANNING_WIDGETS.has(w) === isPlanning) {
+        if (getGroup(w) === group) {
           result.push(newGroup[gi++]);
         } else {
           result.push(w);
@@ -118,15 +148,15 @@ export function useDashboardLayout(isLoggedIn: boolean) {
 
   const moveDown = useCallback((id: WidgetId) => {
     setWidgetOrder(prev => {
-      const isPlanning = PLANNING_WIDGETS.has(id);
-      const groupIds = prev.filter(w => PLANNING_WIDGETS.has(w) === isPlanning);
+      const group = getGroup(id);
+      const groupIds = prev.filter(w => getGroup(w) === group);
       const groupIdx = groupIds.indexOf(id);
       if (groupIdx < 0 || groupIdx >= groupIds.length - 1) return prev;
       const newGroup = arrayMove(groupIds, groupIdx, groupIdx + 1);
       const result: WidgetId[] = [];
       let gi = 0;
       for (const w of prev) {
-        if (PLANNING_WIDGETS.has(w) === isPlanning) {
+        if (getGroup(w) === group) {
           result.push(newGroup[gi++]);
         } else {
           result.push(w);
@@ -162,8 +192,10 @@ export function useDashboardLayout(isLoggedIn: boolean) {
     widgetOrder,
     leftOrder,
     rightOrder,
+    insightsOrder,
     setLeftOrder,
     setRightOrder,
+    setInsightsOrder,
     moveUp,
     moveDown,
     isEditing,
@@ -174,20 +206,31 @@ export function useDashboardLayout(isLoggedIn: boolean) {
   };
 }
 
-// Re-merge left and right back into a flat order, preserving original positions
-function mergeOrders(
+// Determine which group (planning / tracking / insights) a widget belongs to
+function getGroup(id: WidgetId): "planning" | "tracking" | "insights" {
+  if (PLANNING_WIDGETS.has(id)) return "planning";
+  if (INSIGHTS_WIDGETS.has(id)) return "insights";
+  return "tracking";
+}
+
+// Re-merge left, centre and right back into a flat order, preserving original positions
+function mergeThreeOrders(
   original: WidgetId[],
   newLeft: WidgetId[],
+  newCentre: WidgetId[],
   newRight: WidgetId[]
 ): WidgetId[] {
   const result: WidgetId[] = [];
   let li = 0;
+  let ci = 0;
   let ri = 0;
   for (const id of original) {
     if (PLANNING_WIDGETS.has(id)) {
       if (li < newLeft.length) result.push(newLeft[li++]);
-    } else {
+    } else if (INSIGHTS_WIDGETS.has(id)) {
       if (ri < newRight.length) result.push(newRight[ri++]);
+    } else {
+      if (ci < newCentre.length) result.push(newCentre[ci++]);
     }
   }
   return result;

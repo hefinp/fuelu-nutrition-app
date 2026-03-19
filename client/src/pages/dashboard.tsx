@@ -18,11 +18,10 @@ import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
 import { InstallPrompt } from "@/components/install-prompt";
 import ClientIntakeFormWidget from "@/components/client-intake-form";
-const InsightsPage = lazy(() => import("@/pages/insights"));
-const VitalityInsightsPage = lazy(() => import("@/pages/vitality-insights"));
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
-import { useDashboardLayout, PLANNING_WIDGETS } from "@/hooks/use-dashboard-layout";
+import { MacroComplianceWidget } from "@/components/macro-compliance-widget";
+import { useDashboardLayout, PLANNING_WIDGETS, INSIGHTS_WIDGETS } from "@/hooks/use-dashboard-layout";
 import type { WidgetId } from "@/hooks/use-dashboard-layout";
 import type { PrefillEntry } from "@/components/food-log";
 import type { Meal } from "@/components/results-display";
@@ -309,8 +308,6 @@ export default function Dashboard() {
   const [allergiesOpen, setAllergiesOpen] = useState(false);
   const [logPrefill, setLogPrefill] = useState<PrefillEntry | null>(null);
   const [showLogDrawer, setShowLogDrawer] = useState(false);
-  const [showInsightsPopup, setShowInsightsPopup] = useState(false);
-  const [showVitalityInsightsPopup, setShowVitalityInsightsPopup] = useState(false);
   const { data: history, isLoading: historyLoading, isFetched: historyFetched } = useCalculations();
   const { user, logout, isLoggingOut } = useAuth();
   const { data: tierStatus } = useTierStatus();
@@ -350,7 +347,7 @@ export default function Dashboard() {
   });
 
   const [cycleStopConfirm, setCycleStopConfirm] = useState(false);
-  const [mobileTab, setMobileTab] = useState<'planning' | 'tracking'>('planning');
+  const [mobileTab, setMobileTab] = useState<'planning' | 'tracking' | 'insights'>('planning');
 
   const updatePrefsMutation = useMutation({
     mutationFn: (updates: Partial<UserPreferences>) =>
@@ -403,8 +400,10 @@ export default function Dashboard() {
     widgetOrder,
     leftOrder,
     rightOrder,
+    insightsOrder,
     setLeftOrder,
     setRightOrder,
+    setInsightsOrder,
     moveUp,
     moveDown,
     isEditing,
@@ -468,6 +467,17 @@ export default function Dashboard() {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       setRightOrder(prev => {
+        const oldIdx = prev.indexOf(active.id as WidgetId);
+        const newIdx = prev.indexOf(over.id as WidgetId);
+        return arrayMove(prev, oldIdx, newIdx);
+      });
+    }
+  }
+
+  function handleInsightsDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setInsightsOrder(prev => {
         const oldIdx = prev.indexOf(active.id as WidgetId);
         const newIdx = prev.indexOf(over.id as WidgetId);
         return arrayMove(prev, oldIdx, newIdx);
@@ -589,6 +599,21 @@ export default function Dashboard() {
             </Link>
           </div>
         );
+      case "weekly-summary":
+        return user ? <FreeWeeklySummaryCard /> : null;
+      case "adaptive-tdee":
+        if (!user) return null;
+        if (tierStatus?.betaUser || tierStatus?.tier === "advanced") return <AdaptiveTdeeCard />;
+        return null;
+      case "macro-compliance":
+        return user ? (
+          <MacroComplianceWidget
+            dailyCalories={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
+            proteinGoal={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
+            carbsGoal={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
+            fatGoal={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
+          />
+        ) : null;
       default:
         return null;
     }
@@ -596,10 +621,12 @@ export default function Dashboard() {
 
   // All visible widgets (nulls removed)
   const allVisibleOrder = widgetOrder.filter(id => renderWidget(id) !== null);
-  // Mobile: filter by active tab (Planning or Tracking)
-  const visibleMobileOrder = allVisibleOrder.filter(id =>
-    mobileTab === 'planning' ? PLANNING_WIDGETS.has(id) : !PLANNING_WIDGETS.has(id)
-  );
+  // Mobile: filter by active tab (Planning / Tracking / Insights)
+  const visibleMobileOrder = allVisibleOrder.filter(id => {
+    if (mobileTab === 'planning') return PLANNING_WIDGETS.has(id);
+    if (mobileTab === 'insights') return INSIGHTS_WIDGETS.has(id);
+    return !PLANNING_WIDGETS.has(id) && !INSIGHTS_WIDGETS.has(id);
+  });
 
   useEffect(() => {
     document.documentElement.classList.add("dashboard-snap");
@@ -1231,20 +1258,24 @@ export default function Dashboard() {
               )}
             </div>
 
-            {user && !user.isManagedClient && (!tierStatus || tierStatus.tier === "free") && <FreeWeeklySummaryCard />}
-
-            {user && (tierStatus?.betaUser || tierStatus?.tier === "advanced") && <AdaptiveTdeeCard />}
-
-            {/* ── MOBILE tab toggle: Planning / Tracking ── */}
+            {/* ── MOBILE tab toggle: Planning / Tracking / Insights ── */}
             <div className="xl:hidden mb-4">
               <div className="relative bg-zinc-100 rounded-xl p-1 flex items-stretch shadow border border-zinc-200" data-testid="dashboard-tab-toggle">
                 <div
                   className="absolute top-1 bottom-1 rounded-lg bg-white shadow-md transition-all duration-300 ease-out"
-                  style={{ width: 'calc((100% - 8px) / 2)', left: mobileTab === 'planning' ? '4px' : 'calc(4px + (100% - 8px) / 2)' }}
+                  style={{
+                    width: 'calc((100% - 8px) / 3)',
+                    left: mobileTab === 'planning'
+                      ? '4px'
+                      : mobileTab === 'tracking'
+                      ? 'calc(4px + (100% - 8px) / 3)'
+                      : 'calc(4px + (100% - 8px) * 2 / 3)',
+                  }}
                 />
                 {([
                   { key: 'planning' as const, label: 'Planning' },
                   { key: 'tracking' as const, label: 'Tracking' },
+                  { key: 'insights' as const, label: 'Insights' },
                 ]).map(tab => (
                   <button
                     key={tab.key}
@@ -1280,8 +1311,8 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* ── DESKTOP layout: Planning (left) and Tracking (right) equal columns ── */}
-            <div className="hidden xl:grid xl:grid-cols-2 gap-6">
+            {/* ── DESKTOP layout: Planning (left), Tracking (centre), Insights (right) ── */}
+            <div className="hidden xl:grid xl:grid-cols-3 gap-6">
               {/* Left column — Planning widgets */}
               <div className="flex flex-col gap-6">
                 <DndContext
@@ -1303,7 +1334,7 @@ export default function Dashboard() {
                 </DndContext>
               </div>
 
-              {/* Right column — Tracking widgets */}
+              {/* Centre column — Tracking widgets */}
               <div className="flex flex-col gap-6">
                 <DndContext
                   sensors={sensors}
@@ -1312,6 +1343,27 @@ export default function Dashboard() {
                 >
                   <SortableContext items={rightOrder} strategy={verticalListSortingStrategy}>
                     {rightOrder.map(id => {
+                      const content = renderWidget(id);
+                      if (!content) return null;
+                      return (
+                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
+                          {content}
+                        </SortableWidget>
+                      );
+                    })}
+                  </SortableContext>
+                </DndContext>
+              </div>
+
+              {/* Right column — Insights widgets */}
+              <div className="flex flex-col gap-6">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleInsightsDragEnd}
+                >
+                  <SortableContext items={insightsOrder} strategy={verticalListSortingStrategy}>
+                    {insightsOrder.map(id => {
                       const content = renderWidget(id);
                       if (!content) return null;
                       return (
@@ -1349,12 +1401,10 @@ export default function Dashboard() {
                 id: "plan",
                 icon: CalendarDays,
                 label: "Plan",
-                active: mobileTab === 'planning' && !showSavedPlans && !showMetricsPanel && !showInsightsPopup && !showVitalityInsightsPopup,
+                active: mobileTab === 'planning' && !showSavedPlans && !showMetricsPanel,
                 action: () => {
                   setShowSavedPlans(false);
                   setShowMetricsPanel(false);
-                  setShowInsightsPopup(false);
-                  setShowVitalityInsightsPopup(false);
                   setMobileTab('planning');
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 },
@@ -1363,12 +1413,10 @@ export default function Dashboard() {
                 id: "track",
                 icon: Activity,
                 label: "Track",
-                active: mobileTab === 'tracking' && !showSavedPlans && !showMetricsPanel && !showInsightsPopup && !showVitalityInsightsPopup,
+                active: mobileTab === 'tracking' && !showSavedPlans && !showMetricsPanel,
                 action: () => {
                   setShowSavedPlans(false);
                   setShowMetricsPanel(false);
-                  setShowInsightsPopup(false);
-                  setShowVitalityInsightsPopup(false);
                   setMobileTab('tracking');
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 },
@@ -1381,24 +1429,21 @@ export default function Dashboard() {
                 action: () => {
                   setShowSavedPlans(false);
                   setShowMetricsPanel(false);
-                  setShowInsightsPopup(false);
-                  setShowVitalityInsightsPopup(false);
                   setShowLogDrawer(true);
                 },
               },
-              ...(userPrefs?.cycleTrackingEnabled ? [{
+              {
                 id: "insights",
                 icon: TrendingUp,
                 label: "Insights",
-                active: showInsightsPopup,
-                action: () => setShowInsightsPopup(v => !v),
-              }] : userPrefs?.vitalityInsightsEnabled ? [{
-                id: "insights",
-                icon: TrendingUp,
-                label: "Insights",
-                active: showVitalityInsightsPopup,
-                action: () => setShowVitalityInsightsPopup(v => !v),
-              }] : []),
+                active: mobileTab === 'insights' && !showSavedPlans && !showMetricsPanel,
+                action: () => {
+                  setShowSavedPlans(false);
+                  setShowMetricsPanel(false);
+                  setMobileTab('insights');
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                },
+              },
               {
                 id: "settings",
                 icon: Settings,
@@ -1547,60 +1592,6 @@ export default function Dashboard() {
                 </div>
               </motion.div>
             )}
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* ── Insights popup ───────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showInsightsPopup && user && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-[39] bg-black/40"
-              onClick={() => setShowInsightsPopup(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="fixed z-40 inset-x-4 top-[5%] bottom-[5%] max-w-lg mx-auto bg-zinc-50 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
-            >
-              <div className="flex-1 overflow-y-auto">
-                <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>}><InsightsPage onClose={() => setShowInsightsPopup(false)} /></Suspense>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* ── Vitality Insights popup ────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showVitalityInsightsPopup && user && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-[39] bg-black/40"
-              onClick={() => setShowVitalityInsightsPopup(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="fixed z-40 inset-x-4 top-[5%] bottom-[5%] max-w-lg mx-auto bg-zinc-50 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
-            >
-              <div className="flex-1 overflow-y-auto">
-                <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>}><VitalityInsightsPage onClose={() => setShowVitalityInsightsPopup(false)} /></Suspense>
-              </div>
-            </motion.div>
           </>
         )}
       </AnimatePresence>
