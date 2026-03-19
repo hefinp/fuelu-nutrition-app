@@ -1354,6 +1354,28 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               </div>
 
               <div className="bg-zinc-50 border-b border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
+                <div className="relative bg-zinc-200/60 rounded-2xl p-1 flex items-stretch mb-3" data-testid="custom-plan-type-toggle">
+                  <div
+                    className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
+                    style={{ width: `calc((100% - 8px) / 2)`, left: planMode === 'daily' ? '4px' : `calc(4px + (100% - 8px) / 2)` }}
+                  />
+                  {([
+                    { key: 'daily' as const, label: 'Daily' },
+                    { key: 'weekly' as const, label: 'Weekly' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      data-testid={`toggle-custom-plan-type-${opt.key}`}
+                      onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
+                      className={`relative z-10 flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-200 ${
+                        planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setWeekStart(prev => addDays(prev, -7))}
