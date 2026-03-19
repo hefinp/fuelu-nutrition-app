@@ -1209,9 +1209,12 @@ export default function Dashboard() {
                 id: "plan",
                 icon: CalendarDays,
                 label: "Plan",
-                active: mobileTab === 'planning' && !showSavedPlans && !showMetricsPanel,
+                active: mobileTab === 'planning' && !showSavedPlans && !showMetricsPanel && !showInsightsPopup && !showVitalityInsightsPopup,
                 action: () => {
                   setShowSavedPlans(false);
+                  setShowMetricsPanel(false);
+                  setShowInsightsPopup(false);
+                  setShowVitalityInsightsPopup(false);
                   setMobileTab('planning');
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 },
@@ -1220,9 +1223,12 @@ export default function Dashboard() {
                 id: "track",
                 icon: Activity,
                 label: "Track",
-                active: mobileTab === 'tracking' && !showSavedPlans && !showMetricsPanel,
+                active: mobileTab === 'tracking' && !showSavedPlans && !showMetricsPanel && !showInsightsPopup && !showVitalityInsightsPopup,
                 action: () => {
                   setShowSavedPlans(false);
+                  setShowMetricsPanel(false);
+                  setShowInsightsPopup(false);
+                  setShowVitalityInsightsPopup(false);
                   setMobileTab('tracking');
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 },
