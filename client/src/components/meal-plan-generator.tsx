@@ -117,17 +117,19 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       allSlots.delete('breakfast');
       allSlots.delete('snack');
     } else if (protocol === '5:2') {
-      const fastDays = mealPlanPrefs.fastingDays ?? ['monday', 'thursday'];
-      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const selectedDayNames = selectedDates.map(d => {
-        const [y, mo, da] = d.split('-').map(Number);
-        return dayNames[new Date(y, mo - 1, da).getDay()];
-      });
-      const anyFastingDay = selectedDayNames.some(dn => (fastDays as readonly string[]).includes(dn));
-      if (anyFastingDay) {
-        allSlots.delete('breakfast');
-        allSlots.delete('dinner');
-        allSlots.delete('snack');
+      if (planMode === 'daily' && selectedDates.length > 0) {
+        const fastDays = mealPlanPrefs.fastingDays ?? ['monday', 'thursday'];
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const selectedDayNames = selectedDates.map(d => {
+          const [y, mo, da] = d.split('-').map(Number);
+          return dayNames[new Date(y, mo - 1, da).getDay()];
+        });
+        const allFastingDays = selectedDayNames.every(dn => (fastDays as readonly string[]).includes(dn));
+        if (allFastingDays) {
+          allSlots.delete('breakfast');
+          allSlots.delete('dinner');
+          allSlots.delete('snack');
+        }
       }
     } else {
       const wStart = mealPlanPrefs.eatingWindowStart ?? 12;
@@ -138,7 +140,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       }
     }
     setBaseSlots(allSlots);
-  }, [mealPlanPrefs, selectedDates]);
+  }, [mealPlanPrefs, selectedDates, planMode]);
 
   const toggleSlot = useCallback((slot: string) => {
     setBaseSlots(prev => {

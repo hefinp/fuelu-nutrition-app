@@ -122,7 +122,9 @@ export function ReplacePicker({ replacePicker, onClose, onReplace }: ReplacePick
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-zinc-900 truncate">{f.name}</p>
-                      <p className="text-[10px] text-zinc-400">{f.servingGrams ?? 100}g serving</p>
+                      <p className="text-[10px] text-zinc-400">
+                        {f.servingGrams ?? 100}g · P:{Math.round((f.protein100g ?? 0) * (f.servingGrams ?? 100) / 100)}g C:{Math.round((f.carbs100g ?? 0) * (f.servingGrams ?? 100) / 100)}g F:{Math.round((f.fat100g ?? 0) * (f.servingGrams ?? 100) / 100)}g
+                      </p>
                     </div>
                     <span className="text-xs font-semibold text-zinc-700 ml-2 shrink-0">
                       {Math.round((f.calories100g ?? 0) * (f.servingGrams ?? 100) / 100)} kcal
