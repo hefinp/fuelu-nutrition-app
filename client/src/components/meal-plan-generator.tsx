@@ -192,6 +192,15 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     localStorage.setItem('fuelr-widget-mode', widgetMode);
   }, [widgetMode]);
 
+  useEffect(() => {
+    if (generatorModalOpen || customModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [generatorModalOpen, customModalOpen]);
+
   const { data: userMealsData } = useQuery<{ items: any[] }>({
     queryKey: ["/api/user-meals"],
     enabled: widgetMode === "custom" || replacePicker !== null,
