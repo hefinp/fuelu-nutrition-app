@@ -1,6 +1,8 @@
 import { pool } from "./db";
 import Stripe from "stripe";
 import bcrypt from "bcryptjs";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 const INVITE_CODES = Array.from({ length: 20 }, (_, i) => {
   const n = String(i + 1).padStart(2, "0");
@@ -708,6 +710,54 @@ export async function runMigrations(): Promise<void> {
     await client.query(`ALTER TABLE adaptive_tdee_suggestions ADD COLUMN IF NOT EXISTS formula_tdee INTEGER`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_adaptive_tdee_suggestions_user ON adaptive_tdee_suggestions (user_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_adaptive_tdee_suggestions_status ON adaptive_tdee_suggestions (user_id, status) WHERE status = 'pending'`);
+
+    // canonical_foods — columns added by Task #261 (restaurant/HelloFresh database)
+    await client.query(`ALTER TABLE canonical_foods ADD COLUMN IF NOT EXISTS sugar_100g REAL`);
+    await client.query(`ALTER TABLE canonical_foods ADD COLUMN IF NOT EXISTS saturated_fat_100g REAL`);
+    await client.query(`ALTER TABLE canonical_foods ADD COLUMN IF NOT EXISTS brand TEXT`);
+    await client.query(`ALTER TABLE canonical_foods ADD COLUMN IF NOT EXISTS category TEXT`);
+    await client.query(`ALTER TABLE canonical_foods ADD COLUMN IF NOT EXISTS image_url TEXT`);
+    await client.query(`ALTER TABLE canonical_foods ADD COLUMN IF NOT EXISTS source_url TEXT`);
+    await client.query(`ALTER TABLE canonical_foods ADD COLUMN IF NOT EXISTS cook_time TEXT`);
+    await client.query(`ALTER TABLE canonical_foods ADD COLUMN IF NOT EXISTS ingredients_list JSONB`);
+
+    // Seed NZ/AU restaurant foods (153 items) — runs once; skipped if already present
+    const restaurantCount = await client.query(`SELECT COUNT(*) FROM canonical_foods WHERE source = 'restaurant_nz'`);
+    if (parseInt(restaurantCount.rows[0].count, 10) === 0) {
+      const seedPath = join(process.cwd(), "server", "seeds", "restaurant-foods.json");
+      const restaurantFoods: Array<Record<string, any>> = JSON.parse(readFileSync(seedPath, "utf8"));
+      for (const f of restaurantFoods) {
+        await client.query(
+          `INSERT INTO canonical_foods
+             (name, canonical_name, calories_100g, protein_100g, carbs_100g, fat_100g,
+              fibre_100g, sodium_100g, sugar_100g, saturated_fat_100g,
+              serving_grams, brand, category, image_url, source_url, cook_time,
+              ingredients_list, source, region)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'restaurant_nz','NZ')
+           ON CONFLICT DO NOTHING`,
+          [
+            f.name,
+            f.name.toLowerCase().trim(),
+            f.calories100g,
+            f.protein100g,
+            f.carbs100g,
+            f.fat100g,
+            f.fibre100g ?? null,
+            f.sodium100g ?? null,
+            f.sugar100g ?? null,
+            f.saturatedFat100g ?? null,
+            f.servingGrams ?? 100,
+            f.brand ?? null,
+            f.category ?? null,
+            f.imageUrl ?? null,
+            f.sourceUrl ?? null,
+            f.cookTime ?? null,
+            f.ingredientsList ? JSON.stringify(f.ingredientsList) : null,
+          ],
+        );
+      }
+      console.log(`[migrate] Seeded ${restaurantFoods.length} restaurant foods`);
+    }
 
     const TEST_EMAIL = "test@fuelr.app";
     const TEST_PASSWORD = "TestPass123!";
