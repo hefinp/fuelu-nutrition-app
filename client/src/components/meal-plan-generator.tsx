@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield, BookOpen } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Replace, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield, BookOpen } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -408,6 +408,25 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         sourceDay[source.slotKey] = sourceSlotArr;
         updated[source.dayKey] = sourceDay;
       }
+      return updated;
+    });
+    setCopyMovePopover(null);
+    setCustomPlanReady(null);
+    setCustomPlanSaved(false);
+  }, [copyMovePopover]);
+
+  const executeReplace = useCallback(() => {
+    if (!copyMovePopover) return;
+    const { source, target } = copyMovePopover;
+    setCustomSlots(prev => {
+      const updated = { ...prev };
+      const sourceDay = { ...(updated[source.dayKey] || {}) };
+      const sourceSlotArr = [...(sourceDay[source.slotKey] || [])];
+      const meal = sourceSlotArr[source.mealIdx];
+      if (!meal) { setCopyMovePopover(null); return prev; }
+      const targetDay = { ...(updated[target.dayKey] || {}) };
+      targetDay[target.slotKey] = [{ ...meal }];
+      updated[target.dayKey] = targetDay;
       return updated;
     });
     setCopyMovePopover(null);
@@ -1906,31 +1925,47 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         </div>
       )}
 
-      {copyMovePopover && (
-        <div className="fixed inset-0 z-[60]" onClick={() => setCopyMovePopover(null)}>
-          <div
-            className="absolute bg-white rounded-xl shadow-2xl border border-zinc-200 p-1 flex gap-1"
-            style={{ left: Math.min(copyMovePopover.x - 80, window.innerWidth - 170), top: Math.max(copyMovePopover.y - 44, 8) }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => executeCopyMove('copy')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
-              data-testid="button-copy-meal"
+      {copyMovePopover && (() => {
+        const targetHasMeals = (customSlots[copyMovePopover.target.dayKey]?.[copyMovePopover.target.slotKey]?.length ?? 0) > 0;
+        const popoverWidth = targetHasMeals ? 260 : 170;
+        return (
+          <div className="fixed inset-0 z-[60]" onClick={() => setCopyMovePopover(null)}>
+            <div
+              className="absolute bg-white rounded-xl shadow-2xl border border-zinc-200 p-1 flex gap-1"
+              style={{ left: Math.min(copyMovePopover.x - popoverWidth / 2, window.innerWidth - popoverWidth - 8), top: Math.max(copyMovePopover.y - 44, 8) }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <Copy className="w-3.5 h-3.5" /> Copy
-            </button>
-            <div className="w-px bg-zinc-200 my-1" />
-            <button
-              onClick={() => executeCopyMove('move')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
-              data-testid="button-move-meal"
-            >
-              <Move className="w-3.5 h-3.5" /> Move
-            </button>
+              <button
+                onClick={() => executeCopyMove('copy')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
+                data-testid="button-copy-meal"
+              >
+                <Copy className="w-3.5 h-3.5" /> Copy
+              </button>
+              <div className="w-px bg-zinc-200 my-1" />
+              <button
+                onClick={() => executeCopyMove('move')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
+                data-testid="button-move-meal"
+              >
+                <Move className="w-3.5 h-3.5" /> Move
+              </button>
+              {targetHasMeals && (
+                <>
+                  <div className="w-px bg-zinc-200 my-1" />
+                  <button
+                    onClick={() => executeReplace()}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-amber-50 text-sm font-medium text-amber-700 transition-colors"
+                    data-testid="button-replace-meal"
+                  >
+                    <Replace className="w-3.5 h-3.5" /> Replace
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {touchDragging && touchGhost && !copyMovePopover && (
         <div
