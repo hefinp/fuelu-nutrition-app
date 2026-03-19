@@ -1237,10 +1237,10 @@ export default function Dashboard() {
 
             {/* ── MOBILE tab toggle: Planning / Tracking ── */}
             <div className="xl:hidden mb-4">
-              <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch" data-testid="dashboard-tab-toggle">
+              <div className="relative bg-zinc-100 rounded-xl p-1 flex items-stretch shadow border border-zinc-200" data-testid="dashboard-tab-toggle">
                 <div
-                  className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
-                  style={{ width: 'calc((100% - 4px) / 2)', left: mobileTab === 'planning' ? '2px' : 'calc(2px + (100% - 4px) / 2)' }}
+                  className="absolute top-1 bottom-1 rounded-lg bg-white shadow-md transition-all duration-300 ease-out"
+                  style={{ width: 'calc((100% - 8px) / 2)', left: mobileTab === 'planning' ? '4px' : 'calc(4px + (100% - 8px) / 2)' }}
                 />
                 {([
                   { key: 'planning' as const, label: 'Planning' },
@@ -1250,8 +1250,8 @@ export default function Dashboard() {
                     key={tab.key}
                     type="button"
                     onClick={() => setMobileTab(tab.key)}
-                    className={`relative z-10 flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-200 ${
-                      mobileTab === tab.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                    className={`relative z-10 flex-1 py-3 rounded-lg text-sm transition-colors duration-200 ${
+                      mobileTab === tab.key ? 'text-zinc-900 font-bold' : 'text-zinc-400 font-medium hover:text-zinc-600'
                     }`}
                     data-testid={`tab-dashboard-${tab.key}`}
                   >
