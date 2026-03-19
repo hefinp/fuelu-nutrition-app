@@ -8,6 +8,7 @@ import { SavedMealPlans } from "@/components/saved-meal-plans";
 import { WeightTracker } from "@/components/weight-tracker";
 import { PreferencesForm, AllergiesForm } from "@/components/preferences-form";
 import { FoodLog } from "@/components/food-log";
+import { FoodLogDrawer } from "@/components/food-log-drawer";
 import { HydrationTracker } from "@/components/hydration-tracker";
 const CycleTracker = lazy(() => import("@/components/cycle-tracker").then(m => ({ default: m.CycleTracker })));
 const VitalityTracker = lazy(() => import("@/components/vitality-tracker").then(m => ({ default: m.VitalityTracker })));
@@ -50,7 +51,7 @@ import {
   ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
   Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, TrendingUp, Star,
   Sparkles, ScanLine, Heart, ShieldCheck, Zap, User, Crown, Briefcase, MessageSquare,
-  CalendarDays, Activity,
+  CalendarDays, Activity, PenLine,
 } from "lucide-react";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
 
@@ -172,6 +173,7 @@ export default function Dashboard() {
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [allergiesOpen, setAllergiesOpen] = useState(false);
   const [logPrefill, setLogPrefill] = useState<PrefillEntry | null>(null);
+  const [showLogDrawer, setShowLogDrawer] = useState(false);
   const [showInsightsPopup, setShowInsightsPopup] = useState(false);
   const [showVitalityInsightsPopup, setShowVitalityInsightsPopup] = useState(false);
   const { data: history, isLoading: historyLoading, isFetched: historyFetched } = useCalculations();
@@ -1234,11 +1236,17 @@ export default function Dashboard() {
                 },
               },
               {
-                id: "plans",
-                icon: BookOpen,
-                label: "My Plans",
-                active: showSavedPlans,
-                action: () => setShowSavedPlans(v => !v),
+                id: "log",
+                icon: PenLine,
+                label: "Log",
+                active: showLogDrawer,
+                action: () => {
+                  setShowSavedPlans(false);
+                  setShowMetricsPanel(false);
+                  setShowInsightsPopup(false);
+                  setShowVitalityInsightsPopup(false);
+                  setShowLogDrawer(true);
+                },
               },
               ...(userPrefs?.cycleTrackingEnabled ? [{
                 id: "insights",
@@ -1458,6 +1466,21 @@ export default function Dashboard() {
           </>
         )}
       </AnimatePresence>
+
+      {/* ── Global Log Drawer (triggered from mobile nav "Log" button) ───── */}
+      {showLogDrawer && user && (
+        <FoodLogDrawer
+          open={showLogDrawer}
+          onClose={() => setShowLogDrawer(false)}
+          selectedDate={new Date().toISOString().split("T")[0]}
+          dailyTargets={{
+            calories: effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories,
+            protein: effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal,
+            carbs: effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal,
+            fat: effectiveTargets?.fatGoal ?? activeResult?.fatGoal,
+          }}
+        />
+      )}
 
     </div>
   );
