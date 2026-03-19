@@ -51,6 +51,12 @@ const ALLERGEN_KEYWORDS: Record<string, string[]> = {
   shellfish: ["shrimp", "prawn", "crab", "lobster", "crayfish", "scallop", "oyster", "mussel", "clam", "squid", "octopus"],
   fish: ["salmon", "tuna", "cod", "halibut", "trout", "anchovy", "tilapia", "haddock", "mackerel", "sardine", "bass", "snapper", "swordfish", "smoked salmon"],
   soy: ["soy", "soya", "tofu", "tempeh", "miso", "edamame"],
+  celery: ["celery", "celeriac", "celery salt", "celery seed"],
+  mustard: ["mustard", "dijon", "wholegrain mustard", "mustard seed", "mustard powder"],
+  sesame: ["sesame", "tahini", "sesame oil", "sesame seed", "halvah"],
+  sulphites: ["sulphite", "sulfite", "wine", "dried fruit", "vinegar", "molasses"],
+  lupin: ["lupin", "lupini"],
+  molluscs: ["mussel", "clam", "oyster", "squid", "octopus", "snail", "escargot", "calamari", "scallop"],
 };
 
 function detectAllergyConflicts(ingredients: string[], allergies: string[]): string[] {
