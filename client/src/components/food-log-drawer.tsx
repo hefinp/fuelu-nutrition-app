@@ -609,15 +609,6 @@ export function FoodLogDrawer({
         <div className="flex bg-zinc-100 p-1 mx-4 my-3 rounded-xl shrink-0">
           <button
             type="button"
-            onClick={() => setFormTab("manual")}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "manual" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-            data-testid="button-form-tab-manual"
-          >
-            <UtensilsCrossed className="w-3.5 h-3.5" />
-            Manual
-          </button>
-          <button
-            type="button"
             onClick={() => setFormTab("search")}
             className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "search" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
             data-testid="button-form-tab-search"
@@ -651,6 +642,15 @@ export function FoodLogDrawer({
           >
             <BookOpen className="w-3.5 h-3.5" />
             Plan
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormTab("manual")}
+            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "manual" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-form-tab-manual"
+          >
+            <UtensilsCrossed className="w-3.5 h-3.5" />
+            Manual
           </button>
         </div>
 
