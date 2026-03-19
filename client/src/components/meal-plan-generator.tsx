@@ -266,12 +266,12 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     };
   }, [generatorModalOpen, customModalOpen]);
 
-  const { data: userMealsData } = useQuery<{ items: any[] }>({
+  const { data: userMealsData, isLoading: userMealsLoading } = useQuery<{ items: any[] }>({
     queryKey: ["/api/user-meals"],
-    enabled: widgetMode === "custom" || replacePicker !== null,
+    enabled: widgetMode === "custom" || replacePicker !== null || addMealPopover !== null,
   });
   const filteredUserMeals = (userMealsData?.items ?? []).filter(m =>
-    m.caloriesPerServing > 0 && (!mealSearchQuery || m.name.toLowerCase().includes(mealSearchQuery.toLowerCase()))
+    !mealSearchQuery || m.name.toLowerCase().includes(mealSearchQuery.toLowerCase())
   );
 
   const { data: userFoodsData } = useQuery<{ items: any[] }>({
@@ -1905,7 +1905,12 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               />
             </div>
             <div className="max-h-60 overflow-y-auto space-y-1">
-              {filteredUserMeals.length === 0 ? (
+              {userMealsLoading ? (
+                <div className="flex items-center justify-center py-6" data-testid="loading-meals">
+                  <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+                  <span className="ml-2 text-xs text-zinc-400">Loading meals…</span>
+                </div>
+              ) : filteredUserMeals.length === 0 ? (
                 <p className="text-xs text-zinc-400 py-4 text-center" data-testid="text-no-meals-found">
                   {userMealsData?.items?.length === 0 ? "No meals in your library yet. Add some from My Meals first." : "No meals match your search."}
                 </p>
@@ -2108,12 +2113,12 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 </>
               ) : (
                 <>
-                  {(userMealsData?.items ?? []).filter(m => m.caloriesPerServing > 0 && (!replaceSearchQuery || m.name.toLowerCase().includes(replaceSearchQuery.toLowerCase()))).length === 0 ? (
+                  {(userMealsData?.items ?? []).filter(m => !replaceSearchQuery || m.name.toLowerCase().includes(replaceSearchQuery.toLowerCase())).length === 0 ? (
                     <p className="text-xs text-zinc-400 py-4 text-center" data-testid="text-no-replace-meals-found">
                       {(userMealsData?.items ?? []).length === 0 ? "No meals in your library yet." : "No meals match your search."}
                     </p>
                   ) : (
-                    (userMealsData?.items ?? []).filter(m => m.caloriesPerServing > 0 && (!replaceSearchQuery || m.name.toLowerCase().includes(replaceSearchQuery.toLowerCase()))).map((m: any) => (
+                    (userMealsData?.items ?? []).filter(m => !replaceSearchQuery || m.name.toLowerCase().includes(replaceSearchQuery.toLowerCase())).map((m: any) => (
                       <button
                         key={m.id}
                         onClick={() => handleLibraryReplace({
