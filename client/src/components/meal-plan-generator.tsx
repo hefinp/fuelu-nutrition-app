@@ -870,10 +870,10 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
                 <div className="mb-4">
                   <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Plan Type</p>
-                  <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="plan-type-toggle">
+                  <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch" data-testid="plan-type-toggle">
                     <div
-                      className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
-                      style={{ width: `calc((100% - 8px) / 2)`, left: planMode === 'daily' ? '4px' : `calc(4px + (100% - 8px) / 2)` }}
+                      className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
+                      style={{ width: `calc((100% - 4px) / 2)`, left: planMode === 'daily' ? '2px' : `calc(2px + (100% - 4px) / 2)` }}
                     />
                     {([
                       { key: 'daily' as const, label: 'Daily' },
@@ -884,7 +884,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                         type="button"
                         data-testid={`toggle-plan-type-${opt.key}`}
                         onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
-                        className={`relative z-10 flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-200 ${
+                        className={`relative z-10 flex-1 py-1 rounded-lg text-xs font-semibold transition-colors duration-200 ${
                           planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
                         }`}
                       >
@@ -937,7 +937,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 </div>
 
                 {cycleEnabledButMissing && !ignoreCycle && (
-                  <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 mb-4" data-testid="callout-cycle-missing">
+                  <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-xl border border-amber-200 bg-amber-50 mb-2" data-testid="callout-cycle-missing">
                     <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="text-xs font-medium text-amber-800">
@@ -970,7 +970,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 )}
 
                 {planMode === 'daily' && cycleInfo && (
-                  <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border mb-4 ${cycleInfo.bgClass} ${cycleInfo.borderClass}`}>
+                  <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border mb-2 ${cycleInfo.bgClass} ${cycleInfo.borderClass}`}>
                     <Circle className={`w-3.5 h-3.5 flex-shrink-0 ${cycleInfo.colorClass}`} />
                     <p className={`text-xs font-medium ${cycleInfo.textClass}`}>
                       {cycleInfo.name} phase · Day {cycleInfo.day} · {cycleInfo.shortTip}
@@ -978,7 +978,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                   </div>
                 )}
                 {planMode === 'weekly' && weekCycleInfo && (
-                  <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border mb-4 ${weekCycleInfo.bgClass} ${weekCycleInfo.borderClass}`}>
+                  <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border mb-2 ${weekCycleInfo.bgClass} ${weekCycleInfo.borderClass}`}>
                     <Circle className={`w-3 h-3 flex-shrink-0 ${weekCycleInfo.colorClass}`} />
                     <p className={`text-xs ${weekCycleInfo.textClass}`}>
                       {weekCycleInfo.name} phase from {formatShort(weekStart)} · {weekCycleInfo.shortTip}
@@ -988,7 +988,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
                 {mealPlanPrefs?.vitalityInsightsEnabled && data.gender === "male" && (
                   isMealPremium ? (
-                    <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 mb-4" data-testid="vitality-hormone-boost-toggle">
+                    <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl border border-amber-200 bg-amber-50 mb-2" data-testid="vitality-hormone-boost-toggle">
                       <div className="flex items-center gap-2">
                         <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                         <div>
@@ -1013,7 +1013,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     </div>
                   ) : (
                     <Link href="/pricing">
-                      <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 mb-4 cursor-pointer hover:bg-zinc-100 transition-colors" data-testid="vitality-hormone-boost-locked">
+                      <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl border border-zinc-200 bg-zinc-50 mb-2 cursor-pointer hover:bg-zinc-100 transition-colors" data-testid="vitality-hormone-boost-locked">
                         <div className="flex items-center gap-2">
                           <Lock className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
                           <div>
@@ -1330,10 +1330,10 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               </div>
 
               <div className="bg-zinc-50 border-b border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
-                <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch mb-3" data-testid="custom-plan-type-toggle">
+                <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch mb-3" data-testid="custom-plan-type-toggle">
                   <div
-                    className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
-                    style={{ width: `calc((100% - 8px) / 2)`, left: planMode === 'daily' ? '4px' : `calc(4px + (100% - 8px) / 2)` }}
+                    className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
+                    style={{ width: `calc((100% - 4px) / 2)`, left: planMode === 'daily' ? '2px' : `calc(2px + (100% - 4px) / 2)` }}
                   />
                   {([
                     { key: 'daily' as const, label: 'Daily' },
@@ -1344,7 +1344,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                       type="button"
                       data-testid={`toggle-custom-plan-type-${opt.key}`}
                       onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
-                      className={`relative z-10 flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-200 ${
+                      className={`relative z-10 flex-1 py-1 rounded-lg text-xs font-semibold transition-colors duration-200 ${
                         planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
                       }`}
                     >
@@ -1533,7 +1533,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
                 {mealPlanPrefs?.vitalityInsightsEnabled && data.gender === "male" && (
                   isMealPremium ? (
-                    <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 mb-2" data-testid="custom-vitality-hormone-boost-toggle">
+                    <div className="flex items-center justify-between px-2 py-1 rounded-lg border border-amber-200 bg-amber-50 mb-1.5" data-testid="custom-vitality-hormone-boost-toggle">
                       <div className="flex items-center gap-2">
                         <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                         <p className="text-xs font-medium text-amber-800">Hormone-boosting meals</p>
@@ -1555,7 +1555,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     </div>
                   ) : (
                     <Link href="/pricing">
-                      <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-zinc-200 bg-zinc-50 mb-2 cursor-pointer hover:bg-zinc-100 transition-colors" data-testid="custom-vitality-hormone-boost-locked">
+                      <div className="flex items-center justify-between px-2 py-1 rounded-lg border border-zinc-200 bg-zinc-50 mb-1.5 cursor-pointer hover:bg-zinc-100 transition-colors" data-testid="custom-vitality-hormone-boost-locked">
                         <div className="flex items-center gap-2">
                           <Lock className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
                           <p className="text-xs font-medium text-zinc-600">Hormone-boosting meals</p>
