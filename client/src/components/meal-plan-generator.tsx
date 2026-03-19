@@ -257,7 +257,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       }
       return next.size !== prev.size ? next : prev;
     });
-  }, [selectedDates, planMode]);
+  }, [selectedDates, planMode, mealPlanPrefs]);
 
   const { data: userMealsData } = useQuery<{ items: any[] }>({
     queryKey: ["/api/user-meals"],
