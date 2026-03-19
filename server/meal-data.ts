@@ -463,7 +463,7 @@ export function buildDayPlan(
   const bfTarget     = includeBreakfast ? Math.round(dailyCalories * (slotPcts.breakfast ?? 0)) : 0;
   const lunchTarget  = includeLunch ? Math.round(dailyCalories * (slotPcts.lunch ?? 0)) : 0;
   const dinnerTarget = includeDinner ? Math.round(dailyCalories * (slotPcts.dinner ?? 0)) : 0;
-  const snackBudget  = includeSnack ? (dailyCalories - bfTarget - lunchTarget - dinnerTarget) : 0;
+  const snackBudget  = includeSnack ? Math.round(dailyCalories * basePcts.snack) : 0;
 
   let breakfastList: MealEntry[] = [];
   if (includeBreakfast) {
