@@ -216,19 +216,35 @@ export function useFoodPicker(opts: {
 
 export function MacroGrid({ food, servingGrams }: { food: FoodResult | ExtendedFoodResult; servingGrams: string }) {
   const f = (parseFloat(servingGrams) || 0) / 100;
+  const extraMacros = [
+    food.fibre100g != null ? { label: "fibre", value: Math.round(food.fibre100g * f), unit: "g" } : null,
+    food.sugar100g != null ? { label: "sugar", value: Math.round(food.sugar100g * f), unit: "g" } : null,
+    food.saturatedFat100g != null ? { label: "sat. fat", value: Math.round(food.saturatedFat100g * f), unit: "g" } : null,
+  ].filter(Boolean) as { label: string; value: number; unit: string }[];
   return (
-    <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
-      {[
-        { label: "kcal", value: Math.round(food.calories100g * f), color: "bg-orange-50 text-orange-700" },
-        { label: "protein", value: Math.round(food.protein100g * f), color: "bg-red-50 text-red-700" },
-        { label: "carbs", value: Math.round(food.carbs100g * f), color: "bg-blue-50 text-blue-700" },
-        { label: "fat", value: Math.round(food.fat100g * f), color: "bg-yellow-50 text-yellow-700" },
-      ].map(({ label, value, color }) => (
-        <div key={label} className={`${color} rounded-lg p-1.5 text-center`}>
-          <p className="text-sm font-bold">{value}</p>
-          <p className="text-[9px] font-medium uppercase tracking-wide opacity-70">{label}</p>
+    <div>
+      <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
+        {[
+          { label: "kcal", value: Math.round(food.calories100g * f), color: "bg-orange-50 text-orange-700" },
+          { label: "protein", value: Math.round(food.protein100g * f), color: "bg-red-50 text-red-700" },
+          { label: "carbs", value: Math.round(food.carbs100g * f), color: "bg-blue-50 text-blue-700" },
+          { label: "fat", value: Math.round(food.fat100g * f), color: "bg-yellow-50 text-yellow-700" },
+        ].map(({ label, value, color }) => (
+          <div key={label} className={`${color} rounded-lg p-1.5 text-center`}>
+            <p className="text-sm font-bold">{value}</p>
+            <p className="text-[9px] font-medium uppercase tracking-wide opacity-70">{label}</p>
+          </div>
+        ))}
+      </div>
+      {extraMacros.length > 0 && (
+        <div className="flex items-center justify-center gap-3 mt-1.5 text-[10px] text-zinc-500">
+          {extraMacros.map(m => (
+            <span key={m.label} className="flex items-center gap-0.5">
+              <span className="font-medium text-zinc-700">{m.value}{m.unit}</span> {m.label}
+            </span>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }

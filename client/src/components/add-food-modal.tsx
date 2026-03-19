@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
   X, Loader2, Pencil, Check, Search, Barcode, Sparkles, AlertTriangle,
+  UtensilsCrossed, ChevronDown, Clock, ExternalLink,
 } from "lucide-react";
 import type { UserSavedFood } from "@shared/schema";
 import type { FoodResult, ExtendedFoodResult } from "@/components/food-log-shared";
@@ -173,8 +174,40 @@ export function AddFoodModal({ onClose, onSaved, initialTab = "search" }: { onCl
     && calOk && protOk && carbsOk && fatOk
     && (calNum > 0 || protNum > 0 || carbsNum > 0 || fatNum > 0);
 
+  const [restQuery, setRestQuery] = useState("");
+  const [restDebouncedQuery, setRestDebouncedQuery] = useState("");
+  const [restBrand, setRestBrand] = useState<string>("");
+  const [restSelectedFood, setRestSelectedFood] = useState<FoodResult | null>(null);
+  const [restServGrams, setRestServGrams] = useState("100");
+  const [restBrandOpen, setRestBrandOpen] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setRestDebouncedQuery(restQuery.trim()), 400);
+    return () => clearTimeout(t);
+  }, [restQuery]);
+
+  const { data: restBrands = [] } = useQuery<string[]>({
+    queryKey: ["/api/restaurant-foods/brands"],
+    staleTime: 300000,
+  });
+
+  const restSearchEnabled = restDebouncedQuery.length >= 2 || restBrand.length > 0;
+  const { data: restResults = [], isLoading: restLoading } = useQuery<FoodResult[]>({
+    queryKey: ["/api/restaurant-foods/search", restDebouncedQuery, restBrand],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (restDebouncedQuery) params.set("q", restDebouncedQuery);
+      if (restBrand) params.set("brand", restBrand);
+      const res = await fetch(`/api/restaurant-foods/search?${params}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: restSearchEnabled,
+  });
+
   const addFoodTabs: { id: AddFoodTab; label: string; icon: typeof Search }[] = [
     { id: "search", label: "Search", icon: Search },
+    { id: "restaurants", label: "Restaurants", icon: UtensilsCrossed },
     { id: "scan", label: "Barcode", icon: Barcode },
     { id: "ai", label: "AI", icon: Sparkles },
     { id: "manual", label: "Manual", icon: Pencil },
@@ -277,6 +310,163 @@ export function AddFoodModal({ onClose, onSaved, initialTab = "search" }: { onCl
                   />
                 ) : (
                   <AiPanel picker={picker} testPrefix="addfood" actionLabel="Save to My Foods" onAction={(food, grams) => saveFromResult(food, String(grams))} />
+                )}
+              </div>
+            )}
+
+            {tab === "restaurants" && (
+              <div className="space-y-2">
+                {restSelectedFood ? (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-2">
+                      {restSelectedFood.imageUrl && (
+                        <img
+                          src={restSelectedFood.imageUrl}
+                          alt={restSelectedFood.name}
+                          className="w-16 h-16 rounded-xl object-cover shrink-0"
+                          data-testid="img-rest-food"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        {restSelectedFood.brand && (
+                          <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wide" data-testid="text-rest-brand">{restSelectedFood.brand}</p>
+                        )}
+                        <p className="text-sm font-semibold text-zinc-900 leading-snug" data-testid="text-rest-food-name">{restSelectedFood.name}</p>
+                        {restSelectedFood.cookTime && (
+                          <span className="inline-flex items-center gap-1 mt-1 text-[10px] text-zinc-400">
+                            <Clock className="w-3 h-3" />{restSelectedFood.cookTime}
+                          </span>
+                        )}
+                      </div>
+                      <button type="button" onClick={() => { setRestSelectedFood(null); setDupWarning(null); }} className="p-1 hover:bg-zinc-100 rounded-lg transition-colors shrink-0" data-testid="button-rest-reset">
+                        <X className="w-4 h-4 text-zinc-400" />
+                      </button>
+                    </div>
+                    {restSelectedFood.ingredientsList && restSelectedFood.ingredientsList.length > 0 && (
+                      <div className="bg-zinc-50 rounded-xl p-2.5">
+                        <p className="text-[10px] font-medium text-zinc-500 mb-1">Ingredients</p>
+                        <p className="text-[11px] text-zinc-600 leading-relaxed">{(restSelectedFood.ingredientsList as string[]).join(", ")}</p>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 bg-zinc-50 rounded-xl p-2.5">
+                      <label className="text-[10px] text-zinc-500 font-medium shrink-0">Serving (g)</label>
+                      <input type="number" min={1} value={restServGrams} onChange={e => setRestServGrams(e.target.value)} className="w-20 text-sm font-semibold text-zinc-900 bg-transparent border-none outline-none text-right" data-testid="input-rest-serving" />
+                    </div>
+                    <MacroGrid food={restSelectedFood} servingGrams={restServGrams} />
+                    {restSelectedFood.sourceUrl && (
+                      <a href={restSelectedFood.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-600 transition-colors" data-testid="link-rest-source">
+                        <ExternalLink className="w-3 h-3" />View source
+                      </a>
+                    )}
+                    {dupWarning ? (
+                      <DuplicateWarningBanner
+                        warning={dupWarning}
+                        onConfirm={() => { setDupWarning(null); if (pendingPayload) doSave(pendingPayload, true); }}
+                        onCancel={() => { setDupWarning(null); setPendingPayload(null); }}
+                        testPrefix="rest-dup"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => saveFromResult(restSelectedFood, restServGrams, "restaurant")}
+                        disabled={saveMutation.isPending}
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                        data-testid="button-rest-save"
+                      >
+                        {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" />Save to My Foods</>}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <input
+                        type="text"
+                        value={restQuery}
+                        onChange={e => setRestQuery(e.target.value)}
+                        placeholder="Search restaurants & Hello Fresh..."
+                        className="w-full text-sm border border-zinc-200 rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-300"
+                        data-testid="input-rest-search"
+                      />
+                    </div>
+                    <div className="relative">
+                      <button
+                        onClick={() => setRestBrandOpen(!restBrandOpen)}
+                        className="w-full flex items-center justify-between text-sm border border-zinc-200 rounded-xl px-3 py-2 text-left hover:bg-zinc-50 transition-colors"
+                        data-testid="button-rest-brand-filter"
+                      >
+                        <span className={restBrand ? "text-zinc-900" : "text-zinc-400"}>
+                          {restBrand || "All brands"}
+                        </span>
+                        <ChevronDown className="w-4 h-4 text-zinc-400" />
+                      </button>
+                      {restBrandOpen && (
+                        <div className="absolute z-10 mt-1 w-full bg-white border border-zinc-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                          <button
+                            onClick={() => { setRestBrand(""); setRestBrandOpen(false); }}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-50 ${!restBrand ? "font-semibold text-zinc-900" : "text-zinc-600"}`}
+                            data-testid="button-rest-brand-all"
+                          >
+                            All brands
+                          </button>
+                          {restBrands.map(b => (
+                            <button
+                              key={b}
+                              onClick={() => { setRestBrand(b); setRestBrandOpen(false); }}
+                              className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-50 ${restBrand === b ? "font-semibold text-zinc-900" : "text-zinc-600"}`}
+                              data-testid={`button-rest-brand-${b.toLowerCase().replace(/[^a-z0-9]/g, "-")}`}
+                            >
+                              {b}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {restLoading && (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+                      </div>
+                    )}
+                    {!restLoading && restSearchEnabled && restResults.length === 0 && (
+                      <p className="text-center text-sm text-zinc-400 py-6" data-testid="text-rest-no-results">No results found</p>
+                    )}
+                    {!restLoading && restResults.length > 0 && (
+                      <div className="space-y-1 max-h-60 overflow-y-auto">
+                        {restResults.map(food => {
+                          const servCal = Math.round(food.calories100g * food.servingGrams / 100);
+                          const servProt = Math.round(food.protein100g * food.servingGrams / 100);
+                          return (
+                            <button
+                              key={food.id}
+                              onClick={() => { setRestSelectedFood(food); setRestServGrams(String(food.servingGrams)); }}
+                              className="w-full flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-zinc-50 transition-colors text-left"
+                              data-testid={`button-rest-result-${food.id}`}
+                            >
+                              {food.imageUrl && (
+                                <img src={food.imageUrl} alt={food.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                {food.brand && (
+                                  <p className="text-[9px] font-semibold text-emerald-600 uppercase tracking-wide">{food.brand}</p>
+                                )}
+                                <p className="text-sm font-medium text-zinc-900 leading-snug truncate">{food.name}</p>
+                                <p className="text-[10px] text-zinc-400 mt-0.5">
+                                  {servCal} kcal · {servProt}g protein · {food.servingGrams}g serve
+                                  {food.cookTime && <span> · <Clock className="w-2.5 h-2.5 inline" /> {food.cookTime}</span>}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {!restSearchEnabled && !restLoading && (
+                      <p className="text-center text-[11px] text-zinc-400 py-4" data-testid="text-rest-hint">
+                        Search NZ fast food chains & Hello Fresh recipes
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             )}

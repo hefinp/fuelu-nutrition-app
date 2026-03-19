@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Plus, X, Check, Barcode, BookOpen, UtensilsCrossed,
   Search, Camera, Sparkles, Send, ChevronDown, BadgeCheck,
-  Lock, ArrowRight,
+  Lock, ArrowRight, Clock, ExternalLink, Store,
 } from "lucide-react";
 import { Link } from "wouter";
 import { GoalPreview } from "@/components/goal-preview";
@@ -41,7 +41,7 @@ export function FoodLogDrawer({
   const queryClient = useQueryClient();
   const { overlayStyle, panelMaxHeight } = useMobileViewport();
 
-  const [formTab, setFormTab] = useState<"manual" | "plan" | "search" | "scan" | "ai">("manual");
+  const [formTab, setFormTab] = useState<"manual" | "plan" | "search" | "scan" | "ai" | "restaurants">("manual");
   const [formSource, setFormSource] = useState<string | null>(null);
   const [form, setForm] = useState({
     mealName: "", calories: "", protein: "", carbs: "", fat: "",
@@ -96,6 +96,39 @@ export function FoodLogDrawer({
   const zxingModuleRef = useRef<typeof import("@zxing/browser") | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scanControlsRef = useRef<{ stop: () => void } | null>(null);
+
+  const [restQuery, setRestQuery] = useState("");
+  const [restDebouncedQuery, setRestDebouncedQuery] = useState("");
+  const [restBrand, setRestBrand] = useState<string>("");
+  const [restSelectedFood, setRestSelectedFood] = useState<FoodResult | null>(null);
+  const [restServGrams, setRestServGrams] = useState("100");
+  const [restBrandOpen, setRestBrandOpen] = useState(false);
+  const [restMealSlot, setRestMealSlot] = useState<MealSlot | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setRestDebouncedQuery(restQuery.trim()), 400);
+    return () => clearTimeout(t);
+  }, [restQuery]);
+
+  const { data: restBrands = [] } = useQuery<string[]>({
+    queryKey: ["/api/restaurant-foods/brands"],
+    staleTime: 300000,
+    enabled: open,
+  });
+
+  const restSearchEnabled = restDebouncedQuery.length >= 2 || restBrand.length > 0;
+  const { data: restResults = [], isLoading: restLoading } = useQuery<FoodResult[]>({
+    queryKey: ["/api/restaurant-foods/search", restDebouncedQuery, restBrand],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (restDebouncedQuery) params.set("q", restDebouncedQuery);
+      if (restBrand) params.set("brand", restBrand);
+      const res = await fetch(`/api/restaurant-foods/search?${params}`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open && restSearchEnabled,
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 400);
@@ -400,6 +433,34 @@ export function FoodLogDrawer({
     setFormTab("manual");
   }
 
+  function inferMealSlot(): MealSlot {
+    const hour = new Date().getHours();
+    if (hour < 10) return "breakfast";
+    if (hour < 15) return "lunch";
+    if (hour < 20) return "dinner";
+    return "snack";
+  }
+
+  function logRestaurantFood() {
+    if (!restSelectedFood) return;
+    const grams = parseFloat(restServGrams) || 100;
+    const f = grams / 100;
+    const slot = restMealSlot ?? inferMealSlot();
+    addMutation.mutate({
+      date: selectedDate,
+      mealName: restSelectedFood.brand ? `${restSelectedFood.brand} – ${restSelectedFood.name}` : restSelectedFood.name,
+      calories: Math.round(restSelectedFood.calories100g * f),
+      protein: Math.round(restSelectedFood.protein100g * f),
+      carbs: Math.round(restSelectedFood.carbs100g * f),
+      fat: Math.round(restSelectedFood.fat100g * f),
+      fibre: restSelectedFood.fibre100g != null ? Math.round((restSelectedFood.fibre100g as number) * f) : null,
+      sugar: restSelectedFood.sugar100g != null ? Math.round((restSelectedFood.sugar100g as number) * f) : null,
+      saturatedFat: restSelectedFood.saturatedFat100g != null ? Math.round((restSelectedFood.saturatedFat100g as number) * f) : null,
+      mealSlot: slot,
+      source: "restaurant" as const,
+    });
+  }
+
   function logScannedFood() {
     if (!scannedFood) return;
     const grams = parseFloat(scanServingGrams) || 100;
@@ -633,6 +694,15 @@ export function FoodLogDrawer({
           >
             <Sparkles className="w-3.5 h-3.5" />
             AI
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormTab("restaurants")}
+            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "restaurants" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-form-tab-restaurants"
+          >
+            <Store className="w-3.5 h-3.5" />
+            Eat Out
           </button>
           <button
             type="button"
@@ -1074,6 +1144,235 @@ export function FoodLogDrawer({
                             </button>
                           );
                         })}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {formTab === "restaurants" && (
+              <div className="p-4">
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Search restaurants & Hello Fresh..."
+                    value={restQuery}
+                    onChange={e => { setRestQuery(e.target.value); setRestSelectedFood(null); }}
+                    className="w-full pl-8 pr-8 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
+                    data-testid="input-drawer-rest-search"
+                  />
+                  {restQuery && (
+                    <button type="button" onClick={() => { setRestQuery(""); setRestDebouncedQuery(""); setRestSelectedFood(null); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <div className="relative mb-3">
+                  <button
+                    onClick={() => setRestBrandOpen(!restBrandOpen)}
+                    className="w-full flex items-center justify-between text-sm border border-zinc-200 rounded-xl px-3 py-2 text-left hover:bg-zinc-50 transition-colors"
+                    data-testid="button-drawer-rest-brand"
+                  >
+                    <span className={restBrand ? "text-zinc-900" : "text-zinc-400"}>
+                      {restBrand || "All brands"}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-zinc-400" />
+                  </button>
+                  {restBrandOpen && (
+                    <div className="absolute z-10 mt-1 w-full bg-white border border-zinc-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                      <button
+                        onClick={() => { setRestBrand(""); setRestBrandOpen(false); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-50 ${!restBrand ? "font-semibold text-zinc-900" : "text-zinc-600"}`}
+                        data-testid="button-drawer-rest-brand-all"
+                      >
+                        All brands
+                      </button>
+                      {restBrands.map(b => (
+                        <button
+                          key={b}
+                          onClick={() => { setRestBrand(b); setRestBrandOpen(false); }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-50 ${restBrand === b ? "font-semibold text-zinc-900" : "text-zinc-600"}`}
+                          data-testid={`button-drawer-rest-brand-${b.toLowerCase().replace(/[^a-z0-9]/g, "-")}`}
+                        >
+                          {b}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {restSelectedFood && (
+                  <div className="mb-3 p-3 bg-zinc-50 border border-zinc-200 rounded-xl" data-testid="rest-food-confirm">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      {restSelectedFood.imageUrl && (
+                        <img
+                          src={restSelectedFood.imageUrl}
+                          alt={restSelectedFood.name}
+                          className="w-14 h-14 rounded-lg object-cover shrink-0"
+                          data-testid="img-drawer-rest-food"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        {restSelectedFood.brand && (
+                          <p className="text-[9px] font-semibold text-emerald-600 uppercase tracking-wide">{restSelectedFood.brand}</p>
+                        )}
+                        <p className="text-xs font-semibold text-zinc-900 truncate">{restSelectedFood.name}</p>
+                        {restSelectedFood.cookTime && (
+                          <span className="inline-flex items-center gap-1 mt-0.5 text-[9px] text-zinc-400">
+                            <Clock className="w-2.5 h-2.5" />{restSelectedFood.cookTime}
+                          </span>
+                        )}
+                      </div>
+                      <button type="button" onClick={() => setRestSelectedFood(null)} className="shrink-0 text-zinc-400 hover:text-zinc-600 mt-0.5">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {restSelectedFood.ingredientsList && (restSelectedFood.ingredientsList as string[]).length > 0 && (
+                      <div className="bg-white rounded-lg p-2 mb-2">
+                        <p className="text-[9px] font-medium text-zinc-500 mb-0.5">Ingredients</p>
+                        <p className="text-[10px] text-zinc-600 leading-relaxed">{(restSelectedFood.ingredientsList as string[]).join(", ")}</p>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <label className="text-[10px] text-zinc-500 font-medium shrink-0">Serving (g)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={restServGrams}
+                        onChange={e => setRestServGrams(e.target.value)}
+                        className="w-20 px-2 py-1 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-400 text-center bg-white"
+                        data-testid="input-drawer-rest-serving"
+                      />
+                    </div>
+                    {(() => {
+                      const fac = (parseFloat(restServGrams) || 0) / 100;
+                      const primaryMacros = [
+                        { label: "kcal", value: Math.round(restSelectedFood.calories100g * fac), color: "bg-orange-50 text-orange-700" },
+                        { label: "protein", value: Math.round(restSelectedFood.protein100g * fac), color: "bg-red-50 text-red-700" },
+                        { label: "carbs", value: Math.round(restSelectedFood.carbs100g * fac), color: "bg-blue-50 text-blue-700" },
+                        { label: "fat", value: Math.round(restSelectedFood.fat100g * fac), color: "bg-yellow-50 text-yellow-700" },
+                      ];
+                      const extraMacros = [
+                        restSelectedFood.fibre100g != null ? { label: "fibre", value: Math.round(restSelectedFood.fibre100g * fac), unit: "g" } : null,
+                        restSelectedFood.sugar100g != null ? { label: "sugar", value: Math.round(restSelectedFood.sugar100g * fac), unit: "g" } : null,
+                        restSelectedFood.saturatedFat100g != null ? { label: "sat. fat", value: Math.round(restSelectedFood.saturatedFat100g * fac), unit: "g" } : null,
+                      ].filter(Boolean) as { label: string; value: number; unit: string }[];
+                      return (
+                        <>
+                          <div className="grid grid-cols-4 gap-1.5 mb-1.5">
+                            {primaryMacros.map(({ label, value, color }) => (
+                              <div key={label} className={`${color} rounded-lg p-1.5 text-center`}>
+                                <p className="text-sm font-bold">{value}</p>
+                                <p className="text-[9px] font-medium uppercase tracking-wide opacity-70">{label}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {extraMacros.length > 0 && (
+                            <div className="flex items-center justify-center gap-3 mb-2.5 text-[10px] text-zinc-500">
+                              {extraMacros.map(m => (
+                                <span key={m.label} className="flex items-center gap-0.5">
+                                  <span className="font-medium text-zinc-700">{m.value}{m.unit}</span> {m.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                    <div className="mb-2.5">
+                      <p className="text-[10px] text-zinc-500 font-medium mb-1.5">Meal type</p>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {ALL_SLOTS.map(slot => {
+                          const Icon = SLOT_ICONS[slot];
+                          const active = restMealSlot === slot;
+                          return (
+                            <button
+                              key={slot}
+                              type="button"
+                              onClick={() => setRestMealSlot(active ? null : slot)}
+                              className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-medium transition-colors ${active ? "bg-zinc-900 text-white" : "bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-400"}`}
+                              data-testid={`button-rest-slot-${slot}`}
+                            >
+                              <Icon className="w-3.5 h-3.5" />
+                              {SLOT_LABELS[slot]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {!restMealSlot && (
+                        <p className="text-[9px] text-zinc-400 mt-1 text-center">
+                          Auto: {inferMealSlot().charAt(0).toUpperCase() + inferMealSlot().slice(1)}
+                        </p>
+                      )}
+                    </div>
+                    {restSelectedFood.sourceUrl && (
+                      <a href={restSelectedFood.sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[9px] text-zinc-400 hover:text-zinc-600 transition-colors mb-2" data-testid="link-drawer-rest-source">
+                        <ExternalLink className="w-2.5 h-2.5" />View source
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={logRestaurantFood}
+                      disabled={addMutation.isPending}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                      data-testid="button-drawer-rest-log"
+                    >
+                      {addMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Check className="w-3.5 h-3.5" />Log to Diary</>}
+                    </button>
+                  </div>
+                )}
+
+                {!restSelectedFood && (
+                  <>
+                    {restLoading && (
+                      <div className="flex items-center justify-center gap-2 py-6 text-zinc-400">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Searching…</span>
+                      </div>
+                    )}
+                    {!restLoading && restSearchEnabled && restResults.length === 0 && (
+                      <div className="text-center py-6 text-zinc-400">
+                        <Store className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        <p className="text-sm">No results found</p>
+                      </div>
+                    )}
+                    {!restLoading && restResults.length > 0 && (
+                      <div className="space-y-1">
+                        {restResults.map(food => {
+                          const servCal = Math.round(food.calories100g * food.servingGrams / 100);
+                          const servProt = Math.round(food.protein100g * food.servingGrams / 100);
+                          return (
+                            <button
+                              key={food.id}
+                              onClick={() => { setRestSelectedFood(food); setRestServGrams(String(food.servingGrams)); setRestMealSlot(null); }}
+                              className="w-full flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-zinc-50 transition-colors text-left"
+                              data-testid={`button-drawer-rest-result-${food.id}`}
+                            >
+                              {food.imageUrl && (
+                                <img src={food.imageUrl} alt={food.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                {food.brand && (
+                                  <p className="text-[8px] font-semibold text-emerald-600 uppercase tracking-wide">{food.brand}</p>
+                                )}
+                                <p className="text-xs font-medium text-zinc-900 leading-snug truncate">{food.name}</p>
+                                <p className="text-[10px] text-zinc-400 mt-0.5">
+                                  {servCal} kcal · {servProt}g protein · {food.servingGrams}g
+                                  {food.cookTime && <span> · <Clock className="w-2.5 h-2.5 inline" /> {food.cookTime}</span>}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {!restSearchEnabled && !restLoading && (
+                      <div className="text-center py-6 text-zinc-300">
+                        <Store className="w-8 h-8 mx-auto mb-2" />
+                        <p className="text-xs">Search NZ restaurants & Hello Fresh</p>
                       </div>
                     )}
                   </>

@@ -758,7 +758,7 @@ router.post("/api/food-log", async (req, res) => {
       sugar: z.number().int().min(0).nullable().optional(),
       saturatedFat: z.number().int().min(0).nullable().optional(),
       mealSlot: z.enum(["breakfast", "lunch", "dinner", "snack"]).nullable().optional(),
-      source: z.enum(["manual", "search", "scan", "ai", "plan", "meal"]).nullable().optional(),
+      source: z.enum(["manual", "search", "scan", "ai", "plan", "meal", "restaurant"]).nullable().optional(),
     }).parse(req.body);
     const entry = await storage.createFoodLogEntry({ ...body, userId: req.session.userId });
     res.status(201).json(entry);

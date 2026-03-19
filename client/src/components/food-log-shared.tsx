@@ -22,18 +22,24 @@ export interface FoodResult {
   protein100g: number;
   carbs100g: number;
   fat100g: number;
+  fibre100g?: number | null;
+  sugar100g?: number | null;
+  saturatedFat100g?: number | null;
   servingSize: string;
   servingGrams: number;
   verified?: boolean;
   source?: string;
   region?: string | null;
+  brand?: string | null;
+  category?: string | null;
+  imageUrl?: string | null;
+  sourceUrl?: string | null;
+  cookTime?: string | null;
+  ingredientsList?: string[] | null;
 }
 
 export interface ExtendedFoodResult extends FoodResult {
-  fibre100g?: number;
   sodium100g?: number;
-  sugar100g?: number;
-  saturatedFat100g?: number;
   source?: string;
   sourceType?: "label" | "estimated";
   locallyVerified?: boolean;

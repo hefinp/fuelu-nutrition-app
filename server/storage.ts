@@ -80,6 +80,9 @@ export interface IStorage {
   verifyCanonicalFood(id: number): Promise<CanonicalFood | undefined>;
   unverifyCanonicalFood(id: number): Promise<CanonicalFood | undefined>;
 
+  searchRestaurantFoods(query: string, brand?: string | null, limit?: number): Promise<CanonicalFood[]>;
+  getRestaurantBrands(): Promise<string[]>;
+
   // User food bookmarks
   getUserFoodBookmarks(userId: number, opts?: { cursor?: string; limit?: number; search?: string }): Promise<{ items: (UserFoodBookmark & { food: CanonicalFood })[]; nextCursor: string | null }>;
   addUserFoodBookmark(entry: { userId: number; canonicalFoodId: number; servingGrams?: number; nickname?: string }): Promise<UserFoodBookmark & { food: CanonicalFood }>;
@@ -559,7 +562,40 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  private static readonly TRUSTED_SOURCES = ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts", "nzfcd", "fsanz", "nz_regional", "au_regional"];
+  async searchRestaurantFoods(query: string, brand?: string | null, limit = 20): Promise<CanonicalFood[]> {
+    const conditions = [
+      eq(canonicalFoods.source, "restaurant_nz"),
+      sql`${canonicalFoods.brand} IS NOT NULL`,
+    ];
+    if (query && query.trim().length >= 2) {
+      const normalized = query.toLowerCase().replace(/\s+/g, " ").trim();
+      conditions.push(ilike(canonicalFoods.canonicalName, `%${normalized}%`));
+    }
+    if (brand) {
+      conditions.push(eq(canonicalFoods.brand, brand));
+    }
+    return db.select().from(canonicalFoods)
+      .where(and(...conditions))
+      .orderBy(
+        sql`CASE WHEN ${canonicalFoods.verifiedAt} IS NOT NULL THEN 0 ELSE 1 END`,
+        canonicalFoods.brand,
+        canonicalFoods.name,
+      )
+      .limit(limit);
+  }
+
+  async getRestaurantBrands(): Promise<string[]> {
+    const rows = await db.selectDistinct({ brand: canonicalFoods.brand })
+      .from(canonicalFoods)
+      .where(and(
+        eq(canonicalFoods.source, "restaurant_nz"),
+        sql`${canonicalFoods.brand} IS NOT NULL`,
+      ))
+      .orderBy(canonicalFoods.brand);
+    return rows.map(r => r.brand!).filter(Boolean);
+  }
+
+  private static readonly TRUSTED_SOURCES = ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts", "nzfcd", "fsanz", "nz_regional", "au_regional", "restaurant_nz"];
 
   async canonicalFoodExistsByName(name: string): Promise<CanonicalFood | undefined> {
     const canonical = name.toLowerCase().replace(/\s+/g, " ").trim();
