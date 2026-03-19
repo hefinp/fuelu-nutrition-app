@@ -1377,6 +1377,38 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                       }}
                       testIdPrefix="custom"
                     />
+                    <div className="mt-3">
+                      {(() => {
+                        const styles = [
+                          { key: 'simple' as const,  icon: Salad,   label: 'Simple' },
+                          { key: 'gourmet' as const, icon: ChefHat, label: 'Fancy' },
+                          { key: 'michelin' as const,icon: Star,    label: 'Michelin' },
+                        ];
+                        const idx = styles.findIndex(s => s.key === mealStyle);
+                        return (
+                          <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch" data-testid="custom-meal-style-scale">
+                            <div
+                              className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
+                              style={{ width: `calc((100% - 4px) / 3)`, left: `calc(2px + ${idx} * (100% - 4px) / 3)` }}
+                            />
+                            {styles.map((style) => (
+                              <button
+                                key={style.key}
+                                type="button"
+                                data-testid={`toggle-custom-meal-style-${style.key}`}
+                                onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
+                                className={`relative z-10 flex-1 flex flex-col items-center gap-0.5 sm:gap-1 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors duration-200 ${
+                                  mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                                }`}
+                              >
+                                <style.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                <span>{style.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
                 </div>
                 <button
@@ -1519,39 +1551,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               </div>
 
               <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 pt-3 shrink-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}>
-                <div className="mb-2">
-                  {(() => {
-                    const styles = [
-                      { key: 'simple' as const,  icon: Salad,   label: 'Simple' },
-                      { key: 'gourmet' as const, icon: ChefHat, label: 'Fancy' },
-                      { key: 'michelin' as const,icon: Star,    label: 'Michelin' },
-                    ];
-                    const idx = styles.findIndex(s => s.key === mealStyle);
-                    return (
-                      <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch" data-testid="custom-meal-style-scale">
-                        <div
-                          className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
-                          style={{ width: `calc((100% - 4px) / 3)`, left: `calc(2px + ${idx} * (100% - 4px) / 3)` }}
-                        />
-                        {styles.map((style) => (
-                          <button
-                            key={style.key}
-                            type="button"
-                            data-testid={`toggle-custom-meal-style-${style.key}`}
-                            onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
-                            className={`relative z-10 flex-1 flex flex-col items-center gap-0.5 sm:gap-1 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors duration-200 ${
-                              mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-                            }`}
-                          >
-                            <style.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                            <span>{style.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
-
                 {mealPlanPrefs?.vitalityInsightsEnabled && data.gender === "male" && (
                   isMealPremium ? (
                     <div className="flex items-center justify-between px-2 py-1 rounded-lg border border-amber-200 bg-amber-50 mb-1.5" data-testid="custom-vitality-hormone-boost-toggle">
