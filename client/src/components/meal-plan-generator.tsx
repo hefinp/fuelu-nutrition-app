@@ -640,10 +640,11 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   };
 
   const handleLibraryReplace = useCallback((item: { name: string; calories: number; protein: number; carbs: number; fat: number }) => {
-    if (!replacePicker || !mealPlan) return;
+    if (!replacePicker) return;
     const { dayKey, slotKey, mealIdx, context } = replacePicker;
     const newMeal: Meal = { meal: item.name, calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat };
     if (context === 'generator') {
+      if (!mealPlan) return;
       setMealPlan((prev: any) => {
         if (!prev) return prev;
         const plan = JSON.parse(JSON.stringify(prev));
@@ -660,6 +661,17 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         return plan;
       });
       setPlanSaved(false);
+    } else if (context === 'custom') {
+      const customSlotKey = slotKey === 'snack' ? 'snacks' : slotKey;
+      setCustomSlots(prev => {
+        const day = { ...(prev[dayKey] || {}) };
+        const arr = [...(day[customSlotKey] || [])];
+        if (mealIdx < arr.length) { arr[mealIdx] = newMeal; }
+        day[customSlotKey] = arr;
+        return { ...prev, [dayKey]: day };
+      });
+      setCustomPlanReady(null);
+      setCustomPlanSaved(false);
     }
     setReplacePicker(null);
     setReplaceSearchQuery("");
@@ -1458,6 +1470,14 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                                       <p className="text-xs font-medium text-zinc-900 truncate">{meal.meal}</p>
                                       <p className="text-[10px] text-zinc-400">{meal.calories} kcal · P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g</p>
                                     </div>
+                                    <button
+                                      onClick={() => setReplacePicker({ dayKey, slotKey: slotKey === 'snacks' ? 'snack' : slotKey, mealIdx: idx, context: 'custom' })}
+                                      className="p-1 text-zinc-300 hover:text-blue-500 transition-colors shrink-0"
+                                      title="Replace from library"
+                                      data-testid={`button-replace-custom-${dayKey}-${slotKey}-${idx}`}
+                                    >
+                                      <ArrowLeftRight className="w-3 h-3" />
+                                    </button>
                                     <button
                                       onClick={() => removeMealFromSlot(dayKey, slotKey, idx)}
                                       className="p-1 text-zinc-300 hover:text-red-500 transition-colors shrink-0"
