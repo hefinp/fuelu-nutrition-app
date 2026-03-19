@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield, BookOpen } from "lucide-react";
 import { Link } from "wouter";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences, SavedMealPlan } from "@shared/schema";
 import { getCyclePhase } from "@/lib/cycle";
@@ -72,12 +72,12 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const [addMealPopover, setAddMealPopover] = useState<{ dayKey: string; slotKey: string } | null>(null);
   const [mealSearchQuery, setMealSearchQuery] = useState("");
-  const [enabledSlots, setEnabledSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snack']));
+  const [baseSlots, setBaseSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snack']));
   const [replacePicker, setReplacePicker] = useState<{ dayKey: string; slotKey: string; mealIdx: number; context: 'generator' | 'custom' } | null>(null);
   const [replacePickerTab, setReplacePickerTab] = useState<'meals' | 'foods'>('meals');
   const [replaceSearchQuery, setReplaceSearchQuery] = useState("");
   const [addFoodForm, setAddFoodForm] = useState<{ name: string; calories: string; protein: string; carbs: string; fat: string } | null>(null);
-  const [customEnabledSlots, setCustomEnabledSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snacks']));
+  const [baseCustomSlots, setBaseCustomSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snacks']));
   const [bannerCollapsed, setBannerCollapsed] = useState(false);
   const [showSavedPlansInline, setShowSavedPlansInline] = useState(false);
   const [dragSource, setDragSource] = useState<{ dayKey: string; slotKey: string; mealIdx: number } | null>(null);
@@ -118,7 +118,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     if (!mealPlanPrefs) return;
     const allSlots = new Set(['breakfast', 'lunch', 'dinner', 'snack']);
     if (!mealPlanPrefs.fastingEnabled || !mealPlanPrefs.fastingProtocol) {
-      setEnabledSlots(allSlots);
+      setBaseSlots(allSlots);
       return;
     }
     const protocol = mealPlanPrefs.fastingProtocol;
@@ -135,11 +135,11 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         if (!inWindow) allSlots.delete(slot);
       }
     }
-    setEnabledSlots(allSlots);
+    setBaseSlots(allSlots);
   }, [mealPlanPrefs]);
 
   const toggleSlot = useCallback((slot: string) => {
-    setEnabledSlots(prev => {
+    setBaseSlots(prev => {
       const next = new Set(prev);
       if (next.has(slot)) next.delete(slot); else next.add(slot);
       return next;
@@ -147,12 +147,31 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   }, []);
 
   const toggleCustomSlot = useCallback((slot: string) => {
-    setCustomEnabledSlots(prev => {
+    setBaseCustomSlots(prev => {
       const next = new Set(prev);
       if (next.has(slot)) next.delete(slot); else next.add(slot);
       return next;
     });
   }, []);
+
+  // Derived: apply time-locking on top of user/fasting intent
+  const enabledSlots = useMemo(() => {
+    if (planMode !== 'daily') return new Set(baseSlots);
+    const next = new Set<string>();
+    for (const slot of baseSlots) {
+      if (!isSlotLockedForDates(slot, selectedDates)) next.add(slot);
+    }
+    return next;
+  }, [baseSlots, selectedDates, planMode]);
+
+  const customEnabledSlots = useMemo(() => {
+    if (planMode !== 'daily') return new Set(baseCustomSlots);
+    const next = new Set<string>();
+    for (const slot of baseCustomSlots) {
+      if (!isSlotLockedForDates(slot, selectedDates)) next.add(slot);
+    }
+    return next;
+  }, [baseCustomSlots, selectedDates, planMode]);
 
   useEffect(() => {
     if (replacePicker) setReplacePickerTab('meals');
@@ -240,24 +259,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     }
     return () => { document.body.style.overflow = ''; };
   }, [generatorModalOpen, customModalOpen]);
-
-  useEffect(() => {
-    if (planMode !== 'daily') return;
-    setEnabledSlots(prev => {
-      const next = new Set(prev);
-      for (const slot of ['breakfast', 'lunch', 'dinner', 'snack'] as const) {
-        if (isSlotLockedForDates(slot, selectedDates)) next.delete(slot);
-      }
-      return next.size !== prev.size ? next : prev;
-    });
-    setCustomEnabledSlots(prev => {
-      const next = new Set(prev);
-      for (const slot of ['breakfast', 'lunch', 'dinner', 'snacks'] as const) {
-        if (isSlotLockedForDates(slot, selectedDates)) next.delete(slot);
-      }
-      return next.size !== prev.size ? next : prev;
-    });
-  }, [selectedDates, planMode, mealPlanPrefs]);
 
   const { data: userMealsData } = useQuery<{ items: any[] }>({
     queryKey: ["/api/user-meals"],
@@ -1774,7 +1775,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                         type="button"
                         onClick={() => {
                           if (locked) return;
-                          setCustomEnabledSlots(prev => {
+                          setBaseCustomSlots(prev => {
                             const next = new Set(prev);
                             if (next.has(key)) next.delete(key); else next.add(key);
                             return next;
