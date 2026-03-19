@@ -866,7 +866,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       <div className="mt-4 border-t border-zinc-100 pt-4">
         <button
           onClick={() => setShowSavedPlansInline(v => !v)}
-          className="w-full flex items-center justify-between gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-800 transition-colors"
+          className="w-full flex flex-col items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-800 transition-colors"
           data-testid="button-toggle-saved-plans-inline"
         >
           <div className="flex items-center gap-2">
