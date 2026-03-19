@@ -910,10 +910,10 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     };
                     return (
                       <>
-                        <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="meal-style-scale">
+                        <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch" data-testid="meal-style-scale">
                           <div
-                            className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
-                            style={{ width: `calc((100% - 8px) / 3)`, left: `calc(4px + ${idx} * (100% - 8px) / 3)` }}
+                            className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
+                            style={{ width: `calc((100% - 4px) / 3)`, left: `calc(2px + ${idx} * (100% - 4px) / 3)` }}
                           />
                           {styles.map((style) => (
                             <button
@@ -921,7 +921,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                               type="button"
                               data-testid={`toggle-meal-style-${style.key}`}
                               onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
-                              className={`relative z-10 flex-1 flex flex-col items-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors duration-200 ${
+                              className={`relative z-10 flex-1 flex flex-col items-center gap-0.5 sm:gap-1 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors duration-200 ${
                                 mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
                               }`}
                             >
@@ -1507,10 +1507,10 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     ];
                     const idx = styles.findIndex(s => s.key === mealStyle);
                     return (
-                      <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="custom-meal-style-scale">
+                      <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch" data-testid="custom-meal-style-scale">
                         <div
-                          className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
-                          style={{ width: `calc((100% - 8px) / 3)`, left: `calc(4px + ${idx} * (100% - 8px) / 3)` }}
+                          className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
+                          style={{ width: `calc((100% - 4px) / 3)`, left: `calc(2px + ${idx} * (100% - 4px) / 3)` }}
                         />
                         {styles.map((style) => (
                           <button
@@ -1518,7 +1518,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                             type="button"
                             data-testid={`toggle-custom-meal-style-${style.key}`}
                             onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
-                            className={`relative z-10 flex-1 flex flex-col items-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors duration-200 ${
+                            className={`relative z-10 flex-1 flex flex-col items-center gap-0.5 sm:gap-1 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors duration-200 ${
                               mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
                             }`}
                           >
