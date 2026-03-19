@@ -819,6 +819,28 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               </div>
 
               <div className="bg-zinc-50 border-b border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
+                <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch mb-2" data-testid="plan-type-toggle">
+                  <div
+                    className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
+                    style={{ width: `calc((100% - 4px) / 2)`, left: planMode === 'daily' ? '2px' : `calc(2px + (100% - 4px) / 2)` }}
+                  />
+                  {([
+                    { key: 'daily' as const, label: 'Daily' },
+                    { key: 'weekly' as const, label: 'Weekly' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      data-testid={`toggle-plan-type-${opt.key}`}
+                      onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
+                      className={`relative z-10 flex-1 py-1 rounded-lg text-xs font-semibold transition-colors duration-200 ${
+                        planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
                 <DateRangePicker
                   weekStart={weekStart}
                   onWeekChange={(dir) => setWeekStart(prev => addDays(prev, dir))}
@@ -868,32 +890,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
-                <div className="mb-4">
-                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Plan Type</p>
-                  <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch" data-testid="plan-type-toggle">
-                    <div
-                      className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
-                      style={{ width: `calc((100% - 4px) / 2)`, left: planMode === 'daily' ? '2px' : `calc(2px + (100% - 4px) / 2)` }}
-                    />
-                    {([
-                      { key: 'daily' as const, label: 'Daily' },
-                      { key: 'weekly' as const, label: 'Weekly' },
-                    ]).map(opt => (
-                      <button
-                        key={opt.key}
-                        type="button"
-                        data-testid={`toggle-plan-type-${opt.key}`}
-                        onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
-                        className={`relative z-10 flex-1 py-1 rounded-lg text-xs font-semibold transition-colors duration-200 ${
-                          planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 <div className="mb-4">
                   <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Meal Style</p>
                   {(() => {
