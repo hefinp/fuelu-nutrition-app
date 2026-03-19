@@ -56,6 +56,7 @@ export const MEAL_DATABASE: MealDb = {
     { meal: "Cottage cheese", calories: 118, protein: 13, carbs: 4, fat: 5, microScore: 4 },
     { meal: "Mixed berries", calories: 86, protein: 1, carbs: 20, fat: 0, microScore: 5 },
     { meal: "Peanut butter (2 tbsp)", calories: 194, protein: 8, carbs: 5, fat: 16, microScore: 2 },
+    { meal: "Wholemeal toast (2 slices)", calories: 137, protein: 6, carbs: 24, fat: 2, microScore: 2 },
     { meal: "Whole grain crackers", calories: 131, protein: 3, carbs: 22, fat: 4, microScore: 2 },
     { meal: "Hard-boiled eggs (2)", calories: 186, protein: 15, carbs: 0, fat: 14, microScore: 4 },
     { meal: "Almonds (handful)", calories: 91, protein: 3, carbs: 1, fat: 8, microScore: 4 },
