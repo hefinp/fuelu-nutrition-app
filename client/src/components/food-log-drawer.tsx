@@ -232,10 +232,15 @@ export function FoodLogDrawer({
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
     }
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+    };
   }, [open]);
 
   const { data: savedPlans = [], isLoading: plansLoading } = useQuery<SavedMealPlan[]>({
@@ -724,7 +729,7 @@ export function FoodLogDrawer({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overscroll-contain">
           <div>
 
             {formTab === "manual" && (
