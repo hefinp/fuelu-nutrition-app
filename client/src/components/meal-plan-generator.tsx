@@ -1254,64 +1254,68 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
               {mealPlan && (
                 <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 pt-3 shrink-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {!planSaved && (
-                      <button
-                        onClick={() => setDiscardConfirmOpen(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
-                        data-testid="button-discard-plan"
-                      >
-                        <X className="w-3.5 h-3.5" /> Discard
-                      </button>
-                    )}
-                    <button
-                      onClick={() => savePlanMutation.mutate()}
-                      disabled={savePlanMutation.isPending || planSaved}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors min-h-[36px] ${
-                        planSaved
-                          ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
-                          : "bg-zinc-900 hover:bg-zinc-700 text-white"
-                      }`}
-                      data-testid="button-save-plan"
-                    >
-                      {savePlanMutation.isPending ? (
-                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
-                      ) : planSaved ? (
-                        <><Check className="w-3.5 h-3.5" /> Saved</>
-                      ) : (
-                        <><Save className="w-3.5 h-3.5" /> Save Plan</>
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      {!planSaved && (
+                        <button
+                          onClick={() => setDiscardConfirmOpen(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
+                          data-testid="button-discard-plan"
+                        >
+                          <X className="w-3.5 h-3.5" /> Discard
+                        </button>
                       )}
-                    </button>
-                    <button
-                      onClick={() => {
-                        if ((mealPlan as any).planType === 'daily') {
-                          setShoppingDaysOpen(true);
-                        } else {
-                          exportShoppingListToPDF(mealPlan, data);
-                        }
-                      }}
-                      className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
-                      data-testid="button-export-shopping-list"
-                    >
-                      <ShoppingCart className="w-3.5 h-3.5" />
-                      Shopping List
-                    </button>
-                    <button
-                      onClick={() => exportMealPlanToPDF(mealPlan, data)}
-                      className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
-                      data-testid="button-export-pdf"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      PDF
-                    </button>
-                    <button
-                      onClick={() => { setMealPlan(null); setPlanSaved(false); generateMealPlan.mutate(planMode); }}
-                      disabled={generateMealPlan.isPending}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium text-xs transition-colors min-h-[36px]"
-                      data-testid="button-regenerate"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" /> Regenerate
-                    </button>
+                      <button
+                        onClick={() => savePlanMutation.mutate()}
+                        disabled={savePlanMutation.isPending || planSaved}
+                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors min-h-[36px] ${
+                          planSaved
+                            ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
+                            : "bg-zinc-900 hover:bg-zinc-700 text-white"
+                        }`}
+                        data-testid="button-save-plan"
+                      >
+                        {savePlanMutation.isPending ? (
+                          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+                        ) : planSaved ? (
+                          <><Check className="w-3.5 h-3.5" /> Saved</>
+                        ) : (
+                          <><Save className="w-3.5 h-3.5" /> Save Plan</>
+                        )}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          if ((mealPlan as any).planType === 'daily') {
+                            setShoppingDaysOpen(true);
+                          } else {
+                            exportShoppingListToPDF(mealPlan, data);
+                          }
+                        }}
+                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors min-h-[36px]"
+                        data-testid="button-export-shopping-list"
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                        Shopping List
+                      </button>
+                      <button
+                        onClick={() => exportMealPlanToPDF(mealPlan, data)}
+                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors min-h-[36px]"
+                        data-testid="button-export-pdf"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        PDF
+                      </button>
+                      <button
+                        onClick={() => { setMealPlan(null); setPlanSaved(false); generateMealPlan.mutate(planMode); }}
+                        disabled={generateMealPlan.isPending}
+                        className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium text-xs transition-colors min-h-[36px]"
+                        data-testid="button-regenerate"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1472,6 +1476,19 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               </div>
 
               <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4">
+                {!customHasAnyMeals && (
+                  <div className="flex flex-col items-center justify-center py-8 text-center" data-testid="custom-builder-empty-state">
+                    <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mb-4">
+                      <ClipboardList className="w-7 h-7 text-zinc-400" />
+                    </div>
+                    <p className="text-sm text-zinc-500 mb-1 max-w-xs">
+                      Your custom plan is empty.
+                    </p>
+                    <p className="text-xs text-zinc-400 max-w-xs">
+                      Tap "Add" on any meal slot to build your plan, or use the button below to auto-generate.
+                    </p>
+                  </div>
+                )}
                 <div className="space-y-4 mb-4">
                   {getCustomDayKeys().map((dayKey, dayIdx) => {
                     const dayLabel = planMode === 'weekly'
@@ -1625,50 +1642,54 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                   </button>
                 </div>
                 {customHasAnyMeals && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {!customPlanSaved && (
-                      <button
-                        onClick={() => setCustomDiscardConfirmOpen(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
-                        data-testid="button-discard-custom-plan"
-                      >
-                        <X className="w-3.5 h-3.5" /> Discard
-                      </button>
-                    )}
-                    <button
-                      onClick={() => customSavePlanMutation.mutate()}
-                      disabled={customSavePlanMutation.isPending || customPlanSaved}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors min-h-[36px] ${
-                        customPlanSaved
-                          ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
-                          : "bg-zinc-900 hover:bg-zinc-700 text-white"
-                      }`}
-                      data-testid="button-save-custom-plan"
-                    >
-                      {customSavePlanMutation.isPending ? (
-                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
-                      ) : customPlanSaved ? (
-                        <><Check className="w-3.5 h-3.5" /> Saved</>
-                      ) : (
-                        <><Save className="w-3.5 h-3.5" /> Save Plan</>
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      {!customPlanSaved && (
+                        <button
+                          onClick={() => setCustomDiscardConfirmOpen(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
+                          data-testid="button-discard-custom-plan"
+                        >
+                          <X className="w-3.5 h-3.5" /> Discard
+                        </button>
                       )}
-                    </button>
-                    <button
-                      onClick={() => exportShoppingListToPDF(buildPlanFromSlots(), data)}
-                      className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
-                      data-testid="button-export-custom-shopping-list"
-                    >
-                      <ShoppingCart className="w-3.5 h-3.5" />
-                      Shopping List
-                    </button>
-                    <button
-                      onClick={() => exportMealPlanToPDF(buildPlanFromSlots(), data)}
-                      className="flex items-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors"
-                      data-testid="button-export-custom-pdf"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      PDF
-                    </button>
+                      <button
+                        onClick={() => customSavePlanMutation.mutate()}
+                        disabled={customSavePlanMutation.isPending || customPlanSaved}
+                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors min-h-[36px] ${
+                          customPlanSaved
+                            ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
+                            : "bg-zinc-900 hover:bg-zinc-700 text-white"
+                        }`}
+                        data-testid="button-save-custom-plan"
+                      >
+                        {customSavePlanMutation.isPending ? (
+                          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+                        ) : customPlanSaved ? (
+                          <><Check className="w-3.5 h-3.5" /> Saved</>
+                        ) : (
+                          <><Save className="w-3.5 h-3.5" /> Save Plan</>
+                        )}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => exportShoppingListToPDF(buildPlanFromSlots(), data)}
+                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors min-h-[36px]"
+                        data-testid="button-export-custom-shopping-list"
+                      >
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                        Shopping List
+                      </button>
+                      <button
+                        onClick={() => exportMealPlanToPDF(buildPlanFromSlots(), data)}
+                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors min-h-[36px]"
+                        data-testid="button-export-custom-pdf"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        PDF
+                      </button>
+                    </div>
                   </div>
                 )}
 
