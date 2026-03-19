@@ -3,7 +3,7 @@ import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, C
 import { Link } from "wouter";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { UserPreferences } from "@shared/schema";
+import type { UserPreferences, SavedMealPlan } from "@shared/schema";
 import { getCyclePhase } from "@/lib/cycle";
 import type { Calculation } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
@@ -198,6 +198,48 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const filteredUserFoods = (userFoodsData?.items ?? []).filter(f =>
     !replaceSearchQuery || f.name.toLowerCase().includes(replaceSearchQuery.toLowerCase())
   );
+
+  const { data: savedPlans = [] } = useQuery<SavedMealPlan[]>({
+    queryKey: ["/api/saved-meal-plans"],
+    queryFn: async () => {
+      const res = await fetch("/api/saved-meal-plans", { credentials: "include" });
+      if (res.status === 401) return [];
+      if (!res.ok) throw new Error("Failed to load saved plans");
+      return res.json();
+    },
+  });
+
+  const thisMonday = getMonday(toDateStr(new Date()));
+  const nextMonday = addDays(thisMonday, 7);
+
+  const findPlanForWeek = (monday: string): SavedMealPlan | null => {
+    const sunday = addDays(monday, 6);
+    const matches = savedPlans.filter(p => {
+      const pd = p.planData as any;
+      if (p.planType === 'weekly' && pd.weekStartDate) {
+        return getMonday(pd.weekStartDate) === monday;
+      }
+      if (p.planType === 'daily' && pd.targetDate) {
+        return pd.targetDate >= monday && pd.targetDate <= sunday;
+      }
+      if (pd.planType === 'multi-daily' && pd.days) {
+        return Object.keys(pd.days).some((d: string) => d >= monday && d <= sunday);
+      }
+      if (pd.targetDates && Array.isArray(pd.targetDates)) {
+        return pd.targetDates.some((d: string) => d >= monday && d <= sunday);
+      }
+      return false;
+    });
+    if (matches.length === 0) return null;
+    return matches.reduce((latest, p) => {
+      const la = latest.createdAt ? new Date(latest.createdAt).getTime() : 0;
+      const pa = p.createdAt ? new Date(p.createdAt).getTime() : 0;
+      return pa > la ? p : latest;
+    });
+  };
+
+  const thisWeekPlan = findPlanForWeek(thisMonday);
+  const nextWeekPlan = findPlanForWeek(nextMonday);
 
   const getCustomDayKeys = useCallback(() => {
     if (planMode === 'weekly') {
@@ -829,6 +871,57 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
           <ClipboardList className="w-4 h-4" />
           {customHasAnyMeals ? 'Continue Building' : 'Open Custom Builder'}
         </button>
+      )}
+
+      {savedPlans.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 mt-4" data-testid="saved-plan-shortcuts">
+          {([
+            { label: 'This Week', plan: thisWeekPlan, monday: thisMonday, testId: 'shortcut-this-week' },
+            { label: 'Next Week', plan: nextWeekPlan, monday: nextMonday, testId: 'shortcut-next-week' },
+          ] as const).map(({ label, plan, monday, testId }) => {
+            const sundayStr = formatShort(addDays(monday, 6));
+            const mondayStr = formatShort(monday);
+            const pd = plan?.planData as any;
+            const cals = pd
+              ? (pd.weekTotalCalories
+                  ? `${Math.round(pd.weekTotalCalories / 7).toLocaleString()} kcal/day`
+                  : pd.dayTotalCalories
+                    ? `${pd.dayTotalCalories.toLocaleString()} kcal`
+                    : null)
+              : null;
+            return (
+              <div
+                key={testId}
+                onClick={() => {
+                  const btn = document.querySelector('[data-testid="button-saved-plans"]') as HTMLButtonElement | null;
+                  if (btn) btn.click();
+                }}
+                className={`rounded-xl border p-3 transition-colors cursor-pointer ${
+                  plan
+                    ? 'bg-zinc-50 border-zinc-200 hover:bg-zinc-100'
+                    : 'bg-zinc-50/50 border-zinc-100 hover:bg-zinc-50'
+                }`}
+                data-testid={testId}
+              >
+                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-1">{label}</p>
+                <p className="text-[10px] text-zinc-400 mb-1.5">{mondayStr} – {sundayStr}</p>
+                {plan ? (
+                  <>
+                    <p className="text-xs font-medium text-zinc-800 truncate" data-testid={`${testId}-name`}>
+                      <CalendarDays className="w-3 h-3 inline mr-1 text-zinc-400" />
+                      {plan.name}
+                    </p>
+                    {cals && (
+                      <p className="text-[10px] text-zinc-500 mt-0.5" data-testid={`${testId}-cals`}>{cals}</p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-[10px] text-zinc-400 italic">No plan yet</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
 
       <AnimatePresence>
