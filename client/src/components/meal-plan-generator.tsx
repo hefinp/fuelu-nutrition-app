@@ -13,35 +13,25 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useActiveFlow } from "@/contexts/active-flow-context";
-import { RECIPES } from "./results-recipes";
 import { toDateStr, addDays, getMonday, formatShort, DAY_LABELS } from "./results-pdf";
 import { exportMealPlanToPDF, exportShoppingListToPDF } from "./results-pdf";
 import { SavedMealPlans } from "@/components/saved-meal-plans";
 import type { PrefillEntry } from "@/components/food-log-shared";
 import { isSlotPast, isDayPast } from "@/lib/mealTime";
 
-export interface Meal {
-  meal: string;
-  calories: number;
-  protein: number;
-  carbs: number;
-  fat: number;
-  vitalityRationale?: string;
-  ingredientsJson?: Array<{ name: string; grams: number; calories100g: number; protein100g?: number; carbs100g?: number; fat100g?: number }>;
-}
+import { DateRangePicker } from "./meal-plan/date-range-picker";
+import { DailyMealView } from "./meal-plan/daily-meal-view";
+import { WeeklyMealView } from "./meal-plan/weekly-meal-view";
+import { PlanTypeToggle, MealStyleSelector, SlotToggles } from "./meal-plan/shared-controls";
+import { ReplacePicker } from "./meal-plan/replace-picker";
+import { AddMealPopover } from "./meal-plan/add-meal-popover";
+import { CopyMovePopover } from "./meal-plan/copy-move-popover";
+import { NutritionSummaryCard } from "./meal-plan/nutrition-summary-card";
+import type { MealPlan, ReplacePickerState, AddMealPopoverState, CopyMovePopoverState, DragSourceState, DropTargetState } from "./meal-plan/types";
+import { recalcDayTotals, recalcWeekTotals } from "./meal-plan/types";
 
-interface DayMealPlan {
-  breakfast: Meal[];
-  lunch: Meal[];
-  dinner: Meal[];
-  snacks: Meal[];
-  dayTotalCalories: number;
-  dayTotalProtein: number;
-  dayTotalCarbs: number;
-  dayTotalFat: number;
-}
-
-type MealPlan = any;
+export type { Meal } from "./meal-plan/types";
+import type { Meal } from "./meal-plan/types";
 
 function isSlotLockedForDates(slot: string, dates: string[]): boolean {
   if (dates.length === 0) return false;
@@ -73,21 +63,17 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const [customPlanSaved, setCustomPlanSaved] = useState(false);
   const [generatorModalOpen, setGeneratorModalOpen] = useState(false);
   const [customModalOpen, setCustomModalOpen] = useState(false);
-  const [addMealPopover, setAddMealPopover] = useState<{ dayKey: string; slotKey: string } | null>(null);
-  const [mealSearchQuery, setMealSearchQuery] = useState("");
+  const [addMealPopover, setAddMealPopover] = useState<AddMealPopoverState | null>(null);
   const [baseSlots, setBaseSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snack']));
-  const [replacePicker, setReplacePicker] = useState<{ dayKey: string; slotKey: string; mealIdx: number; context: 'generator' | 'custom' } | null>(null);
-  const [replacePickerTab, setReplacePickerTab] = useState<'meals' | 'foods'>('meals');
-  const [replaceSearchQuery, setReplaceSearchQuery] = useState("");
-  const [addFoodForm, setAddFoodForm] = useState<{ name: string; calories: string; protein: string; carbs: string; fat: string } | null>(null);
+  const [replacePicker, setReplacePicker] = useState<ReplacePickerState | null>(null);
   const [baseCustomSlots, setBaseCustomSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snacks']));
   const [bannerCollapsed, setBannerCollapsed] = useState(false);
   const [showSavedPlansInline, setShowSavedPlansInline] = useState(false);
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [customDiscardConfirmOpen, setCustomDiscardConfirmOpen] = useState(false);
-  const [dragSource, setDragSource] = useState<{ dayKey: string; slotKey: string; mealIdx: number } | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ dayKey: string; slotKey: string } | null>(null);
-  const [copyMovePopover, setCopyMovePopover] = useState<{ x: number; y: number; source: { dayKey: string; slotKey: string; mealIdx: number }; target: { dayKey: string; slotKey: string } } | null>(null);
+  const [dragSource, setDragSource] = useState<DragSourceState | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTargetState | null>(null);
+  const [copyMovePopover, setCopyMovePopover] = useState<CopyMovePopoverState | null>(null);
   const [touchDragging, setTouchDragging] = useState<{ dayKey: string; slotKey: string; mealIdx: number; mealName: string } | null>(null);
   const [touchGhost, setTouchGhost] = useState<{ x: number; y: number } | null>(null);
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -131,7 +117,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       allSlots.delete('breakfast');
       allSlots.delete('snack');
     } else if (protocol === '5:2') {
-      // 5:2 is day-specific; backend handles fasting days automatically
     } else {
       const wStart = mealPlanPrefs.eatingWindowStart ?? 12;
       const wEnd = mealPlanPrefs.eatingWindowEnd ?? 20;
@@ -159,7 +144,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     });
   }, []);
 
-  // Derived: apply time-locking on top of user/fasting intent
   const enabledSlots = useMemo(() => {
     if (planMode !== 'daily') return new Set(baseSlots);
     const next = new Set<string>();
@@ -177,10 +161,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     }
     return next;
   }, [baseCustomSlots, selectedDates, planMode]);
-
-  useEffect(() => {
-    if (replacePicker) setReplacePickerTab('meals');
-  }, [replacePicker]);
 
   const excludeSlotsArray = ['breakfast', 'lunch', 'dinner', 'snack'].filter(s => !enabledSlots.has(s));
 
@@ -271,21 +251,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     };
   }, [generatorModalOpen, customModalOpen]);
 
-  const { data: userMealsData, isLoading: userMealsLoading } = useQuery<{ items: any[] }>({
-    queryKey: ["/api/user-meals"],
-    enabled: widgetMode === "custom" || replacePicker !== null || addMealPopover !== null,
-  });
-  const filteredUserMeals = (userMealsData?.items ?? []).filter(m =>
-    !mealSearchQuery || m.name.toLowerCase().includes(mealSearchQuery.toLowerCase())
-  );
 
-  const { data: userFoodsData } = useQuery<{ items: any[] }>({
-    queryKey: ["/api/my-foods"],
-    enabled: replacePicker !== null,
-  });
-  const filteredUserFoods = (userFoodsData?.items ?? []).filter(f =>
-    !replaceSearchQuery || f.name.toLowerCase().includes(replaceSearchQuery.toLowerCase())
-  );
 
   const { data: savedPlans = [] } = useQuery<SavedMealPlan[]>({
     queryKey: ["/api/saved-meal-plans"],
@@ -350,7 +316,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       return { ...prev, [dayKey]: day };
     });
     setAddMealPopover(null);
-    setMealSearchQuery("");
     setCustomPlanReady(null);
     setCustomPlanSaved(false);
   }, []);
@@ -724,8 +689,8 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const savePlanMutation = useMutation({
     mutationFn: async () => {
       if (!mealPlan) throw new Error("No plan to save");
-      const planTypeLabel = mealPlan.planType === 'weekly' ? 'Weekly' : 'Daily';
-      const dateLabel = mealPlan.planType === 'weekly'
+      const planTypeLabel = (mealPlan as any).planType === 'weekly' ? 'Weekly' : 'Daily';
+      const dateLabel = (mealPlan as any).planType === 'weekly'
         ? ` (${formatShort(weekStart)} – ${formatShort(addDays(weekStart, 6))})`
         : selectedDates.length === 1
           ? ` (${formatShort(selectedDates[0])})`
@@ -736,7 +701,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       }
       const res = await apiRequest('POST', '/api/saved-meal-plans', {
         planData: savePlanData,
-        planType: mealPlan.planType === 'multi-daily' ? 'daily' : mealPlan.planType,
+        planType: (mealPlan as any).planType === 'multi-daily' ? 'daily' : (mealPlan as any).planType,
         mealStyle,
         calculationId: data.id,
         name: `${planTypeLabel} Plan${dateLabel}`,
@@ -773,23 +738,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     },
   });
 
-  const recalcDayTotals = (dayPlan: any) => {
-    const all = [...(dayPlan.breakfast || []), ...(dayPlan.lunch || []), ...(dayPlan.dinner || []), ...(dayPlan.snacks || [])];
-    dayPlan.dayTotalCalories = all.reduce((s: number, m: any) => s + m.calories, 0);
-    dayPlan.dayTotalProtein = all.reduce((s: number, m: any) => s + m.protein, 0);
-    dayPlan.dayTotalCarbs = all.reduce((s: number, m: any) => s + m.carbs, 0);
-    dayPlan.dayTotalFat = all.reduce((s: number, m: any) => s + m.fat, 0);
-  };
-
-  const recalcWeekTotals = (plan: any) => {
-    const weekDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    let wCal = 0, wPro = 0, wCarb = 0, wFat = 0;
-    for (const d of weekDays) {
-      if (plan[d]) { wCal += plan[d].dayTotalCalories || 0; wPro += plan[d].dayTotalProtein || 0; wCarb += plan[d].dayTotalCarbs || 0; wFat += plan[d].dayTotalFat || 0; }
-    }
-    plan.weekTotalCalories = wCal; plan.weekTotalProtein = wPro; plan.weekTotalCarbs = wCarb; plan.weekTotalFat = wFat;
-  };
-
   const handleLibraryReplace = useCallback((item: { name: string; calories: number; protein: number; carbs: number; fat: number }) => {
     if (!replacePicker) return;
     const { dayKey, slotKey, mealIdx, context } = replacePicker;
@@ -825,14 +773,29 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       setCustomPlanSaved(false);
     }
     setReplacePicker(null);
-    setReplaceSearchQuery("");
-    setAddFoodForm(null);
     toast({ title: "Meal replaced", description: `Swapped with ${item.name}` });
   }, [replacePicker, mealPlan, toast]);
 
   const generatorPlanTitle = mealPlan
-    ? `${mealPlan.planType === 'multi-daily' ? 'Multi-Day' : mealPlan.planType === 'weekly' ? 'Weekly' : 'Daily'} Meal Plan`
+    ? `${(mealPlan as any).planType === 'multi-daily' ? 'Multi-Day' : (mealPlan as any).planType === 'weekly' ? 'Weekly' : 'Daily'} Meal Plan`
     : '';
+
+  const handleDateToggle = useCallback((dateStr: string) => {
+    setSelectedDates(prev => {
+      const without = prev.filter(d => d !== dateStr);
+      return prev.includes(dateStr) && without.length > 0 ? without : [...prev.filter(d => d !== dateStr), dateStr].sort();
+    });
+  }, []);
+
+  const handlePlanModeChange = useCallback((mode: 'daily' | 'weekly') => {
+    setPlanMode(mode);
+    setMealPlan(null);
+  }, []);
+
+  const handleMealStyleChange = useCallback((style: 'simple' | 'gourmet' | 'michelin') => {
+    setMealStyle(style);
+    setMealPlan(null);
+  }, []);
 
   return (
     <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
@@ -950,6 +913,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         </AnimatePresence>
       </div>
 
+      {/* Generator Modal */}
       <AnimatePresence>
         {generatorModalOpen && (
           <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setGeneratorModalOpen(false)}>
@@ -968,13 +932,13 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                   </h3>
                   {mealPlan ? (
                     <>
-                      {mealPlan.planType === 'weekly' && (mealPlan as any).weekStartDate && (
+                      {(mealPlan as any).planType === 'weekly' && (mealPlan as any).weekStartDate && (
                         <p className="text-xs text-zinc-400 mt-0.5">
                           <CalendarDays className="w-3 h-3 inline mr-1" />
                           {formatShort((mealPlan as any).weekStartDate)} – {formatShort(addDays((mealPlan as any).weekStartDate, 6))}
                         </p>
                       )}
-                      {(mealPlan.planType === 'daily' || mealPlan.planType === 'multi-daily') && selectedDates.length > 0 && (
+                      {((mealPlan as any).planType === 'daily' || (mealPlan as any).planType === 'multi-daily') && selectedDates.length > 0 && (
                         <p className="text-xs text-zinc-400 mt-0.5">
                           <CalendarDays className="w-3 h-3 inline mr-1" />
                           {selectedDates.length === 1
@@ -999,78 +963,20 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               <div className="bg-zinc-50 border-b border-zinc-100 shrink-0">
                 <div className={`transition-all duration-300 ease-in-out overflow-hidden sm:!max-h-none ${bannerCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
                   <div className="px-4 sm:px-6 py-3">
-                    <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch mb-2" data-testid="plan-type-toggle">
-                      <div
-                        className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
-                        style={{ width: `calc((100% - 4px) / 2)`, left: planMode === 'daily' ? '2px' : `calc(2px + (100% - 4px) / 2)` }}
-                      />
-                      {([
-                        { key: 'daily' as const, label: 'Daily' },
-                        { key: 'weekly' as const, label: 'Weekly' },
-                      ]).map(opt => (
-                        <button
-                          key={opt.key}
-                          type="button"
-                          data-testid={`toggle-plan-type-${opt.key}`}
-                          onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
-                          className={`relative z-10 flex-1 py-1 rounded-lg text-xs font-semibold transition-colors duration-200 ${
-                            planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
+                    <PlanTypeToggle planMode={planMode} onChangePlanMode={handlePlanModeChange} />
                     <DateRangePicker
                       weekStart={weekStart}
                       onWeekChange={(dir) => setWeekStart(prev => addDays(prev, dir))}
                       planMode={planMode}
                       selectedDates={selectedDates}
-                      onToggleDate={(dateStr) => {
-                        setSelectedDates(prev => {
-                          const without = prev.filter(d => d !== dateStr);
-                          return prev.includes(dateStr) && without.length > 0 ? without : [...prev.filter(d => d !== dateStr), dateStr].sort();
-                        });
-                      }}
+                      onToggleDate={handleDateToggle}
                     />
-
-                    <div className="mt-3">
-                      <div className="flex justify-center gap-2.5 sm:gap-3">
-                        {([
-                          { key: 'breakfast', label: 'Breakfast', icon: Coffee },
-                          { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
-                          { key: 'dinner', label: 'Dinner', icon: ChefHat },
-                          { key: 'snack', label: 'Snacks', icon: Cookie },
-                        ] as const).map(({ key, label, icon: Icon }) => {
-                          const active = enabledSlots.has(key);
-                          const locked = planMode === 'daily' && isSlotLockedForDates(key, selectedDates);
-                          return (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => { if (!locked) toggleSlot(key); }}
-                              disabled={locked}
-                              className={`flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-medium transition-all ${
-                                locked
-                                  ? 'bg-zinc-100 text-zinc-300 opacity-50 cursor-not-allowed'
-                                  : active
-                                    ? 'bg-zinc-900 text-white shadow-sm'
-                                    : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
-                              }`}
-                              data-testid={`toggle-slot-${key}`}
-                            >
-                              {locked ? <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {excludeSlotsArray.length > 0 && (
-                        <p className="text-[10px] text-zinc-400 mt-1.5 text-center">
-                          {excludeSlotsArray.map(s => s === 'snack' ? 'Snacks' : s.charAt(0).toUpperCase() + s.slice(1)).join(', ')} will be skipped
-                        </p>
-                      )}
-                    </div>
+                    <SlotToggles
+                      enabledSlots={enabledSlots}
+                      onToggleSlot={toggleSlot}
+                      planMode={planMode}
+                      selectedDates={selectedDates}
+                    />
                   </div>
                 </div>
                 <button
@@ -1085,44 +991,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4">
                 <div className="mb-4">
                   <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Meal Style</p>
-                  {(() => {
-                    const styles = [
-                      { key: 'simple' as const,  icon: Salad,   label: 'Simple' },
-                      { key: 'gourmet' as const, icon: ChefHat, label: 'Fancy' },
-                      { key: 'michelin' as const,icon: Star,    label: 'Michelin' },
-                    ];
-                    const idx = styles.findIndex(s => s.key === mealStyle);
-                    const descriptions: Record<string, string> = {
-                      simple:  'Quick, clean meals — ideal for busy weeks.',
-                      gourmet: 'Bold flavours and restaurant-style dishes.',
-                      michelin:'Fine-dining tasting menus — truffle, Wagyu and more.',
-                    };
-                    return (
-                      <>
-                        <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch" data-testid="meal-style-scale">
-                          <div
-                            className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
-                            style={{ width: `calc((100% - 4px) / 3)`, left: `calc(2px + ${idx} * (100% - 4px) / 3)` }}
-                          />
-                          {styles.map((style) => (
-                            <button
-                              key={style.key}
-                              type="button"
-                              data-testid={`toggle-meal-style-${style.key}`}
-                              onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
-                              className={`relative z-10 flex-1 flex flex-col items-center gap-0.5 sm:gap-1 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors duration-200 ${
-                                mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-                              }`}
-                            >
-                              <style.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                              <span>{style.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                        <p className="text-[10px] sm:text-xs text-zinc-400 mt-2">{descriptions[mealStyle]}</p>
-                      </>
-                    );
-                  })()}
+                  <MealStyleSelector mealStyle={mealStyle} onChangeMealStyle={handleMealStyleChange} />
                 </div>
 
                 {cycleEnabledButMissing && !ignoreCycle && (
@@ -1258,7 +1127,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                       {generateMealPlan.isPending ? 'Generating…' : 'Generate Plan'}
                     </button>
                   </div>
-                ) : mealPlan.planType === 'multi-daily' ? (
+                ) : (mealPlan as any).planType === 'multi-daily' ? (
                   <div className="space-y-6">
                     {(mealPlan as any).targetDates?.map((dateStr: string) => {
                       const dayPlan = (mealPlan as any).days?.[dateStr];
@@ -1299,7 +1168,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                       );
                     })}
                   </div>
-                ) : mealPlan.planType === 'daily' ? (
+                ) : (mealPlan as any).planType === 'daily' ? (
                   <DailyMealView
                     plan={mealPlan}
                     onLogMeal={onLogMeal}
@@ -1412,7 +1281,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     </button>
                     <button
                       onClick={() => {
-                        if (mealPlan.planType === 'daily') {
+                        if ((mealPlan as any).planType === 'daily') {
                           setShoppingDaysOpen(true);
                         } else {
                           exportShoppingListToPDF(mealPlan, data);
@@ -1430,8 +1299,62 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                       data-testid="button-export-pdf"
                     >
                       <Download className="w-3.5 h-3.5" />
-                      Export PDF
+                      PDF
                     </button>
+                    <button
+                      onClick={() => { setMealPlan(null); setPlanSaved(false); generateMealPlan.mutate(planMode); }}
+                      disabled={generateMealPlan.isPending}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium text-xs transition-colors min-h-[36px]"
+                      data-testid="button-regenerate"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {shoppingDaysOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30" onClick={() => setShoppingDaysOpen(false)}>
+                  <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-xs w-full" onClick={(e) => e.stopPropagation()}>
+                    <h4 className="text-sm font-bold text-zinc-900 mb-3">Shopping List</h4>
+                    <p className="text-xs text-zinc-500 mb-3">How many days should the quantities cover?</p>
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={shoppingDaysInput}
+                      onChange={(e) => setShoppingDaysInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          const d = Math.max(1, parseInt(shoppingDaysInput) || 1);
+                          setShoppingDaysOpen(false);
+                          exportShoppingListToPDF(mealPlan!, data, d);
+                        }
+                      }}
+                      className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-base focus:outline-none focus:ring-2 focus:ring-zinc-400 focus:border-transparent"
+                      data-testid="input-shopping-days"
+                      autoFocus
+                    />
+                    <div className="flex gap-3 mt-3">
+                      <button
+                        onClick={() => setShoppingDaysOpen(false)}
+                        className="flex-1 px-4 py-2.5 border border-zinc-200 text-zinc-700 rounded-xl font-medium text-sm hover:bg-zinc-50 transition-colors"
+                        data-testid="button-shopping-days-cancel"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          const d = Math.max(1, parseInt(shoppingDaysInput) || 1);
+                          setShoppingDaysOpen(false);
+                          exportShoppingListToPDF(mealPlan!, data, d);
+                        }}
+                        className="flex-1 px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-medium text-sm transition-colors"
+                        data-testid="button-shopping-days-confirm"
+                      >
+                        Generate PDF
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1484,66 +1407,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         )}
       </AnimatePresence>
 
-      {shoppingDaysOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4"
-          >
-            <div className="flex items-center gap-3 mb-1">
-              <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
-                <ShoppingCart className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-display font-bold text-zinc-900">Shopping List</h3>
-            </div>
-            <p className="text-sm text-zinc-500 mb-5 mt-1">
-              How many days are you shopping for? Ingredient quantities will be scaled accordingly.
-            </p>
-            <div className="mb-5">
-              <label className="block text-sm font-medium text-zinc-700 mb-2">Number of days</label>
-              <input
-                type="number"
-                min="1"
-                max="30"
-                value={shoppingDaysInput}
-                onChange={e => setShoppingDaysInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    const d = Math.max(1, parseInt(shoppingDaysInput) || 1);
-                    setShoppingDaysOpen(false);
-                    exportShoppingListToPDF(mealPlan!, data, d);
-                  }
-                }}
-                className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-base focus:outline-none focus:ring-2 focus:ring-zinc-400 focus:border-transparent"
-                data-testid="input-shopping-days"
-                autoFocus
-              />
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShoppingDaysOpen(false)}
-                className="flex-1 px-4 py-2.5 border border-zinc-200 text-zinc-700 rounded-xl font-medium text-sm hover:bg-zinc-50 transition-colors"
-                data-testid="button-shopping-days-cancel"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  const d = Math.max(1, parseInt(shoppingDaysInput) || 1);
-                  setShoppingDaysOpen(false);
-                  exportShoppingListToPDF(mealPlan!, data, d);
-                }}
-                className="flex-1 px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-medium text-sm transition-colors"
-                data-testid="button-shopping-days-confirm"
-              >
-                Generate PDF
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
+      {/* Custom Modal */}
       <AnimatePresence>
         {customModalOpen && (
           <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setCustomModalOpen(false)}>
@@ -1552,17 +1416,15 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 40 }}
               transition={{ duration: 0.25 }}
-              className="bg-white sm:rounded-2xl shadow-2xl w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-4xl sm:mx-4 flex flex-col overflow-hidden"
+              className="bg-white sm:rounded-2xl shadow-2xl w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:mx-4 flex flex-col overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="sticky top-0 z-10 bg-white border-b border-zinc-100 px-4 sm:px-6 py-4 flex items-center justify-between shrink-0">
                 <div>
                   <h3 className="text-lg font-display font-bold text-zinc-900" data-testid="text-custom-modal-title">
-                    Custom {planMode === 'weekly' ? 'Weekly' : 'Daily'} Builder
+                    Custom Meal Plan
                   </h3>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    Add meals to slots, then autofill the rest
-                  </p>
+                  <p className="text-xs text-zinc-400 mt-0.5">Build your own plan from your meal library</p>
                 </div>
                 <button
                   onClick={() => setCustomModalOpen(false)}
@@ -1576,114 +1438,31 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               <div className="bg-zinc-50 border-b border-zinc-100 shrink-0">
                 <div className={`transition-all duration-300 ease-in-out overflow-hidden sm:!max-h-none ${bannerCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
                   <div className="px-4 sm:px-6 py-3">
-                    <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch mb-3" data-testid="custom-plan-type-toggle">
-                      <div
-                        className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
-                        style={{ width: `calc((100% - 4px) / 2)`, left: planMode === 'daily' ? '2px' : `calc(2px + (100% - 4px) / 2)` }}
-                      />
-                      {([
-                        { key: 'daily' as const, label: 'Daily' },
-                        { key: 'weekly' as const, label: 'Weekly' },
-                      ]).map(opt => (
-                        <button
-                          key={opt.key}
-                          type="button"
-                          data-testid={`toggle-custom-plan-type-${opt.key}`}
-                          onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
-                          className={`relative z-10 flex-1 py-1 rounded-lg text-xs font-semibold transition-colors duration-200 ${
-                            planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
+                    <PlanTypeToggle planMode={planMode} onChangePlanMode={handlePlanModeChange} testIdPrefix="custom" />
                     <DateRangePicker
                       weekStart={weekStart}
                       onWeekChange={(dir) => setWeekStart(prev => addDays(prev, dir))}
                       planMode={planMode}
                       selectedDates={selectedDates}
-                      onToggleDate={(dateStr) => {
-                        setSelectedDates(prev => {
-                          const without = prev.filter(d => d !== dateStr);
-                          return prev.includes(dateStr) && without.length > 0 ? without : [...prev.filter(d => d !== dateStr), dateStr].sort();
-                        });
-                      }}
+                      onToggleDate={handleDateToggle}
                       testIdPrefix="custom"
                     />
                     <div className="mt-3">
-                      {(() => {
-                        const styles = [
-                          { key: 'simple' as const,  icon: Salad,   label: 'Simple' },
-                          { key: 'gourmet' as const, icon: ChefHat, label: 'Fancy' },
-                          { key: 'michelin' as const,icon: Star,    label: 'Michelin' },
-                        ];
-                        const idx = styles.findIndex(s => s.key === mealStyle);
-                        return (
-                          <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch" data-testid="custom-meal-style-scale">
-                            <div
-                              className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
-                              style={{ width: `calc((100% - 4px) / 3)`, left: `calc(2px + ${idx} * (100% - 4px) / 3)` }}
-                            />
-                            {styles.map((style) => (
-                              <button
-                                key={style.key}
-                                type="button"
-                                data-testid={`toggle-custom-meal-style-${style.key}`}
-                                onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
-                                className={`relative z-10 flex-1 flex flex-col items-center gap-0.5 sm:gap-1 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors duration-200 ${
-                                  mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-                                }`}
-                              >
-                                <style.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                <span>{style.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        );
-                      })()}
+                      <MealStyleSelector mealStyle={mealStyle} onChangeMealStyle={handleMealStyleChange} showDescription={false} testIdPrefix="custom-" />
                     </div>
-
-                    <div className="mt-3">
-                      <div className="flex justify-center gap-2.5 sm:gap-3">
-                        {([
-                          { key: 'breakfast', label: 'Breakfast', icon: Coffee },
-                          { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
-                          { key: 'dinner', label: 'Dinner', icon: ChefHat },
-                          { key: 'snacks', label: 'Snacks', icon: Cookie },
-                        ] as const).map(({ key, label, icon: Icon }) => {
-                          const active = customEnabledSlots.has(key);
-                          const locked = planMode === 'daily' && isSlotLockedForDates(key, selectedDates);
-                          return (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => { if (!locked) toggleCustomSlot(key); }}
-                              disabled={locked}
-                              className={`flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-medium transition-all ${
-                                locked
-                                  ? 'bg-zinc-100 text-zinc-300 opacity-50 cursor-not-allowed'
-                                  : active
-                                    ? 'bg-zinc-900 text-white shadow-sm'
-                                    : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
-                              }`}
-                              data-testid={`toggle-custom-slot-${key}`}
-                            >
-                              {locked ? <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).filter(s => !customEnabledSlots.has(s)).length > 0 && (
-                        <p className="text-[10px] text-zinc-400 mt-1.5 text-center">
-                          {(['breakfast', 'lunch', 'dinner', 'snacks'] as const)
-                            .filter(s => !customEnabledSlots.has(s))
-                            .map(s => s === 'snacks' ? 'Snacks' : s.charAt(0).toUpperCase() + s.slice(1))
-                            .join(', ')} will be skipped
-                        </p>
-                      )}
-                    </div>
+                    <SlotToggles
+                      enabledSlots={customEnabledSlots}
+                      onToggleSlot={toggleCustomSlot}
+                      planMode={planMode}
+                      selectedDates={selectedDates}
+                      slotKeys={[
+                        { key: 'breakfast', label: 'Breakfast' },
+                        { key: 'lunch', label: 'Lunch' },
+                        { key: 'dinner', label: 'Dinner' },
+                        { key: 'snacks', label: 'Snacks' },
+                      ]}
+                      testIdPrefix="custom"
+                    />
                   </div>
                 </div>
                 <button
@@ -1702,55 +1481,19 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                       ? dayKey.charAt(0).toUpperCase() + dayKey.slice(1)
                       : (() => { const [y, m, d] = dayKey.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); })();
                     const dayNutrition = getDayNutrition(dayKey);
-                    const calPct = effectiveCals > 0 ? Math.min(100, Math.round((dayNutrition.calories / effectiveCals) * 100)) : 0;
                     const dayDateStr = planMode === 'weekly' ? addDays(weekStart, dayIdx) : dayKey;
                     const dayIsPast = isDayPast(dayDateStr);
                     return (
                       <div key={dayKey} className={`border rounded-2xl p-3 ${dayIsPast ? 'border-zinc-100 opacity-60' : 'border-zinc-100'}`}>
-                        <div className="bg-zinc-900 text-white rounded-2xl relative overflow-hidden mb-3" data-testid={`nutrition-summary-${dayKey}`}>
-                          <div className="absolute top-[-40%] right-[-10%] w-48 h-48 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-2xl pointer-events-none" />
-                          <div className="relative z-10 p-3 sm:p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-1.5">
-                                <CalendarDays className="w-3.5 h-3.5 text-zinc-400" />
-                                <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">{dayLabel}</span>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-lg font-bold leading-none" data-testid={`text-day-calories-${dayKey}`}>{dayNutrition.calories}<span className="text-xs font-normal text-zinc-400 ml-0.5">/{effectiveCals}</span></p>
-                                <p className="text-zinc-500 text-[10px] mt-0.5">kcal</p>
-                              </div>
-                            </div>
-                            <div className="w-full h-1 bg-white/10 rounded-full mb-2 overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-300 ${calPct >= 100 ? 'bg-amber-500' : 'bg-white/70'}`}
-                                style={{ width: `${calPct}%` }}
-                              />
-                            </div>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              <div className="bg-white/10 rounded-lg px-2 py-1.5" data-testid={`tile-custom-protein-${dayKey}`}>
-                                <div className="flex items-center gap-1 mb-0.5">
-                                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-1))" }} />
-                                  <span className="text-[10px] text-zinc-400">Protein</span>
-                                </div>
-                                <p className="text-sm font-bold leading-none">{dayNutrition.protein}<span className="text-[10px] font-normal text-zinc-400 ml-0.5">g</span></p>
-                              </div>
-                              <div className="bg-white/10 rounded-lg px-2 py-1.5" data-testid={`tile-custom-carbs-${dayKey}`}>
-                                <div className="flex items-center gap-1 mb-0.5">
-                                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-2))" }} />
-                                  <span className="text-[10px] text-zinc-400">Carbs</span>
-                                </div>
-                                <p className="text-sm font-bold leading-none">{dayNutrition.carbs}<span className="text-[10px] font-normal text-zinc-400 ml-0.5">g</span></p>
-                              </div>
-                              <div className="bg-white/10 rounded-lg px-2 py-1.5" data-testid={`tile-custom-fat-${dayKey}`}>
-                                <div className="flex items-center gap-1 mb-0.5">
-                                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-3))" }} />
-                                  <span className="text-[10px] text-zinc-400">Fat</span>
-                                </div>
-                                <p className="text-sm font-bold leading-none">{dayNutrition.fat}<span className="text-[10px] font-normal text-zinc-400 ml-0.5">g</span></p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                        <NutritionSummaryCard
+                          dayLabel={dayLabel}
+                          calories={dayNutrition.calories}
+                          targetCalories={effectiveCals}
+                          protein={dayNutrition.protein}
+                          carbs={dayNutrition.carbs}
+                          fat={dayNutrition.fat}
+                          dayKey={dayKey}
+                        />
                         <div className="space-y-3">
                           {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(slotKey => {
                             const meals = customSlots[dayKey]?.[slotKey] || [];
@@ -1773,7 +1516,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                                   </h5>
                                   {!slotReadOnly && (
                                     <button
-                                      onClick={() => { setAddMealPopover({ dayKey, slotKey }); setMealSearchQuery(""); }}
+                                      onClick={() => setAddMealPopover({ dayKey, slotKey })}
                                       className="flex items-center gap-1 text-[10px] font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
                                       data-testid={`button-add-meal-${dayKey}-${slotKey}`}
                                     >
@@ -1965,7 +1708,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                       data-testid="button-export-custom-pdf"
                     >
                       <Download className="w-3.5 h-3.5" />
-                      Export PDF
+                      PDF
                     </button>
                   </div>
                 )}
@@ -2020,853 +1763,49 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         )}
       </AnimatePresence>
 
-      {addMealPopover && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setAddMealPopover(null); setMealSearchQuery(""); }}>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-zinc-900">Add Meal to {addMealPopover.slotKey.charAt(0).toUpperCase() + addMealPopover.slotKey.slice(1)}</h3>
-              <button onClick={() => { setAddMealPopover(null); setMealSearchQuery(""); }} className="p-1 hover:bg-zinc-100 rounded-lg" data-testid="button-close-add-meal">
-                <X className="w-4 h-4 text-zinc-400" />
-              </button>
-            </div>
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-              <input
-                type="text"
-                placeholder="Search your meals..."
-                value={mealSearchQuery}
-                onChange={e => setMealSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 border border-zinc-200 rounded-xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-400"
-                autoFocus
-                data-testid="input-search-meal"
-              />
-            </div>
-            <div className="max-h-60 overflow-y-auto space-y-1">
-              {userMealsLoading ? (
-                <div className="flex items-center justify-center py-6" data-testid="loading-meals">
-                  <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
-                  <span className="ml-2 text-xs text-zinc-400">Loading meals…</span>
-                </div>
-              ) : filteredUserMeals.length === 0 ? (
-                <p className="text-xs text-zinc-400 py-4 text-center" data-testid="text-no-meals-found">
-                  {userMealsData?.items?.length === 0 ? "No meals in your library yet. Add some from My Meals first." : "No meals match your search."}
-                </p>
-              ) : (
-                filteredUserMeals.map(m => (
-                  <button
-                    key={m.id}
-                    onClick={() => addMealToSlot(addMealPopover.dayKey, addMealPopover.slotKey, m)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 text-left transition-colors"
-                    data-testid={`button-pick-meal-${m.id}`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-900 truncate">{m.name}</p>
-                      <p className="text-[10px] text-zinc-400">P:{m.proteinPerServing}g C:{m.carbsPerServing}g F:{m.fatPerServing}g</p>
-                    </div>
-                    <span className="text-xs font-semibold text-zinc-700 ml-2 shrink-0">{m.caloriesPerServing} kcal</span>
-                  </button>
-                ))
-              )}
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {copyMovePopover && (() => {
-        const targetHasMeals = (customSlots[copyMovePopover.target.dayKey]?.[copyMovePopover.target.slotKey]?.length ?? 0) > 0;
-        const popoverWidth = targetHasMeals ? 260 : 170;
-        return (
-          <div className="fixed inset-0 z-[60]" onClick={() => setCopyMovePopover(null)}>
-            <div
-              className="absolute bg-white rounded-xl shadow-2xl border border-zinc-200 p-1 flex gap-1"
-              style={{ left: Math.min(copyMovePopover.x - popoverWidth / 2, window.innerWidth - popoverWidth - 8), top: Math.max(copyMovePopover.y - 44, 8) }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={() => executeCopyMove('copy')}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
-                data-testid="button-copy-meal"
-              >
-                <Copy className="w-3.5 h-3.5" /> Copy
-              </button>
-              <div className="w-px bg-zinc-200 my-1" />
-              <button
-                onClick={() => executeCopyMove('move')}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
-                data-testid="button-move-meal"
-              >
-                <Move className="w-3.5 h-3.5" /> Move
-              </button>
-              {targetHasMeals && (
-                <>
-                  <div className="w-px bg-zinc-200 my-1" />
-                  <button
-                    onClick={() => executeReplace()}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-amber-50 text-sm font-medium text-amber-700 transition-colors"
-                    data-testid="button-replace-meal"
-                  >
-                    <Replace className="w-3.5 h-3.5" /> Replace
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        );
-      })()}
-
-      {touchDragging && touchGhost && !copyMovePopover && (
+      {/* Touch drag ghost */}
+      {touchDragging && touchGhost && (
         <div
-          className="fixed z-[70] pointer-events-none"
-          style={{ left: touchGhost.x - 60, top: touchGhost.y - 20 }}
+          className="fixed z-[70] pointer-events-none px-3 py-1.5 bg-white border border-blue-300 rounded-lg shadow-lg text-xs font-medium text-zinc-900 whitespace-nowrap"
+          style={{ left: touchGhost.x, top: touchGhost.y, transform: 'translate(-50%, -120%)' }}
         >
-          <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-blue-200 px-3 py-1.5 max-w-[140px]">
-            <p className="text-[10px] font-medium text-zinc-900 truncate">{touchDragging.mealName}</p>
-            <p className="text-[8px] text-blue-500">Drop on a slot</p>
-          </div>
+          {touchDragging.mealName}
         </div>
       )}
 
-      {replacePicker && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setReplacePicker(null); setReplaceSearchQuery(""); setAddFoodForm(null); }}>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-zinc-900">
-                <ArrowLeftRight className="w-3.5 h-3.5 inline mr-1.5" />
-                Replace from Library
-              </h3>
-              <button onClick={() => { setReplacePicker(null); setReplaceSearchQuery(""); setAddFoodForm(null); }} className="p-1 hover:bg-zinc-100 rounded-lg" data-testid="button-close-replace-picker">
-                <X className="w-4 h-4 text-zinc-400" />
-              </button>
-            </div>
-
-            <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch mb-3" data-testid="replace-picker-tab-toggle">
-              <div
-                className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
-                style={{ width: 'calc((100% - 4px) / 2)', left: replacePickerTab === 'meals' ? '2px' : 'calc(2px + (100% - 4px) / 2)' }}
-              />
-              {([
-                { key: 'meals' as const, label: 'My Meals' },
-                { key: 'foods' as const, label: 'My Foods' },
-              ]).map(tab => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => { setReplacePickerTab(tab.key); setReplaceSearchQuery(""); setAddFoodForm(null); }}
-                  className={`relative z-10 flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-200 ${
-                    replacePickerTab === tab.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-                  }`}
-                  data-testid={`tab-replace-${tab.key}`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-              <input
-                type="text"
-                placeholder={replacePickerTab === 'foods' ? "Search your foods..." : "Search your meals..."}
-                value={replaceSearchQuery}
-                onChange={e => setReplaceSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 border border-zinc-200 rounded-xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-400"
-                autoFocus
-                data-testid="input-search-replace"
-              />
-            </div>
-
-            <div className="max-h-60 overflow-y-auto space-y-1">
-              {replacePickerTab === 'foods' ? (
-                <>
-                  {filteredUserFoods.length === 0 ? (
-                    <p className="text-xs text-zinc-400 py-4 text-center" data-testid="text-no-foods-found">
-                      {userFoodsData?.items?.length === 0 ? "No foods saved yet." : "No foods match your search."}
-                    </p>
-                  ) : (
-                    filteredUserFoods.map((f: any) => (
-                      <button
-                        key={f.id}
-                        onClick={() => handleLibraryReplace({
-                          name: f.name,
-                          calories: Math.round((f.calories100g ?? 0) * (f.servingGrams ?? 100) / 100),
-                          protein: Math.round((f.protein100g ?? 0) * (f.servingGrams ?? 100) / 100),
-                          carbs: Math.round((f.carbs100g ?? 0) * (f.servingGrams ?? 100) / 100),
-                          fat: Math.round((f.fat100g ?? 0) * (f.servingGrams ?? 100) / 100),
-                        })}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 text-left transition-colors"
-                        data-testid={`button-pick-food-${f.id}`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-zinc-900 truncate">{f.name}</p>
-                          <p className="text-[10px] text-zinc-400">{f.servingGrams ?? 100}g serving</p>
-                        </div>
-                        <span className="text-xs font-semibold text-zinc-700 ml-2 shrink-0">
-                          {Math.round((f.calories100g ?? 0) * (f.servingGrams ?? 100) / 100)} kcal
-                        </span>
-                      </button>
-                    ))
-                  )}
-                  {!addFoodForm ? (
-                    <button
-                      onClick={() => setAddFoodForm({ name: '', calories: '', protein: '', carbs: '', fat: '' })}
-                      className="w-full flex items-center gap-2 px-3 py-2 mt-1 rounded-lg text-sm font-medium text-zinc-500 hover:bg-zinc-50 transition-colors"
-                      data-testid="button-add-food-inline"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Add New Food
-                    </button>
-                  ) : (
-                    <div className="border border-zinc-200 rounded-xl p-3 mt-2 space-y-2">
-                      <input placeholder="Food name" value={addFoodForm.name} onChange={e => setAddFoodForm(p => p ? { ...p, name: e.target.value } : p)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400" data-testid="input-new-food-name" />
-                      <div className="grid grid-cols-2 gap-2">
-                        <input placeholder="Calories" type="number" value={addFoodForm.calories} onChange={e => setAddFoodForm(p => p ? { ...p, calories: e.target.value } : p)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400" data-testid="input-new-food-cal" />
-                        <input placeholder="Protein (g)" type="number" value={addFoodForm.protein} onChange={e => setAddFoodForm(p => p ? { ...p, protein: e.target.value } : p)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400" data-testid="input-new-food-protein" />
-                        <input placeholder="Carbs (g)" type="number" value={addFoodForm.carbs} onChange={e => setAddFoodForm(p => p ? { ...p, carbs: e.target.value } : p)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400" data-testid="input-new-food-carbs" />
-                        <input placeholder="Fat (g)" type="number" value={addFoodForm.fat} onChange={e => setAddFoodForm(p => p ? { ...p, fat: e.target.value } : p)} className="w-full px-2 py-1.5 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400" data-testid="input-new-food-fat" />
-                      </div>
-                      <button
-                        onClick={() => {
-                          if (!addFoodForm.name || !addFoodForm.calories) return;
-                          handleLibraryReplace({
-                            name: addFoodForm.name,
-                            calories: parseInt(addFoodForm.calories) || 0,
-                            protein: parseInt(addFoodForm.protein) || 0,
-                            carbs: parseInt(addFoodForm.carbs) || 0,
-                            fat: parseInt(addFoodForm.fat) || 0,
-                          });
-                        }}
-                        disabled={!addFoodForm.name || !addFoodForm.calories}
-                        className="w-full py-1.5 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-40 transition-colors"
-                        data-testid="button-confirm-new-food"
-                      >
-                        Use This Food
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  {(userMealsData?.items ?? []).filter(m => !replaceSearchQuery || m.name.toLowerCase().includes(replaceSearchQuery.toLowerCase())).length === 0 ? (
-                    <p className="text-xs text-zinc-400 py-4 text-center" data-testid="text-no-replace-meals-found">
-                      {(userMealsData?.items ?? []).length === 0 ? "No meals in your library yet." : "No meals match your search."}
-                    </p>
-                  ) : (
-                    (userMealsData?.items ?? []).filter(m => !replaceSearchQuery || m.name.toLowerCase().includes(replaceSearchQuery.toLowerCase())).map((m: any) => (
-                      <button
-                        key={m.id}
-                        onClick={() => handleLibraryReplace({
-                          name: m.name,
-                          calories: m.caloriesPerServing,
-                          protein: m.proteinPerServing,
-                          carbs: m.carbsPerServing,
-                          fat: m.fatPerServing,
-                        })}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 text-left transition-colors"
-                        data-testid={`button-pick-replace-meal-${m.id}`}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-zinc-900 truncate">{m.name}</p>
-                          <p className="text-[10px] text-zinc-400">P:{m.proteinPerServing}g C:{m.carbsPerServing}g F:{m.fatPerServing}g</p>
-                        </div>
-                        <span className="text-xs font-semibold text-zinc-700 ml-2 shrink-0">{m.caloriesPerServing} kcal</span>
-                      </button>
-                    ))
-                  )}
-                </>
-              )}
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DateRangePicker({ weekStart, onWeekChange, planMode, selectedDates, onToggleDate, testIdPrefix = "" }: { weekStart: string; onWeekChange: (dir: -7 | 7) => void; planMode: 'daily' | 'weekly'; selectedDates: string[]; onToggleDate: (dateStr: string) => void; testIdPrefix?: string }) {
-  const pfx = testIdPrefix ? `${testIdPrefix}-` : "";
-  const today = toDateStr(new Date());
-  return (
-    <>
-      <div className="flex items-center justify-center gap-2">
-        <button
-          onClick={() => onWeekChange(-7)}
-          className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
-          data-testid={`button-${pfx}week-prev`}
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <span className="text-xs font-medium text-zinc-700 min-w-[120px] text-center" data-testid={`text-${pfx}week-label`}>
-          {formatShort(weekStart)} – {formatShort(addDays(weekStart, 6))}
-        </span>
-        <button
-          onClick={() => onWeekChange(7)}
-          className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
-          data-testid={`button-${pfx}week-next`}
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-      {planMode === 'daily' && (
-        <div className="flex gap-1.5 flex-wrap mt-2 justify-center">
-          {DAY_LABELS.map((label, i) => {
-            const dateStr = addDays(weekStart, i);
-            const isSelected = selectedDates.includes(dateStr);
-            const isPast = dateStr < today;
-            return (
-              <button
-                key={dateStr}
-                type="button"
-                data-testid={`chip-${pfx}day-${label.toLowerCase()}`}
-                onClick={() => !isPast && onToggleDate(dateStr)}
-                disabled={isPast}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  isPast
-                    ? "bg-zinc-100 text-zinc-300 cursor-not-allowed"
-                    : isSelected
-                    ? "bg-zinc-900 text-white"
-                    : "bg-white text-zinc-500 hover:bg-zinc-200 border border-zinc-200"
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </>
-  );
-}
-
-function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal, onReplaceFromLibrary }: { plan: any; onReplace?: (slot: string, mealName: string, idx: number) => void; replacingSlot?: string; onLogMeal?: (meal: Meal) => void; onReplaceFromLibrary?: (slot: string, idx: number) => void }) {
-  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
-  const [localDisliked, setLocalDisliked] = useState<Set<string>>(new Set());
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  const { data: prefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
-  const serverDisliked = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
-
-  const isDisliked = (name: string) => localDisliked.has(name.toLowerCase()) || serverDisliked.has(name.toLowerCase());
-
-  const undoDislike = useCallback(async (mealName: string) => {
-    setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
-    try {
-      await apiRequest("DELETE", `/api/preferences/disliked-meals/${encodeURIComponent(mealName)}`);
-      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
-    } catch {}
-  }, [queryClient]);
-
-  const dislikeMutation = useMutation({
-    mutationFn: (mealName: string) => {
-      setLocalDisliked(prev => new Set(Array.from(prev).concat(mealName.toLowerCase())));
-      return apiRequest("POST", "/api/preferences/disliked-meals", { mealName });
-    },
-    onSuccess: (_data, mealName) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
-      toast({
-        title: "Meal disliked",
-        description: "It won't appear in future generated plans.",
-        action: (
-          <ToastAction altText="Undo dislike" onClick={() => undoDislike(mealName)} data-testid="button-undo-dislike">
-            <Undo2 className="w-3 h-3 mr-1" /> Undo
-          </ToastAction>
-        ),
-      });
-    },
-    onError: (_err, mealName) => {
-      setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
-      toast({ title: "Sign in to dislike meals", variant: "destructive" });
-    },
-  });
-
-  return (
-    <>
-      <div className="bg-zinc-900 text-white rounded-3xl shadow-2xl relative overflow-hidden mb-8">
-        <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 p-5 sm:p-6">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h3 className="text-lg font-bold" data-testid="text-daily-macro-title">Daily Totals</h3>
-              <p className="text-zinc-400 text-xs mt-0.5">Meal plan summary</p>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold leading-none" data-testid="text-daily-calories">{plan.dayTotalCalories ?? 0}</p>
-              <p className="text-zinc-400 text-xs mt-0.5">Total kcal</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-white/10 rounded-xl p-3" data-testid="tile-daily-protein">
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-1))" }} />
-                <span className="text-xs text-zinc-400 font-medium">Protein</span>
-              </div>
-              <p className="text-xl font-bold leading-none">{plan.dayTotalProtein ?? 0}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-3" data-testid="tile-daily-carbs">
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-2))" }} />
-                <span className="text-xs text-zinc-400 font-medium">Carbs</span>
-              </div>
-              <p className="text-xl font-bold leading-none">{plan.dayTotalCarbs ?? 0}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-3" data-testid="tile-daily-fat">
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-3))" }} />
-                <span className="text-xs text-zinc-400 font-medium">Fat</span>
-              </div>
-              <p className="text-xl font-bold leading-none">{plan.dayTotalFat ?? 0}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {["breakfast", "lunch", "dinner", "snacks"].map((slotKey) => {
-        const meals: Meal[] = plan[slotKey] || [];
-        if (meals.length === 0) return null;
-        return (
-          <div key={slotKey} className="mb-6">
-            <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">
-              {slotKey.charAt(0).toUpperCase() + slotKey.slice(1)}
-            </h4>
-            {meals.map((meal, idx) => (
-              <div key={idx} className="flex items-center gap-2 mb-2">
-                <button
-                  onClick={() => setSelectedMeal(meal)}
-                  className="flex-1 flex justify-between p-2 bg-zinc-50 rounded hover:bg-zinc-100 transition-colors text-left cursor-pointer border border-transparent hover:border-zinc-200"
-                  data-testid={`meal-card-daily-${slotKey}-${idx}`}
-                >
-                  <div className="flex-1">
-                    <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
-                    <p className="text-xs text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
-                    {meal.vitalityRationale && (
-                      <p className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1" data-testid={`vitality-rationale-daily-${slotKey}-${idx}`}>
-                        <Zap className="w-2.5 h-2.5 flex-shrink-0" />
-                        {meal.vitalityRationale}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right ml-4">
-                    <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
-                    <p className="text-xs text-zinc-500">kcal</p>
-                  </div>
-                </button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0 min-w-[32px] min-h-[32px] flex items-center justify-center"
-                      data-testid={`button-actions-daily-${slotKey}-${idx}`}
-                    >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    {onLogMeal && (
-                      <DropdownMenuItem onClick={() => onLogMeal(meal)} data-testid={`button-log-daily-${slotKey}-${idx}`}>
-                        <ClipboardList className="w-3.5 h-3.5 mr-2" /> Log this meal
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem
-                      onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
-                      disabled={isDisliked(meal.meal)}
-                      className={isDisliked(meal.meal) ? 'text-red-500' : ''}
-                      data-testid={`button-dislike-daily-${slotKey}-${idx}`}
-                    >
-                      <ThumbsDown className="w-3.5 h-3.5 mr-2" /> {isDisliked(meal.meal) ? 'Disliked' : 'Dislike'}
-                    </DropdownMenuItem>
-                    {onReplaceFromLibrary && (
-                      <DropdownMenuItem onClick={() => onReplaceFromLibrary(slotKey, idx)} data-testid={`button-library-replace-daily-${slotKey}-${idx}`}>
-                        <ArrowLeftRight className="w-3.5 h-3.5 mr-2" /> Replace from library
-                      </DropdownMenuItem>
-                    )}
-                    {onReplace && (
-                      <DropdownMenuItem
-                        onClick={() => onReplace(slotKey, meal.meal, idx)}
-                        disabled={replacingSlot === slotKey}
-                        data-testid={`button-replace-daily-${slotKey}-${idx}`}
-                      >
-                        {replacingSlot === slotKey ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
-                        Replace meal
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ))}
-          </div>
-        );
-      })}
-
-      {selectedMeal && (
-        <RecipeModal meal={selectedMeal} onClose={() => setSelectedMeal(null)} />
-      )}
-    </>
-  );
-}
-
-function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal, onReplaceFromLibrary }: { plan: any; onReplace?: (day: string, slot: string, mealName: string, idx: number) => void; replacingSlot?: string; onLogMeal?: (meal: Meal) => void; onReplaceFromLibrary?: (day: string, slot: string, idx: number) => void }) {
-  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
-  const firstAvailableDay = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].find(d => plan[d]) ?? "monday";
-  const [expandedDay, setExpandedDay] = useState<string | null>(firstAvailableDay);
-  const [localDisliked, setLocalDisliked] = useState<Set<string>>(new Set());
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  const { data: prefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
-  const serverDisliked = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
-  const isDisliked = (name: string) => localDisliked.has(name.toLowerCase()) || serverDisliked.has(name.toLowerCase());
-
-  const undoDislike = useCallback(async (mealName: string) => {
-    setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
-    try {
-      await apiRequest("DELETE", `/api/preferences/disliked-meals/${encodeURIComponent(mealName)}`);
-      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
-    } catch {}
-  }, [queryClient]);
-
-  const dislikeMutation = useMutation({
-    mutationFn: (mealName: string) => {
-      setLocalDisliked(prev => new Set(Array.from(prev).concat(mealName.toLowerCase())));
-      return apiRequest("POST", "/api/preferences/disliked-meals", { mealName });
-    },
-    onSuccess: (_data, mealName) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
-      toast({
-        title: "Meal disliked",
-        description: "It won't appear in future generated plans.",
-        action: (
-          <ToastAction altText="Undo dislike" onClick={() => undoDislike(mealName)} data-testid="button-undo-dislike">
-            <Undo2 className="w-3 h-3 mr-1" /> Undo
-          </ToastAction>
-        ),
-      });
-    },
-    onError: (_err, mealName) => {
-      setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
-      toast({ title: "Sign in to dislike meals", variant: "destructive" });
-    },
-  });
-
-  const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-
-  return (
-    <>
-      <div className="bg-zinc-900 text-white rounded-3xl shadow-2xl relative overflow-hidden mb-6">
-        <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 p-5 sm:p-6">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h3 className="text-lg font-bold" data-testid="text-weekly-macro-title">Weekly Totals</h3>
-              <p className="text-zinc-400 text-xs mt-0.5">Meal plan summary</p>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold leading-none" data-testid="text-weekly-calories">{plan.weekTotalCalories ?? 0}</p>
-              <p className="text-zinc-400 text-xs mt-0.5">Week kcal</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-white/10 rounded-xl p-3" data-testid="tile-weekly-protein">
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-1))" }} />
-                <span className="text-xs text-zinc-400 font-medium">Protein</span>
-              </div>
-              <p className="text-xl font-bold leading-none">{plan.weekTotalProtein ?? 0}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-3" data-testid="tile-weekly-carbs">
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-2))" }} />
-                <span className="text-xs text-zinc-400 font-medium">Carbs</span>
-              </div>
-              <p className="text-xl font-bold leading-none">{plan.weekTotalCarbs ?? 0}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-3" data-testid="tile-weekly-fat">
-              <div className="flex items-center gap-1.5 mb-1">
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "hsl(var(--chart-3))" }} />
-                <span className="text-xs text-zinc-400 font-medium">Fat</span>
-              </div>
-              <p className="text-xl font-bold leading-none">{plan.weekTotalFat ?? 0}<span className="text-xs font-normal text-zinc-400 ml-0.5">g</span></p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {days.map(day => {
-        const dayPlan = plan[day];
-        if (!dayPlan) return null;
-        const isExpanded = expandedDay === day;
-        return (
-          <div key={day} className="border border-zinc-100 rounded-2xl mb-3 overflow-hidden">
-            <button
-              onClick={() => setExpandedDay(isExpanded ? null : day)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 transition-colors text-left"
-              data-testid={`accordion-day-${day}`}
-            >
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-sm font-semibold text-zinc-900 capitalize w-24">{day}</span>
-                <span className="text-xs text-zinc-500">{dayPlan.dayTotalCalories} kcal</span>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-zinc-400">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(var(--chart-1))" }} />P: {dayPlan.dayTotalProtein ?? 0}g
-                </span>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-zinc-400">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(var(--chart-2))" }} />C: {dayPlan.dayTotalCarbs ?? 0}g
-                </span>
-                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-zinc-400">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(var(--chart-3))" }} />F: {dayPlan.dayTotalFat ?? 0}g
-                </span>
-              </div>
-              <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-            </button>
-
-            <AnimatePresence initial={false}>
-              {isExpanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.22, ease: 'easeInOut' }}
-                  className="overflow-hidden"
-                >
-                  <div className="px-4 pb-4 space-y-4">
-                    <div className="grid grid-cols-3 gap-2 sm:hidden" data-testid={`day-macros-mobile-${day}`}>
-                      <div className="bg-zinc-50 rounded-lg p-2 text-center">
-                        <div className="flex items-center justify-center gap-1 mb-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(var(--chart-1))" }} />
-                          <span className="text-[10px] text-zinc-400 font-medium">Protein</span>
-                        </div>
-                        <p className="text-sm font-bold text-zinc-900">{dayPlan.dayTotalProtein ?? 0}<span className="text-[10px] font-normal text-zinc-400 ml-0.5">g</span></p>
-                      </div>
-                      <div className="bg-zinc-50 rounded-lg p-2 text-center">
-                        <div className="flex items-center justify-center gap-1 mb-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(var(--chart-2))" }} />
-                          <span className="text-[10px] text-zinc-400 font-medium">Carbs</span>
-                        </div>
-                        <p className="text-sm font-bold text-zinc-900">{dayPlan.dayTotalCarbs ?? 0}<span className="text-[10px] font-normal text-zinc-400 ml-0.5">g</span></p>
-                      </div>
-                      <div className="bg-zinc-50 rounded-lg p-2 text-center">
-                        <div className="flex items-center justify-center gap-1 mb-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(var(--chart-3))" }} />
-                          <span className="text-[10px] text-zinc-400 font-medium">Fat</span>
-                        </div>
-                        <p className="text-sm font-bold text-zinc-900">{dayPlan.dayTotalFat ?? 0}<span className="text-[10px] font-normal text-zinc-400 ml-0.5">g</span></p>
-                      </div>
-                    </div>
-                    {["breakfast", "lunch", "dinner", "snacks"].map(slotKey => {
-                      const meals: Meal[] = dayPlan[slotKey] || [];
-                      if (meals.length === 0) return null;
-                      return (
-                        <div key={slotKey}>
-                          <h5 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-2">
-                            {slotKey.charAt(0).toUpperCase() + slotKey.slice(1)}
-                          </h5>
-                          <div className="space-y-1.5">
-                            {meals.map((meal, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <button
-                                  onClick={() => setSelectedMeal(meal)}
-                                  className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-zinc-100 transition-colors text-left cursor-pointer border border-transparent hover:border-zinc-200"
-                                  data-testid={`meal-card-${day}-${slotKey}-${idx}`}
-                                >
-                                  <div className="flex-1">
-                                    <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
-                                    <p className="text-xs text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
-                                    {meal.vitalityRationale && (
-                                      <p className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1" data-testid={`vitality-rationale-${day}-${slotKey}-${idx}`}>
-                                        <Zap className="w-2.5 h-2.5 flex-shrink-0" />
-                                        {meal.vitalityRationale}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div className="text-right ml-4">
-                                    <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
-                                    <p className="text-xs text-zinc-500">kcal</p>
-                                  </div>
-                                </button>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <button
-                                      className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0 min-w-[32px] min-h-[32px] flex items-center justify-center"
-                                      data-testid={`button-actions-${day}-${slotKey}-${idx}`}
-                                    >
-                                      <MoreHorizontal className="w-4 h-4" />
-                                    </button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-48">
-                                    {onLogMeal && (
-                                      <DropdownMenuItem onClick={() => onLogMeal(meal)} data-testid={`button-log-${day}-${slotKey}-${idx}`}>
-                                        <ClipboardList className="w-3.5 h-3.5 mr-2" /> Log this meal
-                                      </DropdownMenuItem>
-                                    )}
-                                    <DropdownMenuItem
-                                      onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
-                                      disabled={isDisliked(meal.meal)}
-                                      className={isDisliked(meal.meal) ? 'text-red-500' : ''}
-                                      data-testid={`button-dislike-${day}-${slotKey}-${idx}`}
-                                    >
-                                      <ThumbsDown className="w-3.5 h-3.5 mr-2" /> {isDisliked(meal.meal) ? 'Disliked' : 'Dislike'}
-                                    </DropdownMenuItem>
-                                    {onReplaceFromLibrary && (
-                                      <DropdownMenuItem onClick={() => onReplaceFromLibrary(day, slotKey, idx)} data-testid={`button-library-replace-${day}-${slotKey}-${idx}`}>
-                                        <ArrowLeftRight className="w-3.5 h-3.5 mr-2" /> Replace from library
-                                      </DropdownMenuItem>
-                                    )}
-                                    {onReplace && (
-                                      <DropdownMenuItem
-                                        onClick={() => onReplace(day, slotKey, meal.meal, idx)}
-                                        disabled={replacingSlot === slotKey}
-                                        data-testid={`button-replace-${day}-${slotKey}-${idx}`}
-                                      >
-                                        {replacingSlot === slotKey ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
-                                        Replace meal
-                                      </DropdownMenuItem>
-                                    )}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        );
-      })}
-
-      {selectedMeal && (
-        <RecipeModal meal={selectedMeal} onClose={() => setSelectedMeal(null)} />
-      )}
-    </>
-  );
-}
-
-function RecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
-  const recipe = RECIPES[meal.meal];
-  const hasStructuredIngredients = Array.isArray(meal.ingredientsJson) && meal.ingredientsJson.length > 0;
-
-  if (!recipe && !hasStructuredIngredients) {
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <p className="text-zinc-600">Recipe not available for this meal.</p>
-          <button
-            onClick={onClose}
-            className="mt-4 w-full px-4 py-2 bg-zinc-900 text-white rounded-xl font-medium hover:bg-zinc-800 transition-colors"
-          >
-            Close
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onClose}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl my-8"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h3 className="text-2xl font-bold text-zinc-900">{meal.meal}</h3>
-            <p className="text-sm text-zinc-500 mt-1">Click outside to close</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-zinc-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-zinc-400" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <div className="bg-zinc-100 p-3 rounded-lg">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="w-2 h-2 rounded-full bg-zinc-500" />
-              <p className="text-xs text-zinc-500 font-medium">Calories</p>
-            </div>
-            <p className="text-lg font-bold text-zinc-900">{meal.calories}</p>
-          </div>
-          <div className="bg-zinc-100 p-3 rounded-lg">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "hsl(var(--chart-1))" }} />
-              <p className="text-xs text-zinc-500 font-medium">Protein</p>
-            </div>
-            <p className="text-lg font-bold text-zinc-900">{meal.protein}g</p>
-          </div>
-          <div className="bg-zinc-100 p-3 rounded-lg">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "hsl(var(--chart-2))" }} />
-              <p className="text-xs text-zinc-500 font-medium">Carbs</p>
-            </div>
-            <p className="text-lg font-bold text-zinc-900">{meal.carbs}g</p>
-          </div>
-          <div className="bg-zinc-100 p-3 rounded-lg">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "hsl(var(--chart-3))" }} />
-              <p className="text-xs text-zinc-500 font-medium">Fat</p>
-            </div>
-            <p className="text-lg font-bold text-zinc-900">{meal.fat}g</p>
-          </div>
-        </div>
-
-        <div className="bg-zinc-50 p-4 rounded-xl mb-4">
-          <h4 className="text-sm font-semibold text-zinc-900 mb-3">Ingredients</h4>
-          {Array.isArray(meal.ingredientsJson) && meal.ingredientsJson.length > 0 ? (
-            <ul className="space-y-1.5">
-              {meal.ingredientsJson.map((ing, idx) => (
-                <li key={idx} className="flex items-start gap-1.5 text-sm text-zinc-700" data-testid={`plan-ingredient-${idx}`}>
-                  <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                  <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
-                  <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
-                </li>
-              ))}
-            </ul>
-          ) : recipe ? (
-            <ul className="space-y-2">
-              {recipe.ingredients.map((ing, idx) => (
-                <li key={idx} className="flex justify-between text-sm text-zinc-700">
-                  <span>{ing.item}</span>
-                  <span className="font-medium text-zinc-900">{ing.quantity}</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-
-        {recipe?.instructions && (
-          <div className="bg-zinc-50 p-4 rounded-xl mb-4">
-            <h4 className="text-sm font-semibold text-zinc-900 mb-2">Instructions</h4>
-            <p className="text-sm text-zinc-600 leading-relaxed">{recipe.instructions}</p>
-          </div>
+      {/* Add Meal Popover */}
+      <AnimatePresence>
+        {addMealPopover && (
+          <AddMealPopover
+            popoverState={addMealPopover}
+            onClose={() => setAddMealPopover(null)}
+            onAddMeal={addMealToSlot}
+          />
         )}
+      </AnimatePresence>
 
-        <button
-          onClick={onClose}
-          className="w-full px-4 py-2 bg-zinc-900 text-white rounded-xl font-medium hover:bg-zinc-800 transition-colors"
-        >
-          Close
-        </button>
-      </motion.div>
+      {/* Copy/Move Popover */}
+      <AnimatePresence>
+        {copyMovePopover && (
+          <CopyMovePopover
+            popover={copyMovePopover}
+            onCopyMove={executeCopyMove}
+            onReplace={executeReplace}
+            onClose={() => setCopyMovePopover(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Replace Picker */}
+      <AnimatePresence>
+        {replacePicker && (
+          <ReplacePicker
+            replacePicker={replacePicker}
+            onClose={() => setReplacePicker(null)}
+            onReplace={handleLibraryReplace}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
