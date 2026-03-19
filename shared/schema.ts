@@ -1000,3 +1000,28 @@ export const insertClientReportSchema = createInsertSchema(clientReports).omit({
 
 export type InsertClientReport = z.infer<typeof insertClientReportSchema>;
 export type ClientReport = typeof clientReports.$inferSelect;
+
+// ─── Adaptive TDEE Suggestions ───────────────────────────────────────────────
+
+export const adaptiveTdeeSuggestions = pgTable("adaptive_tdee_suggestions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  suggestedCalories: integer("suggested_calories").notNull(),
+  currentCalories: integer("current_calories").notNull(),
+  formulaTdee: integer("formula_tdee"),
+  delta: integer("delta").notNull(),
+  explanation: text("explanation").notNull(),
+  confidence: text("confidence").notNull().default("medium"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  actedAt: timestamp("acted_at"),
+});
+
+export const insertAdaptiveTdeeSuggestionSchema = createInsertSchema(adaptiveTdeeSuggestions).omit({
+  id: true,
+  createdAt: true,
+  actedAt: true,
+});
+
+export type InsertAdaptiveTdeeSuggestion = z.infer<typeof insertAdaptiveTdeeSuggestionSchema>;
+export type AdaptiveTdeeSuggestion = typeof adaptiveTdeeSuggestions.$inferSelect;

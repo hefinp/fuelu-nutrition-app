@@ -51,8 +51,9 @@ import {
   ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
   Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, TrendingUp, Star,
   Sparkles, ScanLine, Heart, ShieldCheck, Zap, User, Crown, Briefcase, MessageSquare,
-  CalendarDays, Activity, PenLine,
+  CalendarDays, Activity, PenLine, Target, RefreshCw,
 } from "lucide-react";
+import type { AdaptiveTdeeSuggestion } from "@shared/schema";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
 
 function ClientUnreadBadge() {
@@ -144,6 +145,140 @@ function FreeWeeklySummaryCard() {
           </motion.ul>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function AdaptiveTdeeCard() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: suggestion, isLoading } = useQuery<AdaptiveTdeeSuggestion | null>({
+    queryKey: ["/api/adaptive-tdee/suggestion"],
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: effectiveTargets } = useQuery<{ hasOverrides: boolean } | null>({
+    queryKey: ["/api/calculations/effective-targets"],
+    enabled: !!user,
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest("POST", `/api/adaptive-tdee/suggestion/${id}/accept`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/adaptive-tdee/suggestion"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calculations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calculations/effective-targets"] });
+      toast({ title: "Target updated", description: "Your daily calorie target has been adjusted." });
+    },
+    onError: () => toast({ title: "Error", description: "Could not update target.", variant: "destructive" }),
+  });
+
+  const dismissMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest("POST", `/api/adaptive-tdee/suggestion/${id}/dismiss`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/adaptive-tdee/suggestion"] });
+    },
+  });
+
+  const calculateMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/adaptive-tdee/calculate").then(r => r.json()),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/adaptive-tdee/suggestion"] });
+      if (data.throttled) {
+        toast({ title: "Checked recently", description: data.message });
+      } else if (data.hasOverride) {
+        toast({ title: "Nutritionist targets active", description: data.message });
+      } else if (data.eligible === false) {
+        toast({ title: "Not enough data", description: data.message, variant: "destructive" });
+      } else if (data.noChange) {
+        toast({ title: "On track", description: data.message });
+      }
+    },
+    onError: () => toast({ title: "Error", description: "Could not run calculation.", variant: "destructive" }),
+  });
+
+  const isOverridden = effectiveTargets?.hasOverrides ?? false;
+
+  if (isLoading) return null;
+
+  if (!suggestion) {
+    if (isOverridden) return null;
+    return (
+      <div
+        className="flex items-center justify-between bg-zinc-50 border border-zinc-100 rounded-2xl px-4 py-3 mb-6 snap-start"
+        data-testid="card-adaptive-tdee-trigger"
+      >
+        <div className="flex items-center gap-2">
+          <Target className="w-4 h-4 text-zinc-400" />
+          <span className="text-xs text-zinc-500">Adaptive TDEE — no pending suggestion</span>
+        </div>
+        <button
+          onClick={() => calculateMutation.mutate()}
+          disabled={calculateMutation.isPending}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-white rounded-lg text-xs font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50"
+          data-testid="button-calculate-adaptive-tdee"
+        >
+          {calculateMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+          Check now
+        </button>
+      </div>
+    );
+  }
+
+  const delta = suggestion.delta;
+
+  return (
+    <div
+      className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-4 mb-6 snap-start"
+      data-testid="card-adaptive-tdee"
+    >
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <Target className="w-4 h-4 text-blue-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm font-semibold text-blue-900">Weekly Target Update</span>
+            <span className="text-[10px] font-medium bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full capitalize">
+              {suggestion.confidence} confidence
+            </span>
+          </div>
+          <p className="text-xs text-blue-800 leading-relaxed mb-3">{suggestion.explanation}</p>
+
+          {isOverridden ? (
+            <p className="text-xs text-blue-600 italic">
+              Your nutritionist has set manual targets — this is informational only and cannot overwrite the override.
+            </p>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => acceptMutation.mutate(suggestion.id)}
+                disabled={acceptMutation.isPending || dismissMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                data-testid="button-accept-adaptive-suggestion"
+              >
+                {acceptMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                Accept ({delta > 0 ? "+" : ""}{delta} kcal)
+              </button>
+              <button
+                onClick={() => dismissMutation.mutate(suggestion.id)}
+                disabled={acceptMutation.isPending || dismissMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-blue-200 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors disabled:opacity-50"
+                data-testid="button-dismiss-adaptive-suggestion"
+              >
+                {dismissMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                Dismiss
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1096,6 +1231,8 @@ export default function Dashboard() {
             </div>
 
             {user && !user.isManagedClient && (!tierStatus || tierStatus.tier === "free") && <FreeWeeklySummaryCard />}
+
+            {user && <AdaptiveTdeeCard />}
 
             {/* ── MOBILE tab toggle: Planning / Tracking ── */}
             <div className="xl:hidden mb-4">

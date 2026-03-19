@@ -24,6 +24,7 @@ import vitalityRouter from "./routes/vitality";
 import nutritionistRouter from "./routes/nutritionist";
 import practiceRouter from "./routes/practice";
 import monitoringRouter from "./routes/monitoring";
+import adaptiveTdeeRouter from "./routes/adaptive-tdee";
 
 function setupPassportStrategies() {
   const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -142,6 +143,7 @@ export async function registerRoutes(
   app.use(nutritionistRouter);
   app.use(practiceRouter);
   app.use(monitoringRouter);
+  app.use(adaptiveTdeeRouter);
   if (process.env.NODE_ENV !== "production") {
     app.use(testSetupRouter);
   }

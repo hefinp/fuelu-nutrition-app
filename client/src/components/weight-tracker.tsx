@@ -16,7 +16,7 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
-import { Scale, Plus, Trash2, TrendingDown, TrendingUp, Minus, Flame, Sparkles, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Scale, Plus, Trash2, TrendingDown, TrendingUp, Minus, Flame, Sparkles, Loader2, ChevronDown, ChevronUp, Activity } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { WeightEntry, FoodLogEntry } from "@shared/schema";
 
@@ -169,6 +169,13 @@ export function WeightTracker({
   const weekTotal = calChartData.reduce((s, d) => s + d.consumed, 0);
   const daysLogged = calChartData.filter(d => d.consumed > 0).length;
   const weekAvg = daysLogged > 0 ? Math.round(weekTotal / daysLogged) : 0;
+
+  // ── Adaptive TDEE trend ─────────────────────────────────────────────────────
+  const { data: tdeeTrend = [] } = useQuery<Array<{ date: string; adaptiveTdee: number; formulaTdee: number; confidence: string }>>({
+    queryKey: ["/api/adaptive-tdee/trend"],
+    enabled: activeTab === "weight",
+    staleTime: 300_000,
+  });
 
   return (
     <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
@@ -424,6 +431,34 @@ export function WeightTracker({
               </AnimatePresence>
             </div>
           )}
+        {/* ── TDEE Trend ─────────────────────────────────────────────────────── */}
+        {tdeeTrend.length > 0 && (
+          <div className="mt-6 pt-5 border-t border-zinc-100" data-testid="section-tdee-trend-weight">
+            <div className="flex items-center gap-2 mb-3">
+              <Activity className="w-4 h-4 text-indigo-500" />
+              <p className="text-sm font-semibold text-zinc-900">Adaptive TDEE History</p>
+            </div>
+            <p className="text-xs text-zinc-400 mb-3">Your accepted adaptive calorie targets vs formula estimates</p>
+            <div className="h-40">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={tdeeTrend} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} tickLine={false} axisLine={false} domain={["auto", "auto"]} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: "12px", border: "1px solid #e4e4e7", fontSize: "12px" }}
+                    formatter={(val: number, name: string) => [
+                      `${val} kcal`,
+                      name === "adaptiveTdee" ? "Adaptive" : "Formula",
+                    ]}
+                  />
+                  <Line type="monotone" dataKey="adaptiveTdee" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} name="adaptiveTdee" />
+                  <Line type="monotone" dataKey="formulaTdee" stroke="#d1d5db" strokeWidth={1.5} strokeDasharray="4 2" dot={false} name="formulaTdee" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
         </>
       )}
 

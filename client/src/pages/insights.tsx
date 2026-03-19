@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import {
   TrendingUp, ArrowLeft, Sparkles, BookOpen, Zap, Brain, Apple, ExternalLink,
-  Loader2, AlertCircle, RefreshCw, BarChart2,
+  Loader2, AlertCircle, RefreshCw, BarChart2, Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,14 @@ import { TrialBanner } from "@/components/trial-banner";
 import type { TrialInfo } from "@shared/trial";
 import { getCyclePhase } from "@/lib/cycle";
 import type { UserPreferences } from "@shared/schema";
+
+type TdeeTrendPoint = {
+  date: string | null;
+  adaptiveTdee: number;
+  formulaTdee: number;
+  confidence: string;
+  status: string;
+};
 
 type InsightsData = {
   symptomByDay: { cycleDay: number; avgEnergy: number | null; avgMood: number | null; count: number }[];
@@ -84,6 +92,12 @@ export default function InsightsPage({ onClose }: { onClose?: () => void } = {})
     enabled: !!user && aiEnabled && !!pulsePhase,
     staleTime: 6 * 60 * 60 * 1000,
     retry: 1,
+  });
+
+  const { data: tdeeTrend } = useQuery<TdeeTrendPoint[]>({
+    queryKey: ["/api/adaptive-tdee/trend"],
+    enabled: !!user,
+    staleTime: 10 * 60 * 1000,
   });
 
   if (!user) {
@@ -259,6 +273,67 @@ export default function InsightsPage({ onClose }: { onClose?: () => void } = {})
                   </section>
                 )}
               </>
+            )}
+
+            {/* TDEE Trend Chart */}
+            {tdeeTrend && tdeeTrend.length > 0 && (
+              <section className="rounded-2xl border border-zinc-200 bg-white p-5" data-testid="section-tdee-trend">
+                <h2 className="text-sm font-semibold text-zinc-800 mb-1 flex items-center gap-1.5">
+                  <Target className="w-4 h-4 text-blue-500" /> Estimated TDEE over time
+                </h2>
+                <p className="text-xs text-zinc-400 mb-4">Your real-world energy expenditure vs formula estimate</p>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={tdeeTrend} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 10, fill: "#a1a1aa" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(v) => v ? v.slice(5) : ""}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 10, fill: "#a1a1aa" }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(v) => `${v}`}
+                      />
+                      <Tooltip
+                        contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e4e4e7", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
+                        formatter={(value: number, name: string) => [
+                          `${value} kcal`,
+                          name === "adaptiveTdee" ? "Adaptive TDEE" : "Formula TDEE",
+                        ]}
+                        labelFormatter={(l) => l || ""}
+                      />
+                      <Legend
+                        formatter={(v) => v === "adaptiveTdee" ? "Adaptive TDEE" : "Formula TDEE"}
+                        iconType="circle"
+                        wrapperStyle={{ fontSize: 11 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="adaptiveTdee"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        dot={{ r: 3, fill: "#3b82f6" }}
+                        name="adaptiveTdee"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="formulaTdee"
+                        stroke="#a1a1aa"
+                        strokeWidth={1.5}
+                        strokeDasharray="4 3"
+                        dot={false}
+                        name="formulaTdee"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-[10px] text-zinc-300 mt-3">Based on your accepted adaptive targets</p>
+              </section>
             )}
 
             {/* AI sections — load on demand */}

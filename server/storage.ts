@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientGoal, type InsertClientGoal, type ClientReport } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -290,6 +290,15 @@ export interface IStorage {
   createClientReport(nutritionistId: number, clientId: number, data: { title: string; fromDate: string; toDate: string; clinicalSummary: string | null; reportData: object }): Promise<ClientReport>;
   updateClientReport(id: number, nutritionistId: number, updates: { clinicalSummary?: string | null; title?: string }): Promise<ClientReport | undefined>;
   deleteClientReport(id: number, nutritionistId: number): Promise<void>;
+
+  // Adaptive TDEE suggestions
+  getPendingAdaptiveSuggestion(userId: number): Promise<AdaptiveTdeeSuggestion | undefined>;
+  getAdaptiveSuggestions(userId: number, limit?: number): Promise<AdaptiveTdeeSuggestion[]>;
+  createAdaptiveSuggestion(entry: { userId: number; suggestedCalories: number; currentCalories: number; formulaTdee?: number; delta: number; explanation: string; confidence: string }): Promise<AdaptiveTdeeSuggestion>;
+  getLastAdaptiveSuggestionDate(userId: number): Promise<Date | null>;
+  dismissAdaptiveSuggestion(id: number, userId: number): Promise<void>;
+  acceptAdaptiveSuggestion(id: number, userId: number): Promise<AdaptiveTdeeSuggestion | undefined>;
+  dismissAllPendingAdaptiveSuggestions(userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2414,6 +2423,65 @@ export class DatabaseStorage implements IStorage {
   async deleteClientReport(id: number, nutritionistId: number): Promise<void> {
     await db.delete(clientReports)
       .where(and(eq(clientReports.id, id), eq(clientReports.nutritionistId, nutritionistId)));
+  }
+
+  // ── Adaptive TDEE suggestions ─────────────────────────────────────────────
+
+  async getPendingAdaptiveSuggestion(userId: number): Promise<AdaptiveTdeeSuggestion | undefined> {
+    const [row] = await db.select().from(adaptiveTdeeSuggestions)
+      .where(and(eq(adaptiveTdeeSuggestions.userId, userId), eq(adaptiveTdeeSuggestions.status, "pending")))
+      .orderBy(desc(adaptiveTdeeSuggestions.createdAt))
+      .limit(1);
+    return row;
+  }
+
+  async getAdaptiveSuggestions(userId: number, limit = 30): Promise<AdaptiveTdeeSuggestion[]> {
+    return db.select().from(adaptiveTdeeSuggestions)
+      .where(eq(adaptiveTdeeSuggestions.userId, userId))
+      .orderBy(desc(adaptiveTdeeSuggestions.createdAt))
+      .limit(limit);
+  }
+
+  async createAdaptiveSuggestion(entry: { userId: number; suggestedCalories: number; currentCalories: number; formulaTdee?: number; delta: number; explanation: string; confidence: string }): Promise<AdaptiveTdeeSuggestion> {
+    const [row] = await db.insert(adaptiveTdeeSuggestions).values(entry).returning();
+    return row;
+  }
+
+  async getLastAdaptiveSuggestionDate(userId: number): Promise<Date | null> {
+    const [row] = await db.select({ createdAt: adaptiveTdeeSuggestions.createdAt })
+      .from(adaptiveTdeeSuggestions)
+      .where(eq(adaptiveTdeeSuggestions.userId, userId))
+      .orderBy(desc(adaptiveTdeeSuggestions.createdAt))
+      .limit(1);
+    return row?.createdAt ?? null;
+  }
+
+  async dismissAdaptiveSuggestion(id: number, userId: number): Promise<void> {
+    await db.update(adaptiveTdeeSuggestions)
+      .set({ status: "dismissed", actedAt: new Date() })
+      .where(and(
+        eq(adaptiveTdeeSuggestions.id, id),
+        eq(adaptiveTdeeSuggestions.userId, userId),
+        eq(adaptiveTdeeSuggestions.status, "pending")
+      ));
+  }
+
+  async acceptAdaptiveSuggestion(id: number, userId: number): Promise<AdaptiveTdeeSuggestion | undefined> {
+    const [row] = await db.update(adaptiveTdeeSuggestions)
+      .set({ status: "accepted", actedAt: new Date() })
+      .where(and(
+        eq(adaptiveTdeeSuggestions.id, id),
+        eq(adaptiveTdeeSuggestions.userId, userId),
+        eq(adaptiveTdeeSuggestions.status, "pending")
+      ))
+      .returning();
+    return row;
+  }
+
+  async dismissAllPendingAdaptiveSuggestions(userId: number): Promise<void> {
+    await db.update(adaptiveTdeeSuggestions)
+      .set({ status: "dismissed", actedAt: new Date() })
+      .where(and(eq(adaptiveTdeeSuggestions.userId, userId), eq(adaptiveTdeeSuggestions.status, "pending")));
   }
 }
 

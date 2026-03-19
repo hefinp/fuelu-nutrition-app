@@ -689,6 +689,25 @@ export async function runMigrations(): Promise<void> {
       )
     `);
 
+    // Adaptive TDEE suggestions table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS adaptive_tdee_suggestions (
+        id                  SERIAL PRIMARY KEY,
+        user_id             INTEGER NOT NULL REFERENCES users(id),
+        suggested_calories  INTEGER NOT NULL,
+        current_calories    INTEGER NOT NULL,
+        delta               INTEGER NOT NULL,
+        explanation         TEXT NOT NULL,
+        confidence          TEXT NOT NULL DEFAULT 'medium',
+        status              TEXT NOT NULL DEFAULT 'pending',
+        created_at          TIMESTAMP DEFAULT NOW(),
+        acted_at            TIMESTAMP
+      )
+    `);
+    await client.query(`ALTER TABLE adaptive_tdee_suggestions ADD COLUMN IF NOT EXISTS formula_tdee INTEGER`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_adaptive_tdee_suggestions_user ON adaptive_tdee_suggestions (user_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_adaptive_tdee_suggestions_status ON adaptive_tdee_suggestions (user_id, status) WHERE status = 'pending'`);
+
     const TEST_EMAIL = "test@fuelr.app";
     const TEST_PASSWORD = "TestPass123!";
     const existing = await client.query(`SELECT id FROM users WHERE email = $1`, [TEST_EMAIL]);
