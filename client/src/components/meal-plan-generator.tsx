@@ -117,6 +117,18 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       allSlots.delete('breakfast');
       allSlots.delete('snack');
     } else if (protocol === '5:2') {
+      const fastDays = mealPlanPrefs.fastingDays ?? ['monday', 'thursday'];
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const selectedDayNames = selectedDates.map(d => {
+        const [y, mo, da] = d.split('-').map(Number);
+        return dayNames[new Date(y, mo - 1, da).getDay()];
+      });
+      const anyFastingDay = selectedDayNames.some(dn => (fastDays as readonly string[]).includes(dn));
+      if (anyFastingDay) {
+        allSlots.delete('breakfast');
+        allSlots.delete('dinner');
+        allSlots.delete('snack');
+      }
     } else {
       const wStart = mealPlanPrefs.eatingWindowStart ?? 12;
       const wEnd = mealPlanPrefs.eatingWindowEnd ?? 20;
@@ -126,7 +138,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       }
     }
     setBaseSlots(allSlots);
-  }, [mealPlanPrefs]);
+  }, [mealPlanPrefs, selectedDates]);
 
   const toggleSlot = useCallback((slot: string) => {
     setBaseSlots(prev => {
@@ -1105,7 +1117,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                         {hasCycleData && !ignoreCycle && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-pink-50 text-pink-700 text-[10px] font-medium border border-pink-100" data-testid="badge-cycle">
                             <Moon className="w-3 h-3" />
-                            Cycle-optimised
+                            {cycleInfo ? `${cycleInfo.name} phase` : 'Cycle-optimised'}
                           </span>
                         )}
                         {hasVitalityBoost && (
