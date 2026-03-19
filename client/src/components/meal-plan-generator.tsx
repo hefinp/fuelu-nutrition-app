@@ -1,7 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Replace, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield, BookOpen } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Replace, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield, BookOpen, MoreHorizontal, Undo2 } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ToastAction } from "@/components/ui/toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences, SavedMealPlan } from "@shared/schema";
 import { getCyclePhase } from "@/lib/cycle";
@@ -80,6 +83,8 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const [baseCustomSlots, setBaseCustomSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snacks']));
   const [bannerCollapsed, setBannerCollapsed] = useState(false);
   const [showSavedPlansInline, setShowSavedPlansInline] = useState(false);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const [customDiscardConfirmOpen, setCustomDiscardConfirmOpen] = useState(false);
   const [dragSource, setDragSource] = useState<{ dayKey: string; slotKey: string; mealIdx: number } | null>(null);
   const [dropTarget, setDropTarget] = useState<{ dayKey: string; slotKey: string } | null>(null);
   const [copyMovePopover, setCopyMovePopover] = useState<{ x: number; y: number; source: { dayKey: string; slotKey: string; mealIdx: number }; target: { dayKey: string; slotKey: string } } | null>(null);
@@ -351,16 +356,44 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   }, []);
 
   const removeMealFromSlot = useCallback((dayKey: string, slotKey: string, idx: number) => {
+    let removedMeal: Meal | null = null;
     setCustomSlots(prev => {
       const day = { ...(prev[dayKey] || {}) };
       const arr = [...(day[slotKey] || [])];
+      removedMeal = arr[idx] || null;
       arr.splice(idx, 1);
       day[slotKey] = arr;
       return { ...prev, [dayKey]: day };
     });
     setCustomPlanReady(null);
     setCustomPlanSaved(false);
-  }, []);
+    if (removedMeal) {
+      const restored = removedMeal;
+      toast({
+        title: "Meal removed",
+        description: `${restored.meal} was removed.`,
+        action: (
+          <ToastAction
+            altText="Undo remove"
+            onClick={() => {
+              setCustomSlots(prev => {
+                const day = { ...(prev[dayKey] || {}) };
+                const arr = [...(day[slotKey] || [])];
+                arr.splice(idx, 0, restored);
+                day[slotKey] = arr;
+                return { ...prev, [dayKey]: day };
+              });
+              setCustomPlanReady(null);
+              setCustomPlanSaved(false);
+            }}
+            data-testid="button-undo-remove-meal"
+          >
+            <Undo2 className="w-3 h-3 mr-1" /> Undo
+          </ToastAction>
+        ),
+      });
+    }
+  }, [toast]);
 
   const handleDragStart = useCallback((e: React.DragEvent, dayKey: string, slotKey: string, mealIdx: number) => {
     setDragSource({ dayKey, slotKey, mealIdx });
@@ -1341,11 +1374,22 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                   <div className="flex flex-wrap items-center gap-2">
                     {!planSaved && (
                       <button
-                        onClick={() => { setMealPlan(null); setPlanSaved(false); setBannerCollapsed(false); }}
+                        onClick={() => setDiscardConfirmOpen(true)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
                         data-testid="button-discard-plan"
                       >
                         <X className="w-3.5 h-3.5" /> Discard
+                      </button>
+                    )}
+                    {!planSaved && (
+                      <button
+                        onClick={() => generateMealPlan.mutate(planMode)}
+                        disabled={generateMealPlan.isPending}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
+                        data-testid="button-regenerate-plan"
+                      >
+                        {generateMealPlan.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                        Regenerate
                       </button>
                     )}
                     <button
@@ -1391,6 +1435,50 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                   </div>
                 </div>
               )}
+
+              <AlertDialog open={discardConfirmOpen} onOpenChange={setDiscardConfirmOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Discard this plan?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will remove the current meal plan. Any unsaved changes will be lost.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-discard-cancel">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        const prevPlan = mealPlan;
+                        setMealPlan(null);
+                        setPlanSaved(false);
+                        setBannerCollapsed(false);
+                        setDiscardConfirmOpen(false);
+                        toast({
+                          title: "Plan discarded",
+                          description: "Tap Undo to restore it.",
+                          action: (
+                            <ToastAction
+                              altText="Undo discard"
+                              onClick={() => {
+                                setMealPlan(prevPlan);
+                                setBannerCollapsed(true);
+                                setGeneratorModalOpen(true);
+                              }}
+                              data-testid="button-undo-discard"
+                            >
+                              <Undo2 className="w-3 h-3 mr-1" /> Undo
+                            </ToastAction>
+                          ),
+                        });
+                      }}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                      data-testid="button-discard-confirm"
+                    >
+                      Discard
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </motion.div>
           </div>
         )}
@@ -1836,6 +1924,15 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 </div>
                 {customHasAnyMeals && (
                   <div className="flex flex-wrap items-center gap-2">
+                    {!customPlanSaved && (
+                      <button
+                        onClick={() => setCustomDiscardConfirmOpen(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
+                        data-testid="button-discard-custom-plan"
+                      >
+                        <X className="w-3.5 h-3.5" /> Discard
+                      </button>
+                    )}
                     <button
                       onClick={() => customSavePlanMutation.mutate()}
                       disabled={customSavePlanMutation.isPending || customPlanSaved}
@@ -1872,6 +1969,51 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     </button>
                   </div>
                 )}
+
+                <AlertDialog open={customDiscardConfirmOpen} onOpenChange={setCustomDiscardConfirmOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Discard custom plan?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will clear all meals you've added. Any unsaved changes will be lost.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel data-testid="button-discard-custom-cancel">Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => {
+                          const prevSlots = JSON.parse(JSON.stringify(customSlots));
+                          const prevPlanReady = customPlanReady;
+                          setCustomSlots({});
+                          setCustomPlanReady(null);
+                          setCustomPlanSaved(false);
+                          setCustomDiscardConfirmOpen(false);
+                          toast({
+                            title: "Custom plan discarded",
+                            description: "Tap Undo to restore it.",
+                            action: (
+                              <ToastAction
+                                altText="Undo discard"
+                                onClick={() => {
+                                  setCustomSlots(prevSlots);
+                                  setCustomPlanReady(prevPlanReady);
+                                  setCustomPlanSaved(false);
+                                }}
+                                data-testid="button-undo-discard-custom"
+                              >
+                                <Undo2 className="w-3 h-3 mr-1" /> Undo
+                              </ToastAction>
+                            ),
+                          });
+                        }}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                        data-testid="button-discard-custom-confirm"
+                      >
+                        Discard
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </motion.div>
           </div>
@@ -2215,14 +2357,30 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal, onReplaceFro
 
   const isDisliked = (name: string) => localDisliked.has(name.toLowerCase()) || serverDisliked.has(name.toLowerCase());
 
+  const undoDislike = useCallback(async (mealName: string) => {
+    setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
+    try {
+      await apiRequest("DELETE", `/api/preferences/disliked-meals/${encodeURIComponent(mealName)}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+    } catch {}
+  }, [queryClient]);
+
   const dislikeMutation = useMutation({
     mutationFn: (mealName: string) => {
       setLocalDisliked(prev => new Set(Array.from(prev).concat(mealName.toLowerCase())));
       return apiRequest("POST", "/api/preferences/disliked-meals", { mealName });
     },
-    onSuccess: () => {
+    onSuccess: (_data, mealName) => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
-      toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
+      toast({
+        title: "Meal disliked",
+        description: "It won't appear in future generated plans.",
+        action: (
+          <ToastAction altText="Undo dislike" onClick={() => undoDislike(mealName)} data-testid="button-undo-dislike">
+            <Undo2 className="w-3 h-3 mr-1" /> Undo
+          </ToastAction>
+        ),
+      });
     },
     onError: (_err, mealName) => {
       setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
@@ -2301,45 +2459,46 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal, onReplaceFro
                     <p className="text-xs text-zinc-500">kcal</p>
                   </div>
                 </button>
-                {onLogMeal && (
-                  <button
-                    onClick={() => onLogMeal(meal)}
-                    className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0"
-                    title="Log this meal"
-                    data-testid={`button-log-daily-${slotKey}-${idx}`}
-                  >
-                    <ClipboardList className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                <button
-                  onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
-                  className={`p-1.5 rounded transition-colors shrink-0 ${isDisliked(meal.meal) ? 'bg-red-50 text-red-500 cursor-default' : 'bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500'}`}
-                  title={isDisliked(meal.meal) ? "Disliked" : "Dislike this meal"}
-                  data-testid={`button-dislike-daily-${slotKey}-${idx}`}
-                >
-                  <ThumbsDown className="w-3.5 h-3.5" />
-                </button>
-                {onReplaceFromLibrary && (
-                  <button
-                    onClick={() => onReplaceFromLibrary(slotKey, idx)}
-                    className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0"
-                    title="Replace from library"
-                    data-testid={`button-library-replace-daily-${slotKey}-${idx}`}
-                  >
-                    <ArrowLeftRight className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                {onReplace && (
-                  <button
-                    onClick={() => onReplace(slotKey, meal.meal, idx)}
-                    disabled={replacingSlot === slotKey}
-                    className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0"
-                    title="Replace meal"
-                    data-testid={`button-replace-daily-${slotKey}-${idx}`}
-                  >
-                    {replacingSlot === slotKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                  </button>
-                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                      data-testid={`button-actions-daily-${slotKey}-${idx}`}
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {onLogMeal && (
+                      <DropdownMenuItem onClick={() => onLogMeal(meal)} data-testid={`button-log-daily-${slotKey}-${idx}`}>
+                        <ClipboardList className="w-3.5 h-3.5 mr-2" /> Log this meal
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
+                      disabled={isDisliked(meal.meal)}
+                      className={isDisliked(meal.meal) ? 'text-red-500' : ''}
+                      data-testid={`button-dislike-daily-${slotKey}-${idx}`}
+                    >
+                      <ThumbsDown className="w-3.5 h-3.5 mr-2" /> {isDisliked(meal.meal) ? 'Disliked' : 'Dislike'}
+                    </DropdownMenuItem>
+                    {onReplaceFromLibrary && (
+                      <DropdownMenuItem onClick={() => onReplaceFromLibrary(slotKey, idx)} data-testid={`button-library-replace-daily-${slotKey}-${idx}`}>
+                        <ArrowLeftRight className="w-3.5 h-3.5 mr-2" /> Replace from library
+                      </DropdownMenuItem>
+                    )}
+                    {onReplace && (
+                      <DropdownMenuItem
+                        onClick={() => onReplace(slotKey, meal.meal, idx)}
+                        disabled={replacingSlot === slotKey}
+                        data-testid={`button-replace-daily-${slotKey}-${idx}`}
+                      >
+                        {replacingSlot === slotKey ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
+                        Replace meal
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ))}
           </div>
@@ -2365,14 +2524,30 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal, onReplaceFr
   const serverDisliked = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
   const isDisliked = (name: string) => localDisliked.has(name.toLowerCase()) || serverDisliked.has(name.toLowerCase());
 
+  const undoDislike = useCallback(async (mealName: string) => {
+    setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
+    try {
+      await apiRequest("DELETE", `/api/preferences/disliked-meals/${encodeURIComponent(mealName)}`);
+      queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+    } catch {}
+  }, [queryClient]);
+
   const dislikeMutation = useMutation({
     mutationFn: (mealName: string) => {
       setLocalDisliked(prev => new Set(Array.from(prev).concat(mealName.toLowerCase())));
       return apiRequest("POST", "/api/preferences/disliked-meals", { mealName });
     },
-    onSuccess: () => {
+    onSuccess: (_data, mealName) => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
-      toast({ title: "Meal disliked", description: "It won't appear in future generated plans." });
+      toast({
+        title: "Meal disliked",
+        description: "It won't appear in future generated plans.",
+        action: (
+          <ToastAction altText="Undo dislike" onClick={() => undoDislike(mealName)} data-testid="button-undo-dislike">
+            <Undo2 className="w-3 h-3 mr-1" /> Undo
+          </ToastAction>
+        ),
+      });
     },
     onError: (_err, mealName) => {
       setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
@@ -2434,9 +2609,18 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal, onReplaceFr
               className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-50 transition-colors text-left"
               data-testid={`accordion-day-${day}`}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <span className="text-sm font-semibold text-zinc-900 capitalize w-24">{day}</span>
                 <span className="text-xs text-zinc-500">{dayPlan.dayTotalCalories} kcal</span>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-zinc-400">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(var(--chart-1))" }} />P: {dayPlan.dayTotalProtein ?? 0}g
+                </span>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-zinc-400">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(var(--chart-2))" }} />C: {dayPlan.dayTotalCarbs ?? 0}g
+                </span>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-zinc-400">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(var(--chart-3))" }} />F: {dayPlan.dayTotalFat ?? 0}g
+                </span>
               </div>
               <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
             </button>
@@ -2451,6 +2635,29 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal, onReplaceFr
                   className="overflow-hidden"
                 >
                   <div className="px-4 pb-4 space-y-4">
+                    <div className="grid grid-cols-3 gap-2 sm:hidden" data-testid={`day-macros-mobile-${day}`}>
+                      <div className="bg-zinc-50 rounded-lg p-2 text-center">
+                        <div className="flex items-center justify-center gap-1 mb-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(var(--chart-1))" }} />
+                          <span className="text-[10px] text-zinc-400 font-medium">Protein</span>
+                        </div>
+                        <p className="text-sm font-bold text-zinc-900">{dayPlan.dayTotalProtein ?? 0}<span className="text-[10px] font-normal text-zinc-400 ml-0.5">g</span></p>
+                      </div>
+                      <div className="bg-zinc-50 rounded-lg p-2 text-center">
+                        <div className="flex items-center justify-center gap-1 mb-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(var(--chart-2))" }} />
+                          <span className="text-[10px] text-zinc-400 font-medium">Carbs</span>
+                        </div>
+                        <p className="text-sm font-bold text-zinc-900">{dayPlan.dayTotalCarbs ?? 0}<span className="text-[10px] font-normal text-zinc-400 ml-0.5">g</span></p>
+                      </div>
+                      <div className="bg-zinc-50 rounded-lg p-2 text-center">
+                        <div className="flex items-center justify-center gap-1 mb-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(var(--chart-3))" }} />
+                          <span className="text-[10px] text-zinc-400 font-medium">Fat</span>
+                        </div>
+                        <p className="text-sm font-bold text-zinc-900">{dayPlan.dayTotalFat ?? 0}<span className="text-[10px] font-normal text-zinc-400 ml-0.5">g</span></p>
+                      </div>
+                    </div>
                     {["breakfast", "lunch", "dinner", "snacks"].map(slotKey => {
                       const meals: Meal[] = dayPlan[slotKey] || [];
                       if (meals.length === 0) return null;
@@ -2482,45 +2689,46 @@ function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal, onReplaceFr
                                     <p className="text-xs text-zinc-500">kcal</p>
                                   </div>
                                 </button>
-                                {onLogMeal && (
-                                  <button
-                                    onClick={() => onLogMeal(meal)}
-                                    className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0"
-                                    title="Log this meal"
-                                    data-testid={`button-log-${day}-${slotKey}-${idx}`}
-                                  >
-                                    <ClipboardList className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
-                                  className={`p-1.5 rounded transition-colors shrink-0 ${isDisliked(meal.meal) ? 'bg-red-50 text-red-500 cursor-default' : 'bg-zinc-100 hover:bg-red-50 text-zinc-400 hover:text-red-500'}`}
-                                  title={isDisliked(meal.meal) ? "Disliked" : "Dislike this meal"}
-                                  data-testid={`button-dislike-${day}-${slotKey}-${idx}`}
-                                >
-                                  <ThumbsDown className="w-3.5 h-3.5" />
-                                </button>
-                                {onReplaceFromLibrary && (
-                                  <button
-                                    onClick={() => onReplaceFromLibrary(day, slotKey, idx)}
-                                    className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0"
-                                    title="Replace from library"
-                                    data-testid={`button-library-replace-${day}-${slotKey}-${idx}`}
-                                  >
-                                    <ArrowLeftRight className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                                {onReplace && (
-                                  <button
-                                    onClick={() => onReplace(day, slotKey, meal.meal, idx)}
-                                    disabled={replacingSlot === slotKey}
-                                    className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0"
-                                    title="Replace meal"
-                                    data-testid={`button-replace-${day}-${slotKey}-${idx}`}
-                                  >
-                                    {replacingSlot === slotKey ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                                  </button>
-                                )}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button
+                                      className="p-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-colors shrink-0 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                                      data-testid={`button-actions-${day}-${slotKey}-${idx}`}
+                                    >
+                                      <MoreHorizontal className="w-4 h-4" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-48">
+                                    {onLogMeal && (
+                                      <DropdownMenuItem onClick={() => onLogMeal(meal)} data-testid={`button-log-${day}-${slotKey}-${idx}`}>
+                                        <ClipboardList className="w-3.5 h-3.5 mr-2" /> Log this meal
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem
+                                      onClick={() => { if (!isDisliked(meal.meal)) dislikeMutation.mutate(meal.meal); }}
+                                      disabled={isDisliked(meal.meal)}
+                                      className={isDisliked(meal.meal) ? 'text-red-500' : ''}
+                                      data-testid={`button-dislike-${day}-${slotKey}-${idx}`}
+                                    >
+                                      <ThumbsDown className="w-3.5 h-3.5 mr-2" /> {isDisliked(meal.meal) ? 'Disliked' : 'Dislike'}
+                                    </DropdownMenuItem>
+                                    {onReplaceFromLibrary && (
+                                      <DropdownMenuItem onClick={() => onReplaceFromLibrary(day, slotKey, idx)} data-testid={`button-library-replace-${day}-${slotKey}-${idx}`}>
+                                        <ArrowLeftRight className="w-3.5 h-3.5 mr-2" /> Replace from library
+                                      </DropdownMenuItem>
+                                    )}
+                                    {onReplace && (
+                                      <DropdownMenuItem
+                                        onClick={() => onReplace(day, slotKey, meal.meal, idx)}
+                                        disabled={replacingSlot === slotKey}
+                                        data-testid={`button-replace-${day}-${slotKey}-${idx}`}
+                                      >
+                                        {replacingSlot === slotKey ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
+                                        Replace meal
+                                      </DropdownMenuItem>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             ))}
                           </div>
@@ -2591,21 +2799,33 @@ function RecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-6">
-          <div className="bg-orange-50 p-3 rounded-lg">
-            <p className="text-xs text-orange-600 font-medium">Calories</p>
-            <p className="text-lg font-bold text-orange-700">{meal.calories}</p>
+          <div className="bg-zinc-100 p-3 rounded-lg">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="w-2 h-2 rounded-full bg-zinc-500" />
+              <p className="text-xs text-zinc-500 font-medium">Calories</p>
+            </div>
+            <p className="text-lg font-bold text-zinc-900">{meal.calories}</p>
           </div>
-          <div className="bg-red-50 p-3 rounded-lg">
-            <p className="text-xs text-red-600 font-medium">Protein</p>
-            <p className="text-lg font-bold text-red-700">{meal.protein}g</p>
+          <div className="bg-zinc-100 p-3 rounded-lg">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "hsl(var(--chart-1))" }} />
+              <p className="text-xs text-zinc-500 font-medium">Protein</p>
+            </div>
+            <p className="text-lg font-bold text-zinc-900">{meal.protein}g</p>
           </div>
-          <div className="bg-blue-50 p-3 rounded-lg">
-            <p className="text-xs text-blue-600 font-medium">Carbs</p>
-            <p className="text-lg font-bold text-blue-700">{meal.carbs}g</p>
+          <div className="bg-zinc-100 p-3 rounded-lg">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "hsl(var(--chart-2))" }} />
+              <p className="text-xs text-zinc-500 font-medium">Carbs</p>
+            </div>
+            <p className="text-lg font-bold text-zinc-900">{meal.carbs}g</p>
           </div>
-          <div className="bg-yellow-50 p-3 rounded-lg">
-            <p className="text-xs text-yellow-600 font-medium">Fat</p>
-            <p className="text-lg font-bold text-yellow-700">{meal.fat}g</p>
+          <div className="bg-zinc-100 p-3 rounded-lg">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "hsl(var(--chart-3))" }} />
+              <p className="text-xs text-zinc-500 font-medium">Fat</p>
+            </div>
+            <p className="text-lg font-bold text-zinc-900">{meal.fat}g</p>
           </div>
         </div>
 
