@@ -250,6 +250,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   useEffect(() => {
     if (generatorModalOpen || customModalOpen) {
       document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
       const today = toDateStr(new Date());
       setSelectedDates(prev => {
         const valid = prev.filter(d => d >= today);
@@ -257,8 +258,12 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       });
     } else {
       document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
   }, [generatorModalOpen, customModalOpen]);
 
   const { data: userMealsData } = useQuery<{ items: any[] }>({
@@ -1044,7 +1049,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
+              <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4">
                 <div className="mb-4">
                   <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Meal Style</p>
                   {(() => {
@@ -1602,7 +1607,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
+              <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4">
                 <div className="space-y-4 mb-4">
                   {getCustomDayKeys().map((dayKey, dayIdx) => {
                     const dayLabel = planMode === 'weekly'
