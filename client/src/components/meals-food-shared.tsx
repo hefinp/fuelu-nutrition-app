@@ -4,7 +4,7 @@ import type { UserSavedFood } from "@shared/schema";
 import type { FoodResult, ExtendedFoodResult } from "@/components/food-log-shared";
 
 export type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
-export type ActiveTab = "meals" | "foods" | "templates";
+export type ActiveTab = "meals" | "foods" | "saved-plans";
 export type ImportStep = "method" | "url" | "photo" | "video" | "confirm";
 export type AddFoodTab = "search" | "scan" | "ai" | "manual" | "restaurants";
 export type PickerTab = "myfoods" | "search" | "scan" | "ai";

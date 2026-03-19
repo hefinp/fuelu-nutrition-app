@@ -189,11 +189,11 @@ export function MyMealsFoodWidget() {
             My Foods
           </button>
           <button
-            onClick={() => setActiveTab("templates")}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "templates" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-            data-testid="button-tab-templates"
+            onClick={() => setActiveTab("saved-plans")}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${activeTab === "saved-plans" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-tab-saved-plans"
           >
-            Templates
+            Saved Plans
           </button>
         </div>
       </div>
@@ -425,7 +425,7 @@ export function MyMealsFoodWidget() {
           </div>
         )}
 
-        {activeTab === "templates" && (
+        {activeTab === "saved-plans" && (
           <div>
             {templates.length === 0 ? (
               <div className="text-center py-12" data-testid="text-no-templates">

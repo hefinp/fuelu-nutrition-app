@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
-import { X, Search, Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { X, Search, Loader2, Link2, Plus } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { AddMealPopoverState, Meal } from "./types";
+import { ImportModal } from "@/components/import-modal";
+import { CreateMealModal } from "@/components/create-meal-modal";
 
 interface AddMealPopoverProps {
   popoverState: AddMealPopoverState;
@@ -12,6 +14,9 @@ interface AddMealPopoverProps {
 
 export function AddMealPopover({ popoverState, onClose, onAddMeal }: AddMealPopoverProps) {
   const [mealSearchQuery, setMealSearchQuery] = useState("");
+  const [showImport, setShowImport] = useState(false);
+  const [showCreateMeal, setShowCreateMeal] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: userMealsData, isLoading: userMealsLoading } = useQuery<{ items: any[] }>({
     queryKey: ["/api/user-meals"],
@@ -49,6 +54,22 @@ export function AddMealPopover({ popoverState, onClose, onAddMeal }: AddMealPopo
             data-testid="input-search-meal"
           />
         </div>
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={() => setShowImport(true)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-zinc-200 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-all"
+            data-testid="button-popover-import"
+          >
+            <Link2 className="w-3.5 h-3.5" />Import
+          </button>
+          <button
+            onClick={() => setShowCreateMeal(true)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-zinc-900 text-xs font-medium text-white hover:bg-zinc-700 transition-all"
+            data-testid="button-popover-create-meal"
+          >
+            <Plus className="w-3.5 h-3.5" />Create Meal
+          </button>
+        </div>
         <div className="max-h-60 overflow-y-auto space-y-1">
           {userMealsLoading ? (
             <div className="flex items-center justify-center py-6" data-testid="loading-meals"><Loader2 className="w-4 h-4 animate-spin text-zinc-400" /></div>
@@ -74,6 +95,18 @@ export function AddMealPopover({ popoverState, onClose, onAddMeal }: AddMealPopo
           )}
         </div>
       </motion.div>
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onSaved={() => { queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] }); }}
+        />
+      )}
+      {showCreateMeal && (
+        <CreateMealModal
+          onClose={() => setShowCreateMeal(false)}
+          onSaved={() => { queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] }); }}
+        />
+      )}
     </div>
   );
 }

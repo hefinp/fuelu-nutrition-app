@@ -219,11 +219,11 @@ export default function MyLibraryPage() {
             My Foods ({foodCount})
           </button>
           <button
-            onClick={() => setActiveTab("templates")}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "templates" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-            data-testid="button-library-tab-templates"
+            onClick={() => setActiveTab("saved-plans")}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "saved-plans" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-library-tab-saved-plans"
           >
-            Templates ({templates.length})
+            Saved Plans ({templates.length})
           </button>
         </div>
 
@@ -441,7 +441,7 @@ export default function MyLibraryPage() {
           </div>
         )}
 
-        {activeTab === "templates" && (
+        {activeTab === "saved-plans" && (
           <div>
             {templates.length === 0 ? (
               <div className="text-center py-16" data-testid="text-library-no-templates">

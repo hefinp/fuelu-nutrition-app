@@ -1,10 +1,10 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ThumbsDown, ClipboardList, RefreshCw, ChevronDown, ArrowLeftRight, Zap, MoreHorizontal, Undo2 } from "lucide-react";
+import { Loader2, ThumbsDown, ClipboardList, RefreshCw, ChevronDown, ArrowLeftRight, Zap, MoreHorizontal, Undo2, Bookmark } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ToastAction } from "@/components/ui/toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { UserPreferences } from "@shared/schema";
+import type { UserPreferences, UserMeal } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RecipeModal } from "./recipe-modal";
@@ -27,6 +27,8 @@ export function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal, onRe
   const queryClient = useQueryClient();
 
   const { data: prefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
+  const { data: userMealsData } = useQuery<{ items: UserMeal[] }>({ queryKey: ["/api/user-meals"] });
+  const savedMealNames = new Set((userMealsData?.items ?? []).map(m => m.name.toLowerCase()));
   const serverDisliked = new Set((prefs?.dislikedMeals ?? []).map(m => m.toLowerCase()));
   const isDisliked = (name: string) => localDisliked.has(name.toLowerCase()) || serverDisliked.has(name.toLowerCase());
 
@@ -59,6 +61,27 @@ export function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal, onRe
       setLocalDisliked(prev => { const s = new Set(prev); s.delete(mealName.toLowerCase()); return s; });
       toast({ title: "Sign in to dislike meals", variant: "destructive" });
     },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: { name: string; calories: number; protein: number; carbs: number; fat: number; ingredientsJson: any[]; instructions: string; mealSlot: string }) =>
+      apiRequest("POST", "/api/user-meals", {
+        name: payload.name,
+        caloriesPerServing: payload.calories,
+        proteinPerServing: payload.protein,
+        carbsPerServing: payload.carbs,
+        fatPerServing: payload.fat,
+        ingredientsJson: payload.ingredientsJson.length > 0 ? payload.ingredientsJson : undefined,
+        instructions: payload.instructions || undefined,
+        mealSlot: payload.mealSlot,
+        source: "ai-generated",
+        confirmDuplicate: true,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user-meals"] });
+      toast({ title: "Saved to My Meals" });
+    },
+    onError: () => toast({ title: "Failed to save meal", variant: "destructive" }),
   });
 
   const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -146,22 +169,18 @@ export function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal, onRe
                               <div key={idx} className="flex items-center gap-2">
                                 <button
                                   onClick={() => setSelectedMeal(meal)}
-                                  className="flex-1 flex justify-between p-2 bg-white rounded hover:bg-zinc-100 transition-colors text-left cursor-pointer border border-transparent hover:border-zinc-200"
+                                  className="flex-1 flex justify-between p-2 rounded-xl hover:bg-zinc-50 transition-colors text-left cursor-pointer border border-zinc-100"
                                   data-testid={`meal-card-${day}-${slotKey}-${idx}`}
                                 >
                                   <div className="flex-1">
                                     <p className="font-medium text-zinc-900 text-sm">{meal.meal}</p>
-                                    <p className="text-xs text-zinc-500">P: {meal.protein}g | C: {meal.carbs}g | F: {meal.fat}g</p>
+                                    <p className="text-xs text-zinc-500">{meal.calories} kcal · P: {meal.protein}g · C: {meal.carbs}g · F: {meal.fat}g</p>
                                     {meal.vitalityRationale && (
                                       <p className="text-[10px] text-amber-600 mt-0.5 flex items-center gap-1" data-testid={`vitality-rationale-${day}-${slotKey}-${idx}`}>
                                         <Zap className="w-2.5 h-2.5 flex-shrink-0" />
                                         {meal.vitalityRationale}
                                       </p>
                                     )}
-                                  </div>
-                                  <div className="text-right ml-4">
-                                    <p className="font-bold text-zinc-900 text-sm">{meal.calories}</p>
-                                    <p className="text-xs text-zinc-500">kcal</p>
                                   </div>
                                 </button>
                                 <DropdownMenu>
@@ -186,6 +205,26 @@ export function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal, onRe
                                       data-testid={`button-dislike-${day}-${slotKey}-${idx}`}
                                     >
                                       <ThumbsDown className="w-3.5 h-3.5 mr-2" /> {isDisliked(meal.meal) ? 'Disliked' : 'Dislike'}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        if (!savedMealNames.has(meal.meal.toLowerCase())) {
+                                          saveMutation.mutate({
+                                            name: meal.meal,
+                                            calories: meal.calories,
+                                            protein: meal.protein,
+                                            carbs: meal.carbs,
+                                            fat: meal.fat,
+                                            ingredientsJson: meal.ingredientsJson ?? [],
+                                            instructions: "",
+                                            mealSlot: slotKey,
+                                          });
+                                        }
+                                      }}
+                                      disabled={savedMealNames.has(meal.meal.toLowerCase())}
+                                      data-testid={`button-save-library-${day}-${slotKey}-${idx}`}
+                                    >
+                                      <Bookmark className="w-3.5 h-3.5 mr-2" /> {savedMealNames.has(meal.meal.toLowerCase()) ? 'Saved' : 'Save to Library'}
                                     </DropdownMenuItem>
                                     {onReplaceFromLibrary && (
                                       <DropdownMenuItem onClick={() => onReplaceFromLibrary(day, slotKey, idx)} data-testid={`button-library-replace-${day}-${slotKey}-${idx}`}>

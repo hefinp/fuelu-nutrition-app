@@ -62,7 +62,7 @@ router.post("/api/user-meals", async (req, res) => {
   try {
     const body = z.object({
       name: z.string().min(1),
-      source: z.enum(["logged", "imported", "community", "manual"]).default("manual"),
+      source: z.enum(["logged", "imported", "community", "manual", "ai-generated"]).default("manual"),
       caloriesPerServing: z.number().int().min(0),
       proteinPerServing: z.number().min(0),
       carbsPerServing: z.number().min(0),
