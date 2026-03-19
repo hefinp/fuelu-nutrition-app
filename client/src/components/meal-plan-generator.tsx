@@ -833,7 +833,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 />
 
                 <div className="mt-3">
-                  <div className="flex justify-center gap-2">
+                  <div className="flex justify-center gap-2.5 sm:gap-3">
                     {([
                       { key: 'breakfast', label: 'Breakfast', icon: Coffee },
                       { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
@@ -846,14 +846,14 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                           key={key}
                           type="button"
                           onClick={() => toggleSlot(key)}
-                          className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                          className={`flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-medium transition-all ${
                             active
                               ? 'bg-zinc-900 text-white shadow-sm'
                               : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
                           }`}
                           data-testid={`toggle-slot-${key}`}
                         >
-                          <Icon className="w-4 h-4" />
+                          <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           {label}
                         </button>
                       );
@@ -921,16 +921,16 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                               type="button"
                               data-testid={`toggle-meal-style-${style.key}`}
                               onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
-                              className={`relative z-10 flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold transition-colors duration-200 ${
+                              className={`relative z-10 flex-1 flex flex-col items-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors duration-200 ${
                                 mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
                               }`}
                             >
-                              <style.icon className="w-4 h-4" />
+                              <style.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               <span>{style.label}</span>
                             </button>
                           ))}
                         </div>
-                        <p className="text-xs text-zinc-400 mt-2">{descriptions[mealStyle]}</p>
+                        <p className="text-[10px] sm:text-xs text-zinc-400 mt-2">{descriptions[mealStyle]}</p>
                       </>
                     );
                   })()}
@@ -1518,11 +1518,11 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                             type="button"
                             data-testid={`toggle-custom-meal-style-${style.key}`}
                             onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
-                            className={`relative z-10 flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold transition-colors duration-200 ${
+                            className={`relative z-10 flex-1 flex flex-col items-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-semibold transition-colors duration-200 ${
                               mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
                             }`}
                           >
-                            <style.icon className="w-4 h-4" />
+                            <style.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             <span>{style.label}</span>
                           </button>
                         ))}
@@ -1567,7 +1567,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 )}
 
                 <p className="text-[11px] text-zinc-400 text-center mb-1.5" data-testid="text-custom-slot-caption">Which meals to auto-complete?</p>
-                <div className="flex justify-center gap-2 mb-2">
+                <div className="flex justify-center gap-2.5 sm:gap-3 mb-2">
                   {([
                     { key: 'breakfast', label: 'Breakfast', icon: Coffee },
                     { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
@@ -1584,14 +1584,14 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                           if (next.has(key)) next.delete(key); else next.add(key);
                           return next;
                         })}
-                        className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                        className={`flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-medium transition-all ${
                           active
                             ? 'bg-zinc-900 text-white shadow-sm'
                             : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
                         }`}
                         data-testid={`toggle-custom-slot-${key}`}
                       >
-                        <Icon className="w-4 h-4" />
+                        <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         {label}
                       </button>
                     );
@@ -1881,7 +1881,7 @@ function DateRangePicker({ weekStart, onWeekChange, planMode, selectedDates, onT
   const pfx = testIdPrefix ? `${testIdPrefix}-` : "";
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-2">
         <button
           onClick={() => onWeekChange(-7)}
           className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
@@ -1901,7 +1901,7 @@ function DateRangePicker({ weekStart, onWeekChange, planMode, selectedDates, onT
         </button>
       </div>
       {planMode === 'daily' && (
-        <div className="flex gap-1.5 flex-wrap mt-2">
+        <div className="flex gap-1.5 flex-wrap mt-2 justify-center">
           {DAY_LABELS.map((label, i) => {
             const dateStr = addDays(weekStart, i);
             const isSelected = selectedDates.includes(dateStr);
