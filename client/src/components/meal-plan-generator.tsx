@@ -40,6 +40,11 @@ interface DayMealPlan {
 
 type MealPlan = any;
 
+function isSlotLockedForDates(slot: string, dates: string[]): boolean {
+  if (dates.length === 0) return false;
+  return dates.every(d => isSlotPast(d, slot));
+}
+
 export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: Calculation; onLogMeal?: (meal: Meal | PrefillEntry) => void; overrideTargets?: { dailyCalories?: number; proteinGoal?: number; carbsGoal?: number; fatGoal?: number } | null }) {
   const effectiveCals = overrideTargets?.dailyCalories ?? data.dailyCalories;
   const effectiveProtein = overrideTargets?.proteinGoal ?? data.proteinGoal;
@@ -235,6 +240,24 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     }
     return () => { document.body.style.overflow = ''; };
   }, [generatorModalOpen, customModalOpen]);
+
+  useEffect(() => {
+    if (planMode !== 'daily') return;
+    setEnabledSlots(prev => {
+      const next = new Set(prev);
+      for (const slot of ['breakfast', 'lunch', 'dinner', 'snack'] as const) {
+        if (isSlotLockedForDates(slot, selectedDates)) next.delete(slot);
+      }
+      return next.size !== prev.size ? next : prev;
+    });
+    setCustomEnabledSlots(prev => {
+      const next = new Set(prev);
+      for (const slot of ['breakfast', 'lunch', 'dinner', 'snacks'] as const) {
+        if (isSlotLockedForDates(slot, selectedDates)) next.delete(slot);
+      }
+      return next.size !== prev.size ? next : prev;
+    });
+  }, [selectedDates, planMode]);
 
   const { data: userMealsData } = useQuery<{ items: any[] }>({
     queryKey: ["/api/user-meals"],
@@ -960,19 +983,23 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                           { key: 'snack', label: 'Snacks', icon: Cookie },
                         ] as const).map(({ key, label, icon: Icon }) => {
                           const active = enabledSlots.has(key);
+                          const locked = planMode === 'daily' && isSlotLockedForDates(key, selectedDates);
                           return (
                             <button
                               key={key}
                               type="button"
-                              onClick={() => toggleSlot(key)}
+                              onClick={() => { if (!locked) toggleSlot(key); }}
+                              disabled={locked}
                               className={`flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-medium transition-all ${
-                                active
-                                  ? 'bg-zinc-900 text-white shadow-sm'
-                                  : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
+                                locked
+                                  ? 'bg-zinc-100 text-zinc-300 opacity-50 cursor-not-allowed'
+                                  : active
+                                    ? 'bg-zinc-900 text-white shadow-sm'
+                                    : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
                               }`}
                               data-testid={`toggle-slot-${key}`}
                             >
-                              <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              {locked ? <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                               {label}
                             </button>
                           );
@@ -1511,19 +1538,23 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                           { key: 'snacks', label: 'Snacks', icon: Cookie },
                         ] as const).map(({ key, label, icon: Icon }) => {
                           const active = customEnabledSlots.has(key);
+                          const locked = planMode === 'daily' && isSlotLockedForDates(key, selectedDates);
                           return (
                             <button
                               key={key}
                               type="button"
-                              onClick={() => toggleCustomSlot(key)}
+                              onClick={() => { if (!locked) toggleCustomSlot(key); }}
+                              disabled={locked}
                               className={`flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-medium transition-all ${
-                                active
-                                  ? 'bg-zinc-900 text-white shadow-sm'
-                                  : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
+                                locked
+                                  ? 'bg-zinc-100 text-zinc-300 opacity-50 cursor-not-allowed'
+                                  : active
+                                    ? 'bg-zinc-900 text-white shadow-sm'
+                                    : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
                               }`}
                               data-testid={`toggle-custom-slot-${key}`}
                             >
-                              <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              {locked ? <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                               {label}
                             </button>
                           );
@@ -1736,23 +1767,30 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     { key: 'snacks', label: 'Snacks', icon: Cookie },
                   ] as const).map(({ key, label, icon: Icon }) => {
                     const active = customEnabledSlots.has(key);
+                    const locked = planMode === 'daily' && isSlotLockedForDates(key, selectedDates);
                     return (
                       <button
                         key={key}
                         type="button"
-                        onClick={() => setCustomEnabledSlots(prev => {
-                          const next = new Set(prev);
-                          if (next.has(key)) next.delete(key); else next.add(key);
-                          return next;
-                        })}
+                        onClick={() => {
+                          if (locked) return;
+                          setCustomEnabledSlots(prev => {
+                            const next = new Set(prev);
+                            if (next.has(key)) next.delete(key); else next.add(key);
+                            return next;
+                          });
+                        }}
+                        disabled={locked}
                         className={`flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-medium transition-all ${
-                          active
-                            ? 'bg-zinc-900 text-white shadow-sm'
-                            : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
+                          locked
+                            ? 'bg-zinc-100 text-zinc-300 opacity-50 cursor-not-allowed'
+                            : active
+                              ? 'bg-zinc-900 text-white shadow-sm'
+                              : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
                         }`}
                         data-testid={`toggle-custom-slot-${key}`}
                       >
-                        <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        {locked ? <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                         {label}
                       </button>
                     );
