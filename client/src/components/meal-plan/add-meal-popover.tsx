@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { X, Search, Loader2, Link2, Plus } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState } from "react";
 import type { AddMealPopoverState, Meal } from "./types";
 import { ImportModal } from "@/components/import-modal";
 import { CreateMealModal } from "@/components/create-meal-modal";
@@ -12,47 +12,13 @@ interface AddMealPopoverProps {
   onAddMeal: (dayKey: string, slotKey: string, userMeal: any) => void;
 }
 
-function useVisualViewportHeight() {
-  const [height, setHeight] = useState(() => window.visualViewport?.height ?? window.innerHeight);
-
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) {
-      const onResize = () => setHeight(window.innerHeight);
-      window.addEventListener("resize", onResize);
-      return () => window.removeEventListener("resize", onResize);
-    }
-    const update = () => {
-      setHeight(vv.height);
-    };
-    update();
-    vv.addEventListener("resize", update);
-    vv.addEventListener("scroll", update);
-    return () => {
-      vv.removeEventListener("resize", update);
-      vv.removeEventListener("scroll", update);
-    };
-  }, []);
-
-  return height;
-}
-
 export function AddMealPopover({ popoverState, onClose, onAddMeal }: AddMealPopoverProps) {
   const [mealSearchQuery, setMealSearchQuery] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [showCreateMeal, setShowCreateMeal] = useState(false);
   const queryClient = useQueryClient();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const vpHeight = useVisualViewportHeight();
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
-
-  const scrollInputIntoView = useCallback(() => {
-    setTimeout(() => {
-      inputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }, 300);
-  }, []);
 
   const { data: userMealsData, isLoading: userMealsLoading } = useQuery<{ items: any[] }>({
     queryKey: ["/api/user-meals"],
@@ -66,16 +32,13 @@ export function AddMealPopover({ popoverState, onClose, onAddMeal }: AddMealPopo
   return (
     <div
       className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40"
-      style={{ height: `${vpHeight}px` }}
       onClick={onClose}
     >
       <motion.div
-        ref={containerRef}
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 40 }}
-        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl p-5 flex flex-col"
-        style={{ maxHeight: `${Math.round(vpHeight * 0.85)}px` }}
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl p-5 flex flex-col max-h-[85vh] sm:max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-3 shrink-0">
@@ -87,14 +50,12 @@ export function AddMealPopover({ popoverState, onClose, onAddMeal }: AddMealPopo
         <div className="relative mb-3 shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
           <input
-            ref={inputRef}
             type="text"
             inputMode="search"
             enterKeyHint="search"
             placeholder="Search your meals..."
             value={mealSearchQuery}
             onChange={e => setMealSearchQuery(e.target.value)}
-            onFocus={isMobile ? scrollInputIntoView : undefined}
             className="w-full pl-8 pr-3 py-2 border border-zinc-200 rounded-xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-400"
             autoFocus={!isMobile}
             data-testid="input-search-meal"
