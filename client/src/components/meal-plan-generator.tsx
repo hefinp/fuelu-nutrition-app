@@ -1478,6 +1478,74 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               </div>
 
               <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 pt-3 shrink-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}>
+                <div className="mb-2">
+                  {(() => {
+                    const styles = [
+                      { key: 'simple' as const,  icon: Salad,   label: 'Simple' },
+                      { key: 'gourmet' as const, icon: ChefHat, label: 'Fancy' },
+                      { key: 'michelin' as const,icon: Star,    label: 'Michelin' },
+                    ];
+                    const idx = styles.findIndex(s => s.key === mealStyle);
+                    return (
+                      <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="custom-meal-style-scale">
+                        <div
+                          className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
+                          style={{ width: `calc((100% - 8px) / 3)`, left: `calc(4px + ${idx} * (100% - 8px) / 3)` }}
+                        />
+                        {styles.map((style) => (
+                          <button
+                            key={style.key}
+                            type="button"
+                            data-testid={`toggle-custom-meal-style-${style.key}`}
+                            onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
+                            className={`relative z-10 flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold transition-colors duration-200 ${
+                              mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                            }`}
+                          >
+                            <style.icon className="w-4 h-4" />
+                            <span>{style.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {mealPlanPrefs?.vitalityInsightsEnabled && data.gender === "male" && (
+                  isMealPremium ? (
+                    <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 mb-2" data-testid="custom-vitality-hormone-boost-toggle">
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                        <p className="text-xs font-medium text-amber-800">Hormone-boosting meals</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await apiRequest("PUT", "/api/user/preferences", {
+                            ...mealPlanPrefs,
+                            hormoneBoostingMeals: !mealPlanPrefs?.hormoneBoostingMeals,
+                          });
+                          queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+                        }}
+                        className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${mealPlanPrefs?.hormoneBoostingMeals ? "bg-amber-500" : "bg-zinc-200"}`}
+                        data-testid="button-custom-toggle-hormone-boost"
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${mealPlanPrefs?.hormoneBoostingMeals ? "translate-x-5" : "translate-x-1"}`} />
+                      </button>
+                    </div>
+                  ) : (
+                    <Link href="/pricing">
+                      <div className="flex items-center justify-between px-3 py-2 rounded-xl border border-zinc-200 bg-zinc-50 mb-2 cursor-pointer hover:bg-zinc-100 transition-colors" data-testid="custom-vitality-hormone-boost-locked">
+                        <div className="flex items-center gap-2">
+                          <Lock className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+                          <p className="text-xs font-medium text-zinc-600">Hormone-boosting meals</p>
+                        </div>
+                        <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
+                      </div>
+                    </Link>
+                  )
+                )}
+
                 <p className="text-[11px] text-zinc-400 text-center mb-1.5" data-testid="text-custom-slot-caption">Which meals to auto-complete?</p>
                 <div className="flex justify-center gap-2 mb-2">
                   {([
