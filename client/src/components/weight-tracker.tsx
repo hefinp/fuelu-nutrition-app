@@ -50,9 +50,11 @@ function CaloriesTooltip({ active, payload, label }: any) {
 export function WeightTracker({
   targetWeight,
   dailyCaloriesTarget,
+  isAdvanced = false,
 }: {
   targetWeight?: number;
   dailyCaloriesTarget?: number;
+  isAdvanced?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<"weight" | "calories">("weight");
   const [weightInput, setWeightInput] = useState("");
@@ -173,7 +175,7 @@ export function WeightTracker({
   // ── Adaptive TDEE trend ─────────────────────────────────────────────────────
   const { data: tdeeTrend = [] } = useQuery<Array<{ date: string; adaptiveTdee: number; formulaTdee: number; confidence: string }>>({
     queryKey: ["/api/adaptive-tdee/trend"],
-    enabled: activeTab === "weight",
+    enabled: isAdvanced && activeTab === "weight",
     staleTime: 300_000,
   });
 

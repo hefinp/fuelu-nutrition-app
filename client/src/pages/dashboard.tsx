@@ -575,6 +575,7 @@ export default function Dashboard() {
           <WeightTracker
             targetWeight={targetWeight}
             dailyCaloriesTarget={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
+            isAdvanced={!!(tierStatus?.betaUser || tierStatus?.tier === "advanced")}
           />
         ) : (
           <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 flex flex-col items-center text-center justify-center">
@@ -1232,7 +1233,7 @@ export default function Dashboard() {
 
             {user && !user.isManagedClient && (!tierStatus || tierStatus.tier === "free") && <FreeWeeklySummaryCard />}
 
-            {user && <AdaptiveTdeeCard />}
+            {user && (tierStatus?.betaUser || tierStatus?.tier === "advanced") && <AdaptiveTdeeCard />}
 
             {/* ── MOBILE tab toggle: Planning / Tracking ── */}
             <div className="xl:hidden mb-4">

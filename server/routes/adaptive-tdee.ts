@@ -2,11 +2,16 @@ import { Router } from "express";
 import { storage } from "../storage";
 import { calculateMacros } from "../meal-data";
 import { computeAdaptiveTdee, buildExplanation } from "../lib/adaptive-tdee";
+import { hasTierAccess } from "../tier";
 
 const router = Router();
 
 router.get("/api/adaptive-tdee/suggestion", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  const user = await storage.getUserById(req.session.userId);
+  if (!user || !(await hasTierAccess(user, "adaptive_tdee"))) {
+    return res.status(403).json({ message: "Requires Advanced plan" });
+  }
   const suggestion = await storage.getPendingAdaptiveSuggestion(req.session.userId);
   res.json(suggestion ?? null);
 });
@@ -14,6 +19,10 @@ router.get("/api/adaptive-tdee/suggestion", async (req, res) => {
 router.post("/api/adaptive-tdee/calculate", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const userId = req.session.userId;
+  const user = await storage.getUserById(userId);
+  if (!user || !(await hasTierAccess(user, "adaptive_tdee"))) {
+    return res.status(403).json({ message: "Requires Advanced plan" });
+  }
 
   const calcs = await storage.getCalculations(userId);
   const latest = calcs[0];
@@ -94,6 +103,10 @@ router.post("/api/adaptive-tdee/suggestion/:id/accept", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
   const userId = req.session.userId;
+  const user = await storage.getUserById(userId);
+  if (!user || !(await hasTierAccess(user, "adaptive_tdee"))) {
+    return res.status(403).json({ message: "Requires Advanced plan" });
+  }
 
   const override = await storage.getClientTargetOverrides(userId);
   if (override && (override.dailyCalories || override.proteinGoal || override.carbsGoal || override.fatGoal || override.fibreGoal)) {
@@ -171,6 +184,10 @@ router.post("/api/adaptive-tdee/suggestion/:id/dismiss", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+  const dismissUser = await storage.getUserById(req.session.userId);
+  if (!dismissUser || !(await hasTierAccess(dismissUser, "adaptive_tdee"))) {
+    return res.status(403).json({ message: "Requires Advanced plan" });
+  }
   await storage.dismissAdaptiveSuggestion(id, req.session.userId);
   res.json({ success: true });
 });
@@ -178,6 +195,10 @@ router.post("/api/adaptive-tdee/suggestion/:id/dismiss", async (req, res) => {
 router.get("/api/adaptive-tdee/trend", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const userId = req.session.userId;
+  const trendUser = await storage.getUserById(userId);
+  if (!trendUser || !(await hasTierAccess(trendUser, "adaptive_tdee"))) {
+    return res.status(403).json({ message: "Requires Advanced plan" });
+  }
 
   const suggestions = await storage.getAdaptiveSuggestions(userId, 20);
 

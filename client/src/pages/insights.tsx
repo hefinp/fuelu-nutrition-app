@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { useTierStatus } from "@/hooks/use-tier";
 import { TrialBanner } from "@/components/trial-banner";
 import type { TrialInfo } from "@shared/trial";
 import { getCyclePhase } from "@/lib/cycle";
@@ -61,6 +62,8 @@ function EnergyDot({ level }: { level: string | null }) {
 
 export default function InsightsPage({ onClose }: { onClose?: () => void } = {}) {
   const { user } = useAuth();
+  const { data: tierStatus } = useTierStatus();
+  const isAdvanced = !!(tierStatus?.betaUser || tierStatus?.tier === "advanced");
   const [aiRefreshCount, setAiRefreshCount] = useState(0);
   const [aiEnabled, setAiEnabled] = useState(false);
 
@@ -96,7 +99,7 @@ export default function InsightsPage({ onClose }: { onClose?: () => void } = {})
 
   const { data: tdeeTrend } = useQuery<TdeeTrendPoint[]>({
     queryKey: ["/api/adaptive-tdee/trend"],
-    enabled: !!user,
+    enabled: !!user && isAdvanced,
     staleTime: 10 * 60 * 1000,
   });
 

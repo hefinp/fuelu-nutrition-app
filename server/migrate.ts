@@ -284,6 +284,7 @@ export async function runMigrations(): Promise<void> {
         ('vitality_tracking', 'simple', 0, 'Male vitality tracking'),
         ('advanced_analytics', 'advanced', 0, 'Advanced analytics dashboard'),
         ('export_data', 'advanced', 0, 'Export nutrition data'),
+        ('adaptive_tdee', 'advanced', 0, 'Adaptive TDEE metabolic recalibration'),
         ('priority_support', 'advanced', 0, 'Priority support access')
       ON CONFLICT (feature_key) DO NOTHING
     `);
