@@ -591,6 +591,27 @@ export function generateDayPlan(dailyCalories: number, proteinGoal: number, carb
   return buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences, cyclePhase, fastingOverride);
 }
 
+const SLOT_CUTOFF_HOURS_BACKEND: Record<string, number> = {
+  breakfast: 10,
+  lunch: 14,
+  snack: 16,
+  dinner: 20,
+};
+
+export function getPastSlotsForDate(dateStr: string, now: Date): string[] {
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  if (dateStr < todayStr) {
+    return ['breakfast', 'lunch', 'dinner', 'snack'];
+  }
+  if (dateStr > todayStr) {
+    return [];
+  }
+  const currentHour = now.getHours() + now.getMinutes() / 60;
+  return Object.entries(SLOT_CUTOFF_HOURS_BACKEND)
+    .filter(([, cutoff]) => currentHour >= cutoff)
+    .map(([slot]) => slot);
+}
+
 export function addDaysToDate(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const dt = new Date(y, m - 1, d);

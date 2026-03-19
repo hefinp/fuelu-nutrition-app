@@ -10,7 +10,7 @@ import {
   MEAL_DATABASE, GOURMET_MEAL_DATABASE, MICHELIN_MEAL_DATABASE,
   filterMealDbByPreferences, filterMealDbByRecentLog,
   scaleMeal, pickBestMeal, buildDayPlan, generateDayPlan, generateMealPlan,
-  computeCyclePhase, addDaysToDate,
+  computeCyclePhase, addDaysToDate, getPastSlotsForDate,
   buildExcludeKeywords, containsExcludedKeyword,
 } from "../meal-data";
 
@@ -19,6 +19,7 @@ const router = Router();
 router.post(api.mealPlans.generate.path, async (req, res) => {
   try {
     const input = mealPlanSchema.parse(req.body);
+    const now = new Date();
 
     if (req.session.userId) {
       const user = await storage.getUserById(req.session.userId);
@@ -76,7 +77,6 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
         }
       }
 
-      const now = new Date();
       const from14 = new Date(now); from14.setDate(now.getDate() - 14);
       const recentEntries = await storage.getFoodLogEntriesRange(
         req.session.userId,
@@ -90,31 +90,85 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
     const hasCycle = !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate);
 
     if (input.planType === 'weekly') {
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+
       let perDayPhases: Record<string, string | null> | undefined = undefined;
       if (hasCycle && input.weekStartDate) {
-        const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
         perDayPhases = {};
         dayNames.forEach((dayName, i) => {
           const dateStr = addDaysToDate(input.weekStartDate!, i);
           perDayPhases![dayName] = computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, dateStr);
         });
       }
-      const fallbackPhase = hasCycle ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28) : null;
-      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, true, baseDb, prefs, fallbackPhase, perDayPhases, undefined, input.excludeSlots);
-      if (input.weekStartDate) (mealPlan as any).weekStartDate = input.weekStartDate;
+
+      const isCurrentWeek = input.weekStartDate
+        ? (() => {
+            const ws = input.weekStartDate;
+            const weekEnd = addDaysToDate(ws, 6);
+            return todayStr >= ws && todayStr <= weekEnd;
+          })()
+        : false;
+
+      let mealPlan: any;
+      if (isCurrentWeek && input.weekStartDate) {
+        const result: Record<string, any> = { planType: 'weekly' as const };
+        let weekTotalCalories = 0, weekTotalProtein = 0, weekTotalCarbs = 0, weekTotalFat = 0;
+        const canonicalSlots = ['breakfast', 'lunch', 'dinner', 'snack'];
+        const userExclude: string[] = input.excludeSlots ?? [];
+
+        dayNames.forEach((dayName, i) => {
+          const dateStr = addDaysToDate(input.weekStartDate!, i);
+          const pastSlots = getPastSlotsForDate(dateStr, now);
+          const dayFullyPast = canonicalSlots.every(s => userExclude.includes(s) || pastSlots.includes(s));
+
+          if (dayFullyPast) {
+            return;
+          }
+
+          const dayExclude = [...userExclude, ...pastSlots.filter(s => !userExclude.includes(s))];
+          const dayPhase = perDayPhases?.[dayName] ?? null;
+          const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, dayPhase, dayName, dayExclude);
+          result[dayName] = dayPlan;
+          weekTotalCalories += dayPlan.dayTotalCalories;
+          weekTotalProtein += dayPlan.dayTotalProtein;
+          weekTotalCarbs += dayPlan.dayTotalCarbs;
+          weekTotalFat += dayPlan.dayTotalFat;
+        });
+
+        result.weekStartDate = input.weekStartDate;
+        result.weekTotalCalories = weekTotalCalories;
+        result.weekTotalProtein = weekTotalProtein;
+        result.weekTotalCarbs = weekTotalCarbs;
+        result.weekTotalFat = weekTotalFat;
+        result.cyclePhaseByDay = perDayPhases ?? null;
+        mealPlan = result;
+      } else {
+        const fallbackPhase = hasCycle ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28) : null;
+        mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, true, baseDb, prefs, fallbackPhase, perDayPhases, undefined, input.excludeSlots);
+        if (input.weekStartDate) (mealPlan as any).weekStartDate = input.weekStartDate;
+      }
+
       if (req.session.userId) await deductCredits(req.session.userId, "ai_meal_plan");
       res.status(201).json(mealPlan);
     } else if (input.targetDates && input.targetDates.length > 1) {
       const plans: Record<string, any> = {};
       const cyclePhaseByDate: Record<string, string | null> = {};
       for (const dateStr of input.targetDates) {
+        const pastSlots = getPastSlotsForDate(dateStr, now);
+        const mdCanonicalSlots = ['breakfast', 'lunch', 'dinner', 'snack'];
+        const mdUserExclude: string[] = input.excludeSlots ?? [];
+        const dayFullyPast = mdCanonicalSlots.every(s => mdUserExclude.includes(s) || pastSlots.includes(s));
+        if (dayFullyPast) continue;
+
+        const dayExclude = [...mdUserExclude, ...pastSlots.filter(s => !mdUserExclude.includes(s))];
         const phase = hasCycle ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, dateStr) : null;
         cyclePhaseByDate[dateStr] = phase;
         const [y, mo, da] = dateStr.split("-").map(Number);
         const dateObj = new Date(y, mo - 1, da);
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         const dayName = dayNames[dateObj.getDay()];
-        const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, phase, dayName, input.excludeSlots);
+        const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, phase, dayName, dayExclude);
         plans[dateStr] = { ...dayPlan, cyclePhase: phase };
       }
       if (req.session.userId) await deductCredits(req.session.userId, "ai_meal_plan");
@@ -131,7 +185,11 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         singleDayName = dayNames[dateObj.getDay()];
       }
-      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, false, baseDb, prefs, cyclePhase, undefined, singleDayName, input.excludeSlots);
+      const sdUserExclude: string[] = input.excludeSlots ?? [];
+      const singleExclude = targetDate
+        ? [...sdUserExclude, ...getPastSlotsForDate(targetDate, now).filter(s => !sdUserExclude.includes(s))]
+        : input.excludeSlots;
+      const mealPlan = generateMealPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, false, baseDb, prefs, cyclePhase, undefined, singleDayName, singleExclude);
       if (targetDate) (mealPlan as any).targetDate = targetDate;
       if (req.session.userId) await deductCredits(req.session.userId, "ai_meal_plan");
       res.status(201).json(mealPlan);

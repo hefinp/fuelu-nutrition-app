@@ -15,6 +15,7 @@ import { toDateStr, addDays, getMonday, formatShort, DAY_LABELS } from "./result
 import { exportMealPlanToPDF, exportShoppingListToPDF } from "./results-pdf";
 import { SavedMealPlans } from "@/components/saved-meal-plans";
 import type { PrefillEntry } from "@/components/food-log-shared";
+import { isSlotPast, isDayPast } from "@/lib/mealTime";
 
 export interface Meal {
   meal: string;
@@ -90,7 +91,15 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   useEffect(() => {
     if (prevWeekRef.current !== weekStart) {
       prevWeekRef.current = weekStart;
-      setSelectedDates([weekStart]);
+      const today = toDateStr(new Date());
+      const firstValid = (() => {
+        for (let i = 0; i < 7; i++) {
+          const d = addDays(weekStart, i);
+          if (d >= today) return d;
+        }
+        return today;
+      })();
+      setSelectedDates([firstValid]);
     }
   }, [weekStart]);
 
@@ -148,6 +157,11 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
   const generateMealPlan = useMutation({
     mutationFn: async (planType: 'daily' | 'weekly') => {
+      const today = toDateStr(new Date());
+      const validDates = selectedDates.filter(d => d >= today);
+      if (planType === 'daily' && validDates.length === 0) {
+        throw new Error("No future dates selected");
+      }
       const res = await apiRequest('POST', '/api/meal-plans', {
         dailyCalories: effectiveCals,
         weeklyCalories: data.weeklyCalories,
@@ -157,7 +171,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         planType,
         mealStyle,
         calculationId: data.id,
-        ...(planType === 'daily' ? { targetDates: selectedDates } : { weekStartDate: weekStart }),
+        ...(planType === 'daily' ? { targetDates: validDates } : { weekStartDate: weekStart }),
         ...(excludeSlotsArray.length > 0 ? { excludeSlots: excludeSlotsArray } : {}),
       });
       return await res.json();
@@ -211,6 +225,11 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   useEffect(() => {
     if (generatorModalOpen || customModalOpen) {
       document.body.style.overflow = 'hidden';
+      const today = toDateStr(new Date());
+      setSelectedDates(prev => {
+        const valid = prev.filter(d => d >= today);
+        return valid.length > 0 ? valid : [today];
+      });
     } else {
       document.body.style.overflow = '';
     }
@@ -465,12 +484,31 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const autofillMutation = useMutation({
     mutationFn: async () => {
       const dayKeys = getCustomDayKeys();
+      const allSlotKeys = ['breakfast', 'lunch', 'dinner', 'snacks'];
+      const userExcludeSlots = allSlotKeys.filter(s => !customEnabledSlots.has(s));
+
       const slots: Record<string, Record<string, Meal[]>> = {};
       for (const dk of dayKeys) {
-        slots[dk] = customSlots[dk] || {};
+        const daySlots = customSlots[dk] || {};
+        const dayDateStr = planMode === 'weekly'
+          ? addDays(weekStart, dayKeys.indexOf(dk))
+          : dk;
+        const pastSlotKeys = allSlotKeys.filter(sk => isSlotPast(dayDateStr, sk));
+        const filledSlots: Record<string, Meal[]> = {};
+        for (const sk of allSlotKeys) {
+          filledSlots[sk] = daySlots[sk] || [];
+        }
+        for (const psk of pastSlotKeys) {
+          if (!filledSlots[psk]?.length) {
+            filledSlots[psk] = [{
+              meal: '__past__',
+              calories: 0, protein: 0, carbs: 0, fat: 0,
+            }];
+          }
+        }
+        slots[dk] = filledSlots;
       }
-      const allSlotKeys = ['breakfast', 'lunch', 'dinner', 'snacks'];
-      const excludeSlots = allSlotKeys.filter(s => !customEnabledSlots.has(s));
+
       const res = await apiRequest('POST', '/api/meal-plans/autofill', {
         dailyCalories: effectiveCals,
         proteinGoal: effectiveProtein,
@@ -480,16 +518,18 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         slots,
         planType: planMode,
         ...(planMode === 'daily' ? { targetDate: dayKeys[0] } : { weekStartDate: weekStart }),
-        ...(excludeSlots.length > 0 ? { excludeSlots } : {}),
+        ...(userExcludeSlots.length > 0 ? { excludeSlots: userExcludeSlots } : {}),
       });
       return await res.json();
     },
     onSuccess: (planData) => {
       const slotKeys = ['breakfast', 'lunch', 'dinner', 'snacks'] as const;
-      const mapMeals = (arr: any[]) => arr.map((m: any) => ({
-        meal: m.meal, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat,
-        ...(m.ingredientsJson ? { ingredientsJson: m.ingredientsJson } : {}),
-      }));
+      const mapMeals = (arr: any[]) => arr
+        .filter((m: any) => m.meal !== '__past__')
+        .map((m: any) => ({
+          meal: m.meal, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat,
+          ...(m.ingredientsJson ? { ingredientsJson: m.ingredientsJson } : {}),
+        }));
 
       setCustomSlots(prev => {
         const merged = { ...prev };
@@ -1511,14 +1551,16 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
                 <div className="space-y-4 mb-4">
-                  {getCustomDayKeys().map(dayKey => {
+                  {getCustomDayKeys().map((dayKey, dayIdx) => {
                     const dayLabel = planMode === 'weekly'
                       ? dayKey.charAt(0).toUpperCase() + dayKey.slice(1)
                       : (() => { const [y, m, d] = dayKey.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); })();
                     const dayNutrition = getDayNutrition(dayKey);
                     const calPct = effectiveCals > 0 ? Math.min(100, Math.round((dayNutrition.calories / effectiveCals) * 100)) : 0;
+                    const dayDateStr = planMode === 'weekly' ? addDays(weekStart, dayIdx) : dayKey;
+                    const dayIsPast = isDayPast(dayDateStr);
                     return (
-                      <div key={dayKey} className="border border-zinc-100 rounded-2xl p-3">
+                      <div key={dayKey} className={`border rounded-2xl p-3 ${dayIsPast ? 'border-zinc-100 opacity-60' : 'border-zinc-100'}`}>
                         <div className="bg-zinc-900 text-white rounded-2xl relative overflow-hidden mb-3" data-testid={`nutrition-summary-${dayKey}`}>
                           <div className="absolute top-[-40%] right-[-10%] w-48 h-48 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-2xl pointer-events-none" />
                           <div className="relative z-10 p-3 sm:p-4">
@@ -1567,51 +1609,58 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                           {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).map(slotKey => {
                             const meals = customSlots[dayKey]?.[slotKey] || [];
                             const isDropping = dropTarget?.dayKey === dayKey && dropTarget?.slotKey === slotKey;
+                            const slotIsPast = isSlotPast(dayDateStr, slotKey);
+                            const slotReadOnly = dayIsPast || slotIsPast;
                             return (
                               <div
                                 key={slotKey}
                                 ref={(el) => registerSlotRef(`${dayKey}::${slotKey}`, el)}
-                                className={`rounded-xl p-2 transition-colors ${isDropping ? 'bg-blue-50 border-2 border-dashed border-blue-300' : 'bg-zinc-50'}`}
-                                onDragOver={(e) => handleDragOver(e, dayKey, slotKey)}
-                                onDragLeave={handleDragLeave}
-                                onDrop={(e) => handleDrop(e, dayKey, slotKey)}
+                                className={`rounded-xl p-2 transition-colors ${slotReadOnly ? 'bg-zinc-50 opacity-60' : isDropping ? 'bg-blue-50 border-2 border-dashed border-blue-300' : 'bg-zinc-50'}`}
+                                onDragOver={slotReadOnly ? undefined : (e) => handleDragOver(e, dayKey, slotKey)}
+                                onDragLeave={slotReadOnly ? undefined : handleDragLeave}
+                                onDrop={slotReadOnly ? undefined : (e) => handleDrop(e, dayKey, slotKey)}
                                 data-testid={`custom-slot-${dayKey}-${slotKey}`}
                               >
                                 <div className="flex items-center justify-between mb-1.5">
                                   <h5 className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">
                                     {slotKey.charAt(0).toUpperCase() + slotKey.slice(1)}
                                   </h5>
-                                  <button
-                                    onClick={() => { setAddMealPopover({ dayKey, slotKey }); setMealSearchQuery(""); }}
-                                    className="flex items-center gap-1 text-[10px] font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
-                                    data-testid={`button-add-meal-${dayKey}-${slotKey}`}
-                                  >
-                                    <Plus className="w-3 h-3" /> Add
-                                  </button>
+                                  {!slotReadOnly && (
+                                    <button
+                                      onClick={() => { setAddMealPopover({ dayKey, slotKey }); setMealSearchQuery(""); }}
+                                      className="flex items-center gap-1 text-[10px] font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
+                                      data-testid={`button-add-meal-${dayKey}-${slotKey}`}
+                                    >
+                                      <Plus className="w-3 h-3" /> Add
+                                    </button>
+                                  )}
                                 </div>
                                 {meals.length === 0 && (
-                                  <p className="text-[10px] text-zinc-300 py-1">Drop a meal here or click Add</p>
+                                  <p className="text-[10px] text-zinc-300 py-1">{slotReadOnly ? 'Past slot' : 'Drop a meal here or click Add'}</p>
                                 )}
                                 {meals.map((meal, idx) => (
                                   <div
                                     key={idx}
-                                    draggable
-                                    onDragStart={(e) => handleDragStart(e, dayKey, slotKey, idx)}
-                                    onTouchStart={(e) => handleTouchStart(e, dayKey, slotKey, idx, meal.meal)}
-                                    onTouchMove={handleTouchMove}
-                                    onTouchEnd={handleTouchEnd}
-                                    className={`flex items-center gap-1.5 py-1.5 px-2 bg-white rounded-lg border mb-1 cursor-grab active:cursor-grabbing group select-none ${
-                                      touchDragging?.dayKey === dayKey && touchDragging?.slotKey === slotKey && touchDragging?.mealIdx === idx
-                                        ? 'border-blue-300 bg-blue-50 opacity-50'
-                                        : 'border-zinc-100'
+                                    draggable={!slotReadOnly}
+                                    onDragStart={slotReadOnly ? undefined : (e) => handleDragStart(e, dayKey, slotKey, idx)}
+                                    onTouchStart={slotReadOnly ? undefined : (e) => handleTouchStart(e, dayKey, slotKey, idx, meal.meal)}
+                                    onTouchMove={slotReadOnly ? undefined : handleTouchMove}
+                                    onTouchEnd={slotReadOnly ? undefined : handleTouchEnd}
+                                    className={`flex items-center gap-1.5 py-1.5 px-2 bg-white rounded-lg border mb-1 select-none ${
+                                      slotReadOnly
+                                        ? 'border-zinc-100 cursor-default'
+                                        : touchDragging?.dayKey === dayKey && touchDragging?.slotKey === slotKey && touchDragging?.mealIdx === idx
+                                        ? 'border-blue-300 bg-blue-50 opacity-50 cursor-grab active:cursor-grabbing group'
+                                        : 'border-zinc-100 cursor-grab active:cursor-grabbing group'
                                     }`}
                                     data-testid={`custom-meal-card-${dayKey}-${slotKey}-${idx}`}
                                   >
-                                    <GripVertical className="w-3 h-3 text-zinc-300 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" />
+                                    {!slotReadOnly && <GripVertical className="w-3 h-3 text-zinc-300 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" />}
                                     <div className="flex-1 min-w-0">
                                       <p className="text-xs font-medium text-zinc-900 truncate">{meal.meal}</p>
                                       <p className="text-[10px] text-zinc-400">{meal.calories} kcal · P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g</p>
                                     </div>
+                                    {!slotReadOnly && (
                                     <button
                                       onClick={() => setReplacePicker({ dayKey, slotKey: slotKey === 'snacks' ? 'snack' : slotKey, mealIdx: idx, context: 'custom' })}
                                       className="p-1 text-zinc-300 hover:text-blue-500 transition-colors shrink-0"
@@ -1620,6 +1669,8 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                                     >
                                       <ArrowLeftRight className="w-3 h-3" />
                                     </button>
+                                    )}
+                                    {!slotReadOnly && (
                                     <button
                                       onClick={() => removeMealFromSlot(dayKey, slotKey, idx)}
                                       className="p-1 text-zinc-300 hover:text-red-500 transition-colors shrink-0"
@@ -1627,6 +1678,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                                     >
                                       <Trash2 className="w-3 h-3" />
                                     </button>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -2013,6 +2065,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
 function DateRangePicker({ weekStart, onWeekChange, planMode, selectedDates, onToggleDate, testIdPrefix = "" }: { weekStart: string; onWeekChange: (dir: -7 | 7) => void; planMode: 'daily' | 'weekly'; selectedDates: string[]; onToggleDate: (dateStr: string) => void; testIdPrefix?: string }) {
   const pfx = testIdPrefix ? `${testIdPrefix}-` : "";
+  const today = toDateStr(new Date());
   return (
     <>
       <div className="flex items-center justify-center gap-2">
@@ -2039,14 +2092,18 @@ function DateRangePicker({ weekStart, onWeekChange, planMode, selectedDates, onT
           {DAY_LABELS.map((label, i) => {
             const dateStr = addDays(weekStart, i);
             const isSelected = selectedDates.includes(dateStr);
+            const isPast = dateStr < today;
             return (
               <button
                 key={dateStr}
                 type="button"
                 data-testid={`chip-${pfx}day-${label.toLowerCase()}`}
-                onClick={() => onToggleDate(dateStr)}
+                onClick={() => !isPast && onToggleDate(dateStr)}
+                disabled={isPast}
                 className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  isSelected
+                  isPast
+                    ? "bg-zinc-100 text-zinc-300 cursor-not-allowed"
+                    : isSelected
                     ? "bg-zinc-900 text-white"
                     : "bg-white text-zinc-500 hover:bg-zinc-200 border border-zinc-200"
                 }`}
@@ -2212,7 +2269,8 @@ function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal, onReplaceFro
 
 function WeeklyMealView({ plan, onReplace, replacingSlot, onLogMeal, onReplaceFromLibrary }: { plan: any; onReplace?: (day: string, slot: string, mealName: string, idx: number) => void; replacingSlot?: string; onLogMeal?: (meal: Meal) => void; onReplaceFromLibrary?: (day: string, slot: string, idx: number) => void }) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
-  const [expandedDay, setExpandedDay] = useState<string | null>("monday");
+  const firstAvailableDay = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].find(d => plan[d]) ?? "monday";
+  const [expandedDay, setExpandedDay] = useState<string | null>(firstAvailableDay);
   const [localDisliked, setLocalDisliked] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
