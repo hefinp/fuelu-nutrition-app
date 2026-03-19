@@ -6,11 +6,11 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Users, Plus, Search, X, FileText, ArrowLeft,
-  Mail, Calendar, ChevronRight, Trash2, Edit2, Check, AlertCircle, ClipboardList,
+  Mail, Calendar, ChevronRight, ChevronLeft, Trash2, Edit2, Check, AlertCircle, ClipboardList,
   Activity, BarChart2, Bell, Building2, UserMinus, UserPlus, RefreshCw,
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
   MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2, Download, History,
-  LogOut, User,
+  LogOut, User, BookOpen,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { exportProgressReportToPDF, type ProgressReportData } from "@/components/results-pdf";
@@ -1966,6 +1966,183 @@ function GoalsPanel({ clientRecord }: { clientRecord: ClientWithUser }) {
   );
 }
 
+interface FoodDiaryEntry {
+  id: number;
+  mealName: string;
+  foodName: string;
+  quantity: string;
+  unit: string;
+  mealSlot: string | null;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fibre: number | null;
+}
+
+interface FoodDiaryData {
+  date: string;
+  grouped: Record<string, FoodDiaryEntry[]>;
+  totals: { calories: number; protein: number; carbs: number; fat: number; fibre: number };
+  targets: { calories: number; protein: number; carbs: number; fat: number; fibre: number | null } | null;
+}
+
+const MEAL_SLOT_LABELS: Record<string, string> = {
+  breakfast: "Breakfast",
+  lunch: "Lunch",
+  dinner: "Dinner",
+  snacks: "Snacks",
+};
+
+function FoodDiaryTab({ clientId }: { clientId: number }) {
+  const [currentDate, setCurrentDate] = useState<string>(() => {
+    return new Date().toISOString().split("T")[0];
+  });
+
+  const { data, isLoading } = useQuery<FoodDiaryData>({
+    queryKey: ["/api/nutritionist/clients", clientId, "food-diary", currentDate],
+    queryFn: () =>
+      apiRequest("GET", `/api/nutritionist/clients/${clientId}/food-diary?date=${currentDate}`).then(r => r.json()),
+  });
+
+  function shiftDate(delta: number) {
+    const d = new Date(currentDate + "T00:00:00");
+    d.setDate(d.getDate() + delta);
+    setCurrentDate(d.toISOString().split("T")[0]);
+  }
+
+  const formattedDate = new Date(currentDate + "T00:00:00").toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  const isToday = currentDate === new Date().toISOString().split("T")[0];
+  const totalEntries = data
+    ? Object.values(data.grouped).reduce((sum, arr) => sum + arr.length, 0)
+    : 0;
+
+  return (
+    <div>
+      <div className="bg-white rounded-2xl border border-zinc-100 p-4 mb-4">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => shiftDate(-1)}
+            className="p-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+            data-testid="button-diary-prev-day"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <div className="text-center">
+            <p className="text-sm font-semibold text-zinc-900" data-testid="text-diary-date">{formattedDate}</p>
+            {isToday && <p className="text-xs text-zinc-400">Today</p>}
+          </div>
+          <button
+            type="button"
+            onClick={() => shiftDate(1)}
+            disabled={isToday}
+            className="p-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            data-testid="button-diary-next-day"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+        </div>
+      ) : !data || totalEntries === 0 ? (
+        <div className="bg-white rounded-2xl border border-zinc-100 p-12 text-center" data-testid="state-diary-empty">
+          <BookOpen className="w-10 h-10 text-zinc-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-zinc-600 mb-1">No entries logged for this day</p>
+          <p className="text-xs text-zinc-400">The client hasn't logged any food on this date.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {Object.entries(data.grouped)
+            .filter(([, entries]) => entries.length > 0)
+            .map(([slot, entries]) => (
+              <div key={slot} className="bg-white rounded-2xl border border-zinc-100 overflow-hidden" data-testid={`diary-section-${slot}`}>
+                <div className="px-4 py-3 bg-zinc-50 border-b border-zinc-100">
+                  <h3 className="text-xs font-semibold text-zinc-700 uppercase tracking-wider">{MEAL_SLOT_LABELS[slot] ?? slot}</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-100">
+                        <th className="text-left px-4 py-2 font-medium text-zinc-500">Food</th>
+                        <th className="text-left px-3 py-2 font-medium text-zinc-500 hidden sm:table-cell">Portion</th>
+                        <th className="text-right px-3 py-2 font-medium text-zinc-500">kcal</th>
+                        <th className="text-right px-3 py-2 font-medium text-zinc-500 hidden sm:table-cell">Protein</th>
+                        <th className="text-right px-3 py-2 font-medium text-zinc-500 hidden sm:table-cell">Carbs</th>
+                        <th className="text-right px-3 py-2 font-medium text-zinc-500 hidden sm:table-cell">Fat</th>
+                        <th className="text-right px-4 py-2 font-medium text-zinc-500 hidden md:table-cell">Fibre</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {entries.map((entry, i) => (
+                        <tr
+                          key={entry.id}
+                          className={`border-b border-zinc-50 ${i % 2 === 0 ? "" : "bg-zinc-50/50"}`}
+                          data-testid={`diary-entry-${entry.id}`}
+                        >
+                          <td className="px-4 py-2.5 text-zinc-800 font-medium">{entry.foodName}</td>
+                          <td className="px-3 py-2.5 text-zinc-500 hidden sm:table-cell">
+                            {entry.quantity} {entry.unit}
+                          </td>
+                          <td className="px-3 py-2.5 text-right text-zinc-700">{entry.calories}</td>
+                          <td className="px-3 py-2.5 text-right text-zinc-500 hidden sm:table-cell">{entry.protein}g</td>
+                          <td className="px-3 py-2.5 text-right text-zinc-500 hidden sm:table-cell">{entry.carbs}g</td>
+                          <td className="px-3 py-2.5 text-right text-zinc-500 hidden sm:table-cell">{entry.fat}g</td>
+                          <td className="px-4 py-2.5 text-right text-zinc-500 hidden md:table-cell">
+                            {entry.fibre != null ? `${entry.fibre}g` : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+
+          <div className="bg-zinc-900 rounded-2xl p-4" data-testid="diary-daily-summary">
+            <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Daily Totals</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: "Calories", value: data.totals.calories, target: data.targets?.calories, unit: "kcal" },
+                { label: "Protein", value: data.totals.protein, target: data.targets?.protein, unit: "g" },
+                { label: "Carbs", value: data.totals.carbs, target: data.targets?.carbs, unit: "g" },
+                { label: "Fat", value: data.totals.fat, target: data.targets?.fat, unit: "g" },
+              ].map(item => {
+                const pct = item.target ? Math.round((item.value / item.target) * 100) : null;
+                const color = pct === null ? "text-white" : pct > 115 ? "text-red-400" : pct >= 85 ? "text-emerald-400" : "text-amber-400";
+                return (
+                  <div key={item.label} className="text-center" data-testid={`diary-total-${item.label.toLowerCase()}`}>
+                    <p className={`text-lg font-bold ${color}`}>
+                      {item.value}
+                      <span className="text-xs font-normal text-zinc-500 ml-0.5">{item.unit}</span>
+                    </p>
+                    {item.target ? (
+                      <p className="text-xs text-zinc-500 mt-0.5">of {item.target} target</p>
+                    ) : (
+                      <p className="text-xs text-zinc-500 mt-0.5">No target</p>
+                    )}
+                    <p className="text-[10px] text-zinc-400">{item.label}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ClientProfile({
   clientRecord,
   onBack,
@@ -1978,7 +2155,7 @@ function ClientProfile({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [activeSection, setActiveSection] = useState<"profile" | "messages">("profile");
+  const [activeSection, setActiveSection] = useState<"profile" | "messages" | "food-diary">("profile");
 
   const { data: profileData, isLoading: profileLoading } = useQuery<ClientProfileData>({
     queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "profile"],
@@ -1989,6 +2166,15 @@ function ClientProfile({
     queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "notes"],
     queryFn: () => apiRequest("GET", `/api/nutritionist/clients/${clientRecord.clientId}/notes`).then(r => r.json()),
   });
+
+  const { data: adherenceData7d } = useQuery<AdherenceData>({
+    queryKey: ["/api/nutritionist/monitoring/clients", clientRecord.clientId, "adherence", 7],
+    queryFn: () => apiRequest("GET", `/api/nutritionist/monitoring/clients/${clientRecord.clientId}/adherence?days=7`).then(r => r.json()),
+  });
+
+  const streakDays = adherenceData7d
+    ? adherenceData7d.dailyBreakdown.filter(d => d.logged).length
+    : null;
 
   const [newNote, setNewNote] = useState("");
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
@@ -2173,7 +2359,7 @@ function ClientProfile({
         )}
       </div>
 
-      <div className="flex gap-1 mb-4">
+      <div className="flex gap-1 mb-4 flex-wrap">
         <button
           type="button"
           onClick={() => setActiveSection("profile")}
@@ -2182,6 +2368,20 @@ function ClientProfile({
         >
           <FileText className="w-3.5 h-3.5" />
           Profile
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection("food-diary")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeSection === "food-diary" ? "bg-zinc-900 text-white" : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
+          data-testid="tab-client-food-diary"
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          Food Diary
+          {streakDays !== null && (
+            <span className={`ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${activeSection === "food-diary" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-700"}`}>
+              {streakDays}/7 days
+            </span>
+          )}
         </button>
         <button
           type="button"
@@ -2198,6 +2398,10 @@ function ClientProfile({
         <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
           <MessageThread clientId={clientRecord.clientId} currentUserId={user.id} />
         </div>
+      )}
+
+      {activeSection === "food-diary" && (
+        <FoodDiaryTab clientId={clientRecord.clientId} />
       )}
 
       {activeSection === "profile" && (

@@ -323,4 +323,73 @@ router.get("/api/nutritionist/monitoring/alerts", async (req, res) => {
   res.json(alerts);
 });
 
+router.get("/api/nutritionist/clients/:clientId/food-diary", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const date = typeof req.query.date === "string" ? req.query.date : getDateStr(new Date());
+
+  const entries = await storage.getFoodLogEntries(clientId, date);
+  const effectiveTargets = await storage.getEffectiveTargets(clientId);
+
+  type DiaryEntry = typeof entries[number] & { foodName: string; quantity: string; unit: string };
+
+  const MEAL_SLOTS = ["breakfast", "lunch", "dinner", "snacks"];
+  const grouped: Record<string, DiaryEntry[]> = {};
+  for (const slot of MEAL_SLOTS) {
+    grouped[slot] = [];
+  }
+
+  function extractPortion(mealName: string): { foodName: string; quantity: string; unit: string } {
+    const match = mealName.match(/(\d+(?:\.\d+)?)\s*(g|ml|kg|oz|lb|cup|tbsp|tsp|serving|piece|slice|portion)s?/i);
+    if (match) {
+      const qty = match[1];
+      const unit = match[2].toLowerCase();
+      const foodName = mealName.replace(match[0], "").trim().replace(/,\s*$/, "").trim();
+      return { foodName: foodName || mealName, quantity: qty, unit };
+    }
+    return { foodName: mealName, quantity: "1", unit: "serving" };
+  }
+
+  for (const entry of entries) {
+    const raw = entry.mealSlot?.toLowerCase() ?? "snacks";
+    const slot = raw === "snack" ? "snacks" : raw;
+    const normalised = MEAL_SLOTS.includes(slot) ? slot : "snacks";
+    const { foodName, quantity, unit } = extractPortion(entry.mealName);
+    grouped[normalised].push({ ...entry, foodName, quantity, unit });
+  }
+
+  const totals = {
+    calories: entries.reduce((s, e) => s + e.calories, 0),
+    protein: entries.reduce((s, e) => s + e.protein, 0),
+    carbs: entries.reduce((s, e) => s + e.carbs, 0),
+    fat: entries.reduce((s, e) => s + e.fat, 0),
+    fibre: entries.reduce((s, e) => s + (e.fibre ?? 0), 0),
+  };
+
+  res.json({
+    date,
+    grouped,
+    totals,
+    targets: effectiveTargets
+      ? {
+          calories: effectiveTargets.dailyCalories,
+          protein: effectiveTargets.proteinGoal,
+          carbs: effectiveTargets.carbsGoal,
+          fat: effectiveTargets.fatGoal,
+          fibre: effectiveTargets.fibreGoal,
+        }
+      : null,
+  });
+});
+
 export default router;
