@@ -48,8 +48,9 @@ import {
 import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
-  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, Home, TrendingUp, Star,
+  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, TrendingUp, Star,
   Sparkles, ScanLine, Heart, ShieldCheck, Zap, User, Crown, Briefcase, MessageSquare,
+  CalendarDays, Activity,
 } from "lucide-react";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
 
@@ -171,7 +172,6 @@ export default function Dashboard() {
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [allergiesOpen, setAllergiesOpen] = useState(false);
   const [logPrefill, setLogPrefill] = useState<PrefillEntry | null>(null);
-  const [showFoodLogPopup, setShowFoodLogPopup] = useState(false);
   const [showInsightsPopup, setShowInsightsPopup] = useState(false);
   const [showVitalityInsightsPopup, setShowVitalityInsightsPopup] = useState(false);
   const { data: history, isLoading: historyLoading, isFetched: historyFetched } = useCalculations();
@@ -1206,36 +1206,25 @@ export default function Dashboard() {
           <div className="flex items-stretch h-16">
             {[
               {
-                id: "home",
-                icon: Home,
-                label: "Home",
-                active: !showSavedPlans && !showMetricsPanel,
+                id: "plan",
+                icon: CalendarDays,
+                label: "Plan",
+                active: mobileTab === 'planning' && !showSavedPlans && !showMetricsPanel,
                 action: () => {
                   setShowSavedPlans(false);
+                  setMobileTab('planning');
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 },
               },
               {
-                id: "food-log",
-                icon: ClipboardList,
-                label: "Food Log",
-                active: showFoodLogPopup,
+                id: "track",
+                icon: Activity,
+                label: "Track",
+                active: mobileTab === 'tracking' && !showSavedPlans && !showMetricsPanel,
                 action: () => {
                   setShowSavedPlans(false);
-                  const widgetHidden = hiddenWidgets.includes("food-log");
-                  if (widgetHidden) {
-                    (document.activeElement as HTMLElement)?.blur();
-                    setShowFoodLogPopup(v => !v);
-                  } else {
-                    setShowFoodLogPopup(false);
-                    setTimeout(() => {
-                      const el = document.getElementById("food-log-section");
-                      if (el) {
-                        const top = el.getBoundingClientRect().top + window.scrollY - 80;
-                        window.scrollTo({ top, behavior: "smooth" });
-                      }
-                    }, 50);
-                  }
+                  setMobileTab('tracking');
+                  window.scrollTo({ top: 0, behavior: "smooth" });
                 },
               },
               {
@@ -1464,54 +1453,6 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      {/* ── Food Log popup (when widget is hidden) ───────────────────────── */}
-      <AnimatePresence>
-        {showFoodLogPopup && user && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="fixed inset-0 z-[39] bg-black/20"
-              onClick={() => setShowFoodLogPopup(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="fixed z-40 inset-x-4 top-[10%] bottom-[10%] max-w-lg mx-auto bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden"
-            >
-              <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-zinc-100 shrink-0">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-zinc-100 text-zinc-600 rounded-lg">
-                    <ClipboardList className="w-4 h-4" />
-                  </div>
-                  <span className="text-sm font-semibold text-zinc-900">Food Log</span>
-                </div>
-                <button
-                  onClick={() => setShowFoodLogPopup(false)}
-                  className="p-1.5 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400 hover:text-zinc-600"
-                  data-testid="button-close-foodlog-popup"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto px-4 py-4">
-                <FoodLog
-                  dailyCaloriesTarget={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
-                  dailyProteinTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
-                  dailyCarbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
-                  dailyFatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
-                  prefill={logPrefill}
-                  onPrefillConsumed={handlePrefillConsumed}
-                />
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
