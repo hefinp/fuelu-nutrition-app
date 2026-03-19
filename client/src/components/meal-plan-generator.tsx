@@ -195,6 +195,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         planType,
         mealStyle,
         calculationId: data.id,
+        clientToday: today,
         ...(planType === 'daily' ? { targetDates: validDates } : { weekStartDate: weekStart }),
         ...(excludeSlotsArray.length > 0 ? { excludeSlots: excludeSlotsArray } : {}),
       });
@@ -541,6 +542,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         mealStyle,
         slots,
         planType: planMode,
+        clientToday: toDateStr(new Date()),
         ...(planMode === 'daily' ? { targetDate: dayKeys[0] } : { weekStartDate: weekStart }),
         ...(userExcludeSlots.length > 0 ? { excludeSlots: userExcludeSlots } : {}),
       });

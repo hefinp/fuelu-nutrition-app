@@ -90,7 +90,8 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
     const hasCycle = !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate);
 
     if (input.planType === 'weekly') {
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const serverTodayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const effectiveTodayStr = input.clientToday ?? serverTodayStr;
       const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
 
       let perDayPhases: Record<string, string | null> | undefined = undefined;
@@ -106,7 +107,7 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
         ? (() => {
             const ws = input.weekStartDate;
             const weekEnd = addDaysToDate(ws, 6);
-            return todayStr >= ws && todayStr <= weekEnd;
+            return effectiveTodayStr >= ws && effectiveTodayStr <= weekEnd;
           })()
         : false;
 
@@ -119,7 +120,12 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
 
         dayNames.forEach((dayName, i) => {
           const dateStr = addDaysToDate(input.weekStartDate!, i);
-          const pastSlots = getPastSlotsForDate(dateStr, now);
+
+          if (dateStr < effectiveTodayStr) {
+            return;
+          }
+
+          const pastSlots = dateStr === effectiveTodayStr ? getPastSlotsForDate(dateStr, now) : [];
           const dayFullyPast = canonicalSlots.every(s => userExclude.includes(s) || pastSlots.includes(s));
 
           if (dayFullyPast) {
@@ -222,6 +228,7 @@ const autofillSchema = z.object({
   planType: z.enum(['daily', 'weekly']).default('daily'),
   targetDate: z.string().optional(),
   weekStartDate: z.string().optional(),
+  clientToday: z.string().optional(),
   excludeSlots: z.array(z.string()).optional(),
 });
 
@@ -255,17 +262,32 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
     const backendExclude = (s: string) => excludeSet.has(s) || excludeSet.has(s === 'snacks' ? 'snack' : s);
 
     if (input.planType === 'weekly') {
+      const now = new Date();
+      const serverTodayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const effectiveTodayStr = input.clientToday ?? serverTodayStr;
       const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       const result: Record<string, any> = {};
       let weekTotalCalories = 0, weekTotalProtein = 0, weekTotalCarbs = 0, weekTotalFat = 0;
 
       for (const dayName of dayNames) {
-        const userSlots = input.slots[dayName] || {};
+        const dayIndex = dayNames.indexOf(dayName);
+        const dateStr = input.weekStartDate ? addDaysToDate(input.weekStartDate, dayIndex) : null;
+
+        if (dateStr && dateStr < effectiveTodayStr) {
+          continue;
+        }
+
+        const rawUserSlots = input.slots[dayName] || {};
+        const userSlots: Record<string, any[]> = {};
+        for (const sk of slotKeys) {
+          userSlots[sk] = (rawUserSlots[sk] || []).filter((m: any) => m.meal !== '__past__');
+        }
+
         const hasAnyUserMeals = slotKeys.some(s => (userSlots[s]?.length ?? 0) > 0);
 
         if (hasAnyUserMeals) {
           const cyclePhase = hasCycle && input.weekStartDate
-            ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, addDaysToDate(input.weekStartDate, dayNames.indexOf(dayName)))
+            ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, addDaysToDate(input.weekStartDate, dayIndex))
             : null;
           const generated = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, cyclePhase, dayName, normalizedExclude);
           const dayPlan: Record<string, any> = {};
@@ -281,7 +303,7 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
           result[dayName] = dayPlan;
         } else {
           const cyclePhase = hasCycle && input.weekStartDate
-            ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, addDaysToDate(input.weekStartDate, dayNames.indexOf(dayName)))
+            ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, addDaysToDate(input.weekStartDate, dayIndex))
             : null;
           const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, cyclePhase, dayName, normalizedExclude);
           result[dayName] = dayPlan;

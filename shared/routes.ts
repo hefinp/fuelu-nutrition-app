@@ -50,6 +50,7 @@ export const mealPlanSchema = z.object({
   calculationId: z.number().optional(),
   targetDates: z.array(z.string()).optional(),
   weekStartDate: z.string().optional(),
+  clientToday: z.string().optional(),
   excludeSlots: z.array(z.enum(['breakfast', 'lunch', 'dinner', 'snack'])).optional(),
 });
 
