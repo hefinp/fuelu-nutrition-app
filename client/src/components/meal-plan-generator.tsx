@@ -1616,44 +1616,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                   )
                 )}
 
-                <p className="text-[11px] text-zinc-400 text-center mb-1.5" data-testid="text-custom-slot-caption">Which meals to auto-complete?</p>
-                <div className="flex justify-center gap-2.5 sm:gap-3 mb-2">
-                  {([
-                    { key: 'breakfast', label: 'Breakfast', icon: Coffee },
-                    { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
-                    { key: 'dinner', label: 'Dinner', icon: ChefHat },
-                    { key: 'snacks', label: 'Snacks', icon: Cookie },
-                  ] as const).map(({ key, label, icon: Icon }) => {
-                    const active = customEnabledSlots.has(key);
-                    const locked = planMode === 'daily' && isSlotLockedForDates(key, selectedDates);
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => {
-                          if (locked) return;
-                          setBaseCustomSlots(prev => {
-                            const next = new Set(prev);
-                            if (next.has(key)) next.delete(key); else next.add(key);
-                            return next;
-                          });
-                        }}
-                        disabled={locked}
-                        className={`flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-medium transition-all ${
-                          locked
-                            ? 'bg-zinc-100 text-zinc-300 opacity-50 cursor-not-allowed'
-                            : active
-                              ? 'bg-zinc-900 text-white shadow-sm'
-                              : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
-                        }`}
-                        data-testid={`toggle-custom-slot-${key}`}
-                      >
-                        {locked ? <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
                 <div className="flex gap-2 mb-2">
                   <button
                     onClick={() => autofillMutation.mutate()}
