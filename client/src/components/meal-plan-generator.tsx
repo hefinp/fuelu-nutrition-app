@@ -13,7 +13,8 @@ import { useActiveFlow } from "@/contexts/active-flow-context";
 import { RECIPES } from "./results-recipes";
 import { toDateStr, addDays, getMonday, formatShort, DAY_LABELS } from "./results-pdf";
 import { exportMealPlanToPDF, exportShoppingListToPDF } from "./results-pdf";
-import { SavedMealPlans } from "./saved-meal-plans";
+import { SavedMealPlans } from "@/components/saved-meal-plans";
+import type { PrefillEntry } from "@/components/food-log-shared";
 
 export interface Meal {
   meal: string;
@@ -38,7 +39,7 @@ interface DayMealPlan {
 
 type MealPlan = any;
 
-export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: Calculation; onLogMeal?: (meal: Meal) => void; overrideTargets?: { dailyCalories?: number; proteinGoal?: number; carbsGoal?: number; fatGoal?: number } | null }) {
+export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: Calculation; onLogMeal?: (meal: Meal | PrefillEntry) => void; overrideTargets?: { dailyCalories?: number; proteinGoal?: number; carbsGoal?: number; fatGoal?: number } | null }) {
   const effectiveCals = overrideTargets?.dailyCalories ?? data.dailyCalories;
   const effectiveProtein = overrideTargets?.proteinGoal ?? data.proteinGoal;
   const effectiveCarbs = overrideTargets?.carbsGoal ?? data.carbsGoal;
@@ -820,7 +821,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               transition={{ duration: 0.2 }}
               className="overflow-hidden mt-4"
             >
-              <SavedMealPlans onLogMeal={onLogMeal as any} />
+              <SavedMealPlans onLogMeal={onLogMeal} />
             </motion.div>
           )}
         </AnimatePresence>
