@@ -44,7 +44,10 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const effectiveFat = overrideTargets?.fatGoal ?? data.fatGoal;
   const { user } = useAuth();
   const isMealPremium = !!(user?.betaUser || (user?.tier && user.tier !== "free"));
-  const [widgetMode, setWidgetMode] = useState<'generator' | 'custom'>('generator');
+  const [widgetMode, setWidgetMode] = useState<'generator' | 'custom'>(() => {
+    const saved = localStorage.getItem('fuelr-widget-mode');
+    return saved === 'custom' ? 'custom' : 'generator';
+  });
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [planMode, setPlanMode] = useState<'daily' | 'weekly'>('daily');
   const [mealStyle, setMealStyle] = useState<'simple' | 'gourmet' | 'michelin'>('simple');
@@ -182,6 +185,10 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     setFlowActive("meal-plan", isActive);
     return () => setFlowActive("meal-plan", false);
   }, [generateMealPlan.isPending, mealPlan, customModalOpen, setFlowActive]);
+
+  useEffect(() => {
+    localStorage.setItem('fuelr-widget-mode', widgetMode);
+  }, [widgetMode]);
 
   const { data: userMealsData } = useQuery<{ items: any[] }>({
     queryKey: ["/api/user-meals"],
@@ -690,188 +697,17 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         </button>
       </div>
 
-      <div className="mb-4">
-        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Plan Type</p>
-        <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="plan-type-toggle">
-          <div
-            className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
-            style={{ width: `calc((100% - 8px) / 2)`, left: planMode === 'daily' ? '4px' : `calc(4px + (100% - 8px) / 2)` }}
-          />
-          {([
-            { key: 'daily' as const, label: 'Daily' },
-            { key: 'weekly' as const, label: 'Weekly' },
-          ]).map(opt => (
-            <button
-              key={opt.key}
-              type="button"
-              data-testid={`toggle-plan-type-${opt.key}`}
-              onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
-              className={`relative z-10 flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-200 ${
-                planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Meal Style</p>
-        {(() => {
-          const styles = [
-            { key: 'simple' as const,  icon: Salad,   label: 'Simple' },
-            { key: 'gourmet' as const, icon: ChefHat, label: 'Fancy' },
-            { key: 'michelin' as const,icon: Star,    label: 'Michelin' },
-          ];
-          const idx = styles.findIndex(s => s.key === mealStyle);
-          const descriptions: Record<string, string> = {
-            simple:  'Quick, clean meals — ideal for busy weeks.',
-            gourmet: 'Bold flavours and restaurant-style dishes.',
-            michelin:'Fine-dining tasting menus — truffle, Wagyu and more.',
-          };
-          return (
-            <>
-              <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="meal-style-scale">
-                <div
-                  className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
-                  style={{ width: `calc((100% - 8px) / 3)`, left: `calc(4px + ${idx} * (100% - 8px) / 3)` }}
-                />
-                {styles.map((style) => (
-                  <button
-                    key={style.key}
-                    type="button"
-                    data-testid={`toggle-meal-style-${style.key}`}
-                    onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
-                    className={`relative z-10 flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold transition-colors duration-200 ${
-                      mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
-                    }`}
-                  >
-                    <style.icon className="w-4 h-4" />
-                    <span>{style.label}</span>
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-zinc-400 mt-2">{descriptions[mealStyle]}</p>
-            </>
-          );
-        })()}
-      </div>
-
-      {widgetMode === "generator" && (
-        <>
-          {cycleEnabledButMissing && !ignoreCycle && (
-            <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 mb-4" data-testid="callout-cycle-missing">
-              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-xs font-medium text-amber-800">
-                  Cycle tracking is on, but your last period date isn't set — plans won't be cycle-optimised.
-                </p>
-                <div className="flex items-center gap-3 mt-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById("cycle-tracker-widget");
-                      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    }}
-                    className="text-[11px] font-medium text-amber-800 hover:text-amber-950 underline underline-offset-2 transition-colors"
-                    data-testid="link-go-to-cycle-tracker"
-                  >
-                    Go to Cycle Tracker
-                  </button>
-                  <span className="text-amber-300">|</span>
-                  <button
-                    type="button"
-                    onClick={() => setIgnoreCycle(true)}
-                    className="text-[11px] font-medium text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors"
-                    data-testid="button-ignore-cycle"
-                  >
-                    Ignore cycle tracking for now
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {planMode === 'daily' && cycleInfo && (
-            <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border mb-4 ${cycleInfo.bgClass} ${cycleInfo.borderClass}`}>
-              <Circle className={`w-3.5 h-3.5 flex-shrink-0 ${cycleInfo.colorClass}`} />
-              <p className={`text-xs font-medium ${cycleInfo.textClass}`}>
-                {cycleInfo.name} phase · Day {cycleInfo.day} · {cycleInfo.shortTip}
-              </p>
-            </div>
-          )}
-          {planMode === 'weekly' && weekCycleInfo && (
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border mb-4 ${weekCycleInfo.bgClass} ${weekCycleInfo.borderClass}`}>
-              <Circle className={`w-3 h-3 flex-shrink-0 ${weekCycleInfo.colorClass}`} />
-              <p className={`text-xs ${weekCycleInfo.textClass}`}>
-                {weekCycleInfo.name} phase from {formatShort(weekStart)} · {weekCycleInfo.shortTip}
-              </p>
-            </div>
-          )}
-
-          {mealPlanPrefs?.vitalityInsightsEnabled && data.gender === "male" && (
-            isMealPremium ? (
-              <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 mb-4" data-testid="vitality-hormone-boost-toggle">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-medium text-amber-800">Hormone-boosting meals</p>
-                    <p className="text-[10px] text-amber-600">Prioritise zinc, magnesium, vitamin D-rich foods</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await apiRequest("PUT", "/api/user/preferences", {
-                      ...mealPlanPrefs,
-                      hormoneBoostingMeals: !mealPlanPrefs?.hormoneBoostingMeals,
-                    });
-                    queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
-                  }}
-                  className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${mealPlanPrefs?.hormoneBoostingMeals ? "bg-amber-500" : "bg-zinc-200"}`}
-                  data-testid="button-toggle-hormone-boost"
-                >
-                  <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${mealPlanPrefs?.hormoneBoostingMeals ? "translate-x-5" : "translate-x-1"}`} />
-                </button>
-              </div>
-            ) : (
-              <Link href="/pricing">
-                <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 mb-4 cursor-pointer hover:bg-zinc-100 transition-colors" data-testid="vitality-hormone-boost-locked">
-                  <div className="flex items-center gap-2">
-                    <Lock className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs font-medium text-zinc-600">Hormone-boosting meals</p>
-                      <p className="text-[10px] text-zinc-400">Available on Simple and above</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
-                </div>
-              </Link>
-            )
-          )}
-
-          <button
-            onClick={() => setGeneratorModalOpen(true)}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-semibold text-sm transition-colors"
-            data-testid="button-create-plan"
-          >
-            <UtensilsCrossed className="w-4 h-4" />
-            {mealPlan ? 'View / Create Plan' : 'Create Plan'}
-          </button>
-        </>
-      )}
-
-      {widgetMode === "custom" && (
-        <button
-          onClick={() => setCustomModalOpen(true)}
-          className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-semibold text-sm transition-colors"
-          data-testid="button-open-custom-builder"
-        >
-          <ClipboardList className="w-4 h-4" />
-          {customHasAnyMeals ? 'Continue Building' : 'Open Custom Builder'}
-        </button>
-      )}
+      <button
+        onClick={() => widgetMode === "generator" ? setGeneratorModalOpen(true) : setCustomModalOpen(true)}
+        className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-semibold text-sm transition-colors"
+        data-testid="button-launch-planner"
+      >
+        {widgetMode === "generator" ? (
+          <><UtensilsCrossed className="w-4 h-4" /> Generate Plan</>
+        ) : (
+          <><ClipboardList className="w-4 h-4" /> Create Plan</>
+        )}
+      </button>
 
       {savedPlans.length > 0 && (
         <div className="grid grid-cols-2 gap-3 mt-4" data-testid="saved-plan-shortcuts">
@@ -1056,6 +892,165 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
+                <div className="mb-4">
+                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Plan Type</p>
+                  <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="plan-type-toggle">
+                    <div
+                      className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
+                      style={{ width: `calc((100% - 8px) / 2)`, left: planMode === 'daily' ? '4px' : `calc(4px + (100% - 8px) / 2)` }}
+                    />
+                    {([
+                      { key: 'daily' as const, label: 'Daily' },
+                      { key: 'weekly' as const, label: 'Weekly' },
+                    ]).map(opt => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        data-testid={`toggle-plan-type-${opt.key}`}
+                        onClick={() => { setPlanMode(opt.key); setMealPlan(null); }}
+                        className={`relative z-10 flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-200 ${
+                          planMode === opt.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Meal Style</p>
+                  {(() => {
+                    const styles = [
+                      { key: 'simple' as const,  icon: Salad,   label: 'Simple' },
+                      { key: 'gourmet' as const, icon: ChefHat, label: 'Fancy' },
+                      { key: 'michelin' as const,icon: Star,    label: 'Michelin' },
+                    ];
+                    const idx = styles.findIndex(s => s.key === mealStyle);
+                    const descriptions: Record<string, string> = {
+                      simple:  'Quick, clean meals — ideal for busy weeks.',
+                      gourmet: 'Bold flavours and restaurant-style dishes.',
+                      michelin:'Fine-dining tasting menus — truffle, Wagyu and more.',
+                    };
+                    return (
+                      <>
+                        <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch" data-testid="meal-style-scale">
+                          <div
+                            className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
+                            style={{ width: `calc((100% - 8px) / 3)`, left: `calc(4px + ${idx} * (100% - 8px) / 3)` }}
+                          />
+                          {styles.map((style) => (
+                            <button
+                              key={style.key}
+                              type="button"
+                              data-testid={`toggle-meal-style-${style.key}`}
+                              onClick={() => { setMealStyle(style.key); setMealPlan(null); }}
+                              className={`relative z-10 flex-1 flex flex-col items-center gap-1 py-2 rounded-xl text-xs font-semibold transition-colors duration-200 ${
+                                mealStyle === style.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                              }`}
+                            >
+                              <style.icon className="w-4 h-4" />
+                              <span>{style.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-zinc-400 mt-2">{descriptions[mealStyle]}</p>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {cycleEnabledButMissing && !ignoreCycle && (
+                  <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 mb-4" data-testid="callout-cycle-missing">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-amber-800">
+                        Cycle tracking is on, but your last period date isn't set — plans won't be cycle-optimised.
+                      </p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const el = document.getElementById("cycle-tracker-widget");
+                            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                          }}
+                          className="text-[11px] font-medium text-amber-800 hover:text-amber-950 underline underline-offset-2 transition-colors"
+                          data-testid="link-go-to-cycle-tracker"
+                        >
+                          Go to Cycle Tracker
+                        </button>
+                        <span className="text-amber-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setIgnoreCycle(true)}
+                          className="text-[11px] font-medium text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors"
+                          data-testid="button-ignore-cycle"
+                        >
+                          Ignore cycle tracking for now
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {planMode === 'daily' && cycleInfo && (
+                  <div className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border mb-4 ${cycleInfo.bgClass} ${cycleInfo.borderClass}`}>
+                    <Circle className={`w-3.5 h-3.5 flex-shrink-0 ${cycleInfo.colorClass}`} />
+                    <p className={`text-xs font-medium ${cycleInfo.textClass}`}>
+                      {cycleInfo.name} phase · Day {cycleInfo.day} · {cycleInfo.shortTip}
+                    </p>
+                  </div>
+                )}
+                {planMode === 'weekly' && weekCycleInfo && (
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border mb-4 ${weekCycleInfo.bgClass} ${weekCycleInfo.borderClass}`}>
+                    <Circle className={`w-3 h-3 flex-shrink-0 ${weekCycleInfo.colorClass}`} />
+                    <p className={`text-xs ${weekCycleInfo.textClass}`}>
+                      {weekCycleInfo.name} phase from {formatShort(weekStart)} · {weekCycleInfo.shortTip}
+                    </p>
+                  </div>
+                )}
+
+                {mealPlanPrefs?.vitalityInsightsEnabled && data.gender === "male" && (
+                  isMealPremium ? (
+                    <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-amber-200 bg-amber-50 mb-4" data-testid="vitality-hormone-boost-toggle">
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-medium text-amber-800">Hormone-boosting meals</p>
+                          <p className="text-[10px] text-amber-600">Prioritise zinc, magnesium, vitamin D-rich foods</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await apiRequest("PUT", "/api/user/preferences", {
+                            ...mealPlanPrefs,
+                            hormoneBoostingMeals: !mealPlanPrefs?.hormoneBoostingMeals,
+                          });
+                          queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+                        }}
+                        className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${mealPlanPrefs?.hormoneBoostingMeals ? "bg-amber-500" : "bg-zinc-200"}`}
+                        data-testid="button-toggle-hormone-boost"
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${mealPlanPrefs?.hormoneBoostingMeals ? "translate-x-5" : "translate-x-1"}`} />
+                      </button>
+                    </div>
+                  ) : (
+                    <Link href="/pricing">
+                      <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-zinc-200 bg-zinc-50 mb-4 cursor-pointer hover:bg-zinc-100 transition-colors" data-testid="vitality-hormone-boost-locked">
+                        <div className="flex items-center gap-2">
+                          <Lock className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs font-medium text-zinc-600">Hormone-boosting meals</p>
+                            <p className="text-[10px] text-zinc-400">Available on Simple and above</p>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
+                      </div>
+                    </Link>
+                  )
+                )}
+
                 {!mealPlan ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mb-4">
