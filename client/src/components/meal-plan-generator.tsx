@@ -1354,7 +1354,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               </div>
 
               <div className="bg-zinc-50 border-b border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
-                <div className="relative bg-zinc-200/60 rounded-2xl p-1 flex items-stretch mb-3" data-testid="custom-plan-type-toggle">
+                <div className="relative bg-zinc-100 rounded-2xl p-1 flex items-stretch mb-3" data-testid="custom-plan-type-toggle">
                   <div
                     className="absolute top-1 bottom-1 rounded-xl bg-white shadow transition-all duration-300 ease-out"
                     style={{ width: `calc((100% - 8px) / 2)`, left: planMode === 'daily' ? '4px' : `calc(4px + (100% - 8px) / 2)` }}
