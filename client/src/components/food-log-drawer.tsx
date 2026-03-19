@@ -41,7 +41,7 @@ export function FoodLogDrawer({
   const queryClient = useQueryClient();
   const { overlayStyle, panelMaxHeight } = useMobileViewport();
 
-  const [formTab, setFormTab] = useState<"manual" | "plan" | "search" | "scan" | "ai" | "restaurants">("manual");
+  const [formTab, setFormTab] = useState<"manual" | "plan" | "search" | "scan" | "ai" | "restaurants">("search");
   const [formSource, setFormSource] = useState<string | null>(null);
   const [form, setForm] = useState({
     mealName: "", calories: "", protein: "", carbs: "", fat: "",
@@ -306,7 +306,7 @@ export function FoodLogDrawer({
 
   function resetFormAndClose() {
     setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", fibre: "", sugar: "", saturatedFat: "", mealSlot: null });
-    setFormTab("manual");
+    setFormTab("search");
     setFormSource(null);
     setScanResult(null);
     
