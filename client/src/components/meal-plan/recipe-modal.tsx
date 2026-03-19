@@ -46,7 +46,6 @@ export function RecipeModal({ meal, onClose }: RecipeModalProps) {
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="text-2xl font-bold text-zinc-900">{meal.meal}</h3>
-            <p className="text-sm text-zinc-500 mt-1">Click outside to close</p>
           </div>
           <button
             onClick={onClose}

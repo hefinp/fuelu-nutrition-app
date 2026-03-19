@@ -1,3 +1,4 @@
+import { useRef, useLayoutEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Copy, Move, Replace, X } from "lucide-react";
 import type { CopyMovePopoverState } from "./types";
@@ -10,17 +11,36 @@ interface CopyMovePopoverProps {
 }
 
 export function CopyMovePopover({ popover, onCopyMove, onReplace, onClose }: CopyMovePopoverProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ left: popover.x, top: popover.y - 8 });
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const pad = 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let left = popover.x - rect.width / 2;
+    let top = popover.y - 8 - rect.height;
+    if (left < pad) left = pad;
+    if (left + rect.width > vw - pad) left = vw - pad - rect.width;
+    if (top < pad) top = pad;
+    if (top + rect.height > vh - pad) top = vh - pad - rect.height;
+    setPos({ left, top });
+  }, [popover.x, popover.y]);
+
   return (
     <div className="fixed inset-0 z-[60]" onClick={onClose}>
       <motion.div
+        ref={ref}
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
         className="absolute bg-white rounded-xl shadow-2xl border border-zinc-200 p-1.5 flex gap-1"
         style={{
-          left: `${popover.x}px`,
-          top: `${popover.y - 8}px`,
-          transform: 'translate(-50%, -100%)',
+          left: `${pos.left}px`,
+          top: `${pos.top}px`,
         }}
         onClick={(e) => e.stopPropagation()}
       >

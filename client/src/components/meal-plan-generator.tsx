@@ -1258,27 +1258,16 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     {!planSaved && (
                       <button
                         onClick={() => setDiscardConfirmOpen(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
                         data-testid="button-discard-plan"
                       >
                         <X className="w-3.5 h-3.5" /> Discard
                       </button>
                     )}
-                    {!planSaved && (
-                      <button
-                        onClick={() => generateMealPlan.mutate(planMode)}
-                        disabled={generateMealPlan.isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
-                        data-testid="button-regenerate-plan"
-                      >
-                        {generateMealPlan.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                        Regenerate
-                      </button>
-                    )}
                     <button
                       onClick={() => savePlanMutation.mutate()}
                       disabled={savePlanMutation.isPending || planSaved}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors min-h-[36px] ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors min-h-[36px] ${
                         planSaved
                           ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
                           : "bg-zinc-900 hover:bg-zinc-700 text-white"
@@ -1318,7 +1307,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     <button
                       onClick={() => { setMealPlan(null); setPlanSaved(false); generateMealPlan.mutate(planMode); }}
                       disabled={generateMealPlan.isPending}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium text-xs transition-colors min-h-[36px]"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium text-xs transition-colors min-h-[36px]"
                       data-testid="button-regenerate"
                     >
                       <RefreshCw className="w-3.5 h-3.5" /> Regenerate
@@ -1327,51 +1316,45 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 </div>
               )}
 
-              {shoppingDaysOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30" onClick={() => setShoppingDaysOpen(false)}>
-                  <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-xs w-full" onClick={(e) => e.stopPropagation()}>
-                    <h4 className="text-sm font-bold text-zinc-900 mb-3">Shopping List</h4>
-                    <p className="text-xs text-zinc-500 mb-3">How many days should the quantities cover?</p>
-                    <input
-                      type="number"
-                      min="1"
-                      max="30"
-                      value={shoppingDaysInput}
-                      onChange={(e) => setShoppingDaysInput(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          const d = Math.max(1, parseInt(shoppingDaysInput) || 1);
-                          setShoppingDaysOpen(false);
-                          exportShoppingListToPDF(mealPlan!, data, d);
-                        }
+              <AlertDialog open={shoppingDaysOpen} onOpenChange={setShoppingDaysOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Shopping List</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      How many days should the quantities cover?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <input
+                    type="number"
+                    min="1"
+                    max="30"
+                    value={shoppingDaysInput}
+                    onChange={(e) => setShoppingDaysInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const d = Math.max(1, parseInt(shoppingDaysInput) || 1);
+                        setShoppingDaysOpen(false);
+                        exportShoppingListToPDF(mealPlan!, data, d);
+                      }
+                    }}
+                    className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-base focus:outline-none focus:ring-2 focus:ring-zinc-400 focus:border-transparent"
+                    data-testid="input-shopping-days"
+                    autoFocus
+                  />
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-shopping-days-cancel">Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        const d = Math.max(1, parseInt(shoppingDaysInput) || 1);
+                        exportShoppingListToPDF(mealPlan!, data, d);
                       }}
-                      className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-base focus:outline-none focus:ring-2 focus:ring-zinc-400 focus:border-transparent"
-                      data-testid="input-shopping-days"
-                      autoFocus
-                    />
-                    <div className="flex gap-3 mt-3">
-                      <button
-                        onClick={() => setShoppingDaysOpen(false)}
-                        className="flex-1 px-4 py-2.5 border border-zinc-200 text-zinc-700 rounded-xl font-medium text-sm hover:bg-zinc-50 transition-colors"
-                        data-testid="button-shopping-days-cancel"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => {
-                          const d = Math.max(1, parseInt(shoppingDaysInput) || 1);
-                          setShoppingDaysOpen(false);
-                          exportShoppingListToPDF(mealPlan!, data, d);
-                        }}
-                        className="flex-1 px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-medium text-sm transition-colors"
-                        data-testid="button-shopping-days-confirm"
-                      >
-                        Generate PDF
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+                      data-testid="button-shopping-days-confirm"
+                    >
+                      Generate PDF
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
 
               <AlertDialog open={discardConfirmOpen} onOpenChange={setDiscardConfirmOpen}>
                 <AlertDialogContent>
@@ -1646,7 +1629,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     {!customPlanSaved && (
                       <button
                         onClick={() => setCustomDiscardConfirmOpen(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
                         data-testid="button-discard-custom-plan"
                       >
                         <X className="w-3.5 h-3.5" /> Discard
@@ -1655,7 +1638,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     <button
                       onClick={() => customSavePlanMutation.mutate()}
                       disabled={customSavePlanMutation.isPending || customPlanSaved}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors min-h-[36px] ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors min-h-[36px] ${
                         customPlanSaved
                           ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
                           : "bg-zinc-900 hover:bg-zinc-700 text-white"
