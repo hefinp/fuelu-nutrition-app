@@ -279,7 +279,7 @@ export default function InsightsPage({ onClose }: { onClose?: () => void } = {})
             )}
 
             {/* TDEE Trend Chart */}
-            {tdeeTrend && tdeeTrend.length > 0 && (
+            {isAdvanced && tdeeTrend && tdeeTrend.length > 0 && (
               <section className="rounded-2xl border border-zinc-200 bg-white p-5" data-testid="section-tdee-trend">
                 <h2 className="text-sm font-semibold text-zinc-800 mb-1 flex items-center gap-1.5">
                   <Target className="w-4 h-4 text-blue-500" /> Estimated TDEE over time

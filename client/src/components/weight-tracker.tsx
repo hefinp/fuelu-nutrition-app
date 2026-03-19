@@ -434,7 +434,7 @@ export function WeightTracker({
             </div>
           )}
         {/* ── TDEE Trend ─────────────────────────────────────────────────────── */}
-        {tdeeTrend.length > 0 && (
+        {isAdvanced && tdeeTrend.length > 0 && (
           <div className="mt-6 pt-5 border-t border-zinc-100" data-testid="section-tdee-trend-weight">
             <div className="flex items-center gap-2 mb-3">
               <Activity className="w-4 h-4 text-indigo-500" />
