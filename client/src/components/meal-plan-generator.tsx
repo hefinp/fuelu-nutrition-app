@@ -807,54 +807,18 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               </div>
 
               <div className="bg-zinc-50 border-b border-zinc-100 px-4 sm:px-6 py-3 shrink-0">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setWeekStart(prev => addDays(prev, -7))}
-                    className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
-                    data-testid="button-week-prev"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="text-xs font-medium text-zinc-700 min-w-[120px] text-center" data-testid="text-week-label">
-                    {formatShort(weekStart)} – {formatShort(addDays(weekStart, 6))}
-                  </span>
-                  <button
-                    onClick={() => setWeekStart(prev => addDays(prev, 7))}
-                    className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
-                    data-testid="button-week-next"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-                {planMode === 'daily' && (
-                  <div className="flex gap-1.5 flex-wrap mt-2">
-                    {DAY_LABELS.map((label, i) => {
-                      const dateStr = addDays(weekStart, i);
-                      const isSelected = selectedDates.includes(dateStr);
-                      return (
-                        <button
-                          key={dateStr}
-                          type="button"
-                          data-testid={`chip-day-${label.toLowerCase()}`}
-                          onClick={() => {
-                            setSelectedDates(prev =>
-                              isSelected
-                                ? prev.filter(d => d !== dateStr).length > 0 ? prev.filter(d => d !== dateStr) : prev
-                                : [...prev, dateStr].sort()
-                            );
-                          }}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                            isSelected
-                              ? "bg-zinc-900 text-white"
-                              : "bg-white text-zinc-500 hover:bg-zinc-200 border border-zinc-200"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                <DateRangePicker
+                  weekStart={weekStart}
+                  onWeekChange={(dir) => setWeekStart(prev => addDays(prev, dir))}
+                  planMode={planMode}
+                  selectedDates={selectedDates}
+                  onToggleDate={(dateStr) => {
+                    setSelectedDates(prev => {
+                      const without = prev.filter(d => d !== dateStr);
+                      return prev.includes(dateStr) && without.length > 0 ? without : [...prev.filter(d => d !== dateStr), dateStr].sort();
+                    });
+                  }}
+                />
 
                 <div className="mt-3">
                   <div className="flex justify-center gap-2">
@@ -1376,54 +1340,19 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                     </button>
                   ))}
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setWeekStart(prev => addDays(prev, -7))}
-                    className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
-                    data-testid="button-custom-week-prev"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="text-xs font-medium text-zinc-700 min-w-[120px] text-center" data-testid="text-custom-week-label">
-                    {formatShort(weekStart)} – {formatShort(addDays(weekStart, 6))}
-                  </span>
-                  <button
-                    onClick={() => setWeekStart(prev => addDays(prev, 7))}
-                    className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
-                    data-testid="button-custom-week-next"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-                {planMode === 'daily' && (
-                  <div className="flex gap-1.5 flex-wrap mt-2">
-                    {DAY_LABELS.map((label, i) => {
-                      const dateStr = addDays(weekStart, i);
-                      const isSelected = selectedDates.includes(dateStr);
-                      return (
-                        <button
-                          key={dateStr}
-                          type="button"
-                          data-testid={`chip-custom-day-${label.toLowerCase()}`}
-                          onClick={() => {
-                            setSelectedDates(prev =>
-                              isSelected
-                                ? prev.filter(d => d !== dateStr).length > 0 ? prev.filter(d => d !== dateStr) : prev
-                                : [...prev, dateStr].sort()
-                            );
-                          }}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                            isSelected
-                              ? "bg-zinc-900 text-white"
-                              : "bg-white text-zinc-500 hover:bg-zinc-200 border border-zinc-200"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                <DateRangePicker
+                  weekStart={weekStart}
+                  onWeekChange={(dir) => setWeekStart(prev => addDays(prev, dir))}
+                  planMode={planMode}
+                  selectedDates={selectedDates}
+                  onToggleDate={(dateStr) => {
+                    setSelectedDates(prev => {
+                      const without = prev.filter(d => d !== dateStr);
+                      return prev.includes(dateStr) && without.length > 0 ? without : [...prev.filter(d => d !== dateStr), dateStr].sort();
+                    });
+                  }}
+                  testIdPrefix="custom"
+                />
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
@@ -1857,6 +1786,56 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         </div>
       )}
     </div>
+  );
+}
+
+function DateRangePicker({ weekStart, onWeekChange, planMode, selectedDates, onToggleDate, testIdPrefix = "" }: { weekStart: string; onWeekChange: (dir: -7 | 7) => void; planMode: 'daily' | 'weekly'; selectedDates: string[]; onToggleDate: (dateStr: string) => void; testIdPrefix?: string }) {
+  const pfx = testIdPrefix ? `${testIdPrefix}-` : "";
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onWeekChange(-7)}
+          className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
+          data-testid={`button-${pfx}week-prev`}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <span className="text-xs font-medium text-zinc-700 min-w-[120px] text-center" data-testid={`text-${pfx}week-label`}>
+          {formatShort(weekStart)} – {formatShort(addDays(weekStart, 6))}
+        </span>
+        <button
+          onClick={() => onWeekChange(7)}
+          className="p-1 hover:bg-zinc-200 rounded-lg text-zinc-500"
+          data-testid={`button-${pfx}week-next`}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+      {planMode === 'daily' && (
+        <div className="flex gap-1.5 flex-wrap mt-2">
+          {DAY_LABELS.map((label, i) => {
+            const dateStr = addDays(weekStart, i);
+            const isSelected = selectedDates.includes(dateStr);
+            return (
+              <button
+                key={dateStr}
+                type="button"
+                data-testid={`chip-${pfx}day-${label.toLowerCase()}`}
+                onClick={() => onToggleDate(dateStr)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  isSelected
+                    ? "bg-zinc-900 text-white"
+                    : "bg-white text-zinc-500 hover:bg-zinc-200 border border-zinc-200"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }
 
