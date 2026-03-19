@@ -21,7 +21,7 @@ const InsightsPage = lazy(() => import("@/pages/insights"));
 const VitalityInsightsPage = lazy(() => import("@/pages/vitality-insights"));
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
-import { useDashboardLayout, WIDE_WIDGETS } from "@/hooks/use-dashboard-layout";
+import { useDashboardLayout, PLANNING_WIDGETS } from "@/hooks/use-dashboard-layout";
 import type { WidgetId } from "@/hooks/use-dashboard-layout";
 import type { PrefillEntry } from "@/components/food-log";
 import type { Meal } from "@/components/results-display";
@@ -213,6 +213,7 @@ export default function Dashboard() {
   });
 
   const [cycleStopConfirm, setCycleStopConfirm] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'planning' | 'tracking'>('planning');
 
   const updatePrefsMutation = useMutation({
     mutationFn: (updates: Partial<UserPreferences>) =>
@@ -455,8 +456,12 @@ export default function Dashboard() {
     }
   }
 
-  // Visible widgets in order (nulls removed)
-  const visibleMobileOrder = widgetOrder.filter(id => renderWidget(id) !== null);
+  // All visible widgets (nulls removed)
+  const allVisibleOrder = widgetOrder.filter(id => renderWidget(id) !== null);
+  // Mobile: filter by active tab (Planning or Tracking)
+  const visibleMobileOrder = allVisibleOrder.filter(id =>
+    mobileTab === 'planning' ? PLANNING_WIDGETS.has(id) : !PLANNING_WIDGETS.has(id)
+  );
 
   useEffect(() => {
     document.documentElement.classList.add("dashboard-snap");
@@ -1081,7 +1086,7 @@ export default function Dashboard() {
                   <span>
                     {isDesktop
                       ? <>Drag the <strong>⠿</strong> handle on any card to reorder it within its column. Click <strong>Done</strong> to save.</>
-                      : <>Tap the <strong>↑↓</strong> arrows on any card to reorder it. Tap <strong>Done</strong> to save.</>
+                      : <>Tap the <strong>↑↓</strong> arrows on any card to reorder it within its tab. Tap <strong>Done</strong> to save.</>
                     }
                   </span>
                 </div>
@@ -1090,7 +1095,33 @@ export default function Dashboard() {
 
             {user && !user.isManagedClient && (!tierStatus || tierStatus.tier === "free") && <FreeWeeklySummaryCard />}
 
-            {/* ── MOBILE layout: single column, flat order ── */}
+            {/* ── MOBILE tab toggle: Planning / Tracking ── */}
+            <div className="xl:hidden mb-4">
+              <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch" data-testid="dashboard-tab-toggle">
+                <div
+                  className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
+                  style={{ width: 'calc((100% - 4px) / 2)', left: mobileTab === 'planning' ? '2px' : 'calc(2px + (100% - 4px) / 2)' }}
+                />
+                {([
+                  { key: 'planning' as const, label: 'Planning' },
+                  { key: 'tracking' as const, label: 'Tracking' },
+                ]).map(tab => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setMobileTab(tab.key)}
+                    className={`relative z-10 flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-200 ${
+                      mobileTab === tab.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                    }`}
+                    data-testid={`tab-dashboard-${tab.key}`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── MOBILE layout: tab-filtered widgets ── */}
             <div className="flex flex-col gap-6 xl:hidden">
               {visibleMobileOrder.map((id, idx) => (
                 <SortableWidget
@@ -1109,10 +1140,10 @@ export default function Dashboard() {
               ))}
             </div>
 
-            {/* ── DESKTOP layout: two columns with drag-and-drop ── */}
-            <div className="hidden xl:grid xl:grid-cols-12 gap-6">
-              {/* Left column — wide widgets */}
-              <div className="xl:col-span-7 flex flex-col gap-6">
+            {/* ── DESKTOP layout: Planning (left) and Tracking (right) equal columns ── */}
+            <div className="hidden xl:grid xl:grid-cols-2 gap-6">
+              {/* Left column — Planning widgets */}
+              <div className="flex flex-col gap-6">
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -1132,8 +1163,8 @@ export default function Dashboard() {
                 </DndContext>
               </div>
 
-              {/* Right column — narrow widgets */}
-              <div className="xl:col-span-5 xl:col-start-8 flex flex-col gap-6">
+              {/* Right column — Tracking widgets */}
+              <div className="flex flex-col gap-6">
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}

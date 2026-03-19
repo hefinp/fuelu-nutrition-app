@@ -66,6 +66,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const [mealSearchQuery, setMealSearchQuery] = useState("");
   const [enabledSlots, setEnabledSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snack']));
   const [replacePicker, setReplacePicker] = useState<{ dayKey: string; slotKey: string; mealIdx: number; context: 'generator' | 'custom' } | null>(null);
+  const [replacePickerTab, setReplacePickerTab] = useState<'meals' | 'foods'>('meals');
   const [replaceSearchQuery, setReplaceSearchQuery] = useState("");
   const [addFoodForm, setAddFoodForm] = useState<{ name: string; calories: string; protein: string; carbs: string; fat: string } | null>(null);
   const [customEnabledSlots, setCustomEnabledSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snacks']));
@@ -127,6 +128,18 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       return next;
     });
   }, []);
+
+  const toggleCustomSlot = useCallback((slot: string) => {
+    setCustomEnabledSlots(prev => {
+      const next = new Set(prev);
+      if (next.has(slot)) next.delete(slot); else next.add(slot);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (replacePicker) setReplacePickerTab('meals');
+  }, [replacePicker]);
 
   const excludeSlotsArray = ['breakfast', 'lunch', 'dinner', 'snack'].filter(s => !enabledSlots.has(s));
 
@@ -1418,6 +1431,43 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                         );
                       })()}
                     </div>
+
+                    <div className="mt-3">
+                      <div className="flex justify-center gap-2.5 sm:gap-3">
+                        {([
+                          { key: 'breakfast', label: 'Breakfast', icon: Coffee },
+                          { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
+                          { key: 'dinner', label: 'Dinner', icon: ChefHat },
+                          { key: 'snacks', label: 'Snacks', icon: Cookie },
+                        ] as const).map(({ key, label, icon: Icon }) => {
+                          const active = customEnabledSlots.has(key);
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => toggleCustomSlot(key)}
+                              className={`flex flex-col items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-medium transition-all ${
+                                active
+                                  ? 'bg-zinc-900 text-white shadow-sm'
+                                  : 'bg-zinc-100 text-zinc-400 hover:bg-zinc-200'
+                              }`}
+                              data-testid={`toggle-custom-slot-${key}`}
+                            >
+                              <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {(['breakfast', 'lunch', 'dinner', 'snacks'] as const).filter(s => !customEnabledSlots.has(s)).length > 0 && (
+                        <p className="text-[10px] text-zinc-400 mt-1.5 text-center">
+                          {(['breakfast', 'lunch', 'dinner', 'snacks'] as const)
+                            .filter(s => !customEnabledSlots.has(s))
+                            .map(s => s === 'snacks' ? 'Snacks' : s.charAt(0).toUpperCase() + s.slice(1))
+                            .join(', ')} will be skipped
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <button
@@ -1788,11 +1838,35 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 <X className="w-4 h-4 text-zinc-400" />
               </button>
             </div>
+
+            <div className="relative bg-zinc-100 rounded-xl p-0.5 flex items-stretch mb-3" data-testid="replace-picker-tab-toggle">
+              <div
+                className="absolute top-0.5 bottom-0.5 rounded-lg bg-white shadow transition-all duration-300 ease-out"
+                style={{ width: 'calc((100% - 4px) / 2)', left: replacePickerTab === 'meals' ? '2px' : 'calc(2px + (100% - 4px) / 2)' }}
+              />
+              {([
+                { key: 'meals' as const, label: 'My Meals' },
+                { key: 'foods' as const, label: 'My Foods' },
+              ]).map(tab => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => { setReplacePickerTab(tab.key); setReplaceSearchQuery(""); setAddFoodForm(null); }}
+                  className={`relative z-10 flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-200 ${
+                    replacePickerTab === tab.key ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-600'
+                  }`}
+                  data-testid={`tab-replace-${tab.key}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
               <input
                 type="text"
-                placeholder={replacePicker.slotKey === 'snack' ? "Search your foods..." : "Search your meals..."}
+                placeholder={replacePickerTab === 'foods' ? "Search your foods..." : "Search your meals..."}
                 value={replaceSearchQuery}
                 onChange={e => setReplaceSearchQuery(e.target.value)}
                 className="w-full pl-8 pr-3 py-2 border border-zinc-200 rounded-xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-400"
@@ -1800,8 +1874,9 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 data-testid="input-search-replace"
               />
             </div>
+
             <div className="max-h-60 overflow-y-auto space-y-1">
-              {replacePicker.slotKey === 'snack' ? (
+              {replacePickerTab === 'foods' ? (
                 <>
                   {filteredUserFoods.length === 0 ? (
                     <p className="text-xs text-zinc-400 py-4 text-center" data-testid="text-no-foods-found">

@@ -14,20 +14,19 @@ export type WidgetId =
   | "cycle"
   | "vitality";
 
-// Widgets that span the wide (left) desktop column
-export const WIDE_WIDGETS = new Set<WidgetId>(["nutrition", "my-meals-food"]);
+// Planning widgets go in the left desktop column and the Planning mobile tab
+export const PLANNING_WIDGETS = new Set<WidgetId>(["meal-plan", "my-meals-food", "nutrition"]);
 
-// Default stacking order — mobile renders this top-to-bottom
-// Desktop splits by WIDE_WIDGETS automatically
+// Default stacking order — planning widgets first so Meal Planner is at top of Planning tab
 export const DEFAULT_ORDER: WidgetId[] = [
+  "meal-plan",
+  "my-meals-food",
+  "nutrition",
   "food-log",
   "cycle",
   "vitality",
   "hydration",
-  "meal-plan",
-  "nutrition",
   "weight",
-  "my-meals-food",
 ];
 
 // All known widget IDs — used to merge new widgets into saved layouts
@@ -74,42 +73,66 @@ export function useDashboardLayout(isLoggedIn: boolean) {
     }
   }, [prefs]);
 
-  // Desktop: derived left/right from flat order
-  const leftOrder = widgetOrder.filter(id => WIDE_WIDGETS.has(id));
-  const rightOrder = widgetOrder.filter(id => !WIDE_WIDGETS.has(id));
+  // Desktop: derived left (planning) / right (tracking) from flat order
+  const leftOrder = widgetOrder.filter(id => PLANNING_WIDGETS.has(id));
+  const rightOrder = widgetOrder.filter(id => !PLANNING_WIDGETS.has(id));
 
   // Reorder within the left column (desktop drag)
   const setLeftOrder = useCallback((updater: (prev: WidgetId[]) => WidgetId[]) => {
     setWidgetOrder(prev => {
-      const newLeft = updater(prev.filter(id => WIDE_WIDGETS.has(id)));
-      const right = prev.filter(id => !WIDE_WIDGETS.has(id));
-      // Merge: interleave left/right back into a flat list in their respective positions
+      const newLeft = updater(prev.filter(id => PLANNING_WIDGETS.has(id)));
+      const right = prev.filter(id => !PLANNING_WIDGETS.has(id));
       return mergeOrders(prev, newLeft, right);
     });
   }, []);
 
   const setRightOrder = useCallback((updater: (prev: WidgetId[]) => WidgetId[]) => {
     setWidgetOrder(prev => {
-      const left = prev.filter(id => WIDE_WIDGETS.has(id));
-      const newRight = updater(prev.filter(id => !WIDE_WIDGETS.has(id)));
+      const left = prev.filter(id => PLANNING_WIDGETS.has(id));
+      const newRight = updater(prev.filter(id => !PLANNING_WIDGETS.has(id)));
       return mergeOrders(prev, left, newRight);
     });
   }, []);
 
-  // Mobile: move a widget up or down in the flat list
+  // Mobile: move a widget up or down within its tab group in the flat list
   const moveUp = useCallback((id: WidgetId) => {
     setWidgetOrder(prev => {
-      const idx = prev.indexOf(id);
-      if (idx <= 0) return prev;
-      return arrayMove(prev, idx, idx - 1);
+      const isPlanning = PLANNING_WIDGETS.has(id);
+      const groupIds = prev.filter(w => PLANNING_WIDGETS.has(w) === isPlanning);
+      const groupIdx = groupIds.indexOf(id);
+      if (groupIdx <= 0) return prev;
+      const newGroup = arrayMove(groupIds, groupIdx, groupIdx - 1);
+      // Rebuild full order preserving the other group's positions
+      const result: WidgetId[] = [];
+      let gi = 0;
+      for (const w of prev) {
+        if (PLANNING_WIDGETS.has(w) === isPlanning) {
+          result.push(newGroup[gi++]);
+        } else {
+          result.push(w);
+        }
+      }
+      return result;
     });
   }, []);
 
   const moveDown = useCallback((id: WidgetId) => {
     setWidgetOrder(prev => {
-      const idx = prev.indexOf(id);
-      if (idx < 0 || idx >= prev.length - 1) return prev;
-      return arrayMove(prev, idx, idx + 1);
+      const isPlanning = PLANNING_WIDGETS.has(id);
+      const groupIds = prev.filter(w => PLANNING_WIDGETS.has(w) === isPlanning);
+      const groupIdx = groupIds.indexOf(id);
+      if (groupIdx < 0 || groupIdx >= groupIds.length - 1) return prev;
+      const newGroup = arrayMove(groupIds, groupIdx, groupIdx + 1);
+      const result: WidgetId[] = [];
+      let gi = 0;
+      for (const w of prev) {
+        if (PLANNING_WIDGETS.has(w) === isPlanning) {
+          result.push(newGroup[gi++]);
+        } else {
+          result.push(w);
+        }
+      }
+      return result;
     });
   }, []);
 
@@ -161,7 +184,7 @@ function mergeOrders(
   let li = 0;
   let ri = 0;
   for (const id of original) {
-    if (WIDE_WIDGETS.has(id)) {
+    if (PLANNING_WIDGETS.has(id)) {
       if (li < newLeft.length) result.push(newLeft[li++]);
     } else {
       if (ri < newRight.length) result.push(newRight[ri++]);
