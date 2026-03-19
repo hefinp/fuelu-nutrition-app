@@ -455,14 +455,9 @@ export function buildDayPlan(
   if (includeDinner) activeSlots.push('dinner');
   if (includeSnack) activeSlots.push('snack');
 
-  let slotPcts: Record<string, number> = { ...basePcts };
-  if (activeSlots.length > 0 && activeSlots.length < 4) {
-    const activeTotal = activeSlots.reduce((s, slot) => s + basePcts[slot], 0);
-    const scale = 1 / activeTotal;
-    slotPcts = {};
-    for (const slot of activeSlots) {
-      slotPcts[slot] = basePcts[slot] * scale;
-    }
+  const slotPcts: Record<string, number> = {};
+  for (const slot of activeSlots) {
+    slotPcts[slot] = basePcts[slot];
   }
 
   const bfTarget     = includeBreakfast ? Math.round(dailyCalories * (slotPcts.breakfast ?? 0)) : 0;
