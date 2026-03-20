@@ -33,7 +33,6 @@ export function FoodLog({
   const today = todayStr();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [expandedSlots, setExpandedSlots] = useState<Set<string>>(new Set());
-  const [detailExpanded, setDetailExpanded] = useState(false);
   const { setFlowActive } = useActiveFlow();
 
   useEffect(() => {
@@ -81,13 +80,13 @@ export function FoodLog({
     });
   }
 
+  const allExpanded = filledSlots.length > 0 && filledSlots.every(s => expandedSlots.has(s));
+
   function toggleAllDetail() {
-    const next = !detailExpanded;
-    setDetailExpanded(next);
-    if (next) {
-      setExpandedSlots(new Set(filledSlots));
-    } else {
+    if (allExpanded) {
       setExpandedSlots(new Set());
+    } else {
+      setExpandedSlots(new Set(filledSlots));
     }
   }
 
@@ -254,10 +253,10 @@ export function FoodLog({
             className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
             data-testid="button-toggle-detail"
           >
-            {detailExpanded ? "Less detail" : "More detail"}
+            {allExpanded ? "Less detail" : "More detail"}
             <ChevronDown
               className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                detailExpanded ? "rotate-180" : ""
+                allExpanded ? "rotate-180" : ""
               }`}
             />
           </button>
