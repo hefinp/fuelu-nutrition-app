@@ -613,8 +613,7 @@ function DiaryContent({
                 </div>
                 <button
                   onClick={() => setSelectedDate(d => shiftDate(d, 1))}
-                  disabled={selectedDate >= today}
-                  className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors text-zinc-500 hover:text-zinc-900 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors text-zinc-500 hover:text-zinc-900"
                   data-testid="button-diary-next-day"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -715,7 +714,7 @@ function DiaryContent({
                   {weekOffset === 0 && (
                     <span className="block text-[10px] text-zinc-400">{formatWeekLabel(weekRange.from, weekRange.to)}</span>
                   )}
-                  {weekOffset < 0 && (
+                  {weekOffset !== 0 && (
                     <button
                       onClick={() => changeWeek(-weekOffset)}
                       className="block mx-auto text-[10px] text-zinc-400 hover:text-zinc-600 font-medium transition-colors mt-0.5"
@@ -727,8 +726,7 @@ function DiaryContent({
                 </div>
                 <button
                   onClick={() => changeWeek(1)}
-                  disabled={weekOffset >= 0}
-                  className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors text-zinc-500 hover:text-zinc-900 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors text-zinc-500 hover:text-zinc-900"
                   data-testid="button-diary-next-week"
                   aria-label="Next week"
                 >
