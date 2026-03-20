@@ -7,7 +7,7 @@ import {
   UtensilsCrossed, Wheat, Plus, Loader2, X,
   Link2, Search, Users2, ArrowRight, Repeat,
 } from "lucide-react";
-import type { UserMeal, UserSavedFood, MealTemplate } from "@shared/schema";
+import type { UserMeal, UserSavedFood, MealTemplate, CommunityMeal } from "@shared/schema";
 import { ConfirmDialog, useConfirmDialog } from "@/components/confirm-dialog";
 
 type EnrichedTemplate = MealTemplate & { mealName?: string | null };
@@ -113,6 +113,83 @@ export function MyMealsFoodWidget() {
 
   const mealsLoading = mealsQuery.isLoading;
   const foodsLoading = foodsQuery.isLoading;
+
+  const { data: mySharedMeals = [] } = useQuery<CommunityMeal[]>({
+    queryKey: ["/api/community-meals/my"],
+  });
+
+  const sharedMealByRecipeId = useMemo(() => {
+    const map = new Map<number, CommunityMeal>();
+    for (const sm of mySharedMeals) {
+      if (sm.sourceRecipeId != null) {
+        map.set(sm.sourceRecipeId, sm);
+      }
+    }
+    return map;
+  }, [mySharedMeals]);
+
+  const sharedMealIds = useMemo(() => mySharedMeals.map(m => m.id), [mySharedMeals]);
+
+  const { data: commentCounts = {} } = useQuery<Record<number, number>>({
+    queryKey: ["/api/community-meals/comment-counts", sharedMealIds.join(",")],
+    queryFn: async () => {
+      if (sharedMealIds.length === 0) return {};
+      const res = await fetch(`/api/community-meals/comment-counts?ids=${sharedMealIds.join(",")}`, { credentials: "include" });
+      if (!res.ok) return {};
+      return res.json();
+    },
+    enabled: sharedMealIds.length > 0,
+  });
+
+  const [sharingMealId, setSharingMealId] = useState<number | null>(null);
+
+  const shareMutation = useMutation({
+    mutationFn: (meal: UserMeal) => {
+      setSharingMealId(meal.id);
+      return apiRequest("POST", "/api/community-meals", {
+        recipeId: meal.id,
+        name: meal.name,
+        slot: meal.mealSlot || "dinner",
+        style: meal.mealStyle || "simple",
+        caloriesPerServing: meal.caloriesPerServing,
+        proteinPerServing: meal.proteinPerServing,
+        carbsPerServing: meal.carbsPerServing,
+        fatPerServing: meal.fatPerServing,
+        ingredientsJson: meal.ingredientsJson || undefined,
+      }).then(r => r.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/community-meals/my"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/community-meals"] });
+      toast({ title: "Shared with community" });
+      setSharingMealId(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to share", variant: "destructive" });
+      setSharingMealId(null);
+    },
+  });
+
+  const unshareMutation = useMutation({
+    mutationFn: (params: { communityMealId: number; userMealId: number }) => {
+      setSharingMealId(params.userMealId);
+      return apiRequest("DELETE", `/api/community-meals/${params.communityMealId}/unshare`, undefined);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/community-meals/my"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/community-meals"] });
+      toast({ title: "Unshared from community" });
+      setSharingMealId(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to unshare", variant: "destructive" });
+      setSharingMealId(null);
+    },
+  });
+
+  function getSharedMeal(meal: UserMeal): CommunityMeal | null {
+    return sharedMealByRecipeId.get(meal.id) ?? null;
+  }
 
   const logMutation = useMutation({
     mutationFn: (entry: { name: string; cal: number; prot: number; carbs: number; fat: number; slot?: string | null; source?: string }) =>
@@ -273,6 +350,7 @@ export function MyMealsFoodWidget() {
                 <div className="space-y-1.5">
                   {meals.map(meal => {
                     const key = getMealKey(meal);
+                    const shared = getSharedMeal(meal);
                     return (
                       <MealCard
                         key={key}
@@ -285,6 +363,11 @@ export function MyMealsFoodWidget() {
                         onTemplate={() => setTemplateTarget(meal)}
                         hasTemplate={templateMealIds.has(meal.id)}
                         isLogging={logMutation.isPending}
+                        sharedMeal={shared}
+                        onShare={() => shareMutation.mutate(meal)}
+                        onUnshare={() => shared && unshareMutation.mutate({ communityMealId: shared.id, userMealId: meal.id })}
+                        isSharing={sharingMealId === meal.id}
+                        commentCount={shared ? (commentCounts[shared.id] ?? 0) : undefined}
                       />
                     );
                   })}

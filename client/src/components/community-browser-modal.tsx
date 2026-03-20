@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
+import { MealCommentsSection } from "@/components/meal-comments";
 import { useTierStatus } from "@/hooks/use-tier";
 import { useMobileViewport } from "@/hooks/use-mobile-viewport";
 import { useAuth } from "@/hooks/use-auth";
@@ -530,6 +531,8 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                             )}
                           </button>
                         )}
+
+                        <MealCommentsSection communityMealId={meal.id} />
                       </div>
                     )}
                   </div>

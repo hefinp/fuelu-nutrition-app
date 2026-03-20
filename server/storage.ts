@@ -1,6 +1,6 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type MealComment } from "@shared/schema";
 import { db } from "./db";
-import { desc, eq, and, gte, lte, lt, ilike, sql, or } from "drizzle-orm";
+import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
 import { isKnownZeroCalorieFood } from "./lib/ingredient-parser";
 
@@ -293,6 +293,13 @@ export interface IStorage {
   createClientReport(nutritionistId: number, clientId: number, data: { title: string; fromDate: string; toDate: string; clinicalSummary: string | null; reportData: object }): Promise<ClientReport>;
   updateClientReport(id: number, nutritionistId: number, updates: { clinicalSummary?: string | null; title?: string }): Promise<ClientReport | undefined>;
   deleteClientReport(id: number, nutritionistId: number): Promise<void>;
+
+  // Meal comments
+  getMealComments(communityMealId: number): Promise<(MealComment & { userName: string })[]>;
+  getMealCommentCount(communityMealId: number): Promise<number>;
+  getMealCommentCounts(communityMealIds: number[]): Promise<Record<number, number>>;
+  createMealComment(communityMealId: number, userId: number, text: string): Promise<MealComment>;
+  deleteMealComment(id: number, userId: number): Promise<void>;
 
   // Adaptive TDEE suggestions
   getPendingAdaptiveSuggestion(userId: number): Promise<AdaptiveTdeeSuggestion | undefined>;
@@ -1407,7 +1414,7 @@ export class DatabaseStorage implements IStorage {
 
   async getCommunityMealsByUser(userId: number): Promise<CommunityMeal[]> {
     return await db.select().from(communityMeals)
-      .where(eq(communityMeals.sourceUserId, userId))
+      .where(and(eq(communityMeals.sourceUserId, userId), eq(communityMeals.active, true)))
       .orderBy(desc(communityMeals.createdAt));
   }
 
@@ -2525,6 +2532,7 @@ export class DatabaseStorage implements IStorage {
   async deleteUser(userId: number): Promise<void> {
     await db.transaction(async (tx) => {
       await tx.execute(sql`DELETE FROM adaptive_tdee_suggestions WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM meal_comments WHERE user_id = ${userId}`);
       await tx.execute(sql`DELETE FROM client_target_overrides WHERE client_id = ${userId} OR nutritionist_id = ${userId}`);
       await tx.execute(sql`DELETE FROM nutritionist_messages WHERE client_id = ${userId} OR nutritionist_id = ${userId} OR sender_id = ${userId}`);
       await tx.execute(sql`DELETE FROM plan_annotations WHERE plan_id IN (SELECT id FROM nutritionist_plans WHERE nutritionist_id = ${userId} OR client_id = ${userId})`);
@@ -2565,6 +2573,55 @@ export class DatabaseStorage implements IStorage {
       await tx.execute(sql`UPDATE users SET is_managed_client = false, managed_by_nutritionist_id = NULL WHERE managed_by_nutritionist_id = ${userId}`);
       await tx.execute(sql`DELETE FROM users WHERE id = ${userId}`);
     });
+  }
+
+  async getMealComments(communityMealId: number): Promise<(MealComment & { userName: string })[]> {
+    const rows = await db
+      .select({
+        id: mealComments.id,
+        communityMealId: mealComments.communityMealId,
+        userId: mealComments.userId,
+        text: mealComments.text,
+        createdAt: mealComments.createdAt,
+        userName: users.name,
+      })
+      .from(mealComments)
+      .innerJoin(users, eq(mealComments.userId, users.id))
+      .where(eq(mealComments.communityMealId, communityMealId))
+      .orderBy(desc(mealComments.createdAt));
+    return rows;
+  }
+
+  async getMealCommentCount(communityMealId: number): Promise<number> {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(mealComments)
+      .where(eq(mealComments.communityMealId, communityMealId));
+    return row?.count ?? 0;
+  }
+
+  async getMealCommentCounts(communityMealIds: number[]): Promise<Record<number, number>> {
+    if (communityMealIds.length === 0) return {};
+    const rows = await db
+      .select({
+        communityMealId: mealComments.communityMealId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(mealComments)
+      .where(inArray(mealComments.communityMealId, communityMealIds))
+      .groupBy(mealComments.communityMealId);
+    const result: Record<number, number> = {};
+    for (const r of rows) result[r.communityMealId] = r.count;
+    return result;
+  }
+
+  async createMealComment(communityMealId: number, userId: number, text: string): Promise<MealComment> {
+    const [comment] = await db.insert(mealComments).values({ communityMealId, userId, text }).returning();
+    return comment;
+  }
+
+  async deleteMealComment(id: number, userId: number): Promise<void> {
+    await db.delete(mealComments).where(and(eq(mealComments.id, id), eq(mealComments.userId, userId)));
   }
 }
 

@@ -773,6 +773,18 @@ export async function runMigrations(): Promise<void> {
       console.log("[migrate] Seeded test account: test@fuelr.app");
     }
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS meal_comments (
+        id                SERIAL PRIMARY KEY,
+        community_meal_id INTEGER NOT NULL REFERENCES community_meals(id),
+        user_id           INTEGER NOT NULL REFERENCES users(id),
+        text              TEXT NOT NULL,
+        created_at        TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_meal_comments_community_meal_id ON meal_comments(community_meal_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_meal_comments_user_id ON meal_comments(user_id)`);
+
   } finally {
     client.release();
   }

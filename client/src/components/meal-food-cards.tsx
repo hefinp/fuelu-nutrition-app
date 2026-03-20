@@ -3,9 +3,11 @@ import {
   Utensils, Wheat, Trash2, Loader2, Pencil,
   ChevronDown, ChevronUp, Globe, Repeat,
   ScanBarcode, Sparkles, Search, Link, Camera,
+  Share2, MessageCircle,
 } from "lucide-react";
-import type { UserMeal, UserSavedFood } from "@shared/schema";
+import type { UserMeal, UserSavedFood, CommunityMeal } from "@shared/schema";
 import { type MealSlot, SLOT_COLOURS, MacroBar, MacroChips, SlotPicker, slotForTimeOfDay } from "@/components/meals-food-shared";
+import { MealCommentsSection } from "@/components/meal-comments";
 
 export function getMealKey(meal: UserMeal) {
   return `meal-${meal.id}`;
@@ -42,9 +44,14 @@ interface MealCardProps {
   onTemplate?: () => void;
   isLogging?: boolean;
   hasTemplate?: boolean;
+  sharedMeal?: CommunityMeal | null;
+  onShare?: () => void;
+  onUnshare?: () => void;
+  isSharing?: boolean;
+  commentCount?: number;
 }
 
-export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTemplate, isLogging, hasTemplate }: MealCardProps) {
+export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTemplate, isLogging, hasTemplate, sharedMeal, onShare, onUnshare, isSharing, commentCount }: MealCardProps) {
   const slot = getMealSlot(meal);
   const [showSlotPicker, setShowSlotPicker] = useState(false);
 
@@ -55,6 +62,7 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
   const isVideo = isVideoImportedMeal(meal);
   const isPhoto = isPhotoImportedMeal(meal);
 
+  const hasMacros = meal.caloriesPerServing > 0 && meal.proteinPerServing > 0 && meal.carbsPerServing > 0 && meal.fatPerServing > 0;
   const hasStructured = Array.isArray(meal.ingredientsJson) && meal.ingredientsJson.length > 0;
   const [canonicalNames, setCanonicalNames] = useState<Set<string>>(new Set());
 
@@ -93,6 +101,12 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
             {hasSourceLink && <Globe className="w-3 h-3 text-blue-400" data-testid={`icon-web-source-${meal.id}`} />}
             {meal.source === "logged" && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-amber-50 text-amber-500">logged</span>}
             {meal.source === "community" && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-purple-50 text-purple-500">community</span>}
+            {sharedMeal && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-emerald-50 text-emerald-600" data-testid={`badge-shared-${meal.id}`}>shared</span>}
+            {sharedMeal && typeof commentCount === "number" && commentCount > 0 && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-zinc-100 text-zinc-500" data-testid={`badge-comments-${meal.id}`}>
+                <MessageCircle className="w-2.5 h-2.5" />{commentCount}
+              </span>
+            )}
           </div>
           <p className="text-xs text-zinc-400 mt-0.5">{meal.caloriesPerServing} kcal · P:{meal.proteinPerServing}g · C:{meal.carbsPerServing}g · F:{meal.fatPerServing}g</p>
         </div>
@@ -219,6 +233,28 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
                 {hasTemplate ? "Recurring" : "Set recurring"}
               </button>
             )}
+            {onShare && !sharedMeal && hasMacros && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onShare(); }}
+                disabled={isSharing}
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium border border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-colors disabled:opacity-60"
+                data-testid={`button-share-meal-${meal.id}`}
+              >
+                {isSharing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
+                Share
+              </button>
+            )}
+            {onUnshare && sharedMeal && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onUnshare(); }}
+                disabled={isSharing}
+                className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-medium border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-60"
+                data-testid={`button-unshare-meal-${meal.id}`}
+              >
+                {isSharing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Share2 className="w-3.5 h-3.5" />}
+                Shared
+              </button>
+            )}
             {showSlotPicker ? (
               <div className="flex-1">
                 <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Log to:</p>
@@ -239,6 +275,8 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
               </button>
             )}
           </div>
+
+          {sharedMeal && <MealCommentsSection communityMealId={sharedMeal.id} />}
         </div>
       )}
     </div>

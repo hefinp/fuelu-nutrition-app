@@ -151,6 +151,64 @@ Macros: ${meal.caloriesPerServing} kcal, ${meal.proteinPerServing}g protein, ${m
   }
 });
 
+router.get("/api/community-meals/comment-counts", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const idsParam = req.query.ids as string;
+    if (!idsParam) return res.json({});
+    const ids = idsParam.split(",").map(Number).filter(n => !isNaN(n));
+    const counts = await storage.getMealCommentCounts(ids);
+    res.json(counts);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch comment counts" });
+  }
+});
+
+router.delete("/api/community-meals/comments/:id", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    await storage.deleteMealComment(Number(req.params.id), req.session.userId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete comment" });
+  }
+});
+
+router.get("/api/community-meals/:id/comments", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id) || id <= 0) return res.status(400).json({ message: "Invalid meal ID" });
+    const meal = await storage.getCommunityMealById(id);
+    if (!meal || !meal.active) return res.status(404).json({ message: "Community meal not found" });
+    const comments = await storage.getMealComments(id);
+    res.json(comments);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch comments" });
+  }
+});
+
+router.post("/api/community-meals/:id/comments", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id) || id <= 0) return res.status(400).json({ message: "Invalid meal ID" });
+    const meal = await storage.getCommunityMealById(id);
+    if (!meal || !meal.active) return res.status(404).json({ message: "Community meal not found" });
+    const { text } = req.body;
+    if (!text || typeof text !== "string" || text.trim().length === 0) {
+      return res.status(400).json({ message: "Comment text is required" });
+    }
+    if (text.trim().length > 500) {
+      return res.status(400).json({ message: "Comment must be 500 characters or fewer" });
+    }
+    const comment = await storage.createMealComment(id, req.session.userId, text.trim());
+    res.status(201).json(comment);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to post comment" });
+  }
+});
+
 const BUCKET_FLOOR = 8;
 
 async function checkAndRefillCommunityMealBalance(autoFill = true): Promise<{ buckets: any[]; gapsFound: number; mealsGenerated: number }> {

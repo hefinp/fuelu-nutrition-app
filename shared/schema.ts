@@ -1035,3 +1035,19 @@ export const insertAdaptiveTdeeSuggestionSchema = createInsertSchema(adaptiveTde
 
 export type InsertAdaptiveTdeeSuggestion = z.infer<typeof insertAdaptiveTdeeSuggestionSchema>;
 export type AdaptiveTdeeSuggestion = typeof adaptiveTdeeSuggestions.$inferSelect;
+
+export const mealComments = pgTable("meal_comments", {
+  id: serial("id").primaryKey(),
+  communityMealId: integer("community_meal_id").notNull().references(() => communityMeals.id),
+  userId: integer("user_id").notNull().references(() => users.id),
+  text: text("text").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMealCommentSchema = createInsertSchema(mealComments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertMealComment = z.infer<typeof insertMealCommentSchema>;
+export type MealComment = typeof mealComments.$inferSelect;
