@@ -31,6 +31,9 @@ interface StravaActivityRaw {
 }
 
 function getBaseUrl(req: Request): string {
+  if (process.env.STRAVA_REDIRECT_URL) {
+    return process.env.STRAVA_REDIRECT_URL.replace(/\/$/, "");
+  }
   if (process.env.REPLIT_DEPLOYMENT_URL) {
     return `https://${process.env.REPLIT_DEPLOYMENT_URL}`;
   }
