@@ -31,42 +31,67 @@ export default function TermsPage() {
         <div className="prose prose-zinc max-w-none space-y-8 text-zinc-700 leading-relaxed text-[15px]">
           <section>
             <h2 className="text-xl font-semibold text-zinc-900 mb-3">1. Acceptance of Terms</h2>
-            <p>By creating an account or using FuelU you agree to these Terms of Service. If you do not agree, please do not use the service.</p>
+            <p>By creating an account or using FuelU you agree to these Terms of Service and our <Link href="/privacy" className="underline text-zinc-900 hover:text-zinc-600">Privacy Policy</Link>. If you do not agree, please do not use the service.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-zinc-900 mb-3">2. Description of Service</h2>
-            <p>FuelU is a nutrition calculator and meal-planning tool. It provides estimated calorie targets, macronutrient breakdowns, and sample meal plans based on the body metrics and goals you supply. The service is provided free of charge.</p>
+            <h2 className="text-xl font-semibold text-zinc-900 mb-3">2. Eligibility &amp; Minimum Age</h2>
+            <p>You must be at least <strong>16 years old</strong> to use FuelU if you are located in the European Union or the United Kingdom. In all other regions, you must be at least <strong>13 years old</strong>. By creating an account, you confirm that you meet the applicable minimum age requirement.</p>
+            <p className="mt-2">If you are under 18, you should review these terms with a parent or guardian. We do not knowingly collect data from users below the applicable minimum age. If we discover an underage account, we will delete it and all associated data.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-zinc-900 mb-3">3. Health Disclaimer</h2>
-            <p>FuelU is not a medical service. All calorie targets, macro breakdowns, and meal plans are estimates based on widely used formulas (Mifflin-St Jeor) and should not be treated as medical advice. You should consult a qualified healthcare professional before making significant dietary changes, especially if you have a medical condition, food allergies, or special nutritional needs.</p>
+            <h2 className="text-xl font-semibold text-zinc-900 mb-3">3. Description of Service</h2>
+            <p>FuelU is a nutrition calculator, meal-planning tool, and wellness tracker. It provides estimated calorie targets, macronutrient breakdowns, sample meal plans, food logging, cycle-aware nutrition adjustments, and AI-powered insights based on the body metrics and goals you supply.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-zinc-900 mb-3">4. User Accounts</h2>
+            <h2 className="text-xl font-semibold text-zinc-900 mb-3">4. Health Disclaimer</h2>
+            <p><strong>FuelU is not a medical service and does not provide medical advice.</strong> All calorie targets, macro breakdowns, meal plans, cycle-phase recommendations, vitality insights, and AI-generated suggestions are estimates based on widely used formulas and general nutritional guidelines. They should not be treated as medical advice, diagnosis, or treatment.</p>
+            <p className="mt-2">You should consult a qualified healthcare professional before making significant dietary changes, especially if you have a medical condition, eating disorder, food allergies, pregnancy, or special nutritional needs. FuelU is not a substitute for professional medical advice.</p>
+            <p className="mt-2">By using the service, you acknowledge that you follow any nutrition plans, meal suggestions, or insights at your own risk.</p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-zinc-900 mb-3">5. AI-Generated Content</h2>
+            <p>FuelU uses artificial intelligence (powered by OpenAI) to generate meal plans, nutrition insights, food recognition results, and wellness recommendations. You should be aware that:</p>
+            <ul className="list-disc pl-6 space-y-1 mt-2">
+              <li>AI-generated content may contain errors, inaccuracies, or suggestions that are not suitable for your specific health situation.</li>
+              <li>AI outputs are not reviewed by a medical professional before being shown to you.</li>
+              <li>Nutritional values in AI-generated meal plans are estimates and may differ from actual values.</li>
+              <li>You should independently verify any AI-generated information before relying on it, particularly for allergy or medical dietary needs.</li>
+            </ul>
+            <p className="mt-3">FuelU does not guarantee the accuracy, completeness, or suitability of any AI-generated content.</p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-zinc-900 mb-3">6. User Accounts</h2>
             <p>You are responsible for maintaining the confidentiality of your account credentials. You agree to provide accurate information when creating your account and using the calculator. FuelU reserves the right to suspend or terminate accounts that violate these terms.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-zinc-900 mb-3">5. Limitation of Liability</h2>
-            <p>FuelU and its operators shall not be held liable for any direct, indirect, incidental, or consequential damages arising from your use of the service, including but not limited to health outcomes resulting from following generated meal plans. The service is provided &ldquo;as is&rdquo; without warranties of any kind.</p>
+            <h2 className="text-xl font-semibold text-zinc-900 mb-3">7. Account Deletion</h2>
+            <p>You may delete your account at any time from the Account settings page. Account deletion is permanent and irreversible &mdash; all your data, including meal plans, food logs, weight history, cycle data, and preferences, will be permanently removed from our systems.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-zinc-900 mb-3">6. Intellectual Property</h2>
+            <h2 className="text-xl font-semibold text-zinc-900 mb-3">8. Limitation of Liability</h2>
+            <p>FuelU and its operators shall not be held liable for any direct, indirect, incidental, or consequential damages arising from your use of the service, including but not limited to health outcomes resulting from following generated meal plans or AI-generated suggestions. The service is provided &ldquo;as is&rdquo; without warranties of any kind.</p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-zinc-900 mb-3">9. Intellectual Property</h2>
             <p>All content, design, and code comprising FuelU are the property of its operators. You may not reproduce, distribute, or create derivative works from the service without prior written consent.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-zinc-900 mb-3">7. Modifications</h2>
+            <h2 className="text-xl font-semibold text-zinc-900 mb-3">10. Modifications</h2>
             <p>We reserve the right to modify these terms at any time. Continued use of the service after changes are posted constitutes acceptance of the revised terms.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-zinc-900 mb-3">8. Governing Law</h2>
-            <p>These terms are governed by applicable law. Any disputes arising from the use of FuelU shall be resolved in accordance with the jurisdiction of the service operator.</p>
+            <h2 className="text-xl font-semibold text-zinc-900 mb-3">11. Governing Law</h2>
+            <p>These terms are governed by the laws of New Zealand. Any disputes arising from the use of FuelU shall be resolved in accordance with the jurisdiction of the courts of New Zealand.</p>
           </section>
         </div>
       </main>

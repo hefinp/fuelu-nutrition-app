@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Replace, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield, BookOpen, MoreHorizontal, Undo2 } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, AlertCircle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Replace, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield, BookOpen, MoreHorizontal, Undo2 } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -1254,6 +1254,12 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
               {mealPlan && (
                 <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 pt-3 shrink-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}>
+                  <div className="flex items-start gap-1.5 mb-2" data-testid="banner-health-disclaimer">
+                    <AlertCircle className="w-3 h-3 text-zinc-300 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-zinc-400 leading-snug">
+                      This is not medical advice. Consult a healthcare professional before making dietary changes.
+                    </p>
+                  </div>
                   <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                     <div className="flex items-center gap-2">
                       {!planSaved && (
@@ -1642,6 +1648,13 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                   </button>
                 </div>
                 {customHasAnyMeals && (
+                  <>
+                  <div className="flex items-start gap-1.5 mb-2" data-testid="banner-health-disclaimer-custom">
+                    <AlertCircle className="w-3 h-3 text-zinc-300 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-zinc-400 leading-snug">
+                      This is not medical advice. Consult a healthcare professional before making dietary changes.
+                    </p>
+                  </div>
                   <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
                     <div className="flex items-center gap-2">
                       {!customPlanSaved && (
@@ -1691,6 +1704,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                       </button>
                     </div>
                   </div>
+                  </>
                 )}
 
                 <AlertDialog open={customDiscardConfirmOpen} onOpenChange={setCustomDiscardConfirmOpen}>

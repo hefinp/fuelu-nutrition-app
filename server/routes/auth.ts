@@ -361,4 +361,27 @@ router.put("/api/auth/password", async (req, res) => {
   }
 });
 
+router.delete("/api/auth/account", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.passwordHash) {
+      const { password } = z.object({ password: z.string().min(1) }).parse(req.body);
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) return res.status(400).json({ message: "Incorrect password" });
+    }
+
+    await storage.deleteUser(user.id);
+
+    req.session.destroy(() => {
+      res.status(200).json({ message: "Account deleted successfully" });
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: "Password is required to delete your account" });
+    throw err;
+  }
+});
+
 export default router;

@@ -59,6 +59,8 @@ export const registerSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   inviteCode: z.string().optional(),
   nutritionistInviteToken: z.string().optional(),
+  agreedToTerms: z.literal(true, { errorMap: () => ({ message: "You must agree to the Terms of Service and Privacy Policy" }) }),
+  confirmedAge: z.literal(true, { errorMap: () => ({ message: "You must confirm you meet the minimum age requirement" }) }),
 });
 
 export const loginSchema = z.object({

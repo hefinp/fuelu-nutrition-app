@@ -6,7 +6,7 @@ import { useCreateCalculation } from "@/hooks/use-calculations";
 import type { UserPreferences } from "@shared/schema";
 import {
   X, ChevronRight, ChevronLeft, Loader2,
-  Target, TrendingDown, Dumbbell, Flame, Zap,
+  Target, TrendingDown, Dumbbell, Flame, Zap, ShieldCheck,
 } from "lucide-react";
 
 type Goal = "lose" | "maintain" | "muscle";
@@ -64,6 +64,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
   const [saveError, setSaveError] = useState("");
   const [macros, setMacros] = useState<MacroPreview | null>(null);
   const [macrosLoading, setMacrosLoading] = useState(false);
+  const [healthDataConsent, setHealthDataConsent] = useState(false);
 
   const createCalc = useCreateCalculation();
   const queryClient = useQueryClient();
@@ -94,13 +95,14 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
 
   const canAdvance = [
     goal !== null,
+    healthDataConsent,
     biometricsValid,
     true,
     macros !== null,
   ];
 
   function goNext() {
-    if (step < 3) {
+    if (step < 4) {
       setDirection(1);
       setStep(s => s + 1);
     }
@@ -165,6 +167,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
 
   const stepContent = [
     <StepGoal key="goal" goal={goal} setGoal={setGoal} />,
+    <StepHealthConsent key="consent" consented={healthDataConsent} setConsented={setHealthDataConsent} />,
     <StepAboutYou key="about" age={age} setAge={setAge} sex={sex} setSex={(v) => { setSex(v); if (v === "male") setCycleTracking(false); if (v === "female") setVitalityTracking(false); }} cycleTracking={cycleTracking} setCycleTracking={setCycleTracking} vitalityTracking={vitalityTracking} setVitalityTracking={setVitalityTracking} lastPeriodDate={lastPeriodDate} setLastPeriodDate={setLastPeriodDate} wizardCycleLength={wizardCycleLength} setWizardCycleLength={setWizardCycleLength} wizardPeriodLength={wizardPeriodLength} setWizardPeriodLength={setWizardPeriodLength} heightCm={heightCm} setHeightCm={setHeightCm} weightKg={weightKg} setWeightKg={setWeightKg} />,
     <StepDiet key="diet" selectedChips={selectedChips} toggleChip={toggleChip} />,
     <StepSummary key="summary" macros={macros} goal={goal} loading={macrosLoading} />,
@@ -208,7 +211,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
 
         <div className="p-5 sm:p-8 pt-5 sm:pt-6">
           <div className="flex items-center justify-center gap-1.5 mb-5">
-            {[0, 1, 2, 3].map(i => (
+            {[0, 1, 2, 3, 4].map(i => (
               <div
                 key={i}
                 className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -229,7 +232,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
                 Back
               </button>
             )}
-            {step < 3 ? (
+            {step < 4 ? (
               <button
                 onClick={goNext}
                 disabled={!canAdvance[step]}
@@ -266,6 +269,45 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+function StepHealthConsent({ consented, setConsented }: { consented: boolean; setConsented: (v: boolean) => void }) {
+  return (
+    <div className="text-center">
+      <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+        <ShieldCheck className="w-6 h-6 text-emerald-600" />
+      </div>
+      <h2 className="text-xl font-display font-bold text-zinc-900 mb-1" data-testid="wizard-step-title">
+        Your data, your control
+      </h2>
+      <p className="text-sm text-zinc-400 mb-5">Before we collect your health data, we need your consent.</p>
+      <div className="bg-zinc-50 rounded-2xl p-4 text-left space-y-3 mb-5">
+        <p className="text-xs text-zinc-700 leading-relaxed">
+          In the next steps, we will ask for <strong>health-related information</strong> including body metrics (height, weight, age), menstrual cycle data, vitality self-assessments, and dietary restrictions.
+        </p>
+        <p className="text-xs text-zinc-700 leading-relaxed">
+          This data is used <strong>only</strong> to personalise your nutrition plans and wellness insights. It may be processed by AI (OpenAI) to generate meal suggestions and health insights.
+        </p>
+        <p className="text-xs text-zinc-700 leading-relaxed">
+          You can withdraw consent at any time by disabling features or deleting your account. See our{" "}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-zinc-900 font-medium underline hover:text-zinc-600">Privacy Policy</a>
+          {" "}for full details.
+        </p>
+      </div>
+      <label className="flex items-start gap-2.5 cursor-pointer text-left">
+        <input
+          type="checkbox"
+          checked={consented}
+          onChange={e => setConsented(e.target.checked)}
+          className="mt-0.5 w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 shrink-0"
+          data-testid="checkbox-health-consent"
+        />
+        <span className="text-sm text-zinc-700 leading-relaxed">
+          I consent to the collection and processing of my health data as described above
+        </span>
+      </label>
+    </div>
   );
 }
 

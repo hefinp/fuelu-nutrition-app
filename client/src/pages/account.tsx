@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useSearch } from "wouter";
+import { Link, useSearch, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { PublicUser, UserPreferences } from "@shared/schema";
 import {
   Crown, CreditCard, AlertTriangle, ArrowRight, Loader2, CheckCircle2,
-  Coins, ArrowUpRight, User, Lock, ChevronRight, Zap, Globe, Database, ExternalLink,
+  Coins, ArrowUpRight, User, Lock, ChevronRight, Zap, Globe, Database, ExternalLink, Trash2,
 } from "lucide-react";
 import { ConfirmDialog, useConfirmDialog } from "@/components/confirm-dialog";
 
@@ -58,6 +58,9 @@ export default function AccountPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   const { data: userPreferences } = useQuery<UserPreferences>({
     queryKey: ["/api/user/preferences"],
@@ -128,6 +131,27 @@ export default function AccountPage() {
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const [, setLocation] = useLocation();
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async (password: string) => {
+      const res = await apiRequest("DELETE", "/api/auth/account", password ? { password } : {});
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setDeleteConfirmOpen(false);
+      queryClient.clear();
+      setLocation("/");
+    },
+    onError: (err: Error) => {
+      setDeleteError(err.message);
     },
   });
 
@@ -436,6 +460,82 @@ export default function AccountPage() {
                 </>
               )}
             </form>
+
+            <div className="bg-white rounded-2xl border border-red-100 p-6 space-y-4" data-testid="card-delete-account">
+              <div className="flex items-center gap-2 mb-2">
+                <Trash2 className="w-4 h-4 text-red-400" />
+                <h2 className="text-sm font-semibold text-zinc-900">Delete Account</h2>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Permanently delete your account and all associated data. This action is irreversible &mdash; all your meal plans, food logs, weight history, cycle data, and preferences will be permanently removed.
+              </p>
+              <button
+                type="button"
+                onClick={() => { setDeleteConfirmOpen(true); setDeletePassword(""); setDeleteError(""); }}
+                className="flex items-center gap-1.5 px-4 py-2 border border-red-200 text-red-600 text-sm font-medium rounded-xl hover:bg-red-50 transition-colors"
+                data-testid="button-delete-account"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete My Account
+              </button>
+            </div>
+
+            {deleteConfirmOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl max-w-md w-full p-6 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                      <AlertTriangle className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-zinc-900">Delete your account?</h3>
+                      <p className="text-xs text-zinc-500">This cannot be undone.</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-zinc-600">
+                    All your data will be permanently deleted, including meal plans, food logs, weight history, cycle data, saved recipes, and preferences. This action is irreversible.
+                  </p>
+                  {deleteError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700" data-testid="error-delete-account">
+                      {deleteError}
+                    </div>
+                  )}
+                  {!user.provider && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-zinc-500">Enter your password to confirm</label>
+                      <input
+                        type="password"
+                        value={deletePassword}
+                        onChange={e => { setDeletePassword(e.target.value); setDeleteError(""); }}
+                        className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        data-testid="input-delete-password"
+                        placeholder="Your current password"
+                      />
+                    </div>
+                  )}
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmOpen(false)}
+                      className="flex-1 px-4 py-2 border border-zinc-200 text-zinc-600 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors"
+                      data-testid="button-cancel-delete"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteAccountMutation.mutate(deletePassword)}
+                      disabled={deleteAccountMutation.isPending || (!user.provider && !deletePassword)}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50"
+                      data-testid="button-confirm-delete"
+                    >
+                      {deleteAccountMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      Delete permanently
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

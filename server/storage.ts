@@ -302,6 +302,8 @@ export interface IStorage {
   dismissAdaptiveSuggestion(id: number, userId: number): Promise<void>;
   acceptAdaptiveSuggestion(id: number, userId: number): Promise<AdaptiveTdeeSuggestion | undefined>;
   dismissAllPendingAdaptiveSuggestions(userId: number): Promise<void>;
+
+  deleteUser(userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2518,6 +2520,51 @@ export class DatabaseStorage implements IStorage {
     await db.update(adaptiveTdeeSuggestions)
       .set({ status: "dismissed", actedAt: new Date() })
       .where(and(eq(adaptiveTdeeSuggestions.userId, userId), eq(adaptiveTdeeSuggestions.status, "pending")));
+  }
+
+  async deleteUser(userId: number): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`DELETE FROM adaptive_tdee_suggestions WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM client_target_overrides WHERE client_id = ${userId} OR nutritionist_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM nutritionist_messages WHERE client_id = ${userId} OR nutritionist_id = ${userId} OR sender_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM plan_annotations WHERE plan_id IN (SELECT id FROM nutritionist_plans WHERE nutritionist_id = ${userId} OR client_id = ${userId})`);
+      await tx.execute(sql`DELETE FROM nutritionist_plans WHERE nutritionist_id = ${userId} OR client_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM plan_templates WHERE nutritionist_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM client_reports WHERE nutritionist_id = ${userId} OR client_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM client_goals WHERE nutritionist_id = ${userId} OR client_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM client_intake_forms WHERE nutritionist_id = ${userId} OR client_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM nutritionist_notes WHERE nutritionist_id = ${userId} OR client_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM nutritionist_invitations WHERE nutritionist_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM nutritionist_clients WHERE nutritionist_id = ${userId} OR client_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM nutritionist_profiles WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM practice_members WHERE nutritionist_user_id = ${userId} OR practice_id IN (SELECT id FROM practice_accounts WHERE admin_user_id = ${userId})`);
+      await tx.execute(sql`DELETE FROM practice_accounts WHERE admin_user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM credit_transactions WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM ai_insights_cache WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM vitality_symptoms WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM cycle_symptoms WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM cycle_period_logs WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM recipe_ingredients WHERE user_recipe_id IN (SELECT id FROM user_recipes WHERE user_id = ${userId})`);
+      await tx.execute(sql`DELETE FROM user_recipes WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM meal_templates WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM meal_ingredients WHERE user_meal_id IN (SELECT id FROM user_meals WHERE user_id = ${userId})`);
+      await tx.execute(sql`DELETE FROM user_meals WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM user_food_bookmarks WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM user_saved_foods WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM hydration_logs WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM food_log_entries WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM saved_meal_plans WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM weight_entries WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM calculations WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM password_reset_tokens WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM feedback_entries WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM favourite_meals WHERE user_id = ${userId}`);
+      await tx.execute(sql`UPDATE community_meals SET source_user_id = NULL WHERE source_user_id = ${userId}`);
+      await tx.execute(sql`UPDATE canonical_foods SET contributed_by_user_id = NULL WHERE contributed_by_user_id = ${userId}`);
+      await tx.execute(sql`UPDATE custom_foods SET contributed_by_user_id = NULL WHERE contributed_by_user_id = ${userId}`);
+      await tx.execute(sql`UPDATE users SET is_managed_client = false, managed_by_nutritionist_id = NULL WHERE managed_by_nutritionist_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM users WHERE id = ${userId}`);
+    });
   }
 }
 

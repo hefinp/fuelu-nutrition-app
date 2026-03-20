@@ -44,6 +44,8 @@ export default function AuthPage() {
   const [regError, setRegError] = useState("");
   const [inviteCodeError, setInviteCodeError] = useState("");
   const [showRegPw, setShowRegPw] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [confirmedAge, setConfirmedAge] = useState(false);
 
   // OAuth invite form state
   const [oauthInviteCode, setOauthInviteCode] = useState("");
@@ -76,6 +78,8 @@ export default function AuthPage() {
         password: regPassword,
         inviteCode: nutritionistInviteToken ? undefined : (regInviteCode || undefined),
         nutritionistInviteToken: nutritionistInviteToken || undefined,
+        agreedToTerms: agreedToTerms as true,
+        confirmedAge: confirmedAge as true,
       });
       setLocation("/dashboard");
     } catch (err: unknown) {
@@ -433,9 +437,39 @@ export default function AuthPage() {
                 </div>
               )}
 
+              <div className="space-y-3 pt-1">
+                <label className="flex items-start gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={agreedToTerms}
+                    onChange={e => setAgreedToTerms(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 shrink-0"
+                    data-testid="checkbox-agree-terms"
+                  />
+                  <span className="text-xs text-zinc-600 leading-relaxed">
+                    I agree to the{" "}
+                    <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-zinc-900 font-medium underline hover:text-zinc-700">Terms of Service</a>
+                    {" "}and{" "}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-zinc-900 font-medium underline hover:text-zinc-700">Privacy Policy</a>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2.5 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={confirmedAge}
+                    onChange={e => setConfirmedAge(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 shrink-0"
+                    data-testid="checkbox-confirm-age"
+                  />
+                  <span className="text-xs text-zinc-600 leading-relaxed">
+                    I confirm I am at least 16 years old
+                  </span>
+                </label>
+              </div>
+
               <button
                 type="submit"
-                disabled={isRegistering}
+                disabled={isRegistering || !agreedToTerms || !confirmedAge}
                 className="w-full py-2.5 bg-zinc-900 text-white rounded-xl font-medium text-sm hover:bg-zinc-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 data-testid="button-register-submit"
               >

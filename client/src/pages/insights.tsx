@@ -479,6 +479,13 @@ export default function InsightsPage({ onClose }: { onClose?: () => void } = {})
                 )}
               </>
             )}
+
+            <div className="flex items-start gap-2 p-3 bg-zinc-50 border border-zinc-100 rounded-xl mt-4" data-testid="banner-health-disclaimer">
+              <AlertCircle className="w-3.5 h-3.5 text-zinc-400 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-zinc-400 leading-relaxed">
+                This is not medical advice. Consult a healthcare professional before making dietary changes.
+              </p>
+            </div>
           </>
         )}
       </main>
