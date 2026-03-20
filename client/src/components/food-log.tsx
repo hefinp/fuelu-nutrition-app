@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Loader2, Plus, ClipboardList, BookOpen, ChevronDown,
+  Loader2, Plus, ClipboardList, BookOpen, ChevronDown, Pencil, Trash2,
 } from "lucide-react";
 import {
   type MealSlot, type FoodLogEntry,
   SLOT_LABELS, SLOT_ICONS, SLOT_COLORS, ALL_SLOTS,
   todayStr,
   MacroGrid,
+  LoggedMealModal,
 } from "@/components/food-log-shared";
 import { FoodLogDrawer } from "@/components/food-log-drawer";
 import { TemplateSuggestions } from "@/components/template-suggestions";
@@ -33,7 +36,28 @@ export function FoodLog({
   const today = todayStr();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [expandedSlots, setExpandedSlots] = useState<Set<string>>(new Set());
+  const [selectedEntry, setSelectedEntry] = useState<FoodLogEntry | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const { setFlowActive } = useActiveFlow();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      setDeletingId(id);
+      await apiRequest("DELETE", `/api/food-log/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log-week"] });
+      toast({ title: "Entry deleted" });
+      setDeletingId(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to delete entry", variant: "destructive" });
+      setDeletingId(null);
+    },
+  });
 
   useEffect(() => {
     setFlowActive("food-log", drawerOpen);
@@ -212,10 +236,11 @@ export function FoodLog({
                         <div className="space-y-1.5 mt-2">
                           {entries.map(entry => {
                             const isPlanned = entry.confirmed === false;
+                            const isDeleting = deletingId === entry.id;
                             return (
                               <div
                                 key={entry.id}
-                                className={`flex items-center justify-between py-2 px-2.5 rounded-xl border border-zinc-100 bg-white hover:bg-zinc-50 transition-colors ${
+                                className={`flex items-center gap-1.5 py-2 px-2.5 rounded-xl border border-zinc-100 bg-white hover:bg-zinc-50 transition-colors ${
                                   isPlanned ? "opacity-55" : ""
                                 }`}
                                 data-testid={`log-entry-${entry.id}`}
@@ -228,9 +253,28 @@ export function FoodLog({
                                     <span className="ml-1 text-[10px] not-italic text-zinc-400">(Planned)</span>
                                   )}
                                 </p>
-                                <span className="text-[11px] text-zinc-500 font-medium ml-2 shrink-0">
+                                <span className="text-[11px] text-zinc-500 font-medium shrink-0">
                                   {entry.calories} kcal
                                 </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setSelectedEntry(entry); }}
+                                  className="p-1 rounded-md text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors shrink-0"
+                                  data-testid={`button-edit-entry-${entry.id}`}
+                                  aria-label="Edit entry"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(entry.id); }}
+                                  disabled={isDeleting}
+                                  className="p-1 rounded-md text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 disabled:opacity-50"
+                                  data-testid={`button-delete-entry-${entry.id}`}
+                                  aria-label="Delete entry"
+                                >
+                                  {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                </button>
                               </div>
                             );
                           })}
@@ -282,6 +326,14 @@ export function FoodLog({
           onPrefillConsumed={onPrefillConsumed}
           dailyTotals={{ calories: totalCal, protein: totalProt, carbs: totalCarbs, fat: totalFat }}
           dailyTargets={{ calories: dailyCaloriesTarget, protein: dailyProteinTarget, carbs: dailyCarbsTarget, fat: dailyFatTarget }}
+        />
+      )}
+
+      {selectedEntry && (
+        <LoggedMealModal
+          entry={selectedEntry}
+          userRecipes={[]}
+          onClose={() => setSelectedEntry(null)}
         />
       )}
     </div>
