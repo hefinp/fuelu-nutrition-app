@@ -33,14 +33,14 @@ function formatShortDate(dateStr: string): string {
   return new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-const PHASE_STYLES: Record<string, { bg: string; text: string; border: string; label: string }> = {
+export const PHASE_STYLES: Record<string, { bg: string; text: string; border: string; label: string }> = {
   menstrual: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200", label: "Menstrual" },
   follicular: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", label: "Follicular" },
   ovulatory: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", label: "Ovulatory" },
   luteal: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200", label: "Luteal" },
 };
 
-function buildCalcStub(plan: SavedMealPlan): Calculation {
+export function buildCalcStub(plan: SavedMealPlan): Calculation {
   const d = plan.planData as any;
   const isWeekly = plan.planType === 'weekly';
   return {
@@ -788,7 +788,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
   );
 }
 
-function SavedDailyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: PrefillEntry) => void }) {
+export function SavedDailyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: PrefillEntry) => void }) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [localDisliked, setLocalDisliked] = useState<Set<string>>(new Set());
   const { toast } = useToast();
@@ -883,7 +883,7 @@ function SavedDailyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pre
   );
 }
 
-function SavedWeeklyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: PrefillEntry) => void }) {
+export function SavedWeeklyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: PrefillEntry) => void }) {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
@@ -1000,7 +1000,7 @@ function SavedWeeklyView({ plan, onLogMeal }: { plan: any; onLogMeal?: (meal: Pr
   );
 }
 
-function SavedRecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
+export function SavedRecipeModal({ meal, onClose }: { meal: Meal; onClose: () => void }) {
   const recipe = RECIPES[meal.meal];
   const [canonicalNames, setCanonicalNames] = useState<Set<string>>(new Set());
 

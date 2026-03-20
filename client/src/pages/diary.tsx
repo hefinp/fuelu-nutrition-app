@@ -8,12 +8,13 @@ import type { TrialInfo } from "@shared/trial";
 import { Link, useLocation } from "wouter";
 import {
   Loader2, Plus, Trash2, ClipboardList, CalendarDays,
-  ChevronLeft, ChevronRight, ChevronDown, Check, Star,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Check, Star,
   Sparkles, X, ArrowLeft, Lock, Shield,
+  Calendar, CalendarPlus, ChefHat, Circle, Download, ShoppingCart, Mail, Pencil, AlertTriangle,
 } from "lucide-react";
 import { useTierStatus } from "@/hooks/use-tier";
-import type { UserMeal, Calculation } from "@shared/schema";
-import { RECIPES } from "@/components/results-display";
+import type { UserMeal, Calculation, SavedMealPlan, UserPreferences } from "@shared/schema";
+import { RECIPES, exportMealPlanToPDF, exportShoppingListToPDF, buildShoppingList } from "@/components/results-display";
 import {
   type MealSlot, type FoodLogEntry,
   SLOT_LABELS, SLOT_ICONS, SLOT_COLORS, ALL_SLOTS,
@@ -23,6 +24,9 @@ import {
 } from "@/components/food-log-shared";
 import { FoodLogDrawer } from "@/components/food-log-drawer";
 import { TemplateSuggestions } from "@/components/template-suggestions";
+import { SavedWeeklyView, SavedDailyView, PHASE_STYLES, buildCalcStub } from "@/components/saved-meal-plans";
+import { getMonday, addDays, toDateStr } from "@/components/results-pdf";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface DiaryProps {
   dailyCaloriesTarget?: number;
@@ -103,6 +107,20 @@ function DiaryContent({
   const [weeklyInsightLoading, setWeeklyInsightLoading] = useState(false);
   const [weeklyInsightKey, setWeeklyInsightKey] = useState<string | null>(null);
 
+  const [diaryPlanExpanded, setDiaryPlanExpanded] = useState(false);
+  const [diaryPlanEditingName, setDiaryPlanEditingName] = useState(false);
+  const [diaryPlanEditName, setDiaryPlanEditName] = useState("");
+  const [diaryShoppingDialogOpen, setDiaryShoppingDialogOpen] = useState(false);
+  const [diaryShoppingDays, setDiaryShoppingDays] = useState("7");
+  const [diaryEmailDialogOpen, setDiaryEmailDialogOpen] = useState(false);
+  const [diaryEmailDays, setDiaryEmailDays] = useState("7");
+  const [diaryEmailingPlan, setDiaryEmailingPlan] = useState(false);
+  const [diaryScheduleOpen, setDiaryScheduleOpen] = useState(false);
+  const [diaryScheduleWeekStart, setDiaryScheduleWeekStart] = useState(() => getMonday(toDateStr(new Date())));
+  const [diaryScheduleDate, setDiaryScheduleDate] = useState(() => toDateStr(new Date()));
+  const [diaryMismatchInfo, setDiaryMismatchInfo] = useState<{ storedPhase: string; targetPhase: string } | null>(null);
+  const [diaryDuplicateInfo, setDiaryDuplicateInfo] = useState<{ count: number } | null>(null);
+
   const isToday = selectedDate === today;
   const weekRange = getWeekRange(weekOffset);
 
@@ -126,6 +144,130 @@ function DiaryContent({
       return res.json();
     },
     enabled: view === "weekly",
+  });
+
+  const { data: savedPlans = [] } = useQuery<SavedMealPlan[]>({
+    queryKey: ["/api/saved-meal-plans"],
+    queryFn: async () => {
+      const res = await fetch("/api/saved-meal-plans", { credentials: "include" });
+      if (res.status === 401) return [];
+      if (!res.ok) throw new Error("Failed to load saved plans");
+      return res.json();
+    },
+    enabled: view === "weekly",
+  });
+
+  const { data: userPrefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
+  const showCycleBanner = !!(userPrefs?.cycleTrackingEnabled && userPrefs?.lastPeriodDate);
+
+  const weekMonday = weekRange.from;
+  const weekSunday = weekRange.to;
+  const weekPlan: SavedMealPlan | null = (() => {
+    const matches = savedPlans.filter(p => {
+      const pd = p.planData as any;
+      if (p.planType === 'weekly' && pd.weekStartDate) {
+        return getMonday(pd.weekStartDate) === weekMonday;
+      }
+      if (p.planType === 'daily' && pd.targetDate) {
+        return pd.targetDate >= weekMonday && pd.targetDate <= weekSunday;
+      }
+      if (pd.planType === 'multi-daily' && pd.days) {
+        return Object.keys(pd.days).some((d: string) => d >= weekMonday && d <= weekSunday);
+      }
+      if (pd.targetDates && Array.isArray(pd.targetDates)) {
+        return pd.targetDates.some((d: string) => d >= weekMonday && d <= weekSunday);
+      }
+      return false;
+    });
+    if (matches.length === 0) return null;
+    return matches.reduce((latest, p) => {
+      const la = latest.createdAt ? new Date(latest.createdAt).getTime() : 0;
+      const pa = p.createdAt ? new Date(p.createdAt).getTime() : 0;
+      return pa > la ? p : latest;
+    });
+  })();
+
+  const diaryPlanRenameMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: number; name: string }) => {
+      const trimmed = name.trim();
+      if (!trimmed) throw new Error("Name cannot be empty");
+      const res = await apiRequest("PATCH", `/api/saved-meal-plans/${id}/name`, { name: trimmed });
+      if (!res.ok) throw new Error("Failed to rename");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/saved-meal-plans"] });
+      setDiaryPlanEditingName(false);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "Failed to rename plan", variant: "destructive" });
+    },
+  });
+
+  const diaryPlanDeleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/saved-meal-plans/${id}`, undefined);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/saved-meal-plans"] });
+      setDiaryPlanExpanded(false);
+    },
+    onError: () => {
+      toast({ title: "Failed to delete plan", variant: "destructive" });
+    },
+  });
+
+  const diaryPlanEmailMutation = useMutation({
+    mutationFn: async ({ id, shoppingList }: { id: number; shoppingList?: Record<string, Array<{ item: string; quantity: string }>> }) => {
+      setDiaryEmailingPlan(true);
+      const res = await apiRequest("POST", `/api/saved-meal-plans/${id}/email`, { shoppingList });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || "Failed to send email");
+      }
+    },
+    onSuccess: () => {
+      toast({ title: "Plan emailed!", description: "Check your inbox for the meal plan." });
+      setDiaryEmailingPlan(false);
+      setDiaryEmailDialogOpen(false);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "Failed to send email", variant: "destructive" });
+      setDiaryEmailingPlan(false);
+    },
+  });
+
+  const diaryScheduleMutation = useMutation({
+    mutationFn: async ({ planId, targetDate, weekStartDate, force, allowDuplicate }: { planId: number; targetDate?: string; weekStartDate?: string; force?: boolean; allowDuplicate?: boolean }) => {
+      const res = await apiRequest("POST", `/api/saved-meal-plans/${planId}/schedule`, { targetDate, weekStartDate, force, allowDuplicate });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || "Failed to schedule plan");
+      }
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      if (data.mismatch) {
+        setDiaryMismatchInfo({ storedPhase: data.storedPhase, targetPhase: data.targetPhase });
+        return;
+      }
+      if (data.duplicate) {
+        setDiaryDuplicateInfo({ count: data.duplicateCount });
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/food-log-week"] });
+      const dateRange = weekPlan?.planType === 'weekly' && variables.weekStartDate
+        ? `${new Date(variables.weekStartDate + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${new Date(addDays(variables.weekStartDate, 6) + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
+        : variables.targetDate ? new Date(variables.targetDate + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : 'today';
+      toast({ title: "Meals scheduled!", description: `${data.entryCount} meals added to your food log for ${dateRange}.` });
+      setDiaryScheduleOpen(false);
+      setDiaryMismatchInfo(null);
+      setDiaryDuplicateInfo(null);
+    },
+    onError: (err: any) => {
+      toast({ title: err.message || "Failed to schedule plan", variant: "destructive" });
+    },
   });
 
   const { data: userRecipes = [] } = useQuery<{ items: UserMeal[] }, Error, UserMeal[]>({
@@ -246,6 +388,13 @@ function DiaryContent({
     } else {
       setExpandedDays(new Set());
     }
+    setDiaryPlanExpanded(false);
+    setDiaryPlanEditingName(false);
+    setDiaryShoppingDialogOpen(false);
+    setDiaryEmailDialogOpen(false);
+    setDiaryScheduleOpen(false);
+    setDiaryMismatchInfo(null);
+    setDiaryDuplicateInfo(null);
   }
 
   async function handleFetchWeeklyInsights() {
@@ -598,6 +747,382 @@ function DiaryContent({
                 sugarTarget={dailySugarTarget ? dailySugarTarget * 7 : undefined}
                 saturatedFatTarget={dailySaturatedFatTarget ? dailySaturatedFatTarget * 7 : undefined}
               />
+
+              {weekPlan && (() => {
+                const planData = weekPlan.planData as any;
+                const totalCal = weekPlan.planType === 'weekly' ? planData?.weekTotalCalories : planData?.dayTotalCalories;
+                const totalProtein = weekPlan.planType === 'weekly' ? planData?.weekTotalProtein : planData?.dayTotalProtein;
+
+                let cyclePhase: string | null = null;
+                if (planData?.cyclePhase) {
+                  cyclePhase = planData.cyclePhase;
+                } else if (planData?.cyclePhaseByDay) {
+                  const phases = Object.values(planData.cyclePhaseByDay).filter(Boolean) as string[];
+                  cyclePhase = phases[0] ?? null;
+                } else if (planData?.cyclePhaseByDate) {
+                  const phases = Object.values(planData.cyclePhaseByDate).filter(Boolean) as string[];
+                  cyclePhase = phases[0] ?? null;
+                }
+                const ps = cyclePhase && PHASE_STYLES[cyclePhase] ? PHASE_STYLES[cyclePhase] : null;
+
+                return (
+                  <div className="mb-4 bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden" data-testid="card-diary-week-plan">
+                    <button
+                      onClick={() => setDiaryPlanExpanded(prev => !prev)}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-zinc-50 transition-colors text-left"
+                      data-testid="button-diary-plan-toggle"
+                    >
+                      <CalendarDays className="w-4 h-4 text-zinc-400 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-semibold text-zinc-900 truncate block">{weekPlan.name}</span>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${weekPlan.planType === 'weekly' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+                            <Calendar className="w-2.5 h-2.5" />
+                            {weekPlan.planType === 'weekly' ? 'Weekly' : 'Daily'}
+                          </span>
+                          <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${weekPlan.mealStyle === 'michelin' ? 'bg-yellow-50 text-yellow-700' : weekPlan.mealStyle === 'gourmet' ? 'bg-purple-50 text-purple-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                            <ChefHat className="w-2.5 h-2.5" />
+                            {weekPlan.mealStyle === 'michelin' ? 'Michelin' : weekPlan.mealStyle === 'gourmet' ? 'Gourmet' : 'Simple'}
+                          </span>
+                          {showCycleBanner && ps && (
+                            <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${ps.bg} ${ps.text} ${ps.border}`}>
+                              <Circle className="w-2 h-2" />
+                              {ps.label}
+                            </span>
+                          )}
+                          {planData?.cycleOptimised === false && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-700">
+                              <AlertTriangle className="w-2 h-2" />
+                              Not cycle-optimised
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {(totalCal || totalProtein) && (
+                        <div className="text-right shrink-0">
+                          {totalCal && <p className="text-[10px] font-bold text-zinc-700">{totalCal.toLocaleString()} kcal</p>}
+                          {totalProtein && <p className="text-[10px] text-zinc-500">{totalProtein}g protein</p>}
+                        </div>
+                      )}
+                      {diaryPlanExpanded ? (
+                        <ChevronUp className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                      )}
+                    </button>
+
+                    <AnimatePresence>
+                      {diaryPlanExpanded && planData && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="border-t border-zinc-100 px-3.5 py-3">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex-1 min-w-0">
+                                {diaryPlanEditingName ? (
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      value={diaryPlanEditName}
+                                      onChange={e => setDiaryPlanEditName(e.target.value)}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') diaryPlanRenameMutation.mutate({ id: weekPlan.id, name: diaryPlanEditName });
+                                        if (e.key === 'Escape') setDiaryPlanEditingName(false);
+                                      }}
+                                      className="flex-1 text-xs font-semibold px-2 py-1 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900 min-w-0"
+                                      autoFocus
+                                      data-testid="input-diary-plan-rename"
+                                    />
+                                    <button
+                                      onClick={() => diaryPlanRenameMutation.mutate({ id: weekPlan.id, name: diaryPlanEditName })}
+                                      disabled={diaryPlanRenameMutation.isPending}
+                                      className="p-1 text-zinc-600 hover:bg-zinc-100 rounded-lg"
+                                      data-testid="button-diary-plan-rename-confirm"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => setDiaryPlanEditingName(false)}
+                                      className="p-1 text-zinc-400 hover:bg-zinc-100 rounded-lg"
+                                      data-testid="button-diary-plan-rename-cancel"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => { setDiaryPlanEditName(weekPlan.name); setDiaryPlanEditingName(true); }}
+                                    className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-700 transition-colors"
+                                    data-testid="button-diary-plan-rename"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                    Rename
+                                  </button>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => { if (confirm("Delete this plan?")) diaryPlanDeleteMutation.mutate(weekPlan.id); }}
+                                disabled={diaryPlanDeleteMutation.isPending}
+                                className="p-1 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                data-testid="button-diary-plan-delete"
+                              >
+                                {diaryPlanDeleteMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                              </button>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                              <button
+                                onClick={() => {
+                                  if (weekPlan.planType === 'daily') {
+                                    setDiaryShoppingDialogOpen(true);
+                                    setDiaryShoppingDays("7");
+                                  } else {
+                                    exportShoppingListToPDF(planData, buildCalcStub(weekPlan));
+                                  }
+                                }}
+                                className="flex items-center gap-1 px-2 py-1 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg font-medium text-[10px] transition-colors"
+                                data-testid="button-diary-plan-shopping"
+                              >
+                                <ShoppingCart className="w-3 h-3" />
+                                Shopping List
+                              </button>
+                              <button
+                                onClick={() => exportMealPlanToPDF(planData, buildCalcStub(weekPlan))}
+                                className="flex items-center gap-1 px-2 py-1 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg font-medium text-[10px] transition-colors"
+                                data-testid="button-diary-plan-pdf"
+                              >
+                                <Download className="w-3 h-3" />
+                                Export PDF
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (weekPlan.planType === 'daily') {
+                                    setDiaryEmailDialogOpen(true);
+                                    setDiaryEmailDays("7");
+                                  } else {
+                                    const shoppingList = buildShoppingList(planData);
+                                    diaryPlanEmailMutation.mutate({ id: weekPlan.id, shoppingList });
+                                  }
+                                }}
+                                disabled={diaryEmailingPlan}
+                                className="flex items-center gap-1 px-2 py-1 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg font-medium text-[10px] transition-colors disabled:opacity-50"
+                                data-testid="button-diary-plan-email"
+                              >
+                                {diaryEmailingPlan ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
+                                Email Plan
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setDiaryScheduleOpen(prev => !prev);
+                                  setDiaryScheduleWeekStart(getMonday(toDateStr(new Date())));
+                                  setDiaryScheduleDate(toDateStr(new Date()));
+                                }}
+                                className={`flex items-center gap-1 px-2 py-1 rounded-lg font-medium text-[10px] transition-colors ${diaryScheduleOpen ? 'bg-zinc-900 text-white' : 'border border-zinc-200 text-zinc-700 hover:bg-zinc-50'}`}
+                                data-testid="button-diary-plan-schedule"
+                              >
+                                <CalendarPlus className="w-3 h-3" />
+                                Schedule
+                              </button>
+                            </div>
+
+                            {diaryShoppingDialogOpen && (
+                              <div className="flex items-center gap-1.5 mb-3 p-2 bg-zinc-50 rounded-lg border border-zinc-200">
+                                <span className="text-[10px] text-zinc-600 font-medium">Scale for</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={30}
+                                  value={diaryShoppingDays}
+                                  onChange={e => setDiaryShoppingDays(e.target.value)}
+                                  className="w-14 px-1.5 py-0.5 text-[10px] border border-zinc-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                                  data-testid="input-diary-plan-shopping-days"
+                                />
+                                <span className="text-[10px] text-zinc-600 font-medium">days</span>
+                                <button
+                                  onClick={() => {
+                                    exportShoppingListToPDF(planData, buildCalcStub(weekPlan), parseInt(diaryShoppingDays) || 1);
+                                    setDiaryShoppingDialogOpen(false);
+                                  }}
+                                  className="px-2 py-0.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-[10px] font-medium transition-colors"
+                                  data-testid="button-diary-plan-shopping-export"
+                                >
+                                  Export
+                                </button>
+                                <button
+                                  onClick={() => setDiaryShoppingDialogOpen(false)}
+                                  className="p-0.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+
+                            {diaryEmailDialogOpen && (
+                              <div className="flex items-center gap-1.5 mb-3 p-2 bg-zinc-50 rounded-lg border border-zinc-200">
+                                <span className="text-[10px] text-zinc-600 font-medium">Scale shopping list for</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={30}
+                                  value={diaryEmailDays}
+                                  onChange={e => setDiaryEmailDays(e.target.value)}
+                                  className="w-14 px-1.5 py-0.5 text-[10px] border border-zinc-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                                  data-testid="input-diary-plan-email-days"
+                                />
+                                <span className="text-[10px] text-zinc-600 font-medium">days</span>
+                                <button
+                                  onClick={() => {
+                                    const d = Math.max(1, parseInt(diaryEmailDays) || 1);
+                                    const shoppingList = buildShoppingList(planData, d);
+                                    diaryPlanEmailMutation.mutate({ id: weekPlan.id, shoppingList });
+                                  }}
+                                  disabled={diaryEmailingPlan}
+                                  className="px-2 py-0.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-[10px] font-medium transition-colors disabled:opacity-50 flex items-center gap-0.5"
+                                  data-testid="button-diary-plan-email-confirm"
+                                >
+                                  {diaryEmailingPlan && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+                                  Send
+                                </button>
+                                <button
+                                  onClick={() => setDiaryEmailDialogOpen(false)}
+                                  className="p-0.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+
+                            {diaryScheduleOpen && (
+                              <div className="mb-3 p-2 bg-zinc-50 rounded-lg border border-zinc-200">
+                                {weekPlan.planType === 'weekly' ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      onClick={() => setDiaryScheduleWeekStart(addDays(diaryScheduleWeekStart, -7))}
+                                      className="p-0.5 hover:bg-zinc-200 rounded-lg transition-colors"
+                                      data-testid="button-diary-schedule-prev-week"
+                                    >
+                                      <ChevronLeft className="w-3.5 h-3.5 text-zinc-600" />
+                                    </button>
+                                    <span className="text-[10px] font-medium text-zinc-700 flex-1 text-center" data-testid="text-diary-schedule-week-range">
+                                      {new Date(diaryScheduleWeekStart + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – {new Date(addDays(diaryScheduleWeekStart, 6) + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                                    </span>
+                                    <button
+                                      onClick={() => setDiaryScheduleWeekStart(addDays(diaryScheduleWeekStart, 7))}
+                                      className="p-0.5 hover:bg-zinc-200 rounded-lg transition-colors"
+                                      data-testid="button-diary-schedule-next-week"
+                                    >
+                                      <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+                                    </button>
+                                    <button
+                                      onClick={() => diaryScheduleMutation.mutate({ planId: weekPlan.id, weekStartDate: diaryScheduleWeekStart })}
+                                      disabled={diaryScheduleMutation.isPending}
+                                      className="px-2 py-0.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-[10px] font-medium transition-colors disabled:opacity-50 flex items-center gap-0.5"
+                                      data-testid="button-diary-schedule-confirm"
+                                    >
+                                      {diaryScheduleMutation.isPending && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+                                      Schedule
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="date"
+                                      value={diaryScheduleDate}
+                                      onChange={e => setDiaryScheduleDate(e.target.value)}
+                                      className="flex-1 px-1.5 py-0.5 text-[10px] border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                                      data-testid="input-diary-schedule-date"
+                                    />
+                                    <button
+                                      onClick={() => diaryScheduleMutation.mutate({ planId: weekPlan.id, targetDate: diaryScheduleDate })}
+                                      disabled={diaryScheduleMutation.isPending}
+                                      className="px-2 py-0.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-[10px] font-medium transition-colors disabled:opacity-50 flex items-center gap-0.5"
+                                      data-testid="button-diary-schedule-confirm"
+                                    >
+                                      {diaryScheduleMutation.isPending && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+                                      Schedule
+                                    </button>
+                                  </div>
+                                )}
+
+                                {diaryMismatchInfo && (
+                                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                                    <p className="text-[10px] text-amber-800 mb-1.5">
+                                      This plan was made for <span className="font-semibold">{diaryMismatchInfo.storedPhase}</span> phase, but the target date falls in <span className="font-semibold">{diaryMismatchInfo.targetPhase}</span> phase.
+                                    </p>
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        onClick={() => {
+                                          if (weekPlan.planType === 'weekly') {
+                                            diaryScheduleMutation.mutate({ planId: weekPlan.id, weekStartDate: diaryScheduleWeekStart, force: true });
+                                          } else {
+                                            diaryScheduleMutation.mutate({ planId: weekPlan.id, targetDate: diaryScheduleDate, force: true });
+                                          }
+                                        }}
+                                        disabled={diaryScheduleMutation.isPending}
+                                        className="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-medium transition-colors disabled:opacity-50"
+                                        data-testid="button-diary-schedule-force"
+                                      >
+                                        Schedule anyway
+                                      </button>
+                                      <button
+                                        onClick={() => { setDiaryMismatchInfo(null); setDiaryScheduleOpen(false); }}
+                                        className="px-2 py-0.5 text-zinc-600 hover:bg-zinc-100 rounded-lg text-[10px] font-medium transition-colors"
+                                        data-testid="button-diary-schedule-cancel-mismatch"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {diaryDuplicateInfo && (
+                                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                                    <p className="text-[10px] text-amber-800 mb-1.5">
+                                      {diaryDuplicateInfo.count} meal{diaryDuplicateInfo.count !== 1 ? 's' : ''} from this plan already exist in your food log for the selected date(s).
+                                    </p>
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        onClick={() => {
+                                          if (weekPlan.planType === 'weekly') {
+                                            diaryScheduleMutation.mutate({ planId: weekPlan.id, weekStartDate: diaryScheduleWeekStart, force: true, allowDuplicate: true });
+                                          } else {
+                                            diaryScheduleMutation.mutate({ planId: weekPlan.id, targetDate: diaryScheduleDate, force: true, allowDuplicate: true });
+                                          }
+                                        }}
+                                        disabled={diaryScheduleMutation.isPending}
+                                        className="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-medium transition-colors disabled:opacity-50"
+                                        data-testid="button-diary-schedule-allow-duplicate"
+                                      >
+                                        Add anyway
+                                      </button>
+                                      <button
+                                        onClick={() => { setDiaryDuplicateInfo(null); setDiaryScheduleOpen(false); }}
+                                        className="px-2 py-0.5 text-zinc-600 hover:bg-zinc-100 rounded-lg text-[10px] font-medium transition-colors"
+                                        data-testid="button-diary-schedule-cancel-duplicate"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {weekPlan.planType === 'daily' ? (
+                              <SavedDailyView plan={planData} />
+                            ) : (
+                              <SavedWeeklyView plan={planData} />
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })()}
 
               {weekTotalCal > 0 && (
                 <div className="mb-4">
