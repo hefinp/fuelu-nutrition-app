@@ -65,11 +65,11 @@ export function FavouritesWidget() {
   return (
     <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
       <div className="px-6 pt-6 pb-4 flex items-center gap-3">
-        <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center shrink-0">
-          <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+        <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg shrink-0">
+          <Star className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="font-display font-semibold text-zinc-900 text-base leading-tight">Favourites</h2>
+          <h3 className="text-sm font-display font-bold text-zinc-900">Favourites</h3>
           <p className="text-xs text-zinc-400 mt-0.5">Your saved meals, one tap to log</p>
         </div>
       </div>

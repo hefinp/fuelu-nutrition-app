@@ -128,7 +128,7 @@ export function MacroComplianceWidget({
           <Target className="w-5 h-5" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-zinc-900">Macro Compliance</h3>
+          <h3 className="text-sm font-display font-bold text-zinc-900">Macro Compliance</h3>
           <p className="text-xs text-zinc-400">Past 7 days vs your targets (±10%)</p>
         </div>
       </div>

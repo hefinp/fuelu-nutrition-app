@@ -107,8 +107,8 @@ export function RecipeLibrary() {
           <BookOpen className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-zinc-900">My Recipes</h2>
-          <p className="text-xs text-zinc-500">Import recipes from the web or a photo</p>
+          <h3 className="text-sm font-display font-bold text-zinc-900">My Recipes</h3>
+          <p className="text-xs text-zinc-400">Import recipes from the web or a photo</p>
         </div>
       </div>
       <div className="flex justify-end mb-5">

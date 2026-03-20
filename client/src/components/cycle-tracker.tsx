@@ -269,7 +269,7 @@ export function CycleTracker() {
               <Heart className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-zinc-900">Cycle Tracker</h3>
+              <h3 className="text-sm font-display font-bold text-zinc-900">Cycle Tracker</h3>
               <p className="text-xs text-zinc-400">Cycle-aware nutrition insights</p>
             </div>
           </div>
@@ -300,7 +300,7 @@ export function CycleTracker() {
             <Circle className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-zinc-900">Cycle Tracker</h3>
+            <h3 className="text-sm font-display font-bold text-zinc-900">Cycle Tracker</h3>
             <p className="text-xs text-zinc-400">Meal plans adapt to your phase</p>
           </div>
         </div>

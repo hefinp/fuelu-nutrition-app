@@ -130,8 +130,8 @@ export function HydrationTracker() {
             <Droplets className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-zinc-900">Hydration</h2>
-            <p className="text-xs text-zinc-500">
+            <h3 className="text-sm font-display font-bold text-zinc-900">Hydration</h3>
+            <p className="text-xs text-zinc-400">
               Goal: {goalDisplay} per day
               {cycleHydrationBoost > 0 && (
                 <span className="ml-1.5 text-rose-500 font-medium">

@@ -817,7 +817,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
           <UtensilsCrossed className="w-5 h-5" />
         </div>
-        <h2 className="text-lg font-display font-bold text-zinc-900">Meal Planning</h2>
+        <h3 className="text-sm font-display font-bold text-zinc-900">Meal Planning</h3>
       </div>
 
       <div className="flex bg-zinc-100 rounded-xl p-1 mb-6">

@@ -164,7 +164,7 @@ export function MyMealsFoodWidget() {
               <UtensilsCrossed className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="font-display font-semibold text-zinc-900 text-base leading-tight">My Meals & Food</h2>
+              <h3 className="text-sm font-display font-bold text-zinc-900">My Meals & Food</h3>
               <p className="text-xs text-zinc-400 mt-0.5">Your saved meals, recipes & foods</p>
             </div>
           </div>

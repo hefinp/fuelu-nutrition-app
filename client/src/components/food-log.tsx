@@ -123,8 +123,8 @@ export function FoodLog({
           <ClipboardList className="w-5 h-5" />
         </div>
         <div>
-          <h2 className="text-lg font-display font-bold text-zinc-900">Food Log</h2>
-          <p className="text-xs text-zinc-500">Track what you eat today</p>
+          <h3 className="text-sm font-display font-bold text-zinc-900">Food Log</h3>
+          <p className="text-xs text-zinc-400">Track what you eat today</p>
         </div>
       </div>
       <div className="flex justify-end mb-4">
