@@ -231,16 +231,23 @@ export function FoodLogDrawer({
 
   useEffect(() => {
     if (open) {
+      const scrollY = window.scrollY;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
       document.body.style.overflow = "hidden";
       document.documentElement.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-      document.documentElement.style.overflow = "";
+      return () => {
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        document.body.style.overflow = "";
+        document.documentElement.style.overflow = "";
+        window.scrollTo(0, scrollY);
+      };
     }
-    return () => {
-      document.body.style.overflow = "";
-      document.documentElement.style.overflow = "";
-    };
   }, [open]);
 
   const { data: savedPlans = [], isLoading: plansLoading } = useQuery<SavedMealPlan[]>({
@@ -658,8 +665,8 @@ export function FoodLogDrawer({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4" style={overlayStyle} data-testid="food-log-drawer">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={resetFormAndClose} />
+    <div className="fixed inset-0 z-[60] flex items-center justify-center sm:p-4" style={overlayStyle} data-testid="food-log-drawer">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={resetFormAndClose} style={{ touchAction: "none" }} />
       <div className="relative w-full h-full bg-white flex flex-col overflow-hidden shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-2xl" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0">
           <h2 className="text-lg font-display font-bold text-zinc-900">Log Meal</h2>
