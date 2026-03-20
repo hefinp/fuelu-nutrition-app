@@ -16,6 +16,7 @@ import {
 } from "@/components/food-log-shared";
 import { FoodLogDrawer } from "@/components/food-log-drawer";
 import { TemplateSuggestions } from "@/components/template-suggestions";
+import { ConfirmDialog, useConfirmDialog } from "@/components/confirm-dialog";
 import { useActiveFlow } from "@/contexts/active-flow-context";
 
 export type { PrefillEntry } from "@/components/food-log-shared";
@@ -41,6 +42,7 @@ export function FoodLog({
   const { setFlowActive } = useActiveFlow();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { confirm, dialogProps } = useConfirmDialog();
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -267,7 +269,7 @@ export function FoodLog({
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(entry.id); }}
+                                  onClick={(e) => { e.stopPropagation(); confirm({ title: "Delete entry?", description: `Remove "${entry.mealName}" from your food log?`, confirmLabel: "Delete", onConfirm: () => deleteMutation.mutate(entry.id) }); }}
                                   disabled={isDeleting}
                                   className="p-1 rounded-md text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0 disabled:opacity-50"
                                   data-testid={`button-delete-entry-${entry.id}`}
@@ -336,6 +338,8 @@ export function FoodLog({
           onClose={() => setSelectedEntry(null)}
         />
       )}
+
+      <ConfirmDialog {...dialogProps} />
     </div>
   );
 }
