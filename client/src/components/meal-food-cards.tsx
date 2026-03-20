@@ -82,9 +82,12 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
 
   return (
     <div className="group relative rounded-xl border border-zinc-100 overflow-hidden">
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
-        className="w-full flex items-center gap-3 p-3 hover:bg-zinc-50 transition-colors text-left"
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
+        className="w-full flex items-center gap-3 p-3 hover:bg-zinc-50 transition-colors text-left cursor-pointer"
         data-testid={`button-meal-${meal.id}`}
       >
         <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0">
@@ -131,7 +134,7 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
             {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </div>
         </div>
-      </button>
+      </div>
 
       {isOpen && (
         <div className="px-4 pb-4 bg-zinc-50 border-t border-zinc-100">
@@ -318,9 +321,12 @@ export function FoodCard({ food, isOpen, onToggle, onLog, onEdit, onDelete, isLo
 
   return (
     <div className="group relative rounded-xl border border-zinc-100 overflow-hidden">
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
-        className="w-full flex items-center gap-3 p-3 hover:bg-zinc-50 transition-colors text-left"
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
+        className="w-full flex items-center gap-3 p-3 hover:bg-zinc-50 transition-colors text-left cursor-pointer"
         data-testid={`button-food-${food.id}`}
       >
         <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center shrink-0">
@@ -354,7 +360,7 @@ export function FoodCard({ food, isOpen, onToggle, onLog, onEdit, onDelete, isLo
             {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </div>
         </div>
-      </button>
+      </div>
 
       {isOpen && (
         <div className="px-4 pb-4 bg-zinc-50 border-t border-zinc-100">
