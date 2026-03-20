@@ -33,6 +33,7 @@ export function FoodLog({
   const today = todayStr();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [expandedSlots, setExpandedSlots] = useState<Set<string>>(new Set());
+  const [detailExpanded, setDetailExpanded] = useState(false);
   const { setFlowActive } = useActiveFlow();
 
   useEffect(() => {
@@ -78,6 +79,16 @@ export function FoodLog({
       next.has(slot) ? next.delete(slot) : next.add(slot);
       return next;
     });
+  }
+
+  function toggleAllDetail() {
+    const next = !detailExpanded;
+    setDetailExpanded(next);
+    if (next) {
+      setExpandedSlots(new Set(filledSlots));
+    } else {
+      setExpandedSlots(new Set());
+    }
   }
 
   return (
@@ -235,7 +246,24 @@ export function FoodLog({
         </div>
       )}
 
-      <div className="mt-4 text-center">
+      <div className="mt-4 flex items-center justify-between">
+        {dailyEntries.length > 0 ? (
+          <button
+            type="button"
+            onClick={toggleAllDetail}
+            className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
+            data-testid="button-toggle-detail"
+          >
+            {detailExpanded ? "Less detail" : "More detail"}
+            <ChevronDown
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                detailExpanded ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+        ) : (
+          <span />
+        )}
         <Link
           href={`/diary?date=${today}`}
           className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
