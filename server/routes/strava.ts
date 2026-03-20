@@ -195,6 +195,25 @@ router.get("/api/strava/activities", async (req, res) => {
 
     const activities = (await activitiesResp.json()) as StravaActivityRaw[];
 
+    const detailResults = await Promise.allSettled(
+      activities.map((a) =>
+        fetch(`https://www.strava.com/api/v3/activities/${a.id}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }).then((r) => (r.ok ? r.json() : null))
+      )
+    );
+
+    const detailCalories = new Map<number, number>();
+    for (let i = 0; i < activities.length; i++) {
+      const result = detailResults[i];
+      if (result.status === "fulfilled" && result.value) {
+        const cal = (result.value as { calories?: number }).calories;
+        if (cal != null && cal > 0) {
+          detailCalories.set(activities[i].id, cal);
+        }
+      }
+    }
+
     const mapped = activities.map((a) => ({
       id: a.id,
       name: a.name,
@@ -204,11 +223,13 @@ router.get("/api/strava/activities", async (req, res) => {
       movingTime: a.moving_time,
       distance: a.distance,
       totalElevationGain: a.total_elevation_gain,
-      calories: a.calories || 0,
+      calories: detailCalories.get(a.id) ?? a.calories ?? 0,
       averageHeartrate: a.average_heartrate || null,
       maxHeartrate: a.max_heartrate || null,
       averageSpeed: a.average_speed,
     }));
+
+    mapped.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
 
     let totalCalories = 0;
     let totalDistance = 0;
