@@ -39,7 +39,7 @@ export function FoodLogDrawer({
 }: FoodLogDrawerProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { overlayStyle, panelMaxHeight } = useMobileViewport();
+  const { overlayStyle, panelMaxHeight } = useMobileViewport(1.0);
 
   const [formTab, setFormTab] = useState<"manual" | "plan" | "search" | "scan" | "ai" | "restaurants">("search");
   const [formSource, setFormSource] = useState<string | null>(null);
@@ -658,9 +658,9 @@ export function FoodLogDrawer({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-x-0 top-0 bottom-0 z-50 flex items-center justify-center p-4 max-h-[100dvh]" style={overlayStyle} data-testid="food-log-drawer">
-      <div className="absolute inset-0 bg-black/50" onClick={resetFormAndClose} />
-      <div className="relative w-full max-w-lg bg-white rounded-2xl max-h-[92dvh] flex flex-col overflow-hidden shadow-2xl" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4" style={overlayStyle} data-testid="food-log-drawer">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={resetFormAndClose} />
+      <div className="relative w-full h-full bg-white flex flex-col overflow-hidden shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-2xl" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0">
           <h2 className="text-lg font-display font-bold text-zinc-900">Log Meal</h2>
           <button

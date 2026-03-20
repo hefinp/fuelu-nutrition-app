@@ -92,7 +92,7 @@ export function TemplateSuggestions({ date }: Props) {
             <button
               onClick={() => addMutation.mutate(s)}
               disabled={addMutation.isPending}
-              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 transition-colors min-h-[32px] shrink-0"
+              className="flex items-center gap-1 px-3 py-1.5 bg-zinc-900 text-white text-xs font-medium rounded-lg hover:bg-zinc-800 transition-colors min-h-[32px] shrink-0"
               data-testid={`button-add-suggestion-${s.templateId}`}
             >
               {addMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}

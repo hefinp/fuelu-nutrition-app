@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Plus, ClipboardList, BookOpen, ChevronDown,
 } from "lucide-react";
@@ -188,36 +189,46 @@ export function FoodLog({
                   />
                 </button>
 
-                {isExpanded && (
-                  <div className="px-3 pb-2.5 border-t border-zinc-100">
-                    <div className="space-y-0.5 mt-2">
-                      {entries.map(entry => {
-                        const isPlanned = entry.confirmed === false;
-                        return (
-                          <div
-                            key={entry.id}
-                            className={`flex items-center justify-between py-1 px-1 rounded-lg ${
-                              isPlanned ? "opacity-55" : ""
-                            }`}
-                            data-testid={`log-entry-${entry.id}`}
-                          >
-                            <p className={`text-xs truncate flex-1 ${
-                              isPlanned ? "text-zinc-400 italic" : "text-zinc-600"
-                            }`}>
-                              {entry.mealName}
-                              {isPlanned && (
-                                <span className="ml-1 text-[10px] not-italic text-zinc-400">(Planned)</span>
-                              )}
-                            </p>
-                            <span className="text-[11px] text-zinc-500 font-medium ml-2 shrink-0">
-                              {entry.calories} kcal
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                <AnimatePresence initial={false}>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.22, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-3 pb-2.5 border-t border-zinc-100">
+                        <div className="space-y-1.5 mt-2">
+                          {entries.map(entry => {
+                            const isPlanned = entry.confirmed === false;
+                            return (
+                              <div
+                                key={entry.id}
+                                className={`flex items-center justify-between py-2 px-2.5 rounded-xl border border-zinc-100 bg-white hover:bg-zinc-50 transition-colors ${
+                                  isPlanned ? "opacity-55" : ""
+                                }`}
+                                data-testid={`log-entry-${entry.id}`}
+                              >
+                                <p className={`text-xs truncate flex-1 ${
+                                  isPlanned ? "text-zinc-400 italic" : "text-zinc-600"
+                                }`}>
+                                  {entry.mealName}
+                                  {isPlanned && (
+                                    <span className="ml-1 text-[10px] not-italic text-zinc-400">(Planned)</span>
+                                  )}
+                                </p>
+                                <span className="text-[11px] text-zinc-500 font-medium ml-2 shrink-0">
+                                  {entry.calories} kcal
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             );
           })}
