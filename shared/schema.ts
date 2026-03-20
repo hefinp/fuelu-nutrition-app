@@ -21,6 +21,7 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
+  username: text("username").unique(),
   passwordHash: text("password_hash"),
   provider: text("provider"),
   providerId: text("provider_id"),
@@ -43,6 +44,12 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const usernameSchema = z
+  .string()
+  .min(3, "Username must be at least 3 characters")
+  .max(20, "Username must be at most 20 characters")
+  .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens");
+
 export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   name: true,
@@ -51,11 +58,13 @@ export const insertUserSchema = createInsertSchema(users).pick({
   passwordHash: z.string().optional(),
   provider: z.string().optional(),
   providerId: z.string().optional(),
+  username: usernameSchema.optional(),
 });
 
 export const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
   name: z.string().min(2, "Name must be at least 2 characters"),
+  username: usernameSchema,
   password: z.string().min(6, "Password must be at least 6 characters"),
   inviteCode: z.string().optional(),
   nutritionistInviteToken: z.string().optional(),

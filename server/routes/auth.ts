@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import passport from "passport";
 import { storage } from "../storage";
-import { registerSchema, loginSchema, type UserPreferences, type User, nutritionistTierLimits, type NutritionistTier } from "@shared/schema";
+import { registerSchema, loginSchema, usernameSchema, type UserPreferences, type User, nutritionistTierLimits, type NutritionistTier } from "@shared/schema";
 import { computeTrialInfo } from "@shared/trial";
 import { authRateLimiter } from "../constants";
 import { sendEmail, buildPasswordResetEmailHtml } from "../email";
@@ -19,6 +19,19 @@ const router = Router();
 
 router.get("/api/auth/invite-required", (_req, res) => {
   res.json({ required: true });
+});
+
+router.get("/api/auth/check-username", async (req, res) => {
+  const username = (req.query.username as string ?? "").trim();
+  const parsed = usernameSchema.safeParse(username);
+  if (!parsed.success) {
+    return res.json({ available: false, message: parsed.error.errors[0].message });
+  }
+  const existing = await storage.getUserByUsername(username);
+  if (existing && existing.id !== req.session?.userId) {
+    return res.json({ available: false, message: "Username is already taken" });
+  }
+  return res.json({ available: true });
 });
 
 router.post("/api/auth/register", authRateLimiter, async (req, res) => {
@@ -66,8 +79,12 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
     if (existing) {
       return res.status(409).json({ message: "An account with this email already exists" });
     }
+    const existingUsername = await storage.getUserByUsername(input.username);
+    if (existingUsername) {
+      return res.status(409).json({ message: "This username is already taken" });
+    }
     const passwordHash = await bcrypt.hash(input.password, 12);
-    const user = await storage.createUser({ email: input.email, name: input.name, passwordHash });
+    const user = await storage.createUser({ email: input.email, name: input.name, username: input.username, passwordHash });
     const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
     await storage.updateUserPreferences(user.id, initialPrefs);
     if (!user.betaUser) {
@@ -238,8 +255,19 @@ router.post("/api/auth/oauth-invite", authRateLimiter, async (req, res) => {
     return res.status(400).json({ message: "Invalid or already-used invite code." });
   }
 
+  const oauthUsername = ((req.body.username as string) ?? "").trim();
+  const parsedUsername = usernameSchema.safeParse(oauthUsername);
+  if (!parsedUsername.success) {
+    return res.status(400).json({ message: parsedUsername.error.errors[0].message });
+  }
+  const existingUsername = await storage.getUserByUsername(oauthUsername);
+  if (existingUsername) {
+    return res.status(409).json({ message: "This username is already taken" });
+  }
+
   try {
     const user = await storage.findOrCreateOAuthUser(pending);
+    await storage.updateUserProfile(user.id, { username: oauthUsername });
     const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
     await storage.updateUserPreferences(user.id, initialPrefs);
     if (!user.betaUser && user.trialStatus === "none") {
@@ -321,13 +349,20 @@ router.put("/api/auth/profile", async (req, res) => {
     const input = z.object({
       name: z.string().min(2, "Name must be at least 2 characters").optional(),
       email: z.string().email("Invalid email address").optional(),
-    }).refine(data => data.name !== undefined || data.email !== undefined, {
-      message: "At least one of name or email must be provided",
+      username: usernameSchema.optional(),
+    }).refine(data => data.name !== undefined || data.email !== undefined || data.username !== undefined, {
+      message: "At least one of name, email, or username must be provided",
     }).parse(req.body);
     if (input.email) {
       const existing = await storage.getUserByEmail(input.email);
       if (existing && existing.id !== req.session.userId) {
         return res.status(400).json({ message: "Email already in use" });
+      }
+    }
+    if (input.username) {
+      const existing = await storage.getUserByUsername(input.username);
+      if (existing && existing.id !== req.session.userId) {
+        return res.status(400).json({ message: "Username is already taken" });
       }
     }
     const updated = await storage.updateUserProfile(req.session.userId, input);

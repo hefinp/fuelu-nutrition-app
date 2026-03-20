@@ -797,6 +797,16 @@ export async function runMigrations(): Promise<void> {
       )
     `);
 
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'username') THEN
+          ALTER TABLE users ADD COLUMN username TEXT UNIQUE;
+        END IF;
+      END $$
+    `);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_lower ON users (LOWER(username))`);
+
   } finally {
     client.release();
   }

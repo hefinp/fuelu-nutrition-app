@@ -53,7 +53,9 @@ export default function AccountPage() {
   });
 
   const [profileName, setProfileName] = useState("");
+  const [profileUsername, setProfileUsername] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState<{ checking: boolean; available?: boolean; message?: string }>({ checking: false });
   const [profileCountry, setProfileCountry] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -70,9 +72,37 @@ export default function AccountPage() {
   useEffect(() => {
     if (user) {
       setProfileName(user.name);
+      setProfileUsername(user.username ?? "");
       setProfileEmail(user.email);
     }
   }, [user]);
+
+  useEffect(() => {
+    const trimmed = profileUsername.trim();
+    if (!trimmed || trimmed.length < 3) {
+      setUsernameStatus({ checking: false });
+      return;
+    }
+    if (trimmed === user?.username) {
+      setUsernameStatus({ checking: false });
+      return;
+    }
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+      setUsernameStatus({ checking: false, available: false, message: "Only letters, numbers, underscores, and hyphens" });
+      return;
+    }
+    setUsernameStatus({ checking: true });
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(trimmed)}`);
+        const data = await res.json();
+        setUsernameStatus({ checking: false, available: data.available, message: data.message });
+      } catch {
+        setUsernameStatus({ checking: false });
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [profileUsername, user?.username]);
 
   useEffect(() => {
     if (userPreferences) {
@@ -82,7 +112,7 @@ export default function AccountPage() {
   }, [userPreferences]);
 
   const profileMutation = useMutation({
-    mutationFn: async (data: { name?: string; email?: string }) => {
+    mutationFn: async (data: { name?: string; email?: string; username?: string }) => {
       const res = await apiRequest("PUT", "/api/auth/profile", data);
       if (!res.ok) {
         const err = await res.json();
@@ -229,9 +259,11 @@ export default function AccountPage() {
 
   function handleProfileSave(e: React.FormEvent) {
     e.preventDefault();
-    const updates: { name?: string; email?: string } = {};
+    const updates: { name?: string; email?: string; username?: string } = {};
     if (profileName !== user!.name) updates.name = profileName;
     if (profileEmail !== user!.email) updates.email = profileEmail;
+    const trimmedUsername = profileUsername.trim();
+    if (trimmedUsername && trimmedUsername !== (user!.username ?? "")) updates.username = trimmedUsername;
     if (Object.keys(updates).length === 0) {
       toast({ title: "No changes", description: "Your profile is already up to date." });
       return;
@@ -303,6 +335,29 @@ export default function AccountPage() {
                   required
                   minLength={2}
                 />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-zinc-500">Username</label>
+                <input
+                  type="text"
+                  value={profileUsername}
+                  onChange={e => setProfileUsername(e.target.value)}
+                  className={`w-full px-3 py-2 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent ${usernameStatus.available === false ? "border-red-400" : usernameStatus.available === true ? "border-emerald-400" : "border-zinc-200"}`}
+                  data-testid="input-profile-username"
+                  minLength={3}
+                  maxLength={20}
+                  placeholder="your_username"
+                />
+                {usernameStatus.checking && (
+                  <p className="text-xs text-zinc-400">Checking availability...</p>
+                )}
+                {!usernameStatus.checking && usernameStatus.available === true && (
+                  <p className="text-xs text-emerald-600">Username is available</p>
+                )}
+                {!usernameStatus.checking && usernameStatus.available === false && usernameStatus.message && (
+                  <p className="text-xs text-red-600">{usernameStatus.message}</p>
+                )}
               </div>
 
               <div className="space-y-1">

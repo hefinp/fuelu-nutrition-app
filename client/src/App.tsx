@@ -21,6 +21,7 @@ import NutritionistRegisterPage from "@/pages/nutritionist-register";
 import NutritionistPortalPage from "@/pages/nutritionist-portal";
 import { useAuth } from "@/hooks/use-auth";
 import { TrialModal } from "@/components/trial-modal";
+import { UsernamePrompt } from "@/components/username-prompt";
 import { AdBanner } from "@/components/ad-banner";
 import { ActiveFlowProvider } from "@/contexts/active-flow-context";
 import type { TrialInfo } from "@shared/trial";
@@ -91,6 +92,7 @@ function App() {
         <ActiveFlowProvider>
           <Toaster />
           <TrialModalWrapper />
+          <UsernamePrompt />
           <Router />
           <AdBanner />
         </ActiveFlowProvider>

@@ -38,6 +38,7 @@ export default function AuthPage() {
 
   // Register form state
   const [regName, setRegName] = useState("");
+  const [regUsername, setRegUsername] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [regInviteCode, setRegInviteCode] = useState("");
@@ -46,15 +47,64 @@ export default function AuthPage() {
   const [showRegPw, setShowRegPw] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [confirmedAge, setConfirmedAge] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState<{ checking: boolean; available?: boolean; message?: string }>({ checking: false });
 
   // OAuth invite form state
   const [oauthInviteCode, setOauthInviteCode] = useState("");
+  const [oauthUsername, setOauthUsername] = useState("");
   const [oauthInviteError, setOauthInviteError] = useState("");
   const [isSubmittingOauthInvite, setIsSubmittingOauthInvite] = useState(false);
+  const [oauthUsernameStatus, setOauthUsernameStatus] = useState<{ checking: boolean; available?: boolean; message?: string }>({ checking: false });
 
   const { data: inviteConfig } = useQuery<{ required: boolean }>({
     queryKey: ["/api/auth/invite-required"],
   });
+
+  useEffect(() => {
+    const trimmed = regUsername.trim();
+    if (!trimmed || trimmed.length < 3) {
+      setUsernameStatus({ checking: false });
+      return;
+    }
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+      setUsernameStatus({ checking: false, available: false, message: "Only letters, numbers, underscores, and hyphens" });
+      return;
+    }
+    setUsernameStatus({ checking: true });
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(trimmed)}`);
+        const data = await res.json();
+        setUsernameStatus({ checking: false, available: data.available, message: data.message });
+      } catch {
+        setUsernameStatus({ checking: false });
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [regUsername]);
+
+  useEffect(() => {
+    const trimmed = oauthUsername.trim();
+    if (!trimmed || trimmed.length < 3) {
+      setOauthUsernameStatus({ checking: false });
+      return;
+    }
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+      setOauthUsernameStatus({ checking: false, available: false, message: "Only letters, numbers, underscores, and hyphens" });
+      return;
+    }
+    setOauthUsernameStatus({ checking: true });
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(trimmed)}`);
+        const data = await res.json();
+        setOauthUsernameStatus({ checking: false, available: data.available, message: data.message });
+      } catch {
+        setOauthUsernameStatus({ checking: false });
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [oauthUsername]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -75,6 +125,7 @@ export default function AuthPage() {
       await register({
         email: regEmail,
         name: regName,
+        username: regUsername.trim(),
         password: regPassword,
         inviteCode: nutritionistInviteToken ? undefined : (regInviteCode || undefined),
         nutritionistInviteToken: nutritionistInviteToken || undefined,
@@ -97,7 +148,7 @@ export default function AuthPage() {
     setOauthInviteError("");
     setIsSubmittingOauthInvite(true);
     try {
-      await apiRequest("POST", "/api/auth/oauth-invite", { inviteCode: oauthInviteCode });
+      await apiRequest("POST", "/api/auth/oauth-invite", { inviteCode: oauthInviteCode, username: oauthUsername.trim() });
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       setLocation("/dashboard");
     } catch (err: any) {
@@ -153,11 +204,34 @@ export default function AuthPage() {
             )}
 
             <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1.5">Username</label>
+              <input
+                type="text"
+                required
+                minLength={3}
+                maxLength={20}
+                value={oauthUsername}
+                onChange={e => { setOauthUsername(e.target.value); setOauthInviteError(""); }}
+                placeholder="your_username"
+                className={`w-full px-4 py-2.5 border rounded-xl text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent ${oauthUsernameStatus.available === false ? "border-red-400" : oauthUsernameStatus.available === true ? "border-emerald-400" : "border-zinc-200"}`}
+                data-testid="input-oauth-username"
+              />
+              {oauthUsernameStatus.checking && (
+                <p className="mt-1 text-xs text-zinc-400">Checking availability...</p>
+              )}
+              {!oauthUsernameStatus.checking && oauthUsernameStatus.available === true && (
+                <p className="mt-1 text-xs text-emerald-600">Username is available</p>
+              )}
+              {!oauthUsernameStatus.checking && oauthUsernameStatus.available === false && oauthUsernameStatus.message && (
+                <p className="mt-1 text-xs text-red-600">{oauthUsernameStatus.message}</p>
+              )}
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1.5">Invite Code</label>
               <input
                 type="text"
                 required
-                autoFocus
                 value={oauthInviteCode}
                 onChange={e => { setOauthInviteCode(e.target.value); setOauthInviteError(""); }}
                 placeholder="Enter your invite code"
@@ -382,6 +456,30 @@ export default function AuthPage() {
                   className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
                   data-testid="input-register-name"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Username</label>
+                <input
+                  type="text"
+                  required
+                  minLength={3}
+                  maxLength={20}
+                  value={regUsername}
+                  onChange={e => setRegUsername(e.target.value)}
+                  placeholder="your_username"
+                  className={`w-full px-4 py-2.5 border rounded-xl text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent ${usernameStatus.available === false ? "border-red-400" : usernameStatus.available === true ? "border-emerald-400" : "border-zinc-200"}`}
+                  data-testid="input-register-username"
+                />
+                {usernameStatus.checking && (
+                  <p className="mt-1 text-xs text-zinc-400" data-testid="username-checking">Checking availability...</p>
+                )}
+                {!usernameStatus.checking && usernameStatus.available === true && (
+                  <p className="mt-1 text-xs text-emerald-600" data-testid="username-available">Username is available</p>
+                )}
+                {!usernameStatus.checking && usernameStatus.available === false && usernameStatus.message && (
+                  <p className="mt-1 text-xs text-red-600" data-testid="username-unavailable">{usernameStatus.message}</p>
+                )}
               </div>
 
               <div>

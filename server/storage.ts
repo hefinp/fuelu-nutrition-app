@@ -11,7 +11,8 @@ export interface IStorage {
   getUserById(id: number): Promise<User | undefined>;
   findOrCreateOAuthUser(opts: { email: string; name: string; provider: string; providerId: string }): Promise<User>;
   updateUserPassword(userId: number, passwordHash: string): Promise<void>;
-  updateUserProfile(userId: number, updates: { name?: string; email?: string }): Promise<User>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  updateUserProfile(userId: number, updates: { name?: string; email?: string; username?: string }): Promise<User>;
 
   // Calculations
   createCalculation(calc: InsertCalculation & { userId?: number; dailyCalories: number; weeklyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number }): Promise<Calculation>;
@@ -359,7 +360,12 @@ export class DatabaseStorage implements IStorage {
     await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
   }
 
-  async updateUserProfile(userId: number, updates: { name?: string; email?: string }): Promise<User> {
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(sql`LOWER(${users.username}) = LOWER(${username})`);
+    return user;
+  }
+
+  async updateUserProfile(userId: number, updates: { name?: string; email?: string; username?: string }): Promise<User> {
     const [updated] = await db.update(users).set(updates).where(eq(users.id, userId)).returning();
     return updated;
   }
@@ -2589,7 +2595,7 @@ export class DatabaseStorage implements IStorage {
         userId: mealComments.userId,
         text: mealComments.text,
         createdAt: mealComments.createdAt,
-        userName: users.name,
+        userName: sql<string>`COALESCE(${users.username}, ${"Anonymous"})`.as("user_name"),
       })
       .from(mealComments)
       .innerJoin(users, eq(mealComments.userId, users.id))
