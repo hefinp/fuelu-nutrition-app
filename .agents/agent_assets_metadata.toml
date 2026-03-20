@@ -18,3 +18,9 @@ id = "5o8yxfV_rXMvKzP1ZYpSM"
 uri = "file://.local/docs/fuelu-advertising-projection.md"
 type = "text"
 title = "FuelU — Advertising Model & Revised 5-Year Projection"
+
+[[outputs]]
+id = "xiwB7qZ-zuzKdKwk2KZ8H"
+uri = "file://client/public/favicon.png"
+type = "image"
+title = "App Icon (favicon.png)"
