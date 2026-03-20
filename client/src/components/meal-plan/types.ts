@@ -6,6 +6,7 @@ export interface Meal {
   fat: number;
   vitalityRationale?: string;
   ingredientsJson?: Array<{ name: string; grams: number; calories100g: number; protein100g?: number; carbs100g?: number; fat100g?: number }>;
+  instructions?: string;
 }
 
 export interface DayMealPlan {

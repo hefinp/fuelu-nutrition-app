@@ -202,10 +202,14 @@ export async function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
   }
 
   const uniqueMealNames: string[] = [];
+  const mealObjectMap: Record<string, any> = {};
   const collectMeals = (dayPlan: any) => {
     slots.forEach(slot => {
       (dayPlan[slot] || []).forEach((m: any) => {
-        if (!uniqueMealNames.includes(m.meal)) uniqueMealNames.push(m.meal);
+        if (!uniqueMealNames.includes(m.meal)) {
+          uniqueMealNames.push(m.meal);
+          mealObjectMap[m.meal] = m;
+        }
       });
     });
   };
@@ -217,7 +221,11 @@ export async function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
     });
   }
 
-  const recipeMeals = uniqueMealNames.filter(name => (RECIPES as any)[name]);
+  const recipeMeals = uniqueMealNames.filter(name => {
+    if ((RECIPES as any)[name]) return true;
+    const obj = mealObjectMap[name];
+    return obj?.ingredientsJson && Array.isArray(obj.ingredientsJson) && obj.ingredientsJson.length > 0;
+  });
 
   if (recipeMeals.length > 0) {
     doc.addPage();
@@ -232,10 +240,20 @@ export async function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
     y = 26;
 
     recipeMeals.forEach((mealName, idx) => {
-      const recipe = (RECIPES as any)[mealName] as { ingredients: Array<{ item: string; quantity: string }>; instructions: string };
+      const hardcodedRecipe = (RECIPES as any)[mealName] as { ingredients: Array<{ item: string; quantity: string }>; instructions: string } | undefined;
+      const inlineMeal = mealObjectMap[mealName];
+      const recipe: { ingredients: Array<{ item: string; quantity: string }>; instructions: string } = hardcodedRecipe
+        ? hardcodedRecipe
+        : {
+            ingredients: (inlineMeal?.ingredientsJson || []).map((ing: any) => ({
+              item: ing.name || ing.item || 'Unknown',
+              quantity: ing.grams != null ? `${Math.round(ing.grams)}g` : (ing.quantity || ''),
+            })),
+            instructions: inlineMeal?.instructions || '',
+          };
 
       const ingRowCount = Math.ceil(recipe.ingredients.length / 2);
-      const instrLines = doc.splitTextToSize(recipe.instructions, pageW - 28).length;
+      const instrLines = recipe.instructions ? doc.splitTextToSize(recipe.instructions, pageW - 28).length : 0;
       const estimatedH = 12 + ingRowCount * 6 + instrLines * 5 + 16;
       checkPage(Math.min(estimatedH, 60));
 
@@ -313,22 +331,24 @@ export async function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
       });
       y = Math.max(leftY, rightY) + 4;
 
-      checkPage(10);
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(60, 60, 60);
-      doc.text("Method", 14, y);
-      y += 5;
+      if (recipe.instructions) {
+        checkPage(10);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(60, 60, 60);
+        doc.text("Method", 14, y);
+        y += 5;
 
-      doc.setFontSize(8.5);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(50, 50, 50);
-      const instrTextLines = doc.splitTextToSize(recipe.instructions, pageW - 28);
-      instrTextLines.forEach((line: string) => {
-        checkPage(6);
-        doc.text(line, 14, y);
-        y += 4.8;
-      });
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(50, 50, 50);
+        const instrTextLines = doc.splitTextToSize(recipe.instructions, pageW - 28);
+        instrTextLines.forEach((line: string) => {
+          checkPage(6);
+          doc.text(line, 14, y);
+          y += 4.8;
+        });
+      }
 
       y += 6;
     });
@@ -407,18 +427,45 @@ export function buildShoppingList(mealPlan: any, multiplier = 1): Record<string,
 
   const map = new Map<string, { category: string; item: string; quantity: string }>();
 
+  const allMealObjects: any[] = [];
+  if (mealPlan.planType === 'weekly') {
+    const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+    days.forEach(day => {
+      if (!mealPlan[day]) return;
+      slots.forEach(slot => (mealPlan[day][slot] || []).forEach((m: any) => allMealObjects.push(m)));
+    });
+  } else {
+    slots.forEach(slot => (mealPlan[slot] || []).forEach((m: any) => allMealObjects.push(m)));
+  }
+
   mealNames.forEach(mealName => {
     const recipe = (RECIPES as Record<string, { ingredients: Array<{ item: string; quantity: string }> }>)[mealName];
-    if (!recipe) return;
-    recipe.ingredients.forEach(({ item, quantity }) => {
-      const key = item.toLowerCase().replace(/[^a-z]/g, '');
-      if (map.has(key)) {
-        const entry = map.get(key)!;
-        entry.quantity = combineQuantities(entry.quantity, quantity);
-      } else {
-        map.set(key, { category: categoriseIngredient(item), item, quantity });
+    if (recipe) {
+      recipe.ingredients.forEach(({ item, quantity }) => {
+        const key = item.toLowerCase().replace(/[^a-z]/g, '');
+        if (map.has(key)) {
+          const entry = map.get(key)!;
+          entry.quantity = combineQuantities(entry.quantity, quantity);
+        } else {
+          map.set(key, { category: categoriseIngredient(item), item, quantity });
+        }
+      });
+    } else {
+      const mealObj = allMealObjects.find((m: any) => m.meal === mealName);
+      if (mealObj?.ingredientsJson && Array.isArray(mealObj.ingredientsJson)) {
+        mealObj.ingredientsJson.forEach((ing: any) => {
+          const item = ing.name || ing.item || 'Unknown';
+          const quantity = ing.grams != null ? `${Math.round(ing.grams)}g` : (ing.quantity || '');
+          const key = item.toLowerCase().replace(/[^a-z]/g, '');
+          if (map.has(key)) {
+            const entry = map.get(key)!;
+            entry.quantity = combineQuantities(entry.quantity, quantity);
+          } else {
+            map.set(key, { category: categoriseIngredient(item), item, quantity });
+          }
+        });
       }
-    });
+    }
   });
 
   if (multiplier !== 1) {

@@ -323,6 +323,8 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       protein: userMeal.proteinPerServing,
       carbs: userMeal.carbsPerServing,
       fat: userMeal.fatPerServing,
+      ...(userMeal.ingredientsJson ? { ingredientsJson: userMeal.ingredientsJson } : {}),
+      ...(userMeal.instructions ? { instructions: userMeal.instructions } : {}),
     };
     setCustomSlots(prev => {
       const day = { ...(prev[dayKey] || {}) };
@@ -591,6 +593,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         .map((m: any) => ({
           meal: m.meal, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat,
           ...(m.ingredientsJson ? { ingredientsJson: m.ingredientsJson } : {}),
+          ...(m.instructions ? { instructions: m.instructions } : {}),
         }));
 
       setCustomSlots(prev => {
