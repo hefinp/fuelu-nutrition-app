@@ -46,7 +46,7 @@ export function NutritionDisplay({ data, overrideTargets }: { data: Calculation;
 
         <div className="relative z-10 p-5 sm:p-6">
           <div className="mb-2">
-            <h3 className="text-lg font-bold">Nutrition Distribution</h3>
+            <h3 className="text-sm font-display font-bold">Nutrition Distribution</h3>
             <p className="text-zinc-400 text-xs mt-0.5">Daily macronutrient targets</p>
           </div>
           <div className="flex justify-end mb-3">
