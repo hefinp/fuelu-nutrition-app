@@ -30,6 +30,7 @@ declare module "express-session" {
       provider: string;
       providerId: string;
     };
+    stravaOAuthState?: string;
   }
 }
 

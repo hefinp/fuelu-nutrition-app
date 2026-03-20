@@ -68,6 +68,9 @@ A seeded test account is created automatically at startup for e2e testing:
 - **Password:** `TestPass123!`
 - **Tier:** `advanced` (all features unlocked)
 
+### Strava Integration (Task #292)
+Users can connect their Strava account via OAuth to pull fitness activity data into the dashboard. The `strava_connections` table stores per-user OAuth tokens (access, refresh, expiry) and athlete ID. OAuth flow includes CSRF protection via session-stored `state` parameter. Backend routes (`/api/strava/*`) handle auth initiation, callback, status check, disconnect, and activity data fetching with automatic token refresh. The Activity widget (`client/src/components/activity-widget.tsx`) appears in the Tracking column/tab showing recent activities, weekly stats (calories, distance, duration, heart rate), and a connect prompt when Strava is not linked. The Settings > Connections section makes the Strava row interactive for connect/disconnect. The welcome banner buttons were changed from "Edit Metrics" to "Settings" with a gear icon. Environment variables: `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`.
+
 ## External Dependencies
 -   **PostgreSQL**: Primary database.
 -   **Google Fonts**: For typography.

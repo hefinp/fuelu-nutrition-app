@@ -785,6 +785,18 @@ export async function runMigrations(): Promise<void> {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_meal_comments_community_meal_id ON meal_comments(community_meal_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_meal_comments_user_id ON meal_comments(user_id)`);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS strava_connections (
+        id              SERIAL PRIMARY KEY,
+        user_id         INTEGER NOT NULL REFERENCES users(id) UNIQUE,
+        athlete_id      TEXT NOT NULL,
+        access_token    TEXT NOT NULL,
+        refresh_token   TEXT NOT NULL,
+        token_expires_at TIMESTAMP NOT NULL,
+        created_at      TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
   } finally {
     client.release();
   }

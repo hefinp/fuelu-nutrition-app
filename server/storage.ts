@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type MealComment } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type MealComment, type StravaConnection } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -309,6 +309,12 @@ export interface IStorage {
   dismissAdaptiveSuggestion(id: number, userId: number): Promise<void>;
   acceptAdaptiveSuggestion(id: number, userId: number): Promise<AdaptiveTdeeSuggestion | undefined>;
   dismissAllPendingAdaptiveSuggestions(userId: number): Promise<void>;
+
+  // Strava connections
+  getStravaConnection(userId: number): Promise<StravaConnection | undefined>;
+  createStravaConnection(data: { userId: number; athleteId: string; accessToken: string; refreshToken: string; tokenExpiresAt: Date }): Promise<StravaConnection>;
+  updateStravaConnection(userId: number, updates: { accessToken?: string; refreshToken?: string; tokenExpiresAt?: Date }): Promise<StravaConnection | undefined>;
+  deleteStravaConnection(userId: number): Promise<void>;
 
   deleteUser(userId: number): Promise<void>;
 }
@@ -2622,6 +2628,25 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMealComment(id: number, userId: number): Promise<void> {
     await db.delete(mealComments).where(and(eq(mealComments.id, id), eq(mealComments.userId, userId)));
+  }
+
+  async getStravaConnection(userId: number): Promise<StravaConnection | undefined> {
+    const [conn] = await db.select().from(stravaConnections).where(eq(stravaConnections.userId, userId));
+    return conn;
+  }
+
+  async createStravaConnection(data: { userId: number; athleteId: string; accessToken: string; refreshToken: string; tokenExpiresAt: Date }): Promise<StravaConnection> {
+    const [conn] = await db.insert(stravaConnections).values(data).returning();
+    return conn;
+  }
+
+  async updateStravaConnection(userId: number, updates: { accessToken?: string; refreshToken?: string; tokenExpiresAt?: Date }): Promise<StravaConnection | undefined> {
+    const [conn] = await db.update(stravaConnections).set(updates).where(eq(stravaConnections.userId, userId)).returning();
+    return conn;
+  }
+
+  async deleteStravaConnection(userId: number): Promise<void> {
+    await db.delete(stravaConnections).where(eq(stravaConnections.userId, userId));
   }
 }
 

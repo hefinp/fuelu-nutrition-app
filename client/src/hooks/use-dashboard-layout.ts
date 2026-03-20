@@ -10,6 +10,7 @@ export type WidgetId =
   | "food-log"
   | "meal-plan"
   | "hydration"
+  | "activity"
   | "weight"
   | "cycle"
   | "vitality"
@@ -40,6 +41,7 @@ export const DEFAULT_ORDER: WidgetId[] = [
   "nutrition",
   "food-log",
   "hydration",
+  "activity",
   "weekly-summary",
   "adaptive-tdee",
   "macro-compliance",

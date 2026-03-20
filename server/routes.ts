@@ -26,6 +26,7 @@ import practiceRouter from "./routes/practice";
 import monitoringRouter from "./routes/monitoring";
 import adaptiveTdeeRouter from "./routes/adaptive-tdee";
 import restaurantFoodsRouter from "./routes/restaurant-foods";
+import stravaOAuthRouter from "./routes/strava";
 
 function setupPassportStrategies() {
   const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -146,6 +147,7 @@ export async function registerRoutes(
   app.use(monitoringRouter);
   app.use(adaptiveTdeeRouter);
   app.use(restaurantFoodsRouter);
+  app.use(stravaOAuthRouter);
   if (process.env.NODE_ENV !== "production") {
     app.use(testSetupRouter);
   }

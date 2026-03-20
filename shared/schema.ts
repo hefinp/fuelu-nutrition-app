@@ -1036,6 +1036,26 @@ export const insertAdaptiveTdeeSuggestionSchema = createInsertSchema(adaptiveTde
 export type InsertAdaptiveTdeeSuggestion = z.infer<typeof insertAdaptiveTdeeSuggestionSchema>;
 export type AdaptiveTdeeSuggestion = typeof adaptiveTdeeSuggestions.$inferSelect;
 
+// ─── Strava Connections ──────────────────────────────────────────────────────
+
+export const stravaConnections = pgTable("strava_connections", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  athleteId: text("athlete_id").notNull(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  tokenExpiresAt: timestamp("token_expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertStravaConnectionSchema = createInsertSchema(stravaConnections).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertStravaConnection = z.infer<typeof insertStravaConnectionSchema>;
+export type StravaConnection = typeof stravaConnections.$inferSelect;
+
 export const mealComments = pgTable("meal_comments", {
   id: serial("id").primaryKey(),
   communityMealId: integer("community_meal_id").notNull().references(() => communityMeals.id),

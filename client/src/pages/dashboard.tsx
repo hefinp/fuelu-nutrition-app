@@ -10,6 +10,7 @@ import { PreferencesForm, AllergiesForm } from "@/components/preferences-form";
 import { FoodLog } from "@/components/food-log";
 import { FoodLogDrawer } from "@/components/food-log-drawer";
 import { HydrationTracker } from "@/components/hydration-tracker";
+import { ActivityWidget } from "@/components/activity-widget";
 const CycleTracker = lazy(() => import("@/components/cycle-tracker").then(m => ({ default: m.CycleTracker })));
 const VitalityTracker = lazy(() => import("@/components/vitality-tracker").then(m => ({ default: m.VitalityTracker })));
 import { MyMealsFoodWidget } from "@/components/my-meals-food-widget";
@@ -327,6 +328,11 @@ export default function Dashboard() {
     retry: false,
   });
 
+  const { data: stravaStatus } = useQuery<{ connected: boolean }>({
+    queryKey: ["/api/strava/status"],
+    enabled: !!user,
+  });
+
   const { data: effectiveTargets } = useQuery<{ dailyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number; fibreGoal: number | null; hasOverrides: boolean } | null>({
     queryKey: ["/api/calculations/effective-targets"],
     enabled: !!user,
@@ -528,6 +534,8 @@ export default function Dashboard() {
         return <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} overrideTargets={effectiveTargets ? { dailyCalories: effectiveTargets.dailyCalories, proteinGoal: effectiveTargets.proteinGoal, carbsGoal: effectiveTargets.carbsGoal, fatGoal: effectiveTargets.fatGoal } : null} />;
       case "hydration":
         return user ? <HydrationTracker /> : null;
+      case "activity":
+        return user ? <ActivityWidget /> : null;
       case "cycle":
         if (!user) return null;
         if (userPrefs?.cycleTrackingEnabled && lastCalculation?.gender === "female") return <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>}><CycleTracker /></Suspense>;
@@ -639,6 +647,21 @@ export default function Dashboard() {
   useEffect(() => {
     document.documentElement.classList.add("dashboard-snap");
     return () => document.documentElement.classList.remove("dashboard-snap");
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stravaParam = params.get("strava");
+    if (stravaParam) {
+      if (stravaParam === "connected") {
+        toast({ title: "Strava connected", description: "Your Strava account has been linked successfully." });
+        queryClient.invalidateQueries({ queryKey: ["/api/strava/status"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/strava/activities"] });
+      } else if (stravaParam === "error") {
+        toast({ title: "Strava connection failed", description: "Something went wrong connecting to Strava. Please try again.", variant: "destructive" });
+      }
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
 
   return (
@@ -863,6 +886,7 @@ export default function Dashboard() {
                     { id: "food-log",        label: "Food Log",           Icon: ClipboardList },
                     { id: "my-meals-food",   label: "My Meals & Food",    Icon: UtensilsCrossed },
                     { id: "hydration",       label: "Hydration",          Icon: Droplets },
+                    { id: "activity",        label: "Activity",           Icon: Activity },
                     { id: "meal-plan",       label: "Meal Planner",       Icon: Salad },
                     { id: "nutrition",       label: "Nutrition",          Icon: SlidersHorizontal },
                     { id: "weight",          label: "Progress Tracker",   Icon: Scale },
@@ -927,10 +951,13 @@ export default function Dashboard() {
 
                 {user && (() => {
                   const CONNECTIONS = [
-                    { label: "Email",  Icon: Mail,      connected: true,                                    colour: "text-zinc-500" },
-                    { label: "Google", Icon: SiGoogle,  connected: user.provider === "google",              colour: "text-blue-500" },
-                    { label: "Apple",  Icon: SiApple,   connected: user.provider === "apple",               colour: "text-zinc-900" },
-                    { label: "Strava", Icon: SiStrava,  connected: false,                                   colour: "text-orange-500" },
+                    { label: "Email",  Icon: Mail,      connected: true,                                    colour: "text-zinc-500",   action: undefined as (() => void) | undefined },
+                    { label: "Google", Icon: SiGoogle,  connected: user.provider === "google",              colour: "text-blue-500",   action: undefined as (() => void) | undefined },
+                    { label: "Apple",  Icon: SiApple,   connected: user.provider === "apple",               colour: "text-zinc-900",   action: undefined as (() => void) | undefined },
+                    { label: "Strava", Icon: SiStrava,  connected: !!stravaStatus?.connected,               colour: "text-orange-500", action: stravaStatus?.connected
+                      ? () => { apiRequest("DELETE", "/api/strava/disconnect").then(() => { queryClient.invalidateQueries({ queryKey: ["/api/strava/status"] }); queryClient.invalidateQueries({ queryKey: ["/api/strava/activities"] }); }); }
+                      : () => { apiRequest("GET", "/api/strava/auth").then(r => r.json()).then((d: { url: string }) => { window.location.href = d.url; }); }
+                    },
                   ];
 
                   return (
@@ -1027,22 +1054,49 @@ export default function Dashboard() {
                               className="overflow-hidden"
                             >
                               <div className="px-6 pb-4 pt-1 space-y-1">
-                                {CONNECTIONS.map(({ label, Icon, connected, colour }) => (
-                                  <div key={label} className="flex items-center justify-between py-2.5">
+                                {CONNECTIONS.map(({ label, Icon, connected, colour, action }) => (
+                                  <div
+                                    key={label}
+                                    className={`flex items-center justify-between py-2.5 ${action ? "cursor-pointer hover:bg-zinc-50/60 -mx-2 px-2 rounded-lg transition-colors" : ""}`}
+                                    onClick={action}
+                                    data-testid={`connection-row-${label.toLowerCase()}`}
+                                  >
                                     <div className="flex items-center gap-2.5">
                                       <Icon className={`w-4 h-4 ${colour}`} />
                                       <span className="text-sm text-zinc-700">{label}</span>
                                     </div>
-                                    <span
-                                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                                        connected
-                                          ? "bg-green-50 text-green-700"
-                                          : "bg-zinc-100 text-zinc-400"
-                                      }`}
-                                      data-testid={`status-connection-${label.toLowerCase()}`}
-                                    >
-                                      {connected ? "Connected" : "Not connected"}
-                                    </span>
+                                    {action ? (
+                                      connected ? (
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700" data-testid={`status-connection-${label.toLowerCase()}`}>Connected</span>
+                                          <span
+                                            className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer"
+                                            onClick={(e) => { e.stopPropagation(); action(); }}
+                                            data-testid={`button-disconnect-${label.toLowerCase()}`}
+                                          >
+                                            Disconnect
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span
+                                          className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100"
+                                          data-testid={`status-connection-${label.toLowerCase()}`}
+                                        >
+                                          Connect
+                                        </span>
+                                      )
+                                    ) : (
+                                      <span
+                                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                          connected
+                                            ? "bg-green-50 text-green-700"
+                                            : "bg-zinc-100 text-zinc-400"
+                                        }`}
+                                        data-testid={`status-connection-${label.toLowerCase()}`}
+                                      >
+                                        {connected ? "Connected" : "Not connected"}
+                                      </span>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -1204,8 +1258,8 @@ export default function Dashboard() {
                         className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
                         data-testid="button-edit-metrics"
                       >
-                        <SlidersHorizontal className="w-4 h-4" />
-                        <span className="hidden sm:inline">Edit Metrics</span>
+                        <Settings className="w-4 h-4" />
+                        <span className="hidden sm:inline">Settings</span>
                       </button>
                       <button
                         onClick={() => setIsEditing(true)}
@@ -1246,8 +1300,8 @@ export default function Dashboard() {
                       className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
                       data-testid="button-edit-metrics"
                     >
-                      <SlidersHorizontal className="w-4 h-4" />
-                      <span className="hidden sm:inline">Edit Metrics</span>
+                      <Settings className="w-4 h-4" />
+                      <span className="hidden sm:inline">Settings</span>
                     </button>
                   )}
                 </div>
