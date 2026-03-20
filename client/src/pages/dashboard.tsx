@@ -347,7 +347,15 @@ export default function Dashboard() {
   });
 
   const [cycleStopConfirm, setCycleStopConfirm] = useState(false);
-  const [mobileTab, setMobileTab] = useState<'planning' | 'tracking' | 'insights'>('planning');
+  const [mobileTab, setMobileTabRaw] = useState<'planning' | 'tracking' | 'insights'>(() => {
+    const stored = sessionStorage.getItem('fuelr_dashboard_tab');
+    if (stored === 'planning' || stored === 'tracking' || stored === 'insights') return stored;
+    return 'planning';
+  });
+  const setMobileTab = useCallback((tab: 'planning' | 'tracking' | 'insights') => {
+    setMobileTabRaw(tab);
+    sessionStorage.setItem('fuelr_dashboard_tab', tab);
+  }, []);
 
   const updatePrefsMutation = useMutation({
     mutationFn: (updates: Partial<UserPreferences>) =>
