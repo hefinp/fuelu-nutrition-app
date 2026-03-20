@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { PublicUser, UserPreferences } from "@shared/schema";
 import {
   Crown, CreditCard, AlertTriangle, ArrowRight, Loader2, CheckCircle2,
-  Coins, ArrowUpRight, User, Lock, ChevronRight, Zap, Globe,
+  Coins, ArrowUpRight, User, Lock, ChevronRight, Zap, Globe, Database, ExternalLink,
 } from "lucide-react";
 import { ConfirmDialog, useConfirmDialog } from "@/components/confirm-dialog";
 
@@ -337,6 +337,46 @@ export default function AccountPage() {
               >
                 {countryMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save country"}
               </button>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-zinc-100 p-6 space-y-4" data-testid="card-data-sources">
+              <div className="flex items-center gap-2 mb-2">
+                <Database className="w-4 h-4 text-zinc-400" />
+                <h2 className="text-sm font-semibold text-zinc-900">Data Sources</h2>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Nutrition data in FuelU is sourced from the following open databases.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-2">
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-400 mt-0.5 shrink-0" />
+                  <div>
+                    <a href="https://world.openfoodfacts.org/" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-zinc-900 hover:underline" data-testid="link-source-openfoodfacts">Open Food Facts</a>
+                    <p className="text-xs text-zinc-500">Open database of food products from around the world, licensed under ODbL.</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-400 mt-0.5 shrink-0" />
+                  <div>
+                    <a href="https://www.foodcomposition.co.nz/" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-zinc-900 hover:underline" data-testid="link-source-nzfcd">NZ Food Composition Database (NZFCD)</a>
+                    <p className="text-xs text-zinc-500">Provided by Plant &amp; Food Research New Zealand and the Ministry of Health.</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-400 mt-0.5 shrink-0" />
+                  <div>
+                    <a href="https://www.foodstandards.gov.au/science-data/monitoringnutrients/ausnut/ausnut-2011-13" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-zinc-900 hover:underline" data-testid="link-source-fsanz">FSANZ AUSNUT 2011–13</a>
+                    <p className="text-xs text-zinc-500">Australian food nutrient database by Food Standards Australia New Zealand, under Creative Commons licensing.</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-400 mt-0.5 shrink-0" />
+                  <div>
+                    <a href="https://fdc.nal.usda.gov/" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-zinc-900 hover:underline" data-testid="link-source-usda">USDA FoodData Central</a>
+                    <p className="text-xs text-zinc-500">Comprehensive food nutrient database maintained by the U.S. Department of Agriculture.</p>
+                  </div>
+                </li>
+              </ul>
             </div>
 
             <form onSubmit={handlePasswordSave} className="bg-white rounded-2xl border border-zinc-100 p-6 space-y-4" data-testid="form-password">

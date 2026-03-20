@@ -269,6 +269,7 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors" data-testid="link-footer-privacy">Privacy Policy</Link>
             <Link href="/terms" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors" data-testid="link-footer-terms">Terms of Service</Link>
+            <Link href="/data-sources" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors" data-testid="link-footer-data-sources">Data Sources</Link>
           </div>
           <p className="text-xs text-zinc-400">&copy; 2026 FuelU. All rights reserved.</p>
         </div>
