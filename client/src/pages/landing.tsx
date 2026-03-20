@@ -53,6 +53,11 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Coming Soon Banner */}
+      <div className="bg-zinc-900 text-white text-center py-2.5 px-4 text-sm font-medium tracking-wide z-50" data-testid="banner-coming-soon">
+        Coming Soon — We're launching shortly. Stay tuned!
+      </div>
+
       {/* Nav */}
       <header className="border-b border-zinc-100 sticky top-0 z-50 bg-white/90 backdrop-blur-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
