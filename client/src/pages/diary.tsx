@@ -83,6 +83,7 @@ function DiaryContent({
   initialDate,
 }: DiaryProps) {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: tierStatus, isLoading: tierLoading } = useTierStatus();
@@ -383,9 +384,19 @@ function DiaryContent({
     <div className="min-h-screen bg-zinc-50/50 pb-20">
       <header className="bg-white border-b border-zinc-100 sticky top-0 z-40">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
-          <Link href="/dashboard" className="p-1.5 hover:bg-zinc-100 rounded-lg transition-colors" data-testid="link-back-dashboard">
+          <button
+            onClick={() => {
+              if (window.history.length > 1) {
+                window.history.back();
+              } else {
+                navigate("/dashboard");
+              }
+            }}
+            className="p-1.5 hover:bg-zinc-100 rounded-lg transition-colors"
+            data-testid="link-back-dashboard"
+          >
             <ArrowLeft className="w-5 h-5 text-zinc-600" />
-          </Link>
+          </button>
           <div className="flex-1">
             <h1 className="text-lg font-display font-bold text-zinc-900">Food Diary</h1>
           </div>
