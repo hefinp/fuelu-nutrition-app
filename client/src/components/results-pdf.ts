@@ -3,9 +3,64 @@ import { RECIPES } from "./results-recipes";
 
 type jsPDFType = import("jspdf").default;
 
-async function loadJsPDF(): Promise<typeof import("jspdf").default> {
+async function loadJsPDF(): Promise<{ jsPDF: typeof import("jspdf").default; GState: typeof import("jspdf").GState }> {
   const mod = await import("jspdf");
-  return mod.default;
+  return { jsPDF: mod.default, GState: mod.GState };
+}
+
+function drawWatermark(doc: jsPDFType, GStateCls?: typeof import("jspdf").GState) {
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const cx = pageW / 2;
+  const cy = pageH / 2;
+
+  const hasGState = !!GStateCls;
+  if (hasGState) {
+    doc.saveGraphicsState();
+    doc.setGState(new GStateCls({ opacity: 0.06 }) as any);
+  }
+
+  const fillGrey = hasGState ? 200 : 245;
+  const sqSize = 60;
+  const sqX = cx - sqSize / 2;
+  const sqY = cy - sqSize / 2;
+  doc.setFillColor(fillGrey, fillGrey, fillGrey);
+  doc.roundedRect(sqX, sqY, sqSize, sqSize, 10, 10, "F");
+
+  doc.setFillColor(255, 255, 255);
+  doc.circle(cx, cy + 4, 14, "F");
+
+  const handleW = 6;
+  const circleTop = cy + 4 - 14;
+  doc.setFillColor(255, 255, 255);
+  doc.rect(cx - handleW / 2, sqY + 4, handleW, circleTop - sqY - 4, "F");
+
+  if (hasGState) {
+    doc.restoreGraphicsState();
+  }
+}
+
+function getImageFormat(dataUrl: string): string {
+  if (dataUrl.startsWith("data:image/png")) return "PNG";
+  if (dataUrl.startsWith("data:image/webp")) return "WEBP";
+  if (dataUrl.startsWith("data:image/gif")) return "GIF";
+  return "JPEG";
+}
+
+async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
 }
 
 const GOAL_LABELS: Record<string, string> = {
@@ -67,15 +122,17 @@ function drawPDFLogo(doc: jsPDFType, pageW: number) {
 }
 
 export async function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
-  const jsPDF = await loadJsPDF();
+  const { jsPDF, GState } = await loadJsPDF();
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
   let y = 20;
 
   const newLine = (gap = 6) => { y += gap; };
   const checkPage = (needed = 20) => {
-    if (y + needed > 280) { doc.addPage(); y = 20; }
+    if (y + needed > 280) { doc.addPage(); drawWatermark(doc, GState); y = 20; }
   };
+
+  drawWatermark(doc, GState);
 
   doc.setFillColor(24, 24, 27);
   doc.rect(0, 0, pageW, 28, "F");
@@ -227,8 +284,34 @@ export async function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
     return obj?.ingredientsJson && Array.isArray(obj.ingredientsJson) && obj.ingredientsJson.length > 0;
   });
 
+  const recipeImageMap = new Map<string, string>();
+  if (recipeMeals.length > 0) {
+    const imagePromises = recipeMeals.map(async (mealName) => {
+      const recipe = (RECIPES as any)[mealName] as { ingredients: Array<{ item: string; quantity: string }>; instructions: string; imageUrl?: string };
+      const imageUrl = recipe?.imageUrl || (() => {
+        for (const slot of slots) {
+          const found = (mealPlan[slot] || []).find((m: any) => m.meal === mealName);
+          if (found?.imageUrl) return found.imageUrl;
+          if (mealPlan.planType === "weekly") {
+            for (const day of ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]) {
+              const df = (mealPlan[day]?.[slot] || []).find((m: any) => m.meal === mealName);
+              if (df?.imageUrl) return df.imageUrl;
+            }
+          }
+        }
+        return null;
+      })();
+      if (imageUrl) {
+        const dataUrl = await fetchImageAsDataUrl(imageUrl);
+        if (dataUrl) recipeImageMap.set(mealName, dataUrl);
+      }
+    });
+    await Promise.all(imagePromises);
+  }
+
   if (recipeMeals.length > 0) {
     doc.addPage();
+    drawWatermark(doc, GState);
     y = 20;
 
     doc.setFillColor(24, 24, 27);
@@ -240,9 +323,9 @@ export async function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
     y = 26;
 
     recipeMeals.forEach((mealName, idx) => {
-      const hardcodedRecipe = (RECIPES as any)[mealName] as { ingredients: Array<{ item: string; quantity: string }>; instructions: string } | undefined;
+      const hardcodedRecipe = (RECIPES as any)[mealName] as { ingredients: Array<{ item: string; quantity: string }>; instructions: string; imageUrl?: string } | undefined;
       const inlineMeal = mealObjectMap[mealName];
-      const recipe: { ingredients: Array<{ item: string; quantity: string }>; instructions: string } = hardcodedRecipe
+      const recipe: { ingredients: Array<{ item: string; quantity: string }>; instructions: string; imageUrl?: string } = hardcodedRecipe
         ? hardcodedRecipe
         : {
             ingredients: (inlineMeal?.ingredientsJson || []).map((ing: any) => ({
@@ -252,9 +335,11 @@ export async function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
             instructions: inlineMeal?.instructions || '',
           };
 
+      const imgDataUrl = recipeImageMap.get(mealName);
+      const imgH = imgDataUrl ? 35 : 0;
       const ingRowCount = Math.ceil(recipe.ingredients.length / 2);
       const instrLines = recipe.instructions ? doc.splitTextToSize(recipe.instructions, pageW - 28).length : 0;
-      const estimatedH = 12 + ingRowCount * 6 + instrLines * 5 + 16;
+      const estimatedH = 12 + imgH + ingRowCount * 6 + instrLines * 5 + 16;
       checkPage(Math.min(estimatedH, 60));
 
       if (idx > 0) {
@@ -271,6 +356,18 @@ export async function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
       const nameLines = doc.splitTextToSize(mealName, pageW - 28);
       doc.text(nameLines, 14, y);
       y += nameLines.length * 6 + 3;
+
+      if (imgDataUrl) {
+        checkPage(40);
+        try {
+          const imgW = 50;
+          const imgDrawH = 35;
+          const imgFormat = getImageFormat(imgDataUrl);
+          doc.addImage(imgDataUrl, imgFormat, 14, y, imgW, imgDrawH);
+          y += imgDrawH + 4;
+        } catch {
+        }
+      }
 
       checkPage(8);
       doc.setFontSize(8);
@@ -486,7 +583,7 @@ export function buildShoppingList(mealPlan: any, multiplier = 1): Record<string,
 export const CATEGORY_ORDER = ["Protein", "Produce", "Grains & Carbs", "Dairy", "Pantry & Spices", "Other"];
 
 export async function exportShoppingListToPDF(mealPlan: any, data: Calculation, days = 1) {
-  const jsPDF = await loadJsPDF();
+  const { jsPDF } = await loadJsPDF();
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
   let y = 20;
@@ -582,7 +679,7 @@ export async function exportProgressReportToPDF(
   clinicalSummary: string | null,
   reportTitle: string,
 ) {
-  const jsPDF = await loadJsPDF();
+  const { jsPDF } = await loadJsPDF();
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
   let y = 20;

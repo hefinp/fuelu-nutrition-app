@@ -1,6 +1,7 @@
 export interface Recipe {
   instructions: string;
   ingredients: Array<{ item: string; quantity: string }>;
+  imageUrl?: string;
 }
 
 export const RECIPES: Record<string, Recipe> = {
