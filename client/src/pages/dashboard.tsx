@@ -956,7 +956,7 @@ export default function Dashboard() {
                     { label: "Apple",  Icon: SiApple,   connected: user.provider === "apple",               colour: "text-zinc-900",   action: undefined as (() => void) | undefined },
                     { label: "Strava", Icon: SiStrava,  connected: !!stravaStatus?.connected,               colour: "text-orange-500", action: stravaStatus?.connected
                       ? () => { apiRequest("DELETE", "/api/strava/disconnect").then(() => { queryClient.invalidateQueries({ queryKey: ["/api/strava/status"] }); queryClient.invalidateQueries({ queryKey: ["/api/strava/activities"] }); }).catch(() => {}); }
-                      : () => { apiRequest("GET", "/api/strava/auth").then(r => r.json()).then((d: { url: string }) => { window.location.href = d.url; }).catch(() => { toast({ title: "Strava unavailable", description: "Could not connect to Strava right now. Please try again.", variant: "destructive" }); }); }
+                      : () => { apiRequest("GET", "/api/strava/auth").then(r => r.json()).then((d: { url: string }) => { window.open(d.url, "_blank"); }).catch(() => { toast({ title: "Strava unavailable", description: "Could not connect to Strava right now. Please try again.", variant: "destructive" }); }); }
                     },
                   ];
 
