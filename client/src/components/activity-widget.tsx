@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Activity, Clock, Flame, Heart, MapPin, Loader2, Unplug } from "lucide-react";
+import { Activity, Clock, Flame, Heart, MapPin, Loader2, Unplug, RefreshCw } from "lucide-react";
 
 interface StravaActivity {
   id: number;
@@ -97,6 +97,13 @@ export function ActivityWidget() {
     },
   });
 
+  const syncMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/strava/sync"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/strava/activities"] });
+    },
+  });
+
   if (statusLoading) {
     return (
       <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6" data-testid="widget-activity">
@@ -152,15 +159,26 @@ export function ActivityWidget() {
           </div>
           <h3 className="text-sm font-semibold text-zinc-800">Activity</h3>
         </div>
-        <button
-          onClick={() => disconnectMutation.mutate()}
-          disabled={disconnectMutation.isPending}
-          className="text-xs text-zinc-400 hover:text-red-500 transition-colors flex items-center gap-1"
-          data-testid="button-disconnect-strava"
-        >
-          <Unplug className="w-3 h-3" />
-          Disconnect
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            className="text-xs text-zinc-400 hover:text-orange-500 transition-colors flex items-center gap-1"
+            data-testid="button-sync-strava"
+            title="Refresh activities from Strava"
+          >
+            <RefreshCw className={`w-3 h-3 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            onClick={() => disconnectMutation.mutate()}
+            disabled={disconnectMutation.isPending}
+            className="text-xs text-zinc-400 hover:text-red-500 transition-colors flex items-center gap-1"
+            data-testid="button-disconnect-strava"
+          >
+            <Unplug className="w-3 h-3" />
+            Disconnect
+          </button>
+        </div>
       </div>
 
       {activitiesLoading ? (

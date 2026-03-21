@@ -255,6 +255,24 @@ router.delete("/api/strava/disconnect", async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Manual sync (force re-fetch from Strava API) ────────────────────────────
+
+router.post("/api/strava/sync", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const conn = await storage.getStravaConnection(req.session.userId);
+  if (!conn) return res.status(404).json({ message: "Strava not connected" });
+
+  try {
+    const accessToken = await refreshTokenIfNeeded(req.session.userId, conn);
+    await fetchAndStoreActivities(req.session.userId, accessToken);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[strava] Manual sync error:", err);
+    res.status(500).json({ message: "Failed to sync activities" });
+  }
+});
+
 // ── Activities (read from DB, fallback to API) ──────────────────────────────
 
 router.get("/api/strava/activities", async (req, res) => {
