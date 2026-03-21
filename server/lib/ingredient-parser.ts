@@ -439,13 +439,17 @@ export function crossValidateIngredients(
     );
 
     const scale = statedTotal / ingredientCaloriesPerServing;
-    return ingredients.map(ing => ({
-      ...ing,
-      calories100g: Math.round(ing.calories100g * scale),
-      protein100g: Math.round(ing.protein100g * scale * 10) / 10,
-      carbs100g: Math.round(ing.carbs100g * scale * 10) / 10,
-      fat100g: Math.round(ing.fat100g * scale * 10) / 10,
-    }));
+    return ingredients.map(ing => {
+      const scaled = {
+        ...ing,
+        calories100g: Math.round(ing.calories100g * scale),
+        protein100g: Math.round(ing.protein100g * scale * 10) / 10,
+        carbs100g: Math.round(ing.carbs100g * scale * 10) / 10,
+        fat100g: Math.round(ing.fat100g * scale * 10) / 10,
+      };
+      const clamped = clampNutritionToCeiling(scaled);
+      return { ...scaled, ...clamped };
+    });
   }
 
   if (divergenceRatio > 1.3 || divergenceRatio < 0.7) {

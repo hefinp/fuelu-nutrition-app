@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { DuplicateWarningBanner, type DuplicateWarning } from "@/components/duplicate-warning-banner";
 import {
-  type MealSlot, type ImportStep, type ParsedRecipe,
+  type MealSlot, type ImportStep, type ParsedRecipe, type Ingredient,
   SLOT_OPTIONS, fileToBase64,
 } from "@/components/meals-food-shared";
 import { useMobileViewport } from "@/hooks/use-mobile-viewport";
@@ -107,18 +107,42 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
   const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([]);
 
   function buildImportPayload(confirm = false) {
+    let calVal = parseInt(calories) || 0;
+    let proVal = parseInt(protein) || 0;
+    let carbVal = parseInt(carbs) || 0;
+    let fatVal = parseInt(fat) || 0;
+
+    const ingsJson = parsed!.ingredientsJson && parsed!.ingredientsJson.length > 0 ? parsed!.ingredientsJson : undefined;
+    const servingsCount = parsed!.servings || 1;
+
+    if (calVal === 0 && ingsJson && ingsJson.length > 0) {
+      const totals = ingsJson.reduce(
+        (acc: { cal: number; pro: number; carb: number; fat: number }, ing: Ingredient) => ({
+          cal: acc.cal + (ing.calories100g * ing.grams / 100),
+          pro: acc.pro + (ing.protein100g * ing.grams / 100),
+          carb: acc.carb + (ing.carbs100g * ing.grams / 100),
+          fat: acc.fat + (ing.fat100g * ing.grams / 100),
+        }),
+        { cal: 0, pro: 0, carb: 0, fat: 0 },
+      );
+      calVal = Math.round(totals.cal / servingsCount);
+      proVal = Math.round(totals.pro / servingsCount);
+      carbVal = Math.round(totals.carb / servingsCount);
+      fatVal = Math.round(totals.fat / servingsCount);
+    }
+
     return {
       name: parsed!.name,
       source: "imported" as const,
       sourceUrl: parsed!.sourceUrl,
       imageUrl: parsed!.imageUrl,
       servings: parsed!.servings,
-      caloriesPerServing: parseInt(calories) || 0,
-      proteinPerServing: parseInt(protein) || 0,
-      carbsPerServing: parseInt(carbs) || 0,
-      fatPerServing: parseInt(fat) || 0,
+      caloriesPerServing: calVal,
+      proteinPerServing: proVal,
+      carbsPerServing: carbVal,
+      fatPerServing: fatVal,
       ingredients: parsed!.ingredients.join("\n"),
-      ingredientsJson: parsed!.ingredientsJson && parsed!.ingredientsJson.length > 0 ? parsed!.ingredientsJson : undefined,
+      ingredientsJson: ingsJson,
       instructions: instructions.trim() || null,
       mealSlot: slot,
       mealStyle: "simple",
