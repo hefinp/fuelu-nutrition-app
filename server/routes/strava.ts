@@ -73,7 +73,9 @@ async function refreshTokenIfNeeded(userId: number, connection: { accessToken: s
   });
 
   if (!resp.ok) {
-    throw new Error("Failed to refresh Strava token");
+    const errBody = await resp.text().catch(() => '');
+    console.error(`[strava] Token refresh failed ${resp.status}: ${errBody}`);
+    throw new Error(`Failed to refresh Strava token (${resp.status})`);
   }
 
   const data = (await resp.json()) as StravaTokenResponse;
@@ -90,52 +92,74 @@ async function fetchAndStoreActivities(userId: number, accessToken: string, afte
   const after = afterEpoch ?? Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
   const url = `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=30`;
   console.log(`[strava] Fetching activities for user ${userId}: after=${after} (${new Date(after * 1000).toISOString()})`);
-  const listResp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!listResp.ok) {
-    const errText = await listResp.text();
-    console.error(`[strava] Activities list API error ${listResp.status}: ${errText}`);
-    return;
-  }
 
-  const activities = (await listResp.json()) as StravaActivityRaw[];
-  console.log(`[strava] Got ${activities.length} activities from API:`, activities.map(a => ({ id: a.id, name: a.name, type: a.type, start_date: a.start_date })));
-  if (activities.length === 0) return;
+  try {
+    const listResp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!listResp.ok) {
+      const errText = await listResp.text().catch(() => '(could not read body)');
+      console.error(`[strava] Activities list API error ${listResp.status}: ${errText}`);
+      return;
+    }
 
-  const detailResults = await Promise.allSettled(
-    activities.map((a) =>
-      fetch(`https://www.strava.com/api/v3/activities/${a.id}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }).then((r) => (r.ok ? r.json() : null))
-    )
-  );
+    const rawText = await listResp.text();
+    let activities: StravaActivityRaw[];
+    try {
+      activities = JSON.parse(rawText) as StravaActivityRaw[];
+    } catch (parseErr) {
+      console.error(`[strava] Failed to parse activities response as JSON. First 500 chars:`, rawText.slice(0, 500));
+      return;
+    }
 
-  const detailCalories = new Map<number, number>();
-  for (let i = 0; i < activities.length; i++) {
-    const result = detailResults[i];
-    if (result.status === "fulfilled" && result.value) {
-      const cal = (result.value as { calories?: number }).calories;
-      if (cal != null && cal > 0) {
-        detailCalories.set(activities[i].id, cal);
+    console.log(`[strava] Got ${activities.length} activities from API:`, JSON.stringify(activities.map(a => ({ id: a.id, name: a.name, type: a.type, start_date: a.start_date }))));
+    if (activities.length === 0) {
+      console.log(`[strava] No activities returned from Strava API for user ${userId}`);
+      return;
+    }
+
+    const detailResults = await Promise.allSettled(
+      activities.map((a) =>
+        fetch(`https://www.strava.com/api/v3/activities/${a.id}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }).then((r) => (r.ok ? r.json() : null))
+      )
+    );
+
+    const detailCalories = new Map<number, number>();
+    for (let i = 0; i < activities.length; i++) {
+      const result = detailResults[i];
+      if (result.status === "fulfilled" && result.value) {
+        const cal = (result.value as { calories?: number }).calories;
+        if (cal != null && cal > 0) {
+          detailCalories.set(activities[i].id, cal);
+        }
       }
     }
-  }
 
-  for (const a of activities) {
-    await storage.upsertStravaActivity({
-      userId,
-      stravaActivityId: a.id,
-      name: a.name,
-      type: a.type,
-      sportType: a.sport_type,
-      startDate: new Date(a.start_date_local || a.start_date),
-      movingTime: a.moving_time,
-      distance: a.distance,
-      totalElevationGain: a.total_elevation_gain,
-      calories: detailCalories.get(a.id) ?? a.calories ?? 0,
-      averageHeartrate: a.average_heartrate,
-      maxHeartrate: a.max_heartrate,
-      averageSpeed: a.average_speed,
-    });
+    for (const a of activities) {
+      try {
+        await storage.upsertStravaActivity({
+          userId,
+          stravaActivityId: a.id,
+          name: a.name,
+          type: a.type,
+          sportType: a.sport_type,
+          startDate: new Date(a.start_date_local || a.start_date),
+          movingTime: a.moving_time,
+          distance: a.distance,
+          totalElevationGain: a.total_elevation_gain,
+          calories: detailCalories.get(a.id) ?? a.calories ?? 0,
+          averageHeartrate: a.average_heartrate,
+          maxHeartrate: a.max_heartrate,
+          averageSpeed: a.average_speed,
+        });
+      } catch (upsertErr) {
+        console.error(`[strava] Failed to upsert activity ${a.id} (${a.name}):`, upsertErr);
+      }
+    }
+
+    console.log(`[strava] Successfully stored ${activities.length} activities for user ${userId}`);
+  } catch (err) {
+    console.error(`[strava] fetchAndStoreActivities crashed for user ${userId}:`, err);
   }
 }
 
