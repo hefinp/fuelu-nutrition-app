@@ -1673,6 +1673,10 @@ export default function Dashboard() {
         />
       )}
 
+      <footer className="mt-8 pb-4 text-center">
+        <p className="text-xs text-zinc-400" data-testid="text-dashboard-copyright">&copy; 2026 FuelU. All rights reserved.</p>
+      </footer>
+
     </div>
   );
 }
