@@ -7,7 +7,7 @@ import { promisify } from "util";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { parseIngredientsFromArray, type IngredientResult } from "../lib/ingredient-parser";
+import { parseIngredientsFromArray, crossValidateIngredients, type IngredientResult } from "../lib/ingredient-parser";
 
 const execFileAsync = promisify(execFile);
 
@@ -274,9 +274,14 @@ router.post("/api/recipes/import", async (req, res) => {
 
       const aiIngredients = Array.isArray(aiJson.ingredients) ? aiJson.ingredients : [];
       let ingredientsJson: IngredientResult[] = [];
+      const parsedServings = typeof aiJson.servings === "number" ? aiJson.servings : 1;
+      const statedCalories = typeof aiJson.calories === "number" ? aiJson.calories : null;
       try {
         if (aiIngredients.length > 0) {
           ingredientsJson = await parseIngredientsFromArray(aiIngredients, req.session.userId);
+          if (statedCalories != null) {
+            ingredientsJson = crossValidateIngredients(ingredientsJson, statedCalories, parsedServings);
+          }
         }
       } catch (e) {
         console.error("[import] Failed to parse ingredients to JSON:", e);
@@ -288,13 +293,13 @@ router.post("/api/recipes/import", async (req, res) => {
         ingredients: aiIngredients,
         ingredientsJson,
         instructions: Array.isArray(aiJson.instructions) ? aiJson.instructions.map(String) : [],
-        servings: typeof aiJson.servings === "number" ? aiJson.servings : 1,
+        servings: parsedServings,
         sourceUrl: url,
-        calories: typeof aiJson.calories === "number" ? aiJson.calories : null,
+        calories: statedCalories,
         protein: typeof aiJson.protein === "number" ? aiJson.protein : null,
         carbs: typeof aiJson.carbs === "number" ? aiJson.carbs : null,
         fat: typeof aiJson.fat === "number" ? aiJson.fat : null,
-        hasNutrition: typeof aiJson.calories === "number",
+        hasNutrition: statedCalories !== null,
         suggestedSlot: aiSlot,
       });
     } catch (e: any) {
@@ -367,6 +372,9 @@ router.post("/api/recipes/import", async (req, res) => {
   try {
     if (ingredients.length > 0) {
       ingredientsJson = await parseIngredientsFromArray(ingredients, req.session.userId);
+      if (calories != null) {
+        ingredientsJson = crossValidateIngredients(ingredientsJson, calories, servings);
+      }
     }
   } catch (e) {
     console.error("[import] Failed to parse ingredients to JSON:", e);

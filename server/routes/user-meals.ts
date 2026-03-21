@@ -136,9 +136,9 @@ router.post("/api/user-meals", async (req, res) => {
     }
 
     if (created.ingredientsJson && Array.isArray(created.ingredientsJson) && (created.ingredientsJson as any[]).length > 0) {
-      if (mealData.source === "community" || communityMealId) {
+      if (mealData.source === "community" || communityMealId || mealData.source === "imported") {
         storage.syncMealIngredientsFromJson(created.id, created.ingredientsJson as any[])
-          .catch(err => console.error("[user-meals] Failed to sync junction on community create:", err));
+          .catch(err => console.error("[user-meals] Failed to sync junction on create:", err));
       } else {
         storage.syncMealIngredientsFromJson(created.id, created.ingredientsJson as any[])
           .then(() => storage.recomputeMealMacros(created.id, req.session.userId!))
@@ -184,13 +184,18 @@ router.patch("/api/user-meals/:id", async (req, res) => {
     const updated = await storage.updateUserMeal(id, req.session.userId, body);
     if (!updated) return res.status(404).json({ message: "Not found" });
 
-    // Sync junction rows then recompute macros from canonical DB
     if (body.ingredientsJson !== undefined) {
       const ingJson = body.ingredientsJson;
       if (ingJson && ingJson.length > 0) {
-        storage.syncMealIngredientsFromJson(id, ingJson)
-          .then(() => storage.recomputeMealMacros(id, req.session.userId!))
-          .catch(err => console.error("[user-meals] Failed to sync/recompute on update:", err));
+        const isImported = updated.source === "imported" || updated.source === "community";
+        if (isImported) {
+          storage.syncMealIngredientsFromJson(id, ingJson)
+            .catch(err => console.error("[user-meals] Failed to sync junction on update:", err));
+        } else {
+          storage.syncMealIngredientsFromJson(id, ingJson)
+            .then(() => storage.recomputeMealMacros(id, req.session.userId!))
+            .catch(err => console.error("[user-meals] Failed to sync/recompute on update:", err));
+        }
       } else {
         storage.deleteMealIngredients(id).catch(() => {});
       }

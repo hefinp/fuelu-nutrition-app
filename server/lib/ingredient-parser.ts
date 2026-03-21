@@ -226,11 +226,18 @@ export async function searchFoodDb(name: string): Promise<{ calories100g: number
     const canonicalHits = await storage.searchCanonicalFoods(name, 3);
     if (canonicalHits.length > 0) {
       const hit = canonicalHits[0];
-      return {
+      const clamped = clampNutritionToCeiling({
+        name: hit.name,
         calories100g: hit.calories100g,
         protein100g: hit.protein100g,
         carbs100g: hit.carbs100g,
         fat100g: hit.fat100g,
+      });
+      return {
+        calories100g: clamped.calories100g,
+        protein100g: clamped.protein100g,
+        carbs100g: clamped.carbs100g,
+        fat100g: clamped.fat100g,
       };
     }
 
@@ -246,15 +253,23 @@ export async function searchFoodDb(name: string): Promise<{ calories100g: number
     const nutrients = food.foodNutrients ?? [];
     const calories = getNutrient(nutrients, 1008) || getNutrient(nutrients, 2047) || getNutrient(nutrients, 2048);
     if (!calories) return null;
-    const result = {
+    const foodName = food.description ? food.description.charAt(0).toUpperCase() + food.description.slice(1).toLowerCase() : name;
+    const rawResult = {
+      name: foodName,
       calories100g: Math.round(calories),
       protein100g: Math.round(getNutrient(nutrients, 1003) * 10) / 10,
       carbs100g: Math.round(getNutrient(nutrients, 1005) * 10) / 10,
       fat100g: Math.round(getNutrient(nutrients, 1004) * 10) / 10,
     };
-    // Cache into canonical DB asynchronously
+    const sanitized = clampNutritionToCeiling(rawResult);
+    const result = {
+      calories100g: sanitized.calories100g,
+      protein100g: sanitized.protein100g,
+      carbs100g: sanitized.carbs100g,
+      fat100g: sanitized.fat100g,
+    };
     storage.upsertCanonicalFood({
-      name: food.description ? food.description.charAt(0).toUpperCase() + food.description.slice(1).toLowerCase() : name,
+      name: foodName,
       ...result,
       fdcId: food.fdcId ? String(food.fdcId) : null,
       source: "usda_cached",
@@ -326,6 +341,39 @@ export function isKnownZeroCalorieFood(name: string): boolean {
   return KNOWN_ZERO_CALORIE_PATTERNS.some(p => p.test(cleaned));
 }
 
+const FRESH_PRODUCE_PATTERNS = [
+  /\b(lettuce|spinach|kale|arugula|chard|cabbage|broccoli|cauliflower|celery|cucumber|zucchini|squash|eggplant|bell pepper|capsicum|tomato|cherry tomato|radish|turnip|beet|carrot|onion|leek|shallot|garlic|ginger|mushroom|asparagus|green bean|snap pea|snow pea|pea|corn|artichoke|fennel)\b/i,
+  /\b(apple|banana|orange|lemon|lime|grapefruit|strawberr|blueberr|raspberr|blackberr|cranberr|grape|melon|watermelon|cantaloupe|honeydew|peach|nectarine|plum|pear|cherry|cherries|mango|papaya|pineapple|kiwi|pomegranate|fig|apricot|passion\s?fruit|dragon\s?fruit|lychee|guava)\b/i,
+  /\b(mint|basil|cilantro|parsley|dill|chive|oregano|thyme|rosemary|sage|tarragon|coriander)\b/i,
+];
+
+const LIQUID_PATTERNS = [
+  /\b(milk|juice|broth|stock|cream|yogurt|yoghurt|kefir|buttermilk|soy\s?milk|almond\s?milk|oat\s?milk|coconut\s?milk|rice\s?milk)\b/i,
+  /\b(sauce|vinegar|wine|beer|soda|lemonade|smoothie|shake|soup)\b/i,
+];
+
+function getCategoryCalorieCap(name: string): number {
+  const lower = name.toLowerCase();
+  if (FRESH_PRODUCE_PATTERNS.some(p => p.test(lower))) return 100;
+  if (LIQUID_PATTERNS.some(p => p.test(lower))) return 400;
+  return 900;
+}
+
+function clampNutritionToCeiling(est: { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number }): { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number } {
+  const cap = getCategoryCalorieCap(est.name);
+  if (est.calories100g <= cap) return est;
+
+  const scale = cap / est.calories100g;
+  console.warn(`[sanitizeNutrition] "${est.name}" calories100g (${est.calories100g}) exceeds cap (${cap}) — clamping and scaling macros by ${scale.toFixed(2)}`);
+  return {
+    name: est.name,
+    calories100g: Math.round(cap),
+    protein100g: Math.round(est.protein100g * scale * 10) / 10,
+    carbs100g: Math.round(est.carbs100g * scale * 10) / 10,
+    fat100g: Math.round(est.fat100g * scale * 10) / 10,
+  };
+}
+
 function sanitizeAiNutrition(est: { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number }): { name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number } {
   const { name, calories100g, protein100g, carbs100g, fat100g } = est;
   const macroCalories = protein100g * 4 + carbs100g * 4 + fat100g * 9;
@@ -346,14 +394,69 @@ function sanitizeAiNutrition(est: { name: string; calories100g: number; protein1
 
   if (macroCalories > 0 && calories100g > 0) {
     const ratio = calories100g / macroCalories;
-    if (ratio < 0.5 || ratio > 2.0) {
+    if (ratio < 0.7 || ratio > 1.5) {
       const corrected = Math.round(macroCalories);
       console.warn(`[sanitizeAiNutrition] "${name}" AI calories (${calories100g}) inconsistent with macros (expected ~${corrected}) — using macro-derived value`);
-      return { name, calories100g: corrected, protein100g, carbs100g, fat100g };
+      return clampNutritionToCeiling({ name, calories100g: corrected, protein100g, carbs100g, fat100g });
     }
   }
 
-  return est;
+  return clampNutritionToCeiling(est);
+}
+
+export function crossValidateIngredients(
+  ingredients: IngredientResult[],
+  statedCaloriesPerServing: number | null,
+  servings: number,
+): IngredientResult[] {
+  if (statedCaloriesPerServing == null || statedCaloriesPerServing <= 0 || servings <= 0) {
+    return ingredients;
+  }
+
+  const totalIngredientCalories = ingredients.reduce((sum, ing) => {
+    return sum + (ing.calories100g * ing.grams / 100);
+  }, 0);
+  const ingredientCaloriesPerServing = totalIngredientCalories / servings;
+  const statedTotal = statedCaloriesPerServing;
+
+  if (statedTotal <= 0) return ingredients;
+
+  if (ingredientCaloriesPerServing <= 0) {
+    console.warn(
+      `[crossValidateIngredients] Ingredient-computed calories are zero/negative — skipping cross-validation`
+    );
+    return ingredients;
+  }
+
+  const divergenceRatio = ingredientCaloriesPerServing / statedTotal;
+
+  if (divergenceRatio > 1.8 || divergenceRatio < 0.2) {
+    console.warn(
+      `[crossValidateIngredients] Significant calorie divergence detected: ` +
+      `ingredient-computed ${Math.round(ingredientCaloriesPerServing)} kcal/serving vs stated ${statedTotal} kcal/serving ` +
+      `(ratio: ${divergenceRatio.toFixed(2)}, servings: ${servings}). ` +
+      `Falling back to stated website calories. Ingredients: ${ingredients.map(i => `${i.name}(${i.calories100g}kcal/100g, ${i.grams}g)`).join(", ")}`
+    );
+
+    const scale = statedTotal / ingredientCaloriesPerServing;
+    return ingredients.map(ing => ({
+      ...ing,
+      calories100g: Math.round(ing.calories100g * scale),
+      protein100g: Math.round(ing.protein100g * scale * 10) / 10,
+      carbs100g: Math.round(ing.carbs100g * scale * 10) / 10,
+      fat100g: Math.round(ing.fat100g * scale * 10) / 10,
+    }));
+  }
+
+  if (divergenceRatio > 1.3 || divergenceRatio < 0.7) {
+    console.warn(
+      `[crossValidateIngredients] Moderate calorie divergence: ` +
+      `ingredient-computed ${Math.round(ingredientCaloriesPerServing)} kcal/serving vs stated ${statedTotal} kcal/serving ` +
+      `(ratio: ${divergenceRatio.toFixed(2)})`
+    );
+  }
+
+  return ingredients;
 }
 
 export async function parseIngredientsFromArray(ingredientLines: string[], userId?: number): Promise<IngredientResult[]> {
