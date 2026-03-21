@@ -171,7 +171,7 @@ router.get("/api/strava/auth", (req, res) => {
   const baseUrl = getBaseUrl(req);
   const redirectUri = `${baseUrl}/api/strava/callback`;
   const scope = "read,activity:read_all";
-  const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&approval_prompt=auto&state=${state}`;
+  const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&approval_prompt=force&state=${state}`;
 
   res.json({ url: authUrl });
 });
