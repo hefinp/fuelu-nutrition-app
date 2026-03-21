@@ -440,16 +440,16 @@ export function CalculatorForm({
           </AnimatePresence>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-y-1">
                 <label className="text-sm font-medium text-zinc-700">Activity Level</label>
-                <div className="flex items-center gap-1.5">
-                  <Link2 className="w-3 h-3 text-orange-500" />
-                  <span className="text-xs text-zinc-500">Strava</span>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Link2 className="w-3 h-3 text-orange-500 shrink-0" />
+                  <span className="text-xs text-zinc-500 leading-tight min-w-0">Link Strava for auto activity level</span>
                   <Switch
                     checked={stravaToggleOn}
                     onCheckedChange={handleStravaToggle}
                     data-testid="toggle-strava-activity-level"
-                    className="scale-75"
+                    className="scale-75 shrink-0"
                   />
                 </div>
               </div>
