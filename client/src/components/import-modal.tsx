@@ -113,7 +113,6 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
     let fatVal = parseInt(fat) || 0;
 
     const ingsJson = parsed!.ingredientsJson && parsed!.ingredientsJson.length > 0 ? parsed!.ingredientsJson : undefined;
-    const servingsCount = parsed!.servings || 1;
 
     if (calVal === 0 && ingsJson && ingsJson.length > 0) {
       const totals = ingsJson.reduce(
@@ -125,10 +124,10 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
         }),
         { cal: 0, pro: 0, carb: 0, fat: 0 },
       );
-      calVal = Math.round(totals.cal / servingsCount);
-      proVal = Math.round(totals.pro / servingsCount);
-      carbVal = Math.round(totals.carb / servingsCount);
-      fatVal = Math.round(totals.fat / servingsCount);
+      calVal = Math.round(totals.cal);
+      proVal = Math.round(totals.pro);
+      carbVal = Math.round(totals.carb);
+      fatVal = Math.round(totals.fat);
     }
 
     return {

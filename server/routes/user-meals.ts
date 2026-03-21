@@ -130,7 +130,6 @@ router.post("/api/user-meals", async (req, res) => {
     }
 
     if (mealData.caloriesPerServing === 0 && mealData.ingredientsJson && Array.isArray(mealData.ingredientsJson) && mealData.ingredientsJson.length > 0) {
-      const servingsCount = mealData.servings || 1;
       const totals = (mealData.ingredientsJson as IngredientResult[]).reduce(
         (acc, ing) => ({
           cal: acc.cal + (ing.calories100g * ing.grams / 100),
@@ -140,10 +139,10 @@ router.post("/api/user-meals", async (req, res) => {
         }),
         { cal: 0, pro: 0, carb: 0, fat: 0 },
       );
-      mealData.caloriesPerServing = Math.round(totals.cal / servingsCount);
-      mealData.proteinPerServing = Math.round(totals.pro / servingsCount);
-      mealData.carbsPerServing = Math.round(totals.carb / servingsCount);
-      mealData.fatPerServing = Math.round(totals.fat / servingsCount);
+      mealData.caloriesPerServing = Math.round(totals.cal);
+      mealData.proteinPerServing = Math.round(totals.pro);
+      mealData.carbsPerServing = Math.round(totals.carb);
+      mealData.fatPerServing = Math.round(totals.fat);
     }
 
     const created = await storage.createUserMeal({ ...mealData, userId: req.session.userId });

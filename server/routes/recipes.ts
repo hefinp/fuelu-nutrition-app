@@ -274,13 +274,19 @@ router.post("/api/recipes/import", async (req, res) => {
 
       const aiIngredients = Array.isArray(aiJson.ingredients) ? aiJson.ingredients : [];
       let ingredientsJson: IngredientResult[] = [];
-      const parsedServings = typeof aiJson.servings === "number" ? aiJson.servings : 1;
+      const parsedServings = typeof aiJson.servings === "number" && aiJson.servings > 0 ? aiJson.servings : 1;
       const statedCalories = typeof aiJson.calories === "number" ? aiJson.calories : null;
       try {
         if (aiIngredients.length > 0) {
           ingredientsJson = await parseIngredientsFromArray(aiIngredients, req.session.userId);
           if (statedCalories != null) {
             ingredientsJson = crossValidateIngredients(ingredientsJson, statedCalories, parsedServings);
+          }
+          if (parsedServings > 1) {
+            ingredientsJson = ingredientsJson.map(ing => ({
+              ...ing,
+              grams: Math.round((ing.grams / parsedServings) * 10) / 10,
+            }));
           }
         }
       } catch (e) {
@@ -375,6 +381,12 @@ router.post("/api/recipes/import", async (req, res) => {
       if (calories != null) {
         ingredientsJson = crossValidateIngredients(ingredientsJson, calories, servings);
       }
+      if (servings > 1) {
+        ingredientsJson = ingredientsJson.map(ing => ({
+          ...ing,
+          grams: Math.round((ing.grams / servings) * 10) / 10,
+        }));
+      }
     }
   } catch (e) {
     console.error("[import] Failed to parse ingredients to JSON:", e);
@@ -459,9 +471,16 @@ router.post("/api/recipes/import-photo", async (req, res) => {
 
   const photoIngredients = Array.isArray(aiJson.ingredients) ? aiJson.ingredients.map(String) : [];
   let photoIngredientsJson: IngredientResult[] = [];
+  const photoServings = typeof aiJson.servings === "number" && aiJson.servings > 0 ? aiJson.servings : 1;
   try {
     if (photoIngredients.length > 0) {
       photoIngredientsJson = await parseIngredientsFromArray(photoIngredients, req.session.userId);
+      if (photoServings > 1) {
+        photoIngredientsJson = photoIngredientsJson.map(ing => ({
+          ...ing,
+          grams: Math.round((ing.grams / photoServings) * 10) / 10,
+        }));
+      }
     }
   } catch (e) {
     console.error("[import-photo] Failed to parse ingredients to JSON:", e);
@@ -473,7 +492,7 @@ router.post("/api/recipes/import-photo", async (req, res) => {
     ingredients: photoIngredients,
     ingredientsJson: photoIngredientsJson,
     instructions: Array.isArray(aiJson.instructions) ? aiJson.instructions.map(String) : [],
-    servings: typeof aiJson.servings === "number" && aiJson.servings > 0 ? aiJson.servings : 1,
+    servings: photoServings,
     sourceUrl: "photo://recipe-book",
     calories: typeof aiJson.calories === "number" ? aiJson.calories : null,
     protein: typeof aiJson.protein === "number" ? aiJson.protein : null,
@@ -792,9 +811,16 @@ router.post("/api/recipes/import-video", async (req, res) => {
 
     const videoIngredients = Array.isArray(aiJson.ingredients) ? aiJson.ingredients.map(String) : [];
     let videoIngredientsJson: IngredientResult[] = [];
+    const videoServings = typeof aiJson.servings === "number" && aiJson.servings > 0 ? aiJson.servings : 1;
     try {
       if (videoIngredients.length > 0) {
         videoIngredientsJson = await parseIngredientsFromArray(videoIngredients, req.session.userId);
+        if (videoServings > 1) {
+          videoIngredientsJson = videoIngredientsJson.map(ing => ({
+            ...ing,
+            grams: Math.round((ing.grams / videoServings) * 10) / 10,
+          }));
+        }
       }
     } catch (e) {
       console.error("[import-video] Failed to parse ingredients to JSON:", e);
@@ -806,7 +832,7 @@ router.post("/api/recipes/import-video", async (req, res) => {
       ingredients: videoIngredients,
       ingredientsJson: videoIngredientsJson,
       instructions: Array.isArray(aiJson.instructions) ? aiJson.instructions.map(String) : [],
-      servings: typeof aiJson.servings === "number" && aiJson.servings > 0 ? aiJson.servings : 1,
+      servings: videoServings,
       sourceUrl: url,
       calories: typeof aiJson.calories === "number" ? aiJson.calories : null,
       protein: typeof aiJson.protein === "number" ? aiJson.protein : null,
