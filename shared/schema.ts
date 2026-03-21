@@ -112,6 +112,7 @@ export const userPreferencesSchema = z.object({
   eatingWindowEnd: z.number().int().min(0).max(23).optional(),
   fastingDays: z.array(z.enum(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"])).optional(),
   country: z.string().optional(),
+  stravaActivityLevelEnabled: z.boolean().optional(),
 });
 
 export type UserPreferences = z.infer<typeof userPreferencesSchema>;

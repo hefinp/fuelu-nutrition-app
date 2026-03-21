@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Activity, Ruler, Scale, User, Target, ChevronDown, Flame, Zap, Dumbbell, TrendingUp, Circle } from "lucide-react";
+import { Activity, Ruler, Scale, User, Target, ChevronDown, Flame, Zap, Dumbbell, TrendingUp, Circle, Link2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCreateCalculation } from "@/hooks/use-calculations";
 import { useToast } from "@/hooks/use-toast";
+import { useTierStatus } from "@/hooks/use-tier";
 import { Switch } from "@/components/ui/switch";
 import { apiRequest } from "@/lib/queryClient";
 import type { Calculation, UserPreferences } from "@shared/schema";
@@ -109,6 +110,24 @@ export function CalculatorForm({
   const vitalityInsightsEnabled = prefs?.vitalityInsightsEnabled ?? false;
   const [cycleReenableDialog, setCycleReenableDialog] = useState(false);
 
+  const { data: tierStatus } = useTierStatus();
+  const stravaToggleOn = prefs?.stravaActivityLevelEnabled ?? false;
+
+  const { data: stravaStatus } = useQuery<{ connected: boolean }>({
+    queryKey: ["/api/strava/status"],
+  });
+
+  const { data: stravaActivityData, isLoading: stravaActivityLoading, isError: stravaActivityError } = useQuery<{
+    activityLevel: string;
+    avgMinutesPerDay: number;
+    summary: string;
+  }>({
+    queryKey: ["/api/strava/activity-level"],
+    enabled: stravaToggleOn && !!stravaStatus?.connected,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
   function handleVitalityToggle(enabled: boolean) {
     updatePrefsMutation.mutate({ vitalityInsightsEnabled: enabled });
   }
@@ -146,6 +165,8 @@ export function CalculatorForm({
     },
   });
 
+  const manualActivityLevelRef = useRef<FormValues["activityLevel"]>(form.getValues("activityLevel"));
+
   useEffect(() => {
     if (!defaultValues || prefilled) return;
     const validGoals = ["fat_loss", "tone", "maintain", "muscle", "bulk"];
@@ -162,12 +183,61 @@ export function CalculatorForm({
       targetType: (defaultValues.targetType as FormValues["targetType"]) ?? "weekly",
       targetAmount: defaultValues.targetAmount ? String(defaultValues.targetAmount) : "",
     });
+    manualActivityLevelRef.current = activityLevel;
     setPrefilled(true);
   }, [defaultValues, prefilled, form]);
 
   useEffect(() => {
     onPendingChange?.(createCalc.isPending);
   }, [createCalc.isPending, onPendingChange]);
+
+  useEffect(() => {
+    if (stravaToggleOn && stravaActivityData?.activityLevel) {
+      const validLevels = ["sedentary", "light", "moderate", "active", "very_active"];
+      if (validLevels.includes(stravaActivityData.activityLevel)) {
+        form.setValue("activityLevel", stravaActivityData.activityLevel as FormValues["activityLevel"]);
+      }
+    }
+  }, [stravaToggleOn, stravaActivityData, form]);
+
+  useEffect(() => {
+    if (stravaToggleOn && stravaStatus && !stravaStatus.connected) {
+      form.setValue("activityLevel", manualActivityLevelRef.current);
+    }
+  }, [stravaToggleOn, stravaStatus, form]);
+
+  function handleStravaToggle(enabled: boolean) {
+    if (enabled) {
+      if (!tierStatus) {
+        toast({ title: "Loading", description: "Please wait a moment and try again." });
+        return;
+      }
+      const hasFeature = tierStatus.features?.["strava_activity_level"] ?? false;
+      if (!hasFeature && !tierStatus.betaUser) {
+        toast({
+          title: "Advanced Feature",
+          description: "Strava-derived activity level requires an Advanced plan. Upgrade in Settings to unlock this feature.",
+        });
+        return;
+      }
+      manualActivityLevelRef.current = form.getValues("activityLevel");
+      if (!stravaStatus?.connected) {
+        apiRequest("GET", "/api/strava/auth")
+          .then(r => r.json())
+          .then((data: { url: string }) => {
+            updatePrefsMutation.mutate({ stravaActivityLevelEnabled: true });
+            window.location.href = data.url;
+          })
+          .catch(() => {
+            toast({ title: "Error", description: "Failed to initiate Strava connection.", variant: "destructive" });
+          });
+        return;
+      }
+    } else {
+      form.setValue("activityLevel", manualActivityLevelRef.current);
+    }
+    updatePrefsMutation.mutate({ stravaActivityLevelEnabled: enabled });
+  }
 
   const onSubmit = (data: FormValues) => {
     createCalc.mutate(data, {
@@ -370,23 +440,52 @@ export function CalculatorForm({
           </AnimatePresence>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-zinc-700">Activity Level</label>
-              <div className="grid grid-cols-5 gap-1.5">
-                {[
-                  { id: "sedentary", label: "Sed." },
-                  { id: "light", label: "Light" },
-                  { id: "moderate", label: "Mod." },
-                  { id: "active", label: "Active" },
-                  { id: "very_active", label: "V. Active" },
-                ].map((level) => (
-                  <label key={level.id} className={`cursor-pointer text-center px-1 py-2.5 rounded-xl border text-xs transition-all ${
-                    watched.activityLevel === level.id ? "bg-zinc-900 text-white border-zinc-900" : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
-                  }`}>
-                    <input type="radio" value={level.id} {...form.register("activityLevel")} className="hidden" />
-                    {level.label}
-                  </label>
-                ))}
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-zinc-700">Activity Level</label>
+                <div className="flex items-center gap-1.5">
+                  <Link2 className="w-3 h-3 text-orange-500" />
+                  <span className="text-xs text-zinc-500">Strava</span>
+                  <Switch
+                    checked={stravaToggleOn}
+                    onCheckedChange={handleStravaToggle}
+                    data-testid="toggle-strava-activity-level"
+                    className="scale-75"
+                  />
+                </div>
               </div>
+              {stravaToggleOn && stravaStatus?.connected && stravaActivityData ? (
+                <div className="rounded-xl bg-orange-50 border border-orange-200 px-3.5 py-3 text-xs text-zinc-700 leading-relaxed" data-testid="text-strava-activity-summary">
+                  {stravaActivityData.summary}
+                </div>
+              ) : stravaToggleOn && stravaActivityLoading ? (
+                <div className="rounded-xl bg-zinc-50 border border-zinc-200 px-3.5 py-3 text-xs text-zinc-500 animate-pulse" data-testid="text-strava-loading">
+                  Loading activity data from Strava...
+                </div>
+              ) : (
+                <>
+                  {stravaToggleOn && stravaStatus?.connected && stravaActivityError && (
+                    <div className="rounded-xl bg-red-50 border border-red-200 px-3.5 py-3 text-xs text-red-700 leading-relaxed mb-1.5" data-testid="text-strava-error">
+                      Could not load Strava activity data. Select manually below.
+                    </div>
+                  )}
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {[
+                      { id: "sedentary", label: "Sed." },
+                      { id: "light", label: "Light" },
+                      { id: "moderate", label: "Mod." },
+                      { id: "active", label: "Active" },
+                      { id: "very_active", label: "V. Active" },
+                    ].map((level) => (
+                      <label key={level.id} className={`cursor-pointer text-center px-1 py-2.5 rounded-xl border text-xs transition-all ${
+                        watched.activityLevel === level.id ? "bg-zinc-900 text-white border-zinc-900" : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
+                      }`}>
+                        <input type="radio" value={level.id} {...form.register("activityLevel")} className="hidden" />
+                        {level.label}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </AccordionSection>
@@ -724,7 +823,7 @@ export function CalculatorForm({
         )}
         <button
           type="submit"
-          disabled={createCalc.isPending}
+          disabled={createCalc.isPending || (stravaToggleOn && stravaActivityLoading)}
           data-testid="button-generate-plan"
           className="w-full mt-6 px-6 py-4 rounded-xl font-semibold bg-zinc-900 text-white shadow-xl shadow-zinc-900/20
                    hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-zinc-900/30 active:translate-y-0

@@ -1,6 +1,7 @@
 import { Router, type Request } from "express";
 import crypto from "crypto";
 import { storage } from "../storage";
+import { hasTierAccess } from "../tier";
 
 const router = Router();
 
@@ -463,6 +464,63 @@ router.get("/api/strava/activities/range", async (req, res) => {
   } catch (err) {
     console.error("[strava] Activities range error:", err);
     res.json({ dailyCalories: {} });
+  }
+});
+
+// ── Derived activity level (14-day average) ─────────────────────────────────
+
+const ACTIVITY_LEVEL_THRESHOLDS: { maxMin: number; level: string; label: string }[] = [
+  { maxMin: 15, level: "sedentary", label: "Sedentary" },
+  { maxMin: 30, level: "light", label: "Light" },
+  { maxMin: 60, level: "moderate", label: "Moderate" },
+  { maxMin: 90, level: "active", label: "Active" },
+  { maxMin: Infinity, level: "very_active", label: "Very Active" },
+];
+
+function deriveActivityLevel(avgMinutesPerDay: number): { level: string; label: string } {
+  for (const t of ACTIVITY_LEVEL_THRESHOLDS) {
+    if (avgMinutesPerDay < t.maxMin) return { level: t.level, label: t.label };
+  }
+  return { level: "very_active", label: "Very Active" };
+}
+
+router.get("/api/strava/activity-level", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const user = await storage.getUserById(req.session.userId);
+  if (!user) return res.status(401).json({ message: "User not found" });
+
+  const hasAccess = await hasTierAccess(user, "strava_activity_level");
+  if (!hasAccess) return res.status(403).json({ message: "Advanced tier required" });
+
+  const conn = await storage.getStravaConnection(req.session.userId);
+  if (!conn) return res.status(404).json({ message: "Strava not connected" });
+
+  try {
+    const now = new Date();
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    let activities = await storage.getStravaActivitiesRange(req.session.userId, fourteenDaysAgo, now);
+
+    if (activities.length === 0) {
+      try {
+        const accessToken = await refreshTokenIfNeeded(req.session.userId, conn);
+        const afterEpoch = Math.floor(fourteenDaysAgo.getTime() / 1000);
+        await fetchAndStoreActivities(req.session.userId, accessToken, afterEpoch);
+        activities = await storage.getStravaActivitiesRange(req.session.userId, fourteenDaysAgo, now);
+      } catch (fetchErr) {
+        console.error("[strava] Activity-level fetch error:", fetchErr);
+      }
+    }
+
+    const totalMovingTimeMinutes = activities.reduce((sum, a) => sum + (a.movingTime ?? 0) / 60, 0);
+    const avgMinutesPerDay = totalMovingTimeMinutes / 14;
+    const { level, label } = deriveActivityLevel(avgMinutesPerDay);
+    const summary = `Based on your last 14 days you average ${Math.round(avgMinutesPerDay)} min/day of activity — ${label}`;
+
+    res.json({ activityLevel: level, avgMinutesPerDay: Math.round(avgMinutesPerDay), summary });
+  } catch (err) {
+    console.error("[strava] Activity-level error:", err);
+    res.status(500).json({ message: "Failed to compute activity level" });
   }
 });
 
