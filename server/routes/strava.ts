@@ -324,6 +324,12 @@ router.get("/api/strava/activities", async (req, res) => {
 
 // ── Activities by date (for diary) ───────────────────────────────────────────
 
+function isValidDateString(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(s + "T00:00:00");
+  return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
 router.get("/api/strava/activities/date/:date", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
 
@@ -331,7 +337,7 @@ router.get("/api/strava/activities/date/:date", async (req, res) => {
   if (!conn) return res.json({ activities: [], totalCalories: 0 });
 
   const date = req.params.date;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!isValidDateString(date)) {
     return res.status(400).json({ message: "Invalid date format (YYYY-MM-DD)" });
   }
 
@@ -369,9 +375,8 @@ router.get("/api/strava/activities/range", async (req, res) => {
 
   const from = req.query.from as string;
   const to = req.query.to as string;
-  if (!from || !to) return res.status(400).json({ message: "from and to query params required" });
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
-    return res.status(400).json({ message: "Invalid date format (YYYY-MM-DD)" });
+  if (!from || !to || !isValidDateString(from) || !isValidDateString(to)) {
+    return res.status(400).json({ message: "Valid from and to date params required (YYYY-MM-DD)" });
   }
 
   try {
@@ -411,16 +416,23 @@ router.get("/api/strava/webhook", (req, res) => {
 });
 
 router.post("/api/strava/webhook", async (req, res) => {
+  const body = req.body as Record<string, unknown>;
+  const { object_type, aspect_type, object_id, owner_id, subscription_id } = body;
+
+  if (
+    typeof object_type !== "string" ||
+    typeof aspect_type !== "string" ||
+    typeof object_id !== "number" ||
+    typeof owner_id !== "number" ||
+    typeof subscription_id !== "number"
+  ) {
+    res.status(400).json({ message: "Invalid webhook payload" });
+    return;
+  }
+
   res.status(200).json({ ok: true });
 
   try {
-    const { object_type, aspect_type, object_id, owner_id } = req.body as {
-      object_type: string;
-      aspect_type: string;
-      object_id: number;
-      owner_id: number;
-    };
-
     if (object_type !== "activity") return;
 
     const match = await findStravaConnectionByAthleteId(String(owner_id));
