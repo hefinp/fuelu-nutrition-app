@@ -52,7 +52,24 @@ router.post("/api/adaptive-tdee/calculate", async (req, res) => {
   const toStr = now.toISOString().slice(0, 10);
   const foodLogs = await storage.getFoodLogEntriesRange(userId, fromStr, toStr);
 
-  const result = computeAdaptiveTdee(weightEntries, foodLogs, 14);
+  let exerciseCaloriesByDay: Record<string, number> | undefined;
+  try {
+    const conn = await storage.getStravaConnection(userId);
+    if (conn) {
+      const stravaActivities = await storage.getStravaActivitiesRange(userId, cutoff, now);
+      if (stravaActivities.length > 0) {
+        exerciseCaloriesByDay = {};
+        for (const a of stravaActivities) {
+          const day = new Date(a.startDate).toISOString().slice(0, 10);
+          exerciseCaloriesByDay[day] = (exerciseCaloriesByDay[day] ?? 0) + (a.calories ?? 0);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("[adaptive-tdee] Failed to fetch Strava exercise data:", e);
+  }
+
+  const result = computeAdaptiveTdee(weightEntries, foodLogs, 14, exerciseCaloriesByDay);
   if (!result) {
     return res.json({
       eligible: false,

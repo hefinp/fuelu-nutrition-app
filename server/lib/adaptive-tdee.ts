@@ -4,6 +4,7 @@ export type AdaptiveTdeeResult = {
   estimatedTdee: number;
   avgDailyCalories: number;
   avgDailyWeightChangeKg: number;
+  avgDailyExerciseCalories: number;
   confidence: "low" | "medium" | "high";
   logDays: number;
   weightEntryCount: number;
@@ -12,7 +13,8 @@ export type AdaptiveTdeeResult = {
 export function computeAdaptiveTdee(
   weightEntries: WeightEntry[],
   foodLogEntries: FoodLogEntry[],
-  windowDays = 14
+  windowDays = 14,
+  exerciseCaloriesByDay?: Record<string, number>
 ): AdaptiveTdeeResult | null {
   const now = new Date();
   const cutoff = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000);
@@ -36,6 +38,14 @@ export function computeAdaptiveTdee(
   const totalCalories = recentFood.reduce((sum, e) => sum + e.calories, 0);
   const avgDailyCalories = totalCalories / logDays;
 
+  let totalExerciseCalories = 0;
+  if (exerciseCaloriesByDay) {
+    for (const day of uniqueDays) {
+      totalExerciseCalories += exerciseCaloriesByDay[day] ?? 0;
+    }
+  }
+  const avgDailyExerciseCalories = totalExerciseCalories / logDays;
+
   const firstWeight = parseFloat(String(recentWeight[0].weight));
   const lastWeight = parseFloat(String(recentWeight[recentWeight.length - 1].weight));
   const firstDate = new Date(recentWeight[0].recordedAt!);
@@ -49,7 +59,7 @@ export function computeAdaptiveTdee(
   const avgDailyWeightChangeKg = totalWeightChangeKg / daysBetween;
 
   const estimatedTdee = Math.round(
-    avgDailyCalories - (avgDailyWeightChangeKg * 7700)
+    avgDailyCalories + avgDailyExerciseCalories - (avgDailyWeightChangeKg * 7700)
   );
 
   let confidence: "low" | "medium" | "high" = "low";
@@ -60,6 +70,7 @@ export function computeAdaptiveTdee(
     estimatedTdee,
     avgDailyCalories,
     avgDailyWeightChangeKg,
+    avgDailyExerciseCalories,
     confidence,
     logDays,
     weightEntryCount: recentWeight.length,
