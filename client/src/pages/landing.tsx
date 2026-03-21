@@ -173,16 +173,170 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
   );
 }
 
-/* ── Original detailed sections (preserved for launch restore) ──
-   Feature highlight cards, goal pills, feature cards grid, and CTA banner
-   were removed for pre-launch. To restore:
-   1. Add back imports: ChefHat, Filter, FileDown, ScanLine, Brain, HeartPulse
-   2. Restore the features, highlights, and goals arrays
-   3. Re-insert the Feature highlights grid after the CTA buttons
-   4. Re-insert the Goal pills after the highlights
-   5. Re-insert the Feature cards section before the footer
-   6. Re-insert the CTA banner section before the footer
-   7. Update hero subtitle from "Coming soon." back to "Simple. Gourmet. Michelin."
-   8. Update bullet points back to detailed feature descriptions
-   9. Update meta tags back to detailed descriptions
-── */
+/* ── ORIGINAL LANDING PAGE CODE (preserved for launch restore) ──────────────
+ *
+ * To restore the full landing page:
+ * 1. Uncomment the imports, data arrays, and JSX sections below
+ * 2. In the import line, add: ChefHat, Filter, FileDown, ScanLine, Brain, HeartPulse
+ * 3. Uncomment the features, highlights, and goals arrays and place them before the component
+ * 4. Replace the hero subtitle "Coming soon." with "Simple. Gourmet. Michelin."
+ * 5. Replace the hero paragraph with the original detailed one below
+ * 6. Replace the simplified bullet points with the original detailed ones below
+ * 7. Replace the badge text with the original
+ * 8. Insert the Feature highlights grid, Goal pills, Feature cards, and CTA banner JSX
+ * 9. Restore the original meta tags
+ * 10. Remove the Coming Soon banner
+ *
+ * ── ORIGINAL IMPORTS ──
+ *
+ * import { ChefHat, Filter, FileDown, ScanLine, Brain, HeartPulse } from "lucide-react";
+ *
+ * ── ORIGINAL DATA ARRAYS ──
+ *
+ * const features = [
+ *   {
+ *     icon: ChefHat,
+ *     title: "Three Meal-Style Tiers",
+ *     description: "Choose Simple, Gourmet, or Michelin-inspired meals — every plan is tailored to your cooking ambition.",
+ *   },
+ *   {
+ *     icon: Filter,
+ *     title: "Allergy & Preference Filtering",
+ *     description: "Exclude allergens, flag disliked foods, and highlight your favourites — every meal respects your dietary choices.",
+ *   },
+ *   {
+ *     icon: FileDown,
+ *     title: "PDF Export & Email Delivery",
+ *     description: "Download your plan or shopping list as a print-ready PDF, or email the full breakdown straight to your inbox.",
+ *   },
+ *   {
+ *     icon: ScanLine,
+ *     title: "Barcode & AI Food Scanning",
+ *     description: "Scan barcodes or snap a photo — our AI reads nutrition labels and recognises foods to log macros instantly.",
+ *   },
+ * ];
+ *
+ * const highlights = [
+ *   { icon: Brain, label: "AI Meal Plans", desc: "Three tiers of personalised plans" },
+ *   { icon: ScanLine, label: "Smart Scanning", desc: "Barcode + AI food recognition" },
+ *   { icon: HeartPulse, label: "Cycle-Aware", desc: "Nutrition adapts to your cycle" },
+ * ];
+ *
+ * const goals = [
+ *   { label: "Fat Loss", color: "bg-rose-100 text-rose-700" },
+ *   { label: "Tone & Define", color: "bg-amber-100 text-amber-700" },
+ *   { label: "Maintain", color: "bg-emerald-100 text-emerald-700" },
+ *   { label: "Build Muscle", color: "bg-blue-100 text-blue-700" },
+ *   { label: "Bulk", color: "bg-purple-100 text-purple-700" },
+ * ];
+ *
+ * ── ORIGINAL META TAGS ──
+ *
+ * usePageMeta({
+ *   title: "FuelU — Personalised Meal Plans in Three Cooking Tiers",
+ *   description: "Track macros, log meals with AI scanning, and get personalised nutrition plans in Simple, Gourmet, or Michelin-inspired tiers. Free to start — no credit card needed.",
+ *   ogTitle: "FuelU — Personalised Meal Plans in Three Cooking Tiers",
+ *   ogDescription: "AI-powered nutrition planning with three cooking tiers. Track macros, scan barcodes, export PDFs, and get cycle-aware meal plans built around how you actually eat.",
+ *   ogImage: `${window.location.origin}/icon-512.png`,
+ *   ogUrl: "https://fuelu.app",
+ *   ogType: "website",
+ * });
+ *
+ * ── ORIGINAL HERO BADGE TEXT ──
+ *
+ * Free nutrition planning — no credit card needed
+ *
+ * ── ORIGINAL HERO SUBTITLE (replace "Coming soon.") ──
+ *
+ * <span className="text-zinc-400">Simple. Gourmet. Michelin.</span>
+ *
+ * ── ORIGINAL HERO PARAGRAPH ──
+ *
+ * Track your macros, log meals with AI scanning, and get personalised plans
+ * in three cooking tiers — all built around how you actually eat.
+ *
+ * ── ORIGINAL BULLET POINTS (replace simplified list) ──
+ *
+ * <li>Three meal-style tiers — Simple, Gourmet, and Michelin-inspired</li>
+ * <li>Barcode scanning & AI food recognition — log meals in seconds</li>
+ * <li>PDF export, email delivery & smart shopping lists</li>
+ * <li>No ads. Ever.</li>
+ *
+ * ── ORIGINAL FEATURE HIGHLIGHTS GRID (insert after CTA buttons, inside motion.div) ──
+ *
+ * <div className="grid grid-cols-3 gap-2 sm:gap-3 max-w-lg mx-auto mt-12">
+ *   {highlights.map(h => (
+ *     <div key={h.label} className="bg-zinc-50 border border-zinc-100 rounded-2xl p-3 sm:p-4 text-center" data-testid={`highlight-${h.label.toLowerCase().replace(/\s+/g, "-")}`}>
+ *       <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center mx-auto mb-2">
+ *         <h.icon className="w-5 h-5 text-white" />
+ *       </div>
+ *       <p className="font-semibold text-sm text-zinc-900">{h.label}</p>
+ *       <p className="text-xs text-zinc-400 mt-0.5">{h.desc}</p>
+ *     </div>
+ *   ))}
+ * </div>
+ *
+ * ── ORIGINAL GOAL PILLS (insert after Feature highlights, inside motion.div) ──
+ *
+ * <div className="flex flex-wrap gap-2 justify-center mt-8">
+ *   {goals.map(g => (
+ *     <span key={g.label} className={`text-xs font-medium px-3 py-1 rounded-full ${g.color}`}>
+ *       {g.label}
+ *     </span>
+ *   ))}
+ * </div>
+ *
+ * ── ORIGINAL FEATURE CARDS SECTION (insert before Footer) ──
+ *
+ * <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-24">
+ *   <motion.div
+ *     initial={{ opacity: 0, y: 20 }}
+ *     animate={{ opacity: 1, y: 0 }}
+ *     transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+ *     className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+ *   >
+ *     {features.map((f, i) => (
+ *       <motion.div
+ *         key={f.title}
+ *         initial={{ opacity: 0, y: 16 }}
+ *         animate={{ opacity: 1, y: 0 }}
+ *         transition={{ duration: 0.5, delay: 0.1 * i + 0.3, ease: "easeOut" }}
+ *         className="bg-zinc-50 border border-zinc-100 rounded-3xl p-6 hover:bg-zinc-100/60 transition-colors"
+ *       >
+ *         <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center mb-4">
+ *           <f.icon className="w-5 h-5 text-white" />
+ *         </div>
+ *         <h3 className="font-display font-semibold text-zinc-900 text-base mb-1.5">{f.title}</h3>
+ *         <p className="text-sm text-zinc-500 leading-relaxed">{f.description}</p>
+ *       </motion.div>
+ *     ))}
+ *   </motion.div>
+ * </section>
+ *
+ * ── ORIGINAL CTA BANNER SECTION (insert before Footer) ──
+ *
+ * <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-24">
+ *   <motion.div
+ *     initial={{ opacity: 0, y: 16 }}
+ *     animate={{ opacity: 1, y: 0 }}
+ *     transition={{ duration: 0.6, delay: 0.5, ease: "easeOut" }}
+ *     className="bg-zinc-900 rounded-3xl px-8 py-12 text-center"
+ *   >
+ *     <h2 className="font-display font-bold text-3xl text-white mb-3 tracking-tight">
+ *       Ready to hit your goals?
+ *     </h2>
+ *     <p className="text-zinc-400 text-sm mb-8 max-w-sm mx-auto">
+ *       Create a free account and get your personalised plan in under a minute.
+ *     </p>
+ *     <Link
+ *       href="/auth?tab=register"
+ *       className="inline-flex items-center gap-2 px-6 py-3 bg-white text-zinc-900 rounded-2xl font-medium hover:bg-zinc-100 transition-colors text-sm"
+ *       data-testid="link-cta-get-started"
+ *     >
+ *       Create Free Account
+ *       <ArrowRight className="w-4 h-4" />
+ *     </Link>
+ *   </motion.div>
+ * </section>
+ *
+ * ────────────────────────────────────────────────────────────────────────── */
