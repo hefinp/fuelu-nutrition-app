@@ -322,6 +322,80 @@ router.get("/api/strava/activities", async (req, res) => {
   }
 });
 
+// ── Activities by date (for diary) ───────────────────────────────────────────
+
+router.get("/api/strava/activities/date/:date", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const conn = await storage.getStravaConnection(req.session.userId);
+  if (!conn) return res.json({ activities: [], totalCalories: 0 });
+
+  const date = req.params.date;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ message: "Invalid date format (YYYY-MM-DD)" });
+  }
+
+  try {
+    const dbActivities = await storage.getStravaActivitiesByDate(req.session.userId, date);
+
+    const mapped = dbActivities.map((a) => ({
+      id: a.stravaActivityId,
+      name: a.name,
+      type: a.type,
+      sportType: a.sportType || a.type,
+      startDate: a.startDate,
+      movingTime: a.movingTime,
+      distance: a.distance,
+      calories: a.calories ?? 0,
+      averageHeartrate: a.averageHeartrate ?? null,
+    }));
+
+    const totalCalories = Math.round(mapped.reduce((s, a) => s + a.calories, 0));
+
+    res.json({ activities: mapped, totalCalories });
+  } catch (err) {
+    console.error("[strava] Activities by date error:", err);
+    res.status(500).json({ message: "Failed to load activities", activities: [], totalCalories: 0 });
+  }
+});
+
+// ── Activities date-range (for TDEE) ────────────────────────────────────────
+
+router.get("/api/strava/activities/range", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const conn = await storage.getStravaConnection(req.session.userId);
+  if (!conn) return res.json({ dailyCalories: {} });
+
+  const from = req.query.from as string;
+  const to = req.query.to as string;
+  if (!from || !to) return res.status(400).json({ message: "from and to query params required" });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    return res.status(400).json({ message: "Invalid date format (YYYY-MM-DD)" });
+  }
+
+  try {
+    const startDate = new Date(from + "T00:00:00");
+    const endDate = new Date(to + "T23:59:59.999");
+    const dbActivities = await storage.getStravaActivitiesRange(req.session.userId, startDate, endDate);
+
+    const dailyCalories: Record<string, number> = {};
+    for (const a of dbActivities) {
+      const day = new Date(a.startDate).toISOString().slice(0, 10);
+      dailyCalories[day] = (dailyCalories[day] ?? 0) + (a.calories ?? 0);
+    }
+
+    for (const key of Object.keys(dailyCalories)) {
+      dailyCalories[key] = Math.round(dailyCalories[key]);
+    }
+
+    res.json({ dailyCalories });
+  } catch (err) {
+    console.error("[strava] Activities range error:", err);
+    res.json({ dailyCalories: {} });
+  }
+});
+
 // ── Webhook endpoints ───────────────────────────────────────────────────────
 
 router.get("/api/strava/webhook", (req, res) => {

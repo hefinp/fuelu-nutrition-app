@@ -9,7 +9,7 @@ import { Link, useLocation } from "wouter";
 import {
   Loader2, Plus, Trash2, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Check, Star,
-  Sparkles, X, ArrowLeft, Lock, Shield,
+  Sparkles, X, ArrowLeft, Lock, Shield, Activity, Flame, Clock, MapPin,
   Calendar, CalendarPlus, ChefHat, Circle, Download, ShoppingCart, Mail, Pencil, AlertTriangle,
 } from "lucide-react";
 import { useTierStatus } from "@/hooks/use-tier";
@@ -74,6 +74,111 @@ export default function DiaryPage() {
   };
 
   return <DiaryContent {...targets} />;
+}
+
+interface DiaryActivityData {
+  id: number;
+  name: string;
+  type: string;
+  movingTime: number;
+  distance: number;
+  calories: number;
+  averageHeartrate: number | null;
+}
+
+const ACTIVITY_ICONS: Record<string, string> = {
+  Run: "🏃", Ride: "🚴", Swim: "🏊", Walk: "🚶", Hike: "🥾",
+  Yoga: "🧘", WeightTraining: "🏋️", Workout: "💪", CrossFit: "💪",
+};
+
+function DiaryActivitySection({ date }: { date: string }) {
+  const { data: stravaStatus } = useQuery<{ connected: boolean }>({
+    queryKey: ["/api/strava/status"],
+  });
+
+  const { data: activityData, isLoading, isError } = useQuery<{ activities: DiaryActivityData[]; totalCalories: number }>({
+    queryKey: ["/api/strava/activities/date", date],
+    queryFn: async () => {
+      const res = await fetch(`/api/strava/activities/date/${date}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load activities");
+      return res.json();
+    },
+    enabled: stravaStatus?.connected === true,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  if (!stravaStatus?.connected) return null;
+
+  const activities = activityData?.activities ?? [];
+  const totalCal = activityData?.totalCalories ?? 0;
+
+  if (isError) {
+    return (
+      <div className="bg-orange-50/40 border border-orange-100 rounded-xl p-3 mb-3" data-testid="diary-activity-error">
+        <div className="flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5 text-orange-400" />
+          <span className="text-xs text-zinc-400">Unable to load Strava activities</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="bg-orange-50/40 border border-orange-100 rounded-xl p-3 mb-3" data-testid="diary-activity-loading">
+        <div className="flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5 text-orange-500" />
+          <span className="text-xs font-medium text-zinc-500">Loading activities...</span>
+          <Loader2 className="w-3 h-3 animate-spin text-zinc-400 ml-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  if (activities.length === 0) return null;
+
+  return (
+    <div className="bg-orange-50/40 border border-orange-100 rounded-xl p-3 mb-3" data-testid="diary-activity-section">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="p-1 rounded-md bg-orange-100/80">
+          <Activity className="w-3 h-3 text-orange-600" />
+        </div>
+        <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider flex-1">Activity</span>
+        {totalCal > 0 && (
+          <span className="flex items-center gap-1 text-[11px] font-semibold text-orange-600" data-testid="diary-activity-total-cal">
+            <Flame className="w-3 h-3" />
+            {totalCal} kcal burned
+          </span>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        {activities.map((a) => (
+          <div key={a.id} className="flex items-center gap-2 py-1" data-testid={`diary-activity-${a.id}`}>
+            <span className="text-sm">{ACTIVITY_ICONS[a.type] || "🏃"}</span>
+            <span className="text-xs font-medium text-zinc-700 flex-1 truncate">{a.name}</span>
+            <div className="flex items-center gap-2 text-[10px] text-zinc-400">
+              <span className="flex items-center gap-0.5">
+                <Clock className="w-2.5 h-2.5" />
+                {a.movingTime >= 3600
+                  ? `${Math.floor(a.movingTime / 3600)}h ${Math.floor((a.movingTime % 3600) / 60)}m`
+                  : `${Math.floor(a.movingTime / 60)}m`}
+              </span>
+              {a.distance > 0 && (
+                <span className="flex items-center gap-0.5">
+                  <MapPin className="w-2.5 h-2.5" />
+                  {(a.distance / 1000).toFixed(1)}km
+                </span>
+              )}
+              {a.calories > 0 && (
+                <span className="font-medium text-orange-500">{Math.round(a.calories)} cal</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function DiaryContent({
@@ -628,6 +733,8 @@ function DiaryContent({
                 fibreTarget={dailyFibreTarget} sugarTarget={dailySugarTarget}
                 saturatedFatTarget={dailySaturatedFatTarget}
               />
+
+              <DiaryActivitySection date={selectedDate} />
 
               {plannedDaily.length > 0 && (
                 <p className="text-xs text-zinc-400 mb-3 flex items-center gap-1" data-testid="text-diary-planned-summary">
