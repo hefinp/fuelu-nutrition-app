@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type MealComment, type StravaConnection } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type MealComment, type StravaConnection, stravaActivities, type InsertStravaActivity, type StravaActivity } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -316,6 +316,13 @@ export interface IStorage {
   createStravaConnection(data: { userId: number; athleteId: string; accessToken: string; refreshToken: string; tokenExpiresAt: Date }): Promise<StravaConnection>;
   updateStravaConnection(userId: number, updates: { accessToken?: string; refreshToken?: string; tokenExpiresAt?: Date }): Promise<StravaConnection | undefined>;
   deleteStravaConnection(userId: number): Promise<void>;
+
+  // Strava activities
+  upsertStravaActivity(data: InsertStravaActivity): Promise<StravaActivity>;
+  getStravaActivitiesByDate(userId: number, date: string): Promise<StravaActivity[]>;
+  getStravaActivitiesRange(userId: number, startDate: Date, endDate: Date): Promise<StravaActivity[]>;
+  deleteStravaActivity(userId: number, stravaActivityId: number): Promise<void>;
+  deleteStravaActivitiesByUser(userId: number): Promise<void>;
 
   deleteUser(userId: number): Promise<void>;
 }
@@ -2579,6 +2586,7 @@ export class DatabaseStorage implements IStorage {
       await tx.execute(sql`DELETE FROM password_reset_tokens WHERE user_id = ${userId}`);
       await tx.execute(sql`DELETE FROM feedback_entries WHERE user_id = ${userId}`);
       await tx.execute(sql`DELETE FROM favourite_meals WHERE user_id = ${userId}`);
+      await tx.execute(sql`DELETE FROM strava_activities WHERE user_id = ${userId}`);
       await tx.execute(sql`UPDATE community_meals SET source_user_id = NULL WHERE source_user_id = ${userId}`);
       await tx.execute(sql`UPDATE canonical_foods SET contributed_by_user_id = NULL WHERE contributed_by_user_id = ${userId}`);
       await tx.execute(sql`UPDATE custom_foods SET contributed_by_user_id = NULL WHERE contributed_by_user_id = ${userId}`);
@@ -2653,6 +2661,56 @@ export class DatabaseStorage implements IStorage {
 
   async deleteStravaConnection(userId: number): Promise<void> {
     await db.delete(stravaConnections).where(eq(stravaConnections.userId, userId));
+  }
+
+  async upsertStravaActivity(data: InsertStravaActivity): Promise<StravaActivity> {
+    const [activity] = await db
+      .insert(stravaActivities)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [stravaActivities.userId, stravaActivities.stravaActivityId],
+        set: {
+          name: data.name,
+          type: data.type,
+          sportType: data.sportType,
+          startDate: data.startDate,
+          movingTime: data.movingTime,
+          distance: data.distance,
+          totalElevationGain: data.totalElevationGain,
+          calories: data.calories,
+          averageHeartrate: data.averageHeartrate,
+          maxHeartrate: data.maxHeartrate,
+          averageSpeed: data.averageSpeed,
+        },
+      })
+      .returning();
+    return activity;
+  }
+
+  async getStravaActivitiesByDate(userId: number, date: string): Promise<StravaActivity[]> {
+    const dayStart = new Date(date + "T00:00:00");
+    const dayEnd = new Date(date + "T23:59:59.999");
+    return db
+      .select()
+      .from(stravaActivities)
+      .where(and(eq(stravaActivities.userId, userId), gte(stravaActivities.startDate, dayStart), lte(stravaActivities.startDate, dayEnd)))
+      .orderBy(desc(stravaActivities.startDate));
+  }
+
+  async getStravaActivitiesRange(userId: number, startDate: Date, endDate: Date): Promise<StravaActivity[]> {
+    return db
+      .select()
+      .from(stravaActivities)
+      .where(and(eq(stravaActivities.userId, userId), gte(stravaActivities.startDate, startDate), lte(stravaActivities.startDate, endDate)))
+      .orderBy(desc(stravaActivities.startDate));
+  }
+
+  async deleteStravaActivity(userId: number, stravaActivityId: number): Promise<void> {
+    await db.delete(stravaActivities).where(and(eq(stravaActivities.userId, userId), eq(stravaActivities.stravaActivityId, stravaActivityId)));
+  }
+
+  async deleteStravaActivitiesByUser(userId: number): Promise<void> {
+    await db.delete(stravaActivities).where(eq(stravaActivities.userId, userId));
   }
 }
 

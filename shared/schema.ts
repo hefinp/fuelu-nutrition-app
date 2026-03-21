@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, numeric, real, timestamp, text, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, numeric, real, timestamp, text, jsonb, boolean, bigint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1080,3 +1080,31 @@ export const insertMealCommentSchema = createInsertSchema(mealComments).omit({
 
 export type InsertMealComment = z.infer<typeof insertMealCommentSchema>;
 export type MealComment = typeof mealComments.$inferSelect;
+
+// ─── Strava Activities ─────────────────────────────────────────────────────
+
+export const stravaActivities = pgTable("strava_activities", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  stravaActivityId: bigint("strava_activity_id", { mode: "number" }).notNull(),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  sportType: text("sport_type"),
+  startDate: timestamp("start_date").notNull(),
+  movingTime: integer("moving_time").notNull(),
+  distance: real("distance").notNull().default(0),
+  totalElevationGain: real("total_elevation_gain").default(0),
+  calories: real("calories").default(0),
+  averageHeartrate: real("average_heartrate"),
+  maxHeartrate: real("max_heartrate"),
+  averageSpeed: real("average_speed").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertStravaActivitySchema = createInsertSchema(stravaActivities).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertStravaActivity = z.infer<typeof insertStravaActivitySchema>;
+export type StravaActivity = typeof stravaActivities.$inferSelect;

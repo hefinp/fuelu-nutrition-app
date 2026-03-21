@@ -6,6 +6,7 @@ const router = Router();
 
 const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
+const STRAVA_WEBHOOK_VERIFY_TOKEN = process.env.STRAVA_WEBHOOK_VERIFY_TOKEN || "fuelr_strava_verify";
 
 interface StravaTokenResponse {
   access_token: string;
@@ -81,6 +82,81 @@ async function refreshTokenIfNeeded(userId: number, connection: { accessToken: s
   return data.access_token;
 }
 
+async function fetchAndStoreActivities(userId: number, accessToken: string, afterEpoch?: number): Promise<void> {
+  const after = afterEpoch ?? Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
+  const listResp = await fetch(
+    `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=30`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!listResp.ok) return;
+
+  const activities = (await listResp.json()) as StravaActivityRaw[];
+  if (activities.length === 0) return;
+
+  const detailResults = await Promise.allSettled(
+    activities.map((a) =>
+      fetch(`https://www.strava.com/api/v3/activities/${a.id}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }).then((r) => (r.ok ? r.json() : null))
+    )
+  );
+
+  const detailCalories = new Map<number, number>();
+  for (let i = 0; i < activities.length; i++) {
+    const result = detailResults[i];
+    if (result.status === "fulfilled" && result.value) {
+      const cal = (result.value as { calories?: number }).calories;
+      if (cal != null && cal > 0) {
+        detailCalories.set(activities[i].id, cal);
+      }
+    }
+  }
+
+  for (const a of activities) {
+    await storage.upsertStravaActivity({
+      userId,
+      stravaActivityId: a.id,
+      name: a.name,
+      type: a.type,
+      sportType: a.sport_type,
+      startDate: new Date(a.start_date_local || a.start_date),
+      movingTime: a.moving_time,
+      distance: a.distance,
+      totalElevationGain: a.total_elevation_gain,
+      calories: detailCalories.get(a.id) ?? a.calories ?? 0,
+      averageHeartrate: a.average_heartrate,
+      maxHeartrate: a.max_heartrate,
+      averageSpeed: a.average_speed,
+    });
+  }
+}
+
+async function fetchAndStoreSingleActivity(userId: number, accessToken: string, stravaActivityId: number): Promise<void> {
+  const resp = await fetch(`https://www.strava.com/api/v3/activities/${stravaActivityId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!resp.ok) return;
+
+  const a = (await resp.json()) as StravaActivityRaw;
+  await storage.upsertStravaActivity({
+    userId,
+    stravaActivityId: a.id,
+    name: a.name,
+    type: a.type,
+    sportType: a.sport_type,
+    startDate: new Date(a.start_date_local || a.start_date),
+    movingTime: a.moving_time,
+    distance: a.distance,
+    totalElevationGain: a.total_elevation_gain,
+    calories: a.calories ?? 0,
+    averageHeartrate: a.average_heartrate,
+    maxHeartrate: a.max_heartrate,
+    averageSpeed: a.average_speed,
+  });
+}
+
+// ── OAuth flow ──────────────────────────────────────────────────────────────
+
 router.get("/api/strava/auth", (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   if (!STRAVA_CLIENT_ID) return res.status(500).json({ message: "Strava not configured" });
@@ -149,12 +225,18 @@ router.get("/api/strava/callback", async (req, res) => {
       });
     }
 
+    fetchAndStoreActivities(req.session.userId, accessToken).catch((err) => {
+      console.error("[strava] Backfill error:", err);
+    });
+
     res.redirect("/dashboard?strava=connected");
   } catch (err) {
     console.error("Strava callback error:", err);
     res.redirect("/dashboard?strava=error&reason=unknown");
   }
 });
+
+// ── Status & disconnect ─────────────────────────────────────────────────────
 
 router.get("/api/strava/status", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
@@ -164,9 +246,12 @@ router.get("/api/strava/status", async (req, res) => {
 
 router.delete("/api/strava/disconnect", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  await storage.deleteStravaActivitiesByUser(req.session.userId);
   await storage.deleteStravaConnection(req.session.userId);
   res.json({ ok: true });
 });
+
+// ── Activities (read from DB, fallback to API) ──────────────────────────────
 
 router.get("/api/strava/activities", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
@@ -175,58 +260,33 @@ router.get("/api/strava/activities", async (req, res) => {
   if (!conn) return res.status(404).json({ message: "Strava not connected" });
 
   try {
-    const accessToken = await refreshTokenIfNeeded(req.session.userId, conn);
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    let dbActivities = await storage.getStravaActivitiesRange(req.session.userId, weekAgo, now);
 
-    const now = Math.floor(Date.now() / 1000);
-    const weekAgo = now - 7 * 24 * 60 * 60;
-
-    const activitiesResp = await fetch(
-      `https://www.strava.com/api/v3/athlete/activities?after=${weekAgo}&per_page=10`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-
-    if (!activitiesResp.ok) {
-      if (activitiesResp.status === 401) {
-        await storage.deleteStravaConnection(req.session.userId);
-        return res.status(401).json({ message: "Strava token expired. Please reconnect." });
-      }
-      return res.status(502).json({ message: "Failed to fetch Strava activities" });
-    }
-
-    const activities = (await activitiesResp.json()) as StravaActivityRaw[];
-
-    const detailResults = await Promise.allSettled(
-      activities.map((a) =>
-        fetch(`https://www.strava.com/api/v3/activities/${a.id}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }).then((r) => (r.ok ? r.json() : null))
-      )
-    );
-
-    const detailCalories = new Map<number, number>();
-    for (let i = 0; i < activities.length; i++) {
-      const result = detailResults[i];
-      if (result.status === "fulfilled" && result.value) {
-        const cal = (result.value as { calories?: number }).calories;
-        if (cal != null && cal > 0) {
-          detailCalories.set(activities[i].id, cal);
-        }
+    if (dbActivities.length === 0) {
+      try {
+        const accessToken = await refreshTokenIfNeeded(req.session.userId, conn);
+        await fetchAndStoreActivities(req.session.userId, accessToken);
+        dbActivities = await storage.getStravaActivitiesRange(req.session.userId, weekAgo, now);
+      } catch (fetchErr) {
+        console.error("[strava] API fallback error:", fetchErr);
       }
     }
 
-    const mapped = activities.map((a) => ({
-      id: a.id,
+    const mapped = dbActivities.map((a) => ({
+      id: a.stravaActivityId,
       name: a.name,
       type: a.type,
-      sportType: a.sport_type,
-      startDate: a.start_date_local || a.start_date,
-      movingTime: a.moving_time,
+      sportType: a.sportType || a.type,
+      startDate: a.startDate,
+      movingTime: a.movingTime,
       distance: a.distance,
-      totalElevationGain: a.total_elevation_gain,
-      calories: detailCalories.get(a.id) ?? a.calories ?? 0,
-      averageHeartrate: a.average_heartrate || null,
-      maxHeartrate: a.max_heartrate || null,
-      averageSpeed: a.average_speed,
+      totalElevationGain: a.totalElevationGain ?? 0,
+      calories: a.calories ?? 0,
+      averageHeartrate: a.averageHeartrate ?? null,
+      maxHeartrate: a.maxHeartrate ?? null,
+      averageSpeed: a.averageSpeed ?? 0,
     }));
 
     mapped.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
@@ -261,5 +321,63 @@ router.get("/api/strava/activities", async (req, res) => {
     res.status(500).json({ message: err instanceof Error ? err.message : "Failed to fetch activities" });
   }
 });
+
+// ── Webhook endpoints ───────────────────────────────────────────────────────
+
+router.get("/api/strava/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode === "subscribe" && token === STRAVA_WEBHOOK_VERIFY_TOKEN) {
+    res.json({ "hub.challenge": challenge });
+  } else {
+    res.status(403).json({ message: "Verification failed" });
+  }
+});
+
+router.post("/api/strava/webhook", async (req, res) => {
+  res.status(200).json({ ok: true });
+
+  try {
+    const { object_type, aspect_type, object_id, owner_id } = req.body as {
+      object_type: string;
+      aspect_type: string;
+      object_id: number;
+      owner_id: number;
+    };
+
+    if (object_type !== "activity") return;
+
+    const match = await findStravaConnectionByAthleteId(String(owner_id));
+    if (!match) return;
+
+    const { userId } = match;
+
+    if (aspect_type === "delete") {
+      await storage.deleteStravaActivity(userId, object_id);
+      return;
+    }
+
+    if (aspect_type === "create" || aspect_type === "update") {
+      const connData = await storage.getStravaConnection(userId);
+      if (!connData) return;
+      const accessToken = await refreshTokenIfNeeded(userId, connData);
+      await fetchAndStoreSingleActivity(userId, accessToken, object_id);
+    }
+  } catch (err) {
+    console.error("[strava] Webhook processing error:", err);
+  }
+});
+
+async function findStravaConnectionByAthleteId(athleteId: string) {
+  const { pool } = await import("../db");
+  const result = await pool.query(
+    `SELECT user_id FROM strava_connections WHERE athlete_id = $1 LIMIT 1`,
+    [athleteId]
+  );
+  if (result.rows.length === 0) return null;
+  return { userId: result.rows[0].user_id as number };
+}
 
 export default router;

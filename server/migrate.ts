@@ -548,6 +548,28 @@ export async function runMigrations(): Promise<void> {
 
     await client.query(`CREATE INDEX IF NOT EXISTS idx_client_goals_nutritionist_client ON client_goals (nutritionist_id, client_id)`);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS strava_activities (
+        id                    SERIAL PRIMARY KEY,
+        user_id               INTEGER NOT NULL REFERENCES users(id),
+        strava_activity_id    BIGINT NOT NULL,
+        name                  TEXT NOT NULL,
+        type                  TEXT NOT NULL,
+        sport_type            TEXT,
+        start_date            TIMESTAMP NOT NULL,
+        moving_time           INTEGER NOT NULL,
+        distance              REAL NOT NULL DEFAULT 0,
+        total_elevation_gain  REAL DEFAULT 0,
+        calories              REAL DEFAULT 0,
+        average_heartrate     REAL,
+        max_heartrate         REAL,
+        average_speed         REAL DEFAULT 0,
+        created_at            TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_strava_activities_user_strava ON strava_activities (user_id, strava_activity_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_strava_activities_user_date ON strava_activities (user_id, start_date)`);
+
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;
