@@ -88,13 +88,17 @@ async function refreshTokenIfNeeded(userId: number, connection: { accessToken: s
 
 async function fetchAndStoreActivities(userId: number, accessToken: string, afterEpoch?: number): Promise<void> {
   const after = afterEpoch ?? Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
-  const listResp = await fetch(
-    `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=30`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (!listResp.ok) return;
+  const url = `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=30`;
+  console.log(`[strava] Fetching activities for user ${userId}: after=${after} (${new Date(after * 1000).toISOString()})`);
+  const listResp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!listResp.ok) {
+    const errText = await listResp.text();
+    console.error(`[strava] Activities list API error ${listResp.status}: ${errText}`);
+    return;
+  }
 
   const activities = (await listResp.json()) as StravaActivityRaw[];
+  console.log(`[strava] Got ${activities.length} activities from API:`, activities.map(a => ({ id: a.id, name: a.name, type: a.type, start_date: a.start_date })));
   if (activities.length === 0) return;
 
   const detailResults = await Promise.allSettled(
@@ -207,6 +211,7 @@ router.get("/api/strava/callback", async (req, res) => {
     }
 
     const data = (await tokenResp.json()) as StravaTokenResponse;
+    console.log(`[strava] Token exchange - token_type: ${(data as any).token_type}, scope: ${(data as any).scope ?? 'not_returned'}, expires_at: ${data.expires_at}, athlete: ${data.athlete?.id}`);
     const athleteId = String(data.athlete?.id || "");
     const accessToken = data.access_token;
     const refreshToken = data.refresh_token;
