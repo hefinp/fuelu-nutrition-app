@@ -325,14 +325,15 @@ router.get("/api/strava/activities", async (req, res) => {
 
   try {
     const now = new Date();
+    const endBuffer = new Date(now.getTime() + 14 * 60 * 60 * 1000);
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    let dbActivities = await storage.getStravaActivitiesRange(req.session.userId, weekAgo, now);
+    let dbActivities = await storage.getStravaActivitiesRange(req.session.userId, weekAgo, endBuffer);
 
     if (dbActivities.length === 0) {
       try {
         const accessToken = await refreshTokenIfNeeded(req.session.userId, conn);
         await fetchAndStoreActivities(req.session.userId, accessToken);
-        dbActivities = await storage.getStravaActivitiesRange(req.session.userId, weekAgo, now);
+        dbActivities = await storage.getStravaActivitiesRange(req.session.userId, weekAgo, endBuffer);
       } catch (fetchErr) {
         console.error("[strava] API fallback error:", fetchErr);
       }
