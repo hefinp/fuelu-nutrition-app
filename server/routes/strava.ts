@@ -31,19 +31,23 @@ interface StravaActivityRaw {
   average_speed: number;
 }
 
-function getBaseUrl(req: Request): string {
+function getBaseUrl(req?: Request): string {
   if (process.env.STRAVA_REDIRECT_URL) {
     return process.env.STRAVA_REDIRECT_URL.replace(/\/$/, "");
   }
-  if (process.env.REPLIT_DEPLOYMENT_URL) {
-    return `https://${process.env.REPLIT_DEPLOYMENT_URL}`;
+  const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+  if (replitDomain) {
+    return `https://${replitDomain}`;
   }
   if (process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
   }
-  const proto = req.headers["x-forwarded-proto"] || req.protocol || "https";
-  const host = req.headers.host;
-  return `${proto}://${host}`;
+  if (req) {
+    const proto = req.headers["x-forwarded-proto"] || req.protocol || "https";
+    const host = req.headers.host;
+    return `${proto}://${host}`;
+  }
+  return "http://localhost:5000";
 }
 
 async function refreshTokenIfNeeded(userId: number, connection: { accessToken: string; refreshToken: string; tokenExpiresAt: Date | null }): Promise<string> {
@@ -464,6 +468,62 @@ async function findStravaConnectionByAthleteId(athleteId: string) {
   );
   if (result.rows.length === 0) return null;
   return { userId: result.rows[0].user_id as number };
+}
+
+export async function registerStravaWebhook(): Promise<void> {
+  if (!STRAVA_CLIENT_ID || !STRAVA_CLIENT_SECRET) {
+    console.log("[strava] Skipping webhook registration — STRAVA_CLIENT_ID or STRAVA_CLIENT_SECRET not set");
+    return;
+  }
+
+  const callbackUrl = `${getBaseUrl()}/api/strava/webhook`;
+
+  try {
+    const listRes = await fetch(
+      `https://www.strava.com/api/v3/push_subscriptions?client_id=${STRAVA_CLIENT_ID}&client_secret=${STRAVA_CLIENT_SECRET}`
+    );
+
+    if (!listRes.ok) {
+      const errText = await listRes.text();
+      console.error(`[strava] Failed to list webhook subscriptions (${listRes.status}): ${errText}`);
+      return;
+    }
+
+    const subscriptions = (await listRes.json()) as Array<{ id: number; callback_url: string }>;
+
+    if (subscriptions.length > 0) {
+      const existing = subscriptions[0];
+      console.log(`[strava] Webhook subscription already exists (id=${existing.id}, callback=${existing.callback_url})`);
+      if (existing.callback_url !== callbackUrl) {
+        console.warn(`[strava] WARNING: Existing callback URL differs from expected. Expected: ${callbackUrl}, Got: ${existing.callback_url}`);
+      }
+      return;
+    }
+
+    console.log(`[strava] No webhook subscription found — creating one with callback: ${callbackUrl}`);
+
+    const createRes = await fetch("https://www.strava.com/api/v3/push_subscriptions", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: STRAVA_CLIENT_ID,
+        client_secret: STRAVA_CLIENT_SECRET,
+        callback_url: callbackUrl,
+        verify_token: STRAVA_WEBHOOK_VERIFY_TOKEN,
+      }),
+    });
+
+    if (!createRes.ok) {
+      const errText = await createRes.text();
+      console.error(`[strava] Failed to create webhook subscription (${createRes.status}): ${errText}`);
+      return;
+    }
+
+    const created = (await createRes.json()) as { id: number };
+    console.log(`[strava] Webhook subscription created successfully (id=${created.id})`);
+  } catch (err) {
+    console.error("[strava] Error during webhook registration:", err);
+  }
 }
 
 export default router;
