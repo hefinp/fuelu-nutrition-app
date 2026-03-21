@@ -3,6 +3,7 @@ import { z } from "zod";
 import { storage } from "../storage";
 import { api, mealPlanSchema } from "@shared/routes";
 import type { UserPreferences } from "@shared/schema";
+import { RECIPES } from "@shared/recipes";
 import { sendEmail, buildMealPlanEmailHtml } from "../email";
 import { hasTierAccess, deductCredits } from "../tier";
 import {
@@ -232,6 +233,32 @@ const autofillSchema = z.object({
   excludeSlots: z.array(z.string()).optional(),
 });
 
+function enrichMealsWithIngredients(meals: any[]): any[] {
+  return meals.map(m => {
+    if (m.ingredientsJson && Array.isArray(m.ingredientsJson) && m.ingredientsJson.length > 0) return m;
+    const recipe = RECIPES[m.meal];
+    if (recipe) {
+      return {
+        ...m,
+        ingredientsJson: recipe.ingredients.map(ing => ({ name: ing.item, quantity: ing.quantity })),
+        ...(!m.instructions ? { instructions: recipe.instructions } : {}),
+      };
+    }
+    return m;
+  });
+}
+
+function enrichDayPlan(dayPlan: Record<string, any>): Record<string, any> {
+  const slotKeys = ['breakfast', 'lunch', 'dinner', 'snacks'];
+  const enriched = { ...dayPlan };
+  for (const sk of slotKeys) {
+    if (Array.isArray(enriched[sk])) {
+      enriched[sk] = enrichMealsWithIngredients(enriched[sk]);
+    }
+  }
+  return enriched;
+}
+
 router.post("/api/meal-plans/autofill", async (req, res) => {
   try {
     if (!req.session.userId) {
@@ -300,13 +327,13 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
           dayPlan.dayTotalProtein = allMeals.reduce((sum: number, m: any) => sum + m.protein, 0);
           dayPlan.dayTotalCarbs = allMeals.reduce((sum: number, m: any) => sum + m.carbs, 0);
           dayPlan.dayTotalFat = allMeals.reduce((sum: number, m: any) => sum + m.fat, 0);
-          result[dayName] = dayPlan;
+          result[dayName] = enrichDayPlan(dayPlan);
         } else {
           const cyclePhase = hasCycle && input.weekStartDate
             ? computeCyclePhase(prefs!.lastPeriodDate!, prefs!.cycleLength ?? 28, addDaysToDate(input.weekStartDate, dayIndex))
             : null;
           const dayPlan = generateDayPlan(input.dailyCalories, input.proteinGoal, input.carbsGoal, input.fatGoal, baseDb, prefs, cyclePhase, dayName, normalizedExclude);
-          result[dayName] = dayPlan;
+          result[dayName] = enrichDayPlan(dayPlan);
         }
         weekTotalCalories += result[dayName].dayTotalCalories;
         weekTotalProtein += result[dayName].dayTotalProtein;
@@ -339,7 +366,7 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
       dayPlan.dayTotalFat = allMeals.reduce((sum: number, m: any) => sum + m.fat, 0);
       dayPlan.planType = 'daily';
       if (input.targetDate) dayPlan.targetDate = input.targetDate;
-      res.status(200).json(dayPlan);
+      res.status(200).json(enrichDayPlan(dayPlan));
     }
   } catch (err) {
     if (err instanceof z.ZodError) {

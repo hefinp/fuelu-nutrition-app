@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { X, UtensilsCrossed } from "lucide-react";
-import { RECIPES } from "../results-recipes";
+import { RECIPES } from "@shared/recipes";
 import type { Meal } from "./types";
 
 interface RecipeModalProps {

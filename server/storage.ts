@@ -131,6 +131,7 @@ export interface IStorage {
   updateUserMeal(id: number, userId: number, updates: Partial<Pick<UserMeal, 'name' | 'caloriesPerServing' | 'proteinPerServing' | 'carbsPerServing' | 'fatPerServing' | 'servings' | 'sourceUrl' | 'imageUrl' | 'mealSlot' | 'mealStyle' | 'ingredients' | 'ingredientsJson' | 'instructions' | 'source' | 'sourcePhotos'>>): Promise<UserMeal | undefined>;
   deleteUserMeal(id: number, userId: number): Promise<void>;
 
+  findUserMealById(id: number): Promise<UserMeal | undefined>;
   findDuplicateUserMeals(userId: number, name: string): Promise<UserMeal[]>;
 
   // Meal ingredients junction table
@@ -1109,6 +1110,11 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(mealTemplates.userMealId, id), eq(mealTemplates.userId, userId)));
     await db.delete(userMeals)
       .where(and(eq(userMeals.id, id), eq(userMeals.userId, userId)));
+  }
+
+  async findUserMealById(id: number): Promise<UserMeal | undefined> {
+    const [meal] = await db.select().from(userMeals).where(eq(userMeals.id, id)).limit(1);
+    return meal;
   }
 
   async findDuplicateUserMeals(userId: number, name: string): Promise<UserMeal[]> {

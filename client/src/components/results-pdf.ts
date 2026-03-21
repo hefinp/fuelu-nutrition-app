@@ -1,5 +1,5 @@
 import type { Calculation } from "@shared/schema";
-import { RECIPES } from "./results-recipes";
+import { RECIPES } from "@shared/recipes";
 
 type jsPDFType = import("jspdf").default;
 
@@ -549,7 +549,7 @@ export function buildShoppingList(mealPlan: any, multiplier = 1): Record<string,
       });
     } else {
       const mealObj = allMealObjects.find((m: any) => m.meal === mealName);
-      if (mealObj?.ingredientsJson && Array.isArray(mealObj.ingredientsJson)) {
+      if (mealObj?.ingredientsJson && Array.isArray(mealObj.ingredientsJson) && mealObj.ingredientsJson.length > 0) {
         mealObj.ingredientsJson.forEach((ing: any) => {
           const item = ing.name || ing.item || 'Unknown';
           const quantity = ing.grams != null ? `${Math.round(ing.grams)}g` : (ing.quantity || '');
@@ -561,6 +561,11 @@ export function buildShoppingList(mealPlan: any, multiplier = 1): Record<string,
             map.set(key, { category: categoriseIngredient(item), item, quantity });
           }
         });
+      } else {
+        const key = mealName.toLowerCase().replace(/[^a-z]/g, '');
+        if (!map.has(key)) {
+          map.set(key, { category: 'Other', item: `${mealName} (ingredients not available)`, quantity: 'see recipe' });
+        }
       }
     }
   });

@@ -38,6 +38,8 @@ router.get("/api/user-meals/:id/ingredients", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
     const id = parseInt(req.params.id);
+    const meal = await storage.findUserMealById(id);
+    if (!meal || meal.userId !== req.session.userId) return res.status(404).json({ message: "Meal not found" });
     const rows = await storage.getMealIngredients(id);
     res.json(rows);
   } catch (err) {

@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { AddMealPopoverState, Meal } from "./types";
 import { ImportModal } from "@/components/import-modal";
 import { CreateMealModal } from "@/components/create-meal-modal";
+import { apiRequest } from "@/lib/queryClient";
 
 interface AddMealPopoverProps {
   popoverState: AddMealPopoverState;
@@ -25,9 +26,40 @@ export function AddMealPopover({ popoverState, onClose, onAddMeal }: AddMealPopo
     enabled: true,
   });
 
+  const [loadingMealId, setLoadingMealId] = useState<number | null>(null);
+
   const filteredUserMeals = (userMealsData?.items ?? []).filter(m =>
     !mealSearchQuery || m.name.toLowerCase().includes(mealSearchQuery.toLowerCase())
   );
+
+  const handlePickMeal = async (m: any) => {
+    if (m.ingredientsJson && Array.isArray(m.ingredientsJson) && m.ingredientsJson.length > 0) {
+      onAddMeal(popoverState.dayKey, popoverState.slotKey, m);
+      return;
+    }
+    setLoadingMealId(m.id);
+    try {
+      const res = await apiRequest('GET', `/api/user-meals/${m.id}/ingredients`);
+      const rows: any[] = await res.json();
+      if (rows && rows.length > 0) {
+        const ingredientsJson = rows.map((r: any) => ({
+          name: r.name ?? 'Unknown',
+          grams: r.grams ?? 0,
+          calories100g: r.calories100g ?? 0,
+          protein100g: r.protein100g ?? 0,
+          carbs100g: r.carbs100g ?? 0,
+          fat100g: r.fat100g ?? 0,
+        }));
+        onAddMeal(popoverState.dayKey, popoverState.slotKey, { ...m, ingredientsJson });
+      } else {
+        onAddMeal(popoverState.dayKey, popoverState.slotKey, m);
+      }
+    } catch {
+      onAddMeal(popoverState.dayKey, popoverState.slotKey, m);
+    } finally {
+      setLoadingMealId(null);
+    }
+  };
 
   return (
     <div
@@ -88,15 +120,20 @@ export function AddMealPopover({ popoverState, onClose, onAddMeal }: AddMealPopo
             filteredUserMeals.map((m: any) => (
               <button
                 key={m.id}
-                onClick={() => onAddMeal(popoverState.dayKey, popoverState.slotKey, m)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 text-left transition-colors"
+                onClick={() => handlePickMeal(m)}
+                disabled={loadingMealId === m.id}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 text-left transition-colors disabled:opacity-50"
                 data-testid={`button-pick-meal-${m.id}`}
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-zinc-900 truncate">{m.name}</p>
                   <p className="text-[10px] text-zinc-400">P:{m.proteinPerServing}g C:{m.carbsPerServing}g F:{m.fatPerServing}g</p>
                 </div>
-                <span className="text-xs font-semibold text-zinc-700 ml-2 shrink-0">{m.caloriesPerServing} kcal</span>
+                {loadingMealId === m.id ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400 ml-2 shrink-0" />
+                ) : (
+                  <span className="text-xs font-semibold text-zinc-700 ml-2 shrink-0">{m.caloriesPerServing} kcal</span>
+                )}
               </button>
             ))
           )}

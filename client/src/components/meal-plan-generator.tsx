@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useActiveFlow } from "@/contexts/active-flow-context";
 import { toDateStr, addDays, getMonday, formatShort, DAY_LABELS } from "./results-pdf";
 import { exportMealPlanToPDF, exportShoppingListToPDF } from "./results-pdf";
+import { RECIPES } from "@shared/recipes";
 import { SavedMealPlans } from "@/components/saved-meal-plans";
 import type { PrefillEntry } from "@/components/food-log-shared";
 import { isSlotPast, isDayPast } from "@/lib/mealTime";
@@ -590,11 +591,22 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       const slotKeys = ['breakfast', 'lunch', 'dinner', 'snacks'] as const;
       const mapMeals = (arr: any[]) => arr
         .filter((m: any) => m.meal !== '__past__')
-        .map((m: any) => ({
-          meal: m.meal, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat,
-          ...(m.ingredientsJson ? { ingredientsJson: m.ingredientsJson } : {}),
-          ...(m.instructions ? { instructions: m.instructions } : {}),
-        }));
+        .map((m: any) => {
+          let ingredientsJson = m.ingredientsJson;
+          let instructions = m.instructions;
+          if (!ingredientsJson || !Array.isArray(ingredientsJson) || ingredientsJson.length === 0) {
+            const recipe = (RECIPES as Record<string, { ingredients: Array<{ item: string; quantity: string }>; instructions: string }>)[m.meal];
+            if (recipe) {
+              ingredientsJson = recipe.ingredients.map(ing => ({ name: ing.item, quantity: ing.quantity }));
+              if (!instructions) instructions = recipe.instructions;
+            }
+          }
+          return {
+            meal: m.meal, calories: m.calories, protein: m.protein, carbs: m.carbs, fat: m.fat,
+            ...(ingredientsJson ? { ingredientsJson } : {}),
+            ...(instructions ? { instructions } : {}),
+          };
+        });
 
       setCustomSlots(prev => {
         const merged = { ...prev };
