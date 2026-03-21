@@ -5,8 +5,9 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Plus, X, Check, Barcode, BookOpen, UtensilsCrossed,
   Search, Camera, Sparkles, Send, ChevronDown, BadgeCheck,
-  Lock, ArrowRight, Clock, ExternalLink, Store,
+  Lock, ArrowRight, Clock, ExternalLink, Store, Mic,
 } from "lucide-react";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Link } from "wouter";
 import { GoalPreview } from "@/components/goal-preview";
 import { useMobileViewport } from "@/hooks/use-mobile-viewport";
@@ -84,6 +85,8 @@ export function FoodLogDrawer({
 
   const [aiTabMode, setAiTabMode] = useState<"describe" | "label">("describe");
   const [aiTabDescription, setAiTabDescription] = useState("");
+  const aiAssistSpeech = useSpeechRecognition((text) => setAiDescription(text));
+  const aiTabSpeech = useSpeechRecognition((text) => setAiTabDescription(text));
   const [aiTabPhotoFile, setAiTabPhotoFile] = useState<File | null>(null);
   const [aiTabResult, setAiTabResult] = useState<ExtendedFoodResult | null>(null);
   const [aiTabLoading, setAiTabLoading] = useState(false);
@@ -332,9 +335,11 @@ export function FoodLogDrawer({
     setSelectedFood(null);
     setShowAiAssist(false);
     setAiDescription("");
+    aiAssistSpeech.stop();
     setAiAssistPhotoFile(null);
     setAiTabResult(null);
     setAiTabDescription("");
+    aiTabSpeech.stop();
     setAiTabPhotoFile(null);
     setAiTabLabelPhotoFile(null);
     setAiTabProductName("");
@@ -845,6 +850,17 @@ export function FoodLogDrawer({
                         className="flex-1 px-3 py-2 text-sm border border-violet-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
                         data-testid="input-ai-description"
                       />
+                      {aiAssistSpeech.isSupported && (
+                        <button
+                          type="button"
+                          onClick={aiAssistSpeech.toggle}
+                          className={`px-3 py-2 border rounded-lg transition-colors ${aiAssistSpeech.isListening ? "bg-violet-100 text-violet-700 border-violet-300 animate-pulse" : "bg-white text-violet-600 border-violet-200 hover:bg-violet-50"}`}
+                          title={aiAssistSpeech.isListening ? "Stop dictation" : "Start dictation"}
+                          data-testid="button-ai-assist-mic"
+                        >
+                          <Mic className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => aiAssistPhotoRef.current?.click()}
@@ -1771,7 +1787,14 @@ export function FoodLogDrawer({
                       <>
                         <div>
                           <p className="text-[10px] text-zinc-500 font-medium mb-1.5">What are you eating?</p>
-                          <input type="text" placeholder="e.g. chicken breast with rice, 300g" value={aiTabDescription} onChange={e => setAiTabDescription(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAiTabEstimate(); } }} className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white" data-testid="input-ai-tab-description" />
+                          <div className="flex gap-2">
+                            <input type="text" placeholder="e.g. chicken breast with rice, 300g" value={aiTabDescription} onChange={e => setAiTabDescription(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleAiTabEstimate(); } }} className="flex-1 px-3 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white" data-testid="input-ai-tab-description" />
+                            {aiTabSpeech.isSupported && (
+                              <button type="button" onClick={aiTabSpeech.toggle} className={`px-3 py-2 border rounded-xl transition-colors ${aiTabSpeech.isListening ? "bg-zinc-900 text-white border-zinc-900 animate-pulse" : "bg-white text-zinc-500 border-zinc-200 hover:bg-zinc-50"}`} title={aiTabSpeech.isListening ? "Stop dictation" : "Start dictation"} data-testid="button-ai-tab-mic">
+                                <Mic className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <button type="button" onClick={() => aiTabPhotoRef.current?.click()} className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-xl border transition-colors ${aiTabPhotoFile ? "bg-violet-50 text-violet-700 border-violet-200" : "bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100"}`} data-testid="button-ai-tab-photo">
