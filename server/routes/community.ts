@@ -209,7 +209,7 @@ router.post("/api/community-meals/:id/comments", async (req, res) => {
   }
 });
 
-const BUCKET_FLOOR = 8;
+const BUCKET_FLOOR = 20;
 
 async function checkAndRefillCommunityMealBalance(autoFill = true): Promise<{ buckets: any[]; gapsFound: number; mealsGenerated: number }> {
   const balance = await storage.getCommunityMealBalance();
@@ -217,8 +217,7 @@ async function checkAndRefillCommunityMealBalance(autoFill = true): Promise<{ bu
   let mealsGenerated = 0;
 
   if (autoFill && gaps.length > 0) {
-    const toGenerate = gaps.slice(0, Math.ceil(20 / Math.max(gaps.length, 1)));
-    for (const gap of toGenerate) {
+    for (const gap of gaps) {
       const needed = BUCKET_FLOOR - gap.total;
       try {
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });

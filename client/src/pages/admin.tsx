@@ -312,7 +312,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
                 <div>
                   <h2 className="text-sm font-semibold text-zinc-900">Meal database</h2>
-                  <p className="text-xs text-zinc-400 mt-0.5">Community + AI-curated meals by style and slot. Floor: 8 per bucket.</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">Community + AI-curated meals by style and slot. Floor: 20 per bucket.</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -355,7 +355,7 @@ export default function AdminPage() {
                           {["breakfast", "lunch", "dinner", "snack"].map(slot => {
                             const bucket = balance.buckets.find(b => b.style === style && b.slot === slot);
                             const total = bucket?.total ?? 0;
-                            const color = total >= 8 ? "text-emerald-600 bg-emerald-50 border-emerald-100" : total >= 4 ? "text-amber-600 bg-amber-50 border-amber-100" : "text-red-600 bg-red-50 border-red-100";
+                            const color = total >= 20 ? "text-emerald-600 bg-emerald-50 border-emerald-100" : total >= 10 ? "text-amber-600 bg-amber-50 border-amber-100" : "text-red-600 bg-red-50 border-red-100";
                             return (
                               <div key={slot} data-testid={`bucket-${style}-${slot}`} className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl border text-xs ${color}`}>
                                 <span className="capitalize font-medium">{slot}</span>
