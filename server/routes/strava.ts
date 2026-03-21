@@ -90,27 +90,40 @@ async function refreshTokenIfNeeded(userId: number, connection: { accessToken: s
 
 async function fetchAndStoreActivities(userId: number, accessToken: string, afterEpoch?: number): Promise<void> {
   const after = afterEpoch ?? Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
-  const url = `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=30`;
   console.log(`[strava] Fetching activities for user ${userId}: after=${after} (${new Date(after * 1000).toISOString()})`);
 
   try {
-    const listResp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!listResp.ok) {
-      const errText = await listResp.text().catch(() => '(could not read body)');
-      console.error(`[strava] Activities list API error ${listResp.status}: ${errText}`);
-      return;
+    let activities: StravaActivityRaw[] = [];
+    let page = 1;
+    const perPage = 100;
+
+    while (true) {
+      const pageUrl = `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=${perPage}&page=${page}`;
+      console.log(`[strava] Fetching page ${page} for user ${userId}`);
+      const listResp = await fetch(pageUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!listResp.ok) {
+        const errText = await listResp.text().catch(() => '(could not read body)');
+        console.error(`[strava] Activities list API error ${listResp.status}: ${errText}`);
+        return;
+      }
+
+      const rawText = await listResp.text();
+      let pageActivities: StravaActivityRaw[];
+      try {
+        pageActivities = JSON.parse(rawText) as StravaActivityRaw[];
+      } catch (parseErr) {
+        console.error(`[strava] Failed to parse activities response as JSON. First 500 chars:`, rawText.slice(0, 500));
+        return;
+      }
+
+      console.log(`[strava] Page ${page}: got ${pageActivities.length} activities`);
+      activities.push(...pageActivities);
+
+      if (pageActivities.length < perPage || page >= 5) break;
+      page++;
     }
 
-    const rawText = await listResp.text();
-    let activities: StravaActivityRaw[];
-    try {
-      activities = JSON.parse(rawText) as StravaActivityRaw[];
-    } catch (parseErr) {
-      console.error(`[strava] Failed to parse activities response as JSON. First 500 chars:`, rawText.slice(0, 500));
-      return;
-    }
-
-    console.log(`[strava] Got ${activities.length} activities from API:`, JSON.stringify(activities.map(a => ({ id: a.id, name: a.name, type: a.type, start_date: a.start_date }))));
+    console.log(`[strava] Total ${activities.length} activities from API:`, JSON.stringify(activities.map(a => ({ id: a.id, name: a.name, type: a.type, start_date: a.start_date }))));
     if (activities.length === 0) {
       console.log(`[strava] No activities returned from Strava API for user ${userId}`);
       return;
