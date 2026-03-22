@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import {
   NotebookPen, ChevronLeft, ChevronRight, Loader2, Trash2,
-  Plus, Droplets, Activity, Flame, Clock, MapPin, X,
+  Plus, Droplets, Activity, Flame, Clock, MapPin, X, Scale,
 } from "lucide-react";
 import { getActivityIcon } from "@/lib/activityIcons";
 import {
@@ -47,6 +47,9 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget }:
   const [waterPopupOpen, setWaterPopupOpen] = useState(false);
   const [customWater, setCustomWater] = useState("");
   const waterPopupRef = useRef<HTMLDivElement>(null);
+  const [weightPopupOpen, setWeightPopupOpen] = useState(false);
+  const [weightInput, setWeightInput] = useState("");
+  const weightPopupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!waterPopupOpen) return;
@@ -58,6 +61,17 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget }:
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [waterPopupOpen]);
+
+  useEffect(() => {
+    if (!weightPopupOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (weightPopupRef.current && !weightPopupRef.current.contains(e.target as Node)) {
+        setWeightPopupOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [weightPopupOpen]);
 
   const { data: dailyEntries = [], isLoading } = useQuery<FoodLogEntry[]>({
     queryKey: ["/api/food-log", selectedDate],
@@ -107,6 +121,23 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget }:
     onError: () => toast({ title: "Failed to log water", variant: "destructive" }),
   });
 
+  const weightMutation = useMutation({
+    mutationFn: (data: { weight: string; recordedAt: string }) =>
+      apiRequest("POST", "/api/weight-entries", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/weight-entries"] });
+      setWeightInput("");
+      setWeightPopupOpen(false);
+      toast({ title: "Weight logged" });
+    },
+    onError: () => toast({ title: "Failed to log weight", variant: "destructive" }),
+  });
+
+  const handleWeightSubmit = () => {
+    if (!weightInput) return;
+    weightMutation.mutate({ weight: weightInput, recordedAt: new Date().toISOString() });
+  };
+
   const confirmedEntries = dailyEntries.filter(e => e.confirmed !== false);
   const totalCal = confirmedEntries.reduce((s, e) => s + e.calories, 0);
   const totalProt = confirmedEntries.reduce((s, e) => s + e.protein, 0);
@@ -134,7 +165,7 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget }:
   return (
     <>
       <div className="bg-white rounded-3xl border border-zinc-100 shadow-md p-4 sm:p-6" data-testid="widget-my-diary">
-        <div className="flex items-center gap-2.5 mb-4">
+        <div className="flex items-center gap-2.5 mb-3">
           <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
             <NotebookPen className="w-5 h-5" />
           </div>
@@ -142,79 +173,131 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget }:
             <h3 className="text-sm font-display font-bold text-zinc-900">My Diary</h3>
             <p className="text-xs text-zinc-400">Your daily food log</p>
           </div>
-          <div className="flex items-center gap-1.5 relative">
-            <button
-              onClick={() => setDrawerOpen(true)}
-              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors"
-              data-testid="button-diary-widget-log-meal"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Log Meal
-            </button>
-            <button
-              onClick={() => setWaterPopupOpen(prev => !prev)}
-              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
-              data-testid="button-diary-widget-log-water"
-            >
-              <Droplets className="w-3.5 h-3.5" />
-              Log Water
-            </button>
+        </div>
 
-            {waterPopupOpen && (
-              <div
-                ref={waterPopupRef}
-                className="absolute right-0 top-full mt-2 z-50 w-64 bg-white rounded-2xl border border-zinc-200 shadow-xl p-4"
-                data-testid="popup-diary-widget-water"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-1.5">
-                    <Droplets className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-semibold text-zinc-800">Log Water</span>
-                  </div>
-                  <button
-                    onClick={() => setWaterPopupOpen(false)}
-                    className="p-1 text-zinc-400 hover:text-zinc-600 rounded-lg transition-colors"
-                    data-testid="button-close-water-popup"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+        <div className="flex items-center gap-1.5 mb-4 relative">
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors"
+            data-testid="button-diary-widget-log-meal"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Log Meal
+          </button>
+          <button
+            onClick={() => setWaterPopupOpen(prev => !prev)}
+            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
+            data-testid="button-diary-widget-log-water"
+          >
+            <Droplets className="w-3.5 h-3.5" />
+            Log Water
+          </button>
+          <button
+            onClick={() => setWeightPopupOpen(prev => !prev)}
+            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors"
+            data-testid="button-diary-widget-log-weight"
+          >
+            <Scale className="w-3.5 h-3.5" />
+            Log Weight
+          </button>
+
+          {waterPopupOpen && (
+            <div
+              ref={waterPopupRef}
+              className="absolute left-0 top-full mt-2 z-50 w-64 bg-white rounded-2xl border border-zinc-200 shadow-xl p-4"
+              data-testid="popup-diary-widget-water"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <Droplets className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm font-semibold text-zinc-800">Log Water</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  {QUICK_WATER_AMOUNTS.map(ml => (
-                    <button
-                      key={ml}
-                      onClick={() => waterMutation.mutate(ml)}
-                      disabled={waterMutation.isPending}
-                      className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-xl border border-blue-200 hover:border-blue-300 transition-all disabled:opacity-50"
-                      data-testid={`button-water-quick-${ml}`}
-                    >
-                      +{ml >= 1000 ? `${ml / 1000}L` : `${ml}ml`}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    value={customWater}
-                    onChange={e => setCustomWater(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && handleCustomWaterAdd()}
-                    placeholder="Custom (ml)"
-                    className="flex-1 px-3 py-1.5 text-sm border border-zinc-200 rounded-xl focus:border-blue-400 focus:outline-none transition-colors"
-                    data-testid="input-water-custom"
-                  />
-                  <button
-                    onClick={handleCustomWaterAdd}
-                    disabled={!customWater || waterMutation.isPending}
-                    className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    data-testid="button-water-custom-add"
-                  >
-                    {waterMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Add"}
-                  </button>
-                </div>
+                <button
+                  onClick={() => setWaterPopupOpen(false)}
+                  className="p-1 text-zinc-400 hover:text-zinc-600 rounded-lg transition-colors"
+                  data-testid="button-close-water-popup"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-            )}
-          </div>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {QUICK_WATER_AMOUNTS.map(ml => (
+                  <button
+                    key={ml}
+                    onClick={() => waterMutation.mutate(ml)}
+                    disabled={waterMutation.isPending}
+                    className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium rounded-xl border border-blue-200 hover:border-blue-300 transition-all disabled:opacity-50"
+                    data-testid={`button-water-quick-${ml}`}
+                  >
+                    +{ml >= 1000 ? `${ml / 1000}L` : `${ml}ml`}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  value={customWater}
+                  onChange={e => setCustomWater(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleCustomWaterAdd()}
+                  placeholder="Custom (ml)"
+                  className="flex-1 px-3 py-1.5 text-sm border border-zinc-200 rounded-xl focus:border-blue-400 focus:outline-none transition-colors"
+                  data-testid="input-water-custom"
+                />
+                <button
+                  onClick={handleCustomWaterAdd}
+                  disabled={!customWater || waterMutation.isPending}
+                  className="px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  data-testid="button-water-custom-add"
+                >
+                  {waterMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Add"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {weightPopupOpen && (
+            <div
+              ref={weightPopupRef}
+              className="absolute left-0 top-full mt-2 z-50 w-64 bg-white rounded-2xl border border-zinc-200 shadow-xl p-4"
+              data-testid="popup-diary-widget-weight"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <Scale className="w-4 h-4 text-zinc-700" />
+                  <span className="text-sm font-semibold text-zinc-800">Log Weight</span>
+                </div>
+                <button
+                  onClick={() => setWeightPopupOpen(false)}
+                  className="p-1 text-zinc-400 hover:text-zinc-600 rounded-lg transition-colors"
+                  data-testid="button-close-weight-popup"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={weightInput}
+                  onChange={e => setWeightInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleWeightSubmit()}
+                  placeholder="Weight (kg)"
+                  className="flex-1 px-3 py-1.5 text-sm border border-zinc-200 rounded-xl focus:border-zinc-400 focus:outline-none transition-colors"
+                  data-testid="input-weight"
+                />
+                <button
+                  onClick={handleWeightSubmit}
+                  disabled={!weightInput || weightMutation.isPending}
+                  className="px-3 py-1.5 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  data-testid="button-weight-submit"
+                >
+                  {weightMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Add"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between bg-zinc-50 rounded-xl px-2 py-1.5 mb-4">
