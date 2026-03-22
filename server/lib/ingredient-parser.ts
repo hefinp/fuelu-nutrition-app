@@ -9,6 +9,7 @@ export const SOURCE_QUALITY_MAP: Record<string, number> = {
   nzfcd: 100,
   ausnut: 100,
   fsanz: 100,
+  generic_staple: 95,
   barcode_scan: 80,
   openfoodfacts: 80,
   open_food_facts: 80,
@@ -249,25 +250,108 @@ Respond ONLY with JSON.`,
   }
 }
 
-export async function searchFoodDb(name: string): Promise<{ calories100g: number; protein100g: number; carbs100g: number; fat100g: number; sourceDetail?: string } | null> {
+const NOISE_QUALIFIERS = /\b(plant\s*based|free\s*range|organic|fresh|raw|pure|natural|homemade|home\s*made|local|real|quality|premium|best|finest|good)\b/gi;
+const OR_ALTERNATIVE = /^(.+?)\s+or\s+(.+)$/i;
+
+export function normalizeIngredientName(name: string): string {
+  let cleaned = name.trim();
+
+  const orMatch = cleaned.match(OR_ALTERNATIVE);
+  if (orMatch) {
+    const left = orMatch[1].trim();
+    const right = orMatch[2].trim();
+    cleaned = right;
+  }
+
+  cleaned = cleaned.replace(NOISE_QUALIFIERS, " ").replace(/\s{2,}/g, " ").trim();
+
+  cleaned = cleaned.replace(/,.*$/, "").trim();
+
+  return cleaned || name.trim();
+}
+
+const CONFECTIONERY_BRANDS = /\b(cadbury|nestle|nestlé|mars|hershey|lindt|ferrero|toblerone|snickers|twix|kitkat|kit\s*kat|m&m|reese|oreo|milka)\b/i;
+const CONFECTIONERY_WORDS = /\b(chocolate|candy|confectionery|sweet|lolly|lollies|bar|cookie|biscuit|wafer|praline|truffle|fudge|toffee|caramel)\b/i;
+
+function scoreCanonicalMatch(searchTerm: string, candidateName: string, sourceQuality: number): number {
+  const search = searchTerm.toLowerCase().trim();
+  const candidate = candidateName.toLowerCase().trim();
+  let score = sourceQuality;
+
+  if (candidate === search) {
+    score += 200;
+  } else {
+    const searchWords = search.split(/\s+/);
+    const candidateWords = candidate.split(/\s+/);
+
+    const allSearchWordsPresent = searchWords.every(sw =>
+      candidateWords.some(cw => cw === sw || cw.startsWith(sw))
+    );
+    if (allSearchWordsPresent) {
+      score += 100;
+      const extraWords = candidateWords.length - searchWords.length;
+      score -= extraWords * 10;
+    }
+  }
+
+  const searchIsLiquid = LIQUID_PATTERNS.some(p => p.test(search));
+  const searchIsProduce = FRESH_PRODUCE_PATTERNS.some(p => p.test(search));
+  const candidateIsConfectionery = CONFECTIONERY_BRANDS.test(candidate) || CONFECTIONERY_WORDS.test(candidate);
+
+  if ((searchIsLiquid || searchIsProduce) && candidateIsConfectionery) {
+    score -= 300;
+  }
+
+  if (!searchIsLiquid && !searchIsProduce && candidateIsConfectionery) {
+    if (!CONFECTIONERY_BRANDS.test(search) && !CONFECTIONERY_WORDS.test(search)) {
+      score -= 100;
+    }
+  }
+
+  return score;
+}
+
+export async function searchFoodDb(rawName: string): Promise<{ calories100g: number; protein100g: number; carbs100g: number; fat100g: number; sourceDetail?: string } | null> {
+  const name = normalizeIngredientName(rawName);
   try {
-    const canonicalHits = await storage.searchCanonicalFoods(name, 3);
+    const canonicalHits = await storage.searchCanonicalFoods(name, 10);
     if (canonicalHits.length > 0) {
-      const hit = canonicalHits[0];
-      const clamped = clampNutritionToCeiling({
-        name: hit.name,
-        calories100g: hit.calories100g,
-        protein100g: hit.protein100g,
-        carbs100g: hit.carbs100g,
-        fat100g: hit.fat100g,
-      });
-      return {
-        calories100g: clamped.calories100g,
-        protein100g: clamped.protein100g,
-        carbs100g: clamped.carbs100g,
-        fat100g: clamped.fat100g,
-        sourceDetail: hit.source ?? "db",
-      };
+      const scored = canonicalHits
+        .map(hit => ({ hit, score: scoreCanonicalMatch(name, hit.name, hit.sourceQuality ?? 40) }))
+        .sort((a, b) => b.score - a.score);
+
+      const bestEntry = scored[0];
+      if (bestEntry.score < 40) {
+        console.log(`[searchFoodDb] Best canonical match for "${name}" scored ${bestEntry.score} (below threshold) — skipping canonical`);
+      } else {
+        const best = bestEntry.hit;
+
+        const isAuthoritative = ["usda_cached", "nzfcd", "ausnut", "fsanz", "generic_staple"].includes(best.source ?? "");
+        if (isAuthoritative) {
+          return {
+            calories100g: best.calories100g,
+            protein100g: best.protein100g,
+            carbs100g: best.carbs100g,
+            fat100g: best.fat100g,
+            sourceDetail: best.source ?? "db",
+          };
+        }
+
+        const clamped = clampNutritionToCeiling({
+          name: best.name,
+          calories100g: best.calories100g,
+          protein100g: best.protein100g,
+          carbs100g: best.carbs100g,
+          fat100g: best.fat100g,
+        });
+        return {
+          calories100g: clamped.calories100g,
+          protein100g: clamped.protein100g,
+          carbs100g: clamped.carbs100g,
+          fat100g: clamped.fat100g,
+          sourceDetail: best.source ?? "db",
+        };
+      }
     }
 
     const apiKey = process.env.USDA_API_KEY || "DEMO_KEY";
@@ -493,6 +577,68 @@ export function crossValidateIngredients(
   }
 
   return { ingredients, divergenceWarning: null };
+}
+
+const GENERIC_STAPLES: Array<{ name: string; calories100g: number; protein100g: number; carbs100g: number; fat100g: number }> = [
+  { name: "Milk", calories100g: 62, protein100g: 3.4, carbs100g: 4.8, fat100g: 3.3 },
+  { name: "Whole milk", calories100g: 62, protein100g: 3.4, carbs100g: 4.8, fat100g: 3.3 },
+  { name: "Skim milk", calories100g: 34, protein100g: 3.4, carbs100g: 5.0, fat100g: 0.1 },
+  { name: "Dairy milk", calories100g: 62, protein100g: 3.4, carbs100g: 4.8, fat100g: 3.3 },
+  { name: "Yoghurt", calories100g: 61, protein100g: 3.5, carbs100g: 4.7, fat100g: 3.3 },
+  { name: "Plain yoghurt", calories100g: 61, protein100g: 3.5, carbs100g: 4.7, fat100g: 3.3 },
+  { name: "Greek yoghurt", calories100g: 97, protein100g: 9.0, carbs100g: 3.6, fat100g: 5.0 },
+  { name: "Yogurt", calories100g: 61, protein100g: 3.5, carbs100g: 4.7, fat100g: 3.3 },
+  { name: "Butter", calories100g: 717, protein100g: 0.9, carbs100g: 0.1, fat100g: 81.0 },
+  { name: "Flour", calories100g: 364, protein100g: 10.3, carbs100g: 76.3, fat100g: 1.0 },
+  { name: "Plain flour", calories100g: 364, protein100g: 10.3, carbs100g: 76.3, fat100g: 1.0 },
+  { name: "Sugar", calories100g: 387, protein100g: 0, carbs100g: 100, fat100g: 0 },
+  { name: "Honey", calories100g: 304, protein100g: 0.3, carbs100g: 82.4, fat100g: 0 },
+  { name: "Maple syrup", calories100g: 260, protein100g: 0, carbs100g: 67.0, fat100g: 0 },
+  { name: "Olive oil", calories100g: 884, protein100g: 0, carbs100g: 0, fat100g: 100 },
+  { name: "Eggs", calories100g: 155, protein100g: 12.6, carbs100g: 1.1, fat100g: 11.0 },
+  { name: "Egg", calories100g: 155, protein100g: 12.6, carbs100g: 1.1, fat100g: 11.0 },
+  { name: "Rice", calories100g: 130, protein100g: 2.7, carbs100g: 28.2, fat100g: 0.3 },
+  { name: "Oats", calories100g: 389, protein100g: 16.9, carbs100g: 66.3, fat100g: 6.9 },
+  { name: "Rolled oats", calories100g: 389, protein100g: 16.9, carbs100g: 66.3, fat100g: 6.9 },
+  { name: "Chia seeds", calories100g: 486, protein100g: 16.5, carbs100g: 42.1, fat100g: 30.7 },
+  { name: "Peanut butter", calories100g: 588, protein100g: 25.1, carbs100g: 20.0, fat100g: 50.4 },
+  { name: "Banana", calories100g: 89, protein100g: 1.1, carbs100g: 22.8, fat100g: 0.3 },
+  { name: "Cream", calories100g: 340, protein100g: 2.1, carbs100g: 2.8, fat100g: 36.1 },
+  { name: "Coconut milk", calories100g: 197, protein100g: 2.0, carbs100g: 2.8, fat100g: 21.3 },
+  { name: "Coconut cream", calories100g: 330, protein100g: 3.6, carbs100g: 6.6, fat100g: 34.7 },
+  { name: "Almond milk", calories100g: 15, protein100g: 0.6, carbs100g: 0.3, fat100g: 1.1 },
+  { name: "Oat milk", calories100g: 48, protein100g: 1.0, carbs100g: 9.3, fat100g: 1.0 },
+  { name: "Soy milk", calories100g: 33, protein100g: 2.8, carbs100g: 1.8, fat100g: 1.6 },
+  { name: "Cheese", calories100g: 402, protein100g: 25.0, carbs100g: 1.3, fat100g: 33.1 },
+  { name: "Cheddar cheese", calories100g: 402, protein100g: 25.0, carbs100g: 1.3, fat100g: 33.1 },
+  { name: "Cream cheese", calories100g: 342, protein100g: 5.9, carbs100g: 4.1, fat100g: 34.2 },
+];
+
+export async function seedGenericStapleFoods(): Promise<void> {
+  let seeded = 0;
+  for (const staple of GENERIC_STAPLES) {
+    try {
+      const existing = await storage.canonicalFoodExistsByName(staple.name);
+      if (existing && existing.source === "generic_staple") continue;
+      if (existing && getSourceQuality(existing.source ?? "user_manual") >= 90) continue;
+
+      await storage.upsertCanonicalFood({
+        name: staple.name,
+        calories100g: staple.calories100g,
+        protein100g: staple.protein100g,
+        carbs100g: staple.carbs100g,
+        fat100g: staple.fat100g,
+        servingGrams: 100,
+        source: "generic_staple",
+      });
+      seeded++;
+    } catch (err) {
+      console.warn(`[seedGenericStapleFoods] Failed to seed "${staple.name}":`, err);
+    }
+  }
+  if (seeded > 0) {
+    console.log(`[init] Seeded ${seeded} generic staple foods`);
+  }
 }
 
 export async function parseIngredientsFromArray(ingredientLines: string[], userId?: number): Promise<IngredientResult[]> {

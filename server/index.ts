@@ -163,6 +163,11 @@ app.use((req, res, next) => {
     .then(() => console.log("[init] Community meal ingredient fix complete"))
     .catch(err => console.error("[init] Canonical/community cleanup failed:", err));
 
+  const { seedGenericStapleFoods } = await import("./lib/ingredient-parser");
+  seedGenericStapleFoods()
+    .then(() => console.log("[init] Generic staple foods seed complete"))
+    .catch(err => console.error("[init] Generic staple foods seed failed:", err));
+
   await registerRoutes(httpServer, app);
 
   const { registerStravaWebhook } = await import("./routes/strava");
