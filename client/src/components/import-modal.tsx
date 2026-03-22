@@ -190,8 +190,8 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
   });
 
   return (
-    <div className={`fixed inset-x-0 top-0 bottom-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm ${isKeyboardOpen ? 'pb-0' : 'pb-16'} sm:pb-0 max-h-[100dvh]`} style={overlayStyle} onClick={onClose}>
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[90dvh] flex flex-col overflow-hidden" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined} onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" style={overlayStyle} onClick={onClose}>
+      <div className="bg-white rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[90dvh] flex flex-col overflow-hidden" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
           <div className="flex items-center gap-2">
             {step !== "method" && (
@@ -213,8 +213,8 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
                 className="w-full flex items-center gap-4 p-4 rounded-2xl border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all text-left"
                 data-testid="button-import-method-url"
               >
-                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
-                  <Globe className="w-5 h-5 text-blue-500" />
+                <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center shrink-0">
+                  <Globe className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-zinc-900">From a website</p>
@@ -226,8 +226,8 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
                 className="w-full flex items-center gap-4 p-4 rounded-2xl border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all text-left"
                 data-testid="button-import-method-photo"
               >
-                <div className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center shrink-0">
-                  <Camera className="w-5 h-5 text-rose-500" />
+                <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center shrink-0">
+                  <Camera className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-zinc-900">From a photo</p>
@@ -239,8 +239,8 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
                 className="w-full flex items-center gap-4 p-4 rounded-2xl border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all text-left"
                 data-testid="button-import-method-video"
               >
-                <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center shrink-0">
-                  <Play className="w-5 h-5 text-violet-500" />
+                <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center shrink-0">
+                  <Play className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-zinc-900">From a video</p>
