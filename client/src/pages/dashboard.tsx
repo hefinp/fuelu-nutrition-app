@@ -725,6 +725,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
     document.documentElement.classList.add("dashboard-snap");
     const ro = new ResizeObserver(updateSnapVars);
     roRef.current = ro;
