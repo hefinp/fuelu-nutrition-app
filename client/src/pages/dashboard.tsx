@@ -711,29 +711,32 @@ export default function Dashboard() {
                 <button
                   onClick={() => setShowSavedPlans(v => !v)}
                   aria-label="My Diary"
-                  className={`hidden sm:flex w-8 h-8 items-center justify-center rounded-lg transition-colors ${showSavedPlans ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`}
+                  className={`hidden sm:flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors ${showSavedPlans ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`}
                   data-testid="button-my-diary"
                 >
                   <BookOpen className="w-4 h-4" />
+                  <span className="text-[10px] font-medium leading-none">Diary</span>
                 </button>
 
                 <button
                   onClick={handleOpenMetrics}
                   aria-label="Settings"
-                  className="hidden sm:flex w-8 h-8 items-center justify-center bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+                  className="hidden sm:flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 transition-colors"
                   data-testid="button-settings-header"
                 >
                   <Settings className="w-4 h-4" />
+                  <span className="text-[10px] font-medium leading-none">Settings</span>
                 </button>
 
                 {!isEditing ? (
                   <button
                     onClick={() => setIsEditing(true)}
                     aria-label="Edit Layout"
-                    className="hidden sm:flex w-8 h-8 items-center justify-center bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+                    className="hidden sm:flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 transition-colors"
                     data-testid="button-edit-layout-header"
                   >
                     <LayoutDashboard className="w-4 h-4" />
+                    <span className="text-[10px] font-medium leading-none">Layout</span>
                   </button>
                 ) : (
                   <div className="hidden sm:flex items-center gap-2">
