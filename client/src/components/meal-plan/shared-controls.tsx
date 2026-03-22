@@ -41,8 +41,8 @@ export function PlanTypeToggle({ planMode, onChangePlanMode, testIdPrefix = "" }
 }
 
 interface MealStyleSelectorProps {
-  mealStyle: 'simple' | 'gourmet' | 'michelin';
-  onChangeMealStyle: (style: 'simple' | 'gourmet' | 'michelin') => void;
+  mealStyle: 'simple' | 'fancy' | 'gourmet';
+  onChangeMealStyle: (style: 'simple' | 'fancy' | 'gourmet') => void;
   showDescription?: boolean;
   testIdPrefix?: string;
 }
@@ -51,14 +51,14 @@ export function MealStyleSelector({ mealStyle, onChangeMealStyle, showDescriptio
   const pfx = testIdPrefix ? (testIdPrefix.endsWith('-') ? testIdPrefix : `${testIdPrefix}-`) : "";
   const styles = [
     { key: 'simple' as const,  icon: Salad,   label: 'Simple' },
-    { key: 'gourmet' as const, icon: ChefHat, label: 'Fancy' },
-    { key: 'michelin' as const, icon: Star,    label: 'Michelin' },
+    { key: 'fancy' as const, icon: ChefHat, label: 'Fancy' },
+    { key: 'gourmet' as const, icon: Star,    label: 'Gourmet' },
   ];
   const idx = styles.findIndex(s => s.key === mealStyle);
   const descriptions: Record<string, string> = {
     simple:  'Quick, clean meals — ideal for busy weeks.',
-    gourmet: 'Bold flavours and restaurant-style dishes.',
-    michelin: 'Fine-dining tasting menus — truffle, Wagyu and more.',
+    fancy: 'Bold flavours and restaurant-style dishes.',
+    gourmet: 'Fine-dining level — truffle, Wagyu, tasting menus.',
   };
   return (
     <>

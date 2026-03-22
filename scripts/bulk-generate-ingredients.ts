@@ -44,8 +44,8 @@ Return a JSON object with key "meals" containing an array. Each item must have:
 
 Style guide:
 - "simple": everyday home cooking, 4-8 ingredients, straightforward steps
-- "gourmet": elevated flavours, 6-12 ingredients, more technique
-- "michelin": fine dining, 8-14 ingredients, refined technique and plating
+- "fancy": elevated flavours, 6-12 ingredients, more technique
+- "gourmet": fine dining, 8-14 ingredients, refined technique and plating
 
 Keep ingredient quantities realistic for 1 serving. Instructions should be 4-8 steps.`,
           },

@@ -316,7 +316,7 @@ export default function AdminPage() {
                     </div>
                   )}
                   <div className="grid grid-cols-3 gap-4">
-                    {["simple", "gourmet", "michelin"].map(style => (
+                    {["simple", "fancy", "gourmet"].map(style => (
                       <div key={style}>
                         <p className="text-xs font-semibold text-zinc-700 capitalize mb-2 text-center">{style}</p>
                         <div className="space-y-1.5">

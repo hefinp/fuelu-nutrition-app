@@ -46,7 +46,7 @@ export const mealPlanSchema = z.object({
   carbsGoal: z.number(),
   fatGoal: z.number(),
   planType: z.enum(['daily', 'weekly']),
-  mealStyle: z.enum(['simple', 'gourmet', 'michelin']).optional().default('simple'),
+  mealStyle: z.enum(['simple', 'fancy', 'gourmet']).optional().default('simple'),
   calculationId: z.number().optional(),
   targetDates: z.array(z.string()).optional(),
   weekStartDate: z.string().optional(),

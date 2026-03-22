@@ -98,7 +98,7 @@ export const MEAL_DATABASE: MealDb = {
   ],
 };
 
-export const GOURMET_MEAL_DATABASE: MealDb = {
+export const FANCY_MEAL_DATABASE: MealDb = {
   breakfast: [
     { meal: "Shakshuka with poached eggs and crusty sourdough", calories: 420, protein: 28, carbs: 38, fat: 18, microScore: 4 },
     { meal: "Avocado toast with poached eggs and everything bagel seasoning", calories: 400, protein: 24, carbs: 34, fat: 20, microScore: 4 },
@@ -189,7 +189,7 @@ export const GOURMET_MEAL_DATABASE: MealDb = {
   ],
 };
 
-export const MICHELIN_MEAL_DATABASE: MealDb = {
+export const GOURMET_MEAL_DATABASE: MealDb = {
   breakfast: [
     { meal: "Croque Madame with Gruyère, smoked ham and fried egg", calories: 480, protein: 32, carbs: 30, fat: 24, microScore: 3 },
     { meal: "Slow scrambled eggs with crème fraîche, chives and smoked trout on rye", calories: 420, protein: 34, carbs: 24, fat: 20, microScore: 5 },

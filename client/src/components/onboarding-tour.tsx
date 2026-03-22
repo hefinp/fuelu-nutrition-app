@@ -22,7 +22,7 @@ const STEPS = [
   {
     Icon: UtensilsCrossed,
     title: "Meal Planning",
-    description: "Generate daily or weekly meal plans in three styles — Simple, Fancy, or Michelin. Save favourite plans, reschedule meals, and auto-generate a shopping list. Cycle-aware adjustments are applied automatically when enabled.",
+    description: "Generate daily or weekly meal plans in three styles — Simple, Fancy, or Gourmet. Save favourite plans, reschedule meals, and auto-generate a shopping list. Cycle-aware adjustments are applied automatically when enabled.",
     accent: "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300",
   },
   {

@@ -52,7 +52,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   });
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [planMode, setPlanMode] = useState<'daily' | 'weekly'>('daily');
-  const [mealStyle, setMealStyle] = useState<'simple' | 'gourmet' | 'michelin'>('simple');
+  const [mealStyle, setMealStyle] = useState<'simple' | 'fancy' | 'gourmet'>('simple');
   const [shoppingDaysOpen, setShoppingDaysOpen] = useState(false);
   const [shoppingDaysInput, setShoppingDaysInput] = useState("7");
   const [planSaved, setPlanSaved] = useState(false);
@@ -821,7 +821,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     setMealPlan(null);
   }, []);
 
-  const handleMealStyleChange = useCallback((style: 'simple' | 'gourmet' | 'michelin') => {
+  const handleMealStyleChange = useCallback((style: 'simple' | 'fancy' | 'gourmet') => {
     setMealStyle(style);
     setMealPlan(null);
   }, []);

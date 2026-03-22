@@ -7,7 +7,7 @@ const features = [
   {
     icon: ChefHat,
     title: "Three Meal-Style Tiers",
-    description: "Choose Simple, Gourmet, or Michelin-inspired meals — every plan is tailored to your cooking ambition.",
+    description: "Choose Simple, Fancy, or Gourmet meals — every plan is tailored to your cooking ambition.",
   },
   {
     icon: Filter,
@@ -43,9 +43,9 @@ const goals = [
 export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }) {
   usePageMeta({
     title: "FuelU — Personalised Meal Plans in Three Cooking Tiers",
-    description: "Track macros, log meals with AI scanning, and get personalised nutrition plans in Simple, Gourmet, or Michelin-inspired tiers. Free to start — no credit card needed.",
+    description: "Track macros, log meals with AI scanning, and get personalised nutrition plans in Simple, Fancy, or Gourmet tiers. Free to start — no credit card needed.",
     ogTitle: "FuelU — Personalised Meal Plans in Three Cooking Tiers",
-    ogDescription: "AI-powered nutrition planning with three cooking tiers. Track macros, scan barcodes, export PDFs, and get cycle-aware meal plans built around how you actually eat.",
+    ogDescription: "AI-powered nutrition planning in Simple, Fancy, and Gourmet tiers. Track macros, scan barcodes, export PDFs, and get cycle-aware meal plans built around how you actually eat.",
     ogImage: `${window.location.origin}/icon-512.png`,
     ogUrl: "https://fuelu.app",
     ogType: "website",
@@ -121,7 +121,7 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
           <h1 className="font-display font-bold text-4xl sm:text-5xl md:text-6xl tracking-tight text-zinc-900 leading-tight mb-6">
             Nutrition, planned for you.
             <br />
-            <span className="text-zinc-400">Simple. Gourmet. Michelin.</span>
+            <span className="text-zinc-400">Simple. Fancy. Gourmet.</span>
           </h1>
 
           <p className="text-lg text-zinc-500 max-w-xl mx-auto mb-6 leading-relaxed">
@@ -133,7 +133,7 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
               <span className="w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center flex-shrink-0">
                 <Check className="w-3 h-3 text-white" strokeWidth={3} />
               </span>
-              Three meal-style tiers — Simple, Gourmet, and Michelin-inspired
+              Three meal-style tiers — Simple, Fancy, and Gourmet
             </li>
             <li className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center flex-shrink-0">

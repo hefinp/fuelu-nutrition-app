@@ -318,7 +318,7 @@ export const RECIPES: Record<string, Recipe> = {
     ],
   },
 
-  // ── Gourmet Breakfasts ───────────────────────────────────────────────────────
+  // ── Fancy Breakfasts ───────────────────────────────────────────────────────
   "Shakshuka with poached eggs and crusty sourdough": {
     instructions: "Sauté onion, garlic and peppers until soft. Add cumin, paprika and tinned tomatoes; simmer 10 min. Make wells in the sauce and crack in eggs. Cover and cook 5-7 min until whites are set. Finish with fresh herbs. Serve with sourdough.",
     ingredients: [
@@ -416,7 +416,7 @@ export const RECIPES: Record<string, Recipe> = {
     ],
   },
 
-  // ── Gourmet Lunches ──────────────────────────────────────────────────────────
+  // ── Fancy Lunches ──────────────────────────────────────────────────────────
   "Chicken shawarma bowl with hummus, tabbouleh and flatbread": {
     instructions: "Marinate chicken in olive oil, cumin, coriander, turmeric and garlic. Grill or pan-fry until cooked through. Make tabbouleh with bulgur wheat, parsley, tomato and lemon. Serve over hummus with warm flatbread.",
     ingredients: [
@@ -517,7 +517,7 @@ export const RECIPES: Record<string, Recipe> = {
     ],
   },
 
-  // ── Gourmet Dinners ──────────────────────────────────────────────────────────
+  // ── Fancy Dinners ──────────────────────────────────────────────────────────
   "Herb-crusted salmon with lemon risotto and asparagus": {
     instructions: "Press a mix of breadcrumbs, parsley, lemon zest and olive oil onto the salmon. Bake at 200°C for 14-16 min. Make risotto with arborio rice, white wine, lemon juice and parmesan. Roast asparagus alongside the salmon.",
     ingredients: [
@@ -616,7 +616,7 @@ export const RECIPES: Record<string, Recipe> = {
     ],
   },
 
-  // ── Gourmet Snacks ───────────────────────────────────────────────────────────
+  // ── Fancy Snacks ───────────────────────────────────────────────────────────
   "Baba ganoush with toasted pita and cucumber": {
     instructions: "Char aubergine directly over a gas flame or under the grill until completely blackened. Scoop out flesh and blend with tahini, garlic, lemon juice and olive oil. Serve with toasted pitta triangles and sliced cucumber.",
     ingredients: [
@@ -702,7 +702,7 @@ export const RECIPES: Record<string, Recipe> = {
     ],
   },
 
-  // ── Michelin Breakfasts ──────────────────────────────────────────────────────
+  // ── Gourmet Breakfasts ──────────────────────────────────────────────────────
   "Croque Madame with Gruyère, smoked ham and fried egg": {
     instructions: "Make a béchamel by melting butter, whisking in flour then milk; season well. Spread on both slices of bread. Layer smoked ham and Gruyère between slices. Top with more béchamel and cheese. Grill until golden and bubbling. Meanwhile fry an egg in butter until the white is set. Place on top of the toast and serve immediately.",
     ingredients: [
@@ -807,7 +807,7 @@ export const RECIPES: Record<string, Recipe> = {
     ],
   },
 
-  // ── Michelin Lunches ─────────────────────────────────────────────────────────
+  // ── Gourmet Lunches ─────────────────────────────────────────────────────────
   "Pan-seared salmon with asparagus, lemon caper butter and new potatoes": {
     instructions: "Boil new potatoes until tender, drain and crush lightly with butter. Trim asparagus and blanch 3 min. Season salmon skin-side down, sear in a hot pan with oil, 4 min; flip and cook 2 more min. Remove fish. Add butter, capers and lemon juice to the pan and swirl for 1 min. Plate potatoes and asparagus, lay salmon on top and pour over the caper butter.",
     ingredients: [
@@ -910,7 +910,7 @@ export const RECIPES: Record<string, Recipe> = {
     ],
   },
 
-  // ── Michelin Dinners ─────────────────────────────────────────────────────────
+  // ── Gourmet Dinners ─────────────────────────────────────────────────────────
   "Ribeye steak with truffle butter, dauphinoise potatoes and tenderstem broccoli": {
     instructions: "Make dauphinoise: slice potatoes thinly, layer in a buttered dish with double cream, garlic and seasoning; cover with foil and bake 50 min at 170°C, uncover for last 15 min. Make truffle butter by mixing softened butter with truffle oil, salt and a little garlic. Bring steak to room temp; season generously. Sear in a screaming hot pan 3–4 min each side for medium-rare; rest 5 min. Blanch tenderstem broccoli 3 min. Top steak with a slice of truffle butter.",
     ingredients: [
@@ -1026,7 +1026,7 @@ export const RECIPES: Record<string, Recipe> = {
     ],
   },
 
-  // ── Michelin Snacks ──────────────────────────────────────────────────────────
+  // ── Gourmet Snacks ──────────────────────────────────────────────────────────
   "Parma ham with marinated artichoke hearts and olives": {
     instructions: "Arrange Parma ham slices on a board. Drain artichoke hearts and olives; toss together with a drizzle of olive oil, a squeeze of lemon and black pepper. Serve alongside crusty bread or breadsticks.",
     ingredients: [
@@ -1299,7 +1299,7 @@ export const RECIPES: Record<string, Recipe> = {
       { item: "Salt", quantity: "1/4 tsp" },
     ],
   },
-  // ── Missing Gourmet Breakfasts ─────────────────────────────────────────────
+  // ── Missing Fancy Breakfasts ─────────────────────────────────────────────
   "Acai smoothie bowl with mixed berries, banana and coconut flakes": {
     instructions: "Blend frozen acai packet with frozen banana and a splash of milk until very thick. Pour into a bowl. Arrange mixed berries, coconut flakes and granola on top in rows.",
     ingredients: [
@@ -1340,7 +1340,7 @@ export const RECIPES: Record<string, Recipe> = {
       { item: "Salt & pepper", quantity: "to taste" },
     ],
   },
-  // ── Missing Gourmet Lunches & Dinners ──────────────────────────────────────
+  // ── Missing Fancy Lunches & Dinners ──────────────────────────────────────
   "Moroccan roasted vegetable and chickpea bowl with chermoula": {
     instructions: "Preheat oven to 200°C. Toss cubed butternut squash, courgette and red onion with olive oil, cumin, cinnamon and salt, then roast for 25 minutes. For the chermoula, blend coriander, parsley, garlic, cumin, lemon juice and olive oil in a blender. Warm chickpeas in a pan. Layer roasted veg and chickpeas in a bowl, spoon over the chermoula and scatter with pomegranate seeds.",
     ingredients: [
@@ -1429,7 +1429,7 @@ export const RECIPES: Record<string, Recipe> = {
       { item: "Salt & pepper", quantity: "to taste" },
     ],
   },
-  // ── Missing Gourmet Snacks ─────────────────────────────────────────────────
+  // ── Missing Fancy Snacks ─────────────────────────────────────────────────
   "Sliced avocado with lime, chilli flakes and sesame rice cakes": {
     instructions: "Slice avocado and fan out on sesame rice cakes. Squeeze lime juice over the top and sprinkle with chilli flakes and a pinch of flaky sea salt.",
     ingredients: [
@@ -1462,7 +1462,7 @@ export const RECIPES: Record<string, Recipe> = {
       { item: "Lime", quantity: "1" },
     ],
   },
-  // ── Missing Michelin Breakfasts ────────────────────────────────────────────
+  // ── Missing Gourmet Breakfasts (top tier) ────────────────────────────────────────────
   "Warm spiced oat porridge with caramelised apple, date syrup and toasted seeds": {
     instructions: "Cook oats in milk over medium heat for 5 minutes, stirring in a pinch of cinnamon and cardamom. Meanwhile, sauté sliced apple in a little coconut oil and a pinch of cinnamon until golden and caramelised. Toast pumpkin and sunflower seeds in a dry pan until fragrant. Serve porridge topped with caramelised apple, a drizzle of date syrup and toasted seeds.",
     ingredients: [
@@ -1490,7 +1490,7 @@ export const RECIPES: Record<string, Recipe> = {
       { item: "Salt & pepper", quantity: "to taste" },
     ],
   },
-  // ── Missing Michelin Lunches & Dinners ─────────────────────────────────────
+  // ── Missing Gourmet Lunches & Dinners (top tier) ─────────────────────────────────────
   "Heritage tomato salad with white bean puree, basil oil and crispy capers": {
     instructions: "For the white bean puree, blend drained cannellini beans with garlic, lemon juice and olive oil until smooth. For the basil oil, blend fresh basil with olive oil and strain through a sieve. Pat capers dry and shallow-fry in olive oil for 1-2 minutes until crispy. Slice heritage tomatoes and arrange on a plate. Smear white bean puree on the plate, layer tomatoes on top, drizzle with basil oil and scatter with crispy capers and flaky salt.",
     ingredients: [
@@ -1587,7 +1587,7 @@ export const RECIPES: Record<string, Recipe> = {
       { item: "Salt & pepper", quantity: "to taste" },
     ],
   },
-  // ── Missing Michelin Snacks ────────────────────────────────────────────────
+  // ── Missing Gourmet Snacks (top tier) ────────────────────────────────────────────────
   "Chilled watermelon with fresh mint, lime zest and hemp seeds": {
     instructions: "Cut watermelon into elegant wedges or cubes and arrange on a plate. Tear fresh mint leaves over the top. Zest lime over the watermelon and squeeze a little juice. Scatter with hemp seeds and serve chilled.",
     ingredients: [

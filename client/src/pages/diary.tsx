@@ -886,9 +886,9 @@ function DiaryContent({
                             <Calendar className="w-2.5 h-2.5" />
                             {weekPlan.planType === 'weekly' ? 'Weekly' : 'Daily'}
                           </span>
-                          <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${weekPlan.mealStyle === 'michelin' ? 'bg-yellow-50 text-yellow-700' : weekPlan.mealStyle === 'gourmet' ? 'bg-purple-50 text-purple-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                          <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${weekPlan.mealStyle === 'gourmet' ? 'bg-yellow-50 text-yellow-700' : weekPlan.mealStyle === 'fancy' ? 'bg-purple-50 text-purple-700' : 'bg-zinc-100 text-zinc-600'}`}>
                             <ChefHat className="w-2.5 h-2.5" />
-                            {weekPlan.mealStyle === 'michelin' ? 'Michelin' : weekPlan.mealStyle === 'gourmet' ? 'Gourmet' : 'Simple'}
+                            {weekPlan.mealStyle === 'gourmet' ? 'Gourmet' : weekPlan.mealStyle === 'fancy' ? 'Fancy' : 'Simple'}
                           </span>
                           {showCycleBanner && ps && (
                             <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${ps.bg} ${ps.text} ${ps.border}`}>

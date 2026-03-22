@@ -111,7 +111,7 @@ async function run() {
 
   console.log('\n=== TEST 1: excludedFoods=[chicken] — weekly generation (all styles) ===');
   await setPrefs(sid, { excludedFoods: ['chicken'] });
-  for (const style of ['simple', 'gourmet', 'michelin']) {
+  for (const style of ['simple', 'fancy', 'gourmet']) {
     const res = await generateWeekly(sid, style);
     const plan = JSON.parse(res.body);
     const names = collectAllMealNames(plan, true);
@@ -126,7 +126,7 @@ async function run() {
   report('Daily simple excludes chicken', checkNoKeywords(dailyNames, ['chicken'], 'daily/simple'));
 
   console.log('\n=== TEST 3: excludedFoods=[chicken] — replace-meal (all styles) ===');
-  for (const style of ['simple', 'gourmet', 'michelin']) {
+  for (const style of ['simple', 'fancy', 'gourmet']) {
     for (const slot of REPLACE_SLOTS) {
       const res = await replaceMeal(sid, slot, style);
       const r = JSON.parse(res.body);
@@ -149,7 +149,7 @@ async function run() {
   console.log('\n=== TEST 5: excludedFoods=[mushroom, avocado] — category expansion (all styles) ===');
   await setPrefs(sid, { excludedFoods: ['mushroom', 'avocado'] });
   const expandedKws = ['mushroom', 'shiitake', 'portobello', 'chanterelle', 'truffle', 'avocado', 'guacamole'];
-  for (const style of ['simple', 'gourmet', 'michelin']) {
+  for (const style of ['simple', 'fancy', 'gourmet']) {
     const res = await generateWeekly(sid, style);
     const plan = JSON.parse(res.body);
     const names = collectAllMealNames(plan, true);

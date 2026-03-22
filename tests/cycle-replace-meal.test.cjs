@@ -102,7 +102,7 @@ async function run() {
 
   console.log('\n=== TEST 5: replace-meal with targetDate works for all styles ===');
   let f5 = 0;
-  for (const style of ['simple', 'gourmet', 'michelin']) {
+  for (const style of ['simple', 'fancy', 'gourmet']) {
     const res = await replaceMeal(sid, 'lunch', style, futureDateStr);
     if (res.status !== 200) {
       f5++;

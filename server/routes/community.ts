@@ -103,7 +103,7 @@ router.get("/api/community-meals/:id/details", async (req, res) => {
 - "ingredients": array of ingredient strings (each item like "200g chicken breast" or "1 tbsp olive oil"), 6-12 items
 - "instructions": a concise step-by-step cooking method as a single string with numbered steps separated by newlines
 
-Tailor complexity to the meal style: simple = minimal steps, gourmet = refined technique, michelin = professional detail.
+Tailor complexity to the meal style: simple = minimal steps, fancy = refined technique, gourmet = professional detail.
 Return ONLY valid JSON, no markdown.`,
           },
           {

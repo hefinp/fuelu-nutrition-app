@@ -1,7 +1,7 @@
 # FuelU — Replit.md
 
 ## Overview
-FuelU is a full-stack nutrition calculator web application designed for personalized dietary management. It generates calorie and macronutrient targets, creates tailored meal plans (Simple, Gourmet, Michelin) based on user preferences and biometrics, and offers features like meal plan saving/exporting, shopping list generation, and individual meal replacement. The platform includes a food log with macro tracking, AI-powered weight and hydration tracking, and robust user authentication. FuelU aims to be a holistic solution for personal nutrition, leveraging AI for personalized insights and suggestions, and capturing a significant market share in personal health and wellness.
+FuelU is a full-stack nutrition calculator web application designed for personalized dietary management. It generates calorie and macronutrient targets, creates tailored meal plans (Simple, Fancy, Gourmet) based on user preferences and biometrics, and offers features like meal plan saving/exporting, shopping list generation, and individual meal replacement. The platform includes a food log with macro tracking, AI-powered weight and hydration tracking, and robust user authentication. FuelU aims to be a holistic solution for personal nutrition, leveraging AI for personalized insights and suggestions, and capturing a significant market share in personal health and wellness.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

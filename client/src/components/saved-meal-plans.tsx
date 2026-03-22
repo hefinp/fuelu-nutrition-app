@@ -362,9 +362,9 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                     <Calendar className="w-3 h-3" />
                     {plan.planType === 'weekly' ? 'Weekly' : 'Daily'}
                   </span>
-                  <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${plan.mealStyle === 'michelin' ? 'bg-yellow-50 text-yellow-700' : plan.mealStyle === 'gourmet' ? 'bg-purple-50 text-purple-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                  <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${plan.mealStyle === 'gourmet' ? 'bg-yellow-50 text-yellow-700' : plan.mealStyle === 'fancy' ? 'bg-purple-50 text-purple-700' : 'bg-zinc-100 text-zinc-600'}`}>
                     <ChefHat className="w-3 h-3" />
-                    {plan.mealStyle === 'michelin' ? 'Michelin' : plan.mealStyle === 'gourmet' ? 'Gourmet' : 'Simple'}
+                    {plan.mealStyle === 'gourmet' ? 'Gourmet' : plan.mealStyle === 'fancy' ? 'Fancy' : 'Simple'}
                   </span>
                   {showCycleBanner && (() => {
                     const pd = planData as any;
@@ -774,7 +774,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
                     >
                       <p className="text-sm font-semibold text-zinc-900 truncate">{mp.name}</p>
                       <p className="text-xs text-zinc-500 mt-0.5">
-                        {mp.planType === 'weekly' ? 'Weekly' : 'Daily'} · {mp.mealStyle === 'michelin' ? 'Michelin' : mp.mealStyle === 'gourmet' ? 'Gourmet' : 'Simple'}
+                        {mp.planType === 'weekly' ? 'Weekly' : 'Daily'} · {mp.mealStyle === 'gourmet' ? 'Gourmet' : mp.mealStyle === 'fancy' ? 'Fancy' : 'Simple'}
                       </p>
                     </button>
                   ))}

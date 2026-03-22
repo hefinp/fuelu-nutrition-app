@@ -8,7 +8,7 @@ import { sendEmail, buildMealPlanEmailHtml } from "../email";
 import { hasTierAccess, deductCredits } from "../tier";
 import {
   type MealEntry, type MealDb,
-  MEAL_DATABASE, GOURMET_MEAL_DATABASE, MICHELIN_MEAL_DATABASE,
+  MEAL_DATABASE, FANCY_MEAL_DATABASE, GOURMET_MEAL_DATABASE,
   filterMealDbByPreferences, filterMealDbByRecentLog,
   scaleMeal, pickBestMeal, buildDayPlan, generateDayPlan, generateMealPlan,
   computeCyclePhase, addDaysToDate, getPastSlotsForDate,
@@ -29,7 +29,7 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
       }
     }
 
-    let baseDb: MealDb = input.mealStyle === 'michelin' ? MICHELIN_MEAL_DATABASE : input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
+    let baseDb: MealDb = input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : input.mealStyle === 'fancy' ? FANCY_MEAL_DATABASE : MEAL_DATABASE;
 
     let prefs: UserPreferences | null = null;
     if (req.session.userId) {
@@ -217,7 +217,7 @@ const autofillSchema = z.object({
   proteinGoal: z.number(),
   carbsGoal: z.number(),
   fatGoal: z.number(),
-  mealStyle: z.enum(['simple', 'gourmet', 'michelin']).optional().default('simple'),
+  mealStyle: z.enum(['simple', 'fancy', 'gourmet']).optional().default('simple'),
   slots: z.record(z.string(), z.record(z.string(), z.array(z.object({
     meal: z.string(),
     calories: z.number(),
@@ -271,7 +271,7 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
 
     const input = autofillSchema.parse(req.body);
 
-    let baseDb: MealDb = input.mealStyle === 'michelin' ? MICHELIN_MEAL_DATABASE : input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
+    let baseDb: MealDb = input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : input.mealStyle === 'fancy' ? FANCY_MEAL_DATABASE : MEAL_DATABASE;
 
     let prefs: UserPreferences | null = null;
     if (user) {
@@ -378,7 +378,7 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
 
 const replaceMealSchema = z.object({
   slot: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
-  mealStyle: z.enum(['simple', 'gourmet', 'michelin']).optional().default('simple'),
+  mealStyle: z.enum(['simple', 'fancy', 'gourmet']).optional().default('simple'),
   dailyCalories: z.number(),
   proteinGoal: z.number(),
   carbsGoal: z.number(),
@@ -390,7 +390,7 @@ const replaceMealSchema = z.object({
 router.post("/api/meal-plans/replace-meal", async (req, res) => {
   try {
     const input = replaceMealSchema.parse(req.body);
-    let baseDb: MealDb = input.mealStyle === 'michelin' ? MICHELIN_MEAL_DATABASE : input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
+    let baseDb: MealDb = input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : input.mealStyle === 'fancy' ? FANCY_MEAL_DATABASE : MEAL_DATABASE;
 
     let prefs: UserPreferences | null = null;
     if (req.session.userId) {
@@ -486,7 +486,7 @@ router.post("/api/saved-meal-plans", async (req, res) => {
     const body = z.object({
       planData: z.any(),
       planType: z.enum(['daily', 'weekly']),
-      mealStyle: z.enum(['simple', 'gourmet', 'michelin']).optional().default('simple'),
+      mealStyle: z.enum(['simple', 'fancy', 'gourmet']).optional().default('simple'),
       calculationId: z.number().optional(),
       name: z.string().min(1).max(100).optional().default('My Plan'),
     }).parse(req.body);
@@ -748,7 +748,7 @@ router.post("/api/saved-meal-plans/:id/generate-optimised", async (req, res) => 
       ? Math.round((planData.weekTotalFat || 65) / 7)
       : (planData.dayTotalFat || 65);
 
-    let baseDb: MealDb = plan.mealStyle === 'michelin' ? MICHELIN_MEAL_DATABASE : plan.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : MEAL_DATABASE;
+    let baseDb: MealDb = plan.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : plan.mealStyle === 'fancy' ? FANCY_MEAL_DATABASE : MEAL_DATABASE;
     baseDb = filterMealDbByPreferences(baseDb, prefs);
 
     let newPlanData: any;

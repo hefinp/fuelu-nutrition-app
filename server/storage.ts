@@ -1638,7 +1638,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCommunityMealBalance(): Promise<{ style: string; slot: string; total: number; userContributed: number; aiGenerated: number }[]> {
-    const styles = ["simple", "gourmet", "michelin"];
+    const styles = ["simple", "fancy", "gourmet"];
     const slots = ["breakfast", "lunch", "dinner", "snack"];
     const result: { style: string; slot: string; total: number; userContributed: number; aiGenerated: number }[] = [];
     for (const style of styles) {

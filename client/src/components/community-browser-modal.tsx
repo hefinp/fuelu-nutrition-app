@@ -15,7 +15,7 @@ import { useMobileViewport } from "@/hooks/use-mobile-viewport";
 import { useAuth } from "@/hooks/use-auth";
 
 type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
-type MealStyle = "simple" | "gourmet" | "michelin";
+type MealStyle = "simple" | "fancy" | "gourmet";
 
 const MEAL_SLOT_OPTIONS: { value: MealSlot; label: string }[] = [
   { value: "breakfast", label: "Breakfast" },
@@ -26,8 +26,8 @@ const MEAL_SLOT_OPTIONS: { value: MealSlot; label: string }[] = [
 
 const MEAL_STYLE_OPTIONS: { value: MealStyle; label: string; desc: string }[] = [
   { value: "simple", label: "Simple", desc: "Everyday meals" },
-  { value: "gourmet", label: "Gourmet", desc: "Flavourful & creative" },
-  { value: "michelin", label: "Michelin", desc: "Fine dining" },
+  { value: "fancy", label: "Fancy", desc: "Bold flavours & restaurant-style" },
+  { value: "gourmet", label: "Gourmet", desc: "Fine dining" },
 ];
 
 const SLOT_COLOURS: Record<MealSlot, string> = {
@@ -39,8 +39,8 @@ const SLOT_COLOURS: Record<MealSlot, string> = {
 
 const STYLE_COLOURS: Record<MealStyle, string> = {
   simple: "bg-zinc-100 text-zinc-600",
-  gourmet: "bg-orange-50 text-orange-700",
-  michelin: "bg-indigo-50 text-indigo-700",
+  fancy: "bg-orange-50 text-orange-700",
+  gourmet: "bg-indigo-50 text-indigo-700",
 };
 
 const ALLERGEN_KEYWORDS: Record<string, string[]> = {

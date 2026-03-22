@@ -121,7 +121,7 @@ async function run() {
   const dislikedLower = new Set(uniqueDislike.map(m => m.toLowerCase()));
 
   console.log('\n=== TEST 1: Disliked meals not in weekly plans (all styles) ===');
-  for (const style of ['simple', 'gourmet', 'michelin']) {
+  for (const style of ['simple', 'fancy', 'gourmet']) {
     const res = await generateWeekly(sid, style);
     const plan = JSON.parse(res.body);
     const names = collectAllMealNames(plan, true);
@@ -149,7 +149,7 @@ async function run() {
   report('Daily simple excludes disliked meals', f2);
 
   console.log('\n=== TEST 3: Disliked meals not in replace-meal (all styles, all slots) ===');
-  for (const style of ['simple', 'gourmet', 'michelin']) {
+  for (const style of ['simple', 'fancy', 'gourmet']) {
     let f = 0;
     for (const slot of REPLACE_SLOTS) {
       const res = await replaceMeal(sid, slot, style);
