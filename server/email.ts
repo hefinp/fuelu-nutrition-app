@@ -103,24 +103,24 @@ function wrapEmailHtml(body: string, opts: {
           <!-- Header -->
           <tr>
             <td style="background:#18181b;border-radius:14px 14px 0 0;padding:18px 24px">
-              <table cellpadding="0" cellspacing="0" role="presentation">
+              <table cellpadding="0" cellspacing="0" role="presentation" style="background:#18181b">
                 <tr>
-                  <td style="vertical-align:middle;padding-right:10px">
+                  <td style="vertical-align:middle;padding-right:10px;background:#18181b">
                     <!-- Logomark: thin stem above a solid circle (white on dark) -->
-                    <table cellpadding="0" cellspacing="0" role="presentation">
+                    <table cellpadding="0" cellspacing="0" role="presentation" style="background:#18181b">
                       <tr>
-                        <td align="center" width="28" style="line-height:0;font-size:0;padding-bottom:0">
+                        <td align="center" width="28" style="line-height:0;font-size:0;padding-bottom:0;background:#18181b">
                           <div style="width:3px;height:11px;background:#ffffff;border-radius:2px 2px 0 0;margin:0 auto"></div>
                         </td>
                       </tr>
                       <tr>
-                        <td align="center" width="28" style="line-height:0;font-size:0">
+                        <td align="center" width="28" style="line-height:0;font-size:0;background:#18181b">
                           <div style="width:22px;height:22px;background:#ffffff;border-radius:11px;margin:0 auto"></div>
                         </td>
                       </tr>
                     </table>
                   </td>
-                  <td style="vertical-align:middle">
+                  <td style="vertical-align:middle;background:#18181b">
                     <span style="color:#ffffff;font-weight:700;font-size:18px;letter-spacing:-0.3px">FuelU</span>${accentHtml}
                   </td>
                 </tr>
