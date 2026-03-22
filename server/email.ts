@@ -1,19 +1,91 @@
 import { Resend } from "resend";
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+// Replit Resend connector — fetches API key and from_email from the Replit connections API.
+// WARNING: Never cache the client. Tokens expire, so credentials must be fetched fresh each call.
+
+interface ResendCredentials {
+  apiKey: string;
+  fromEmail: string;
+}
+
+interface ConnectorSettings {
+  api_key: string;
+  from_email?: string;
+}
+
+interface ConnectorItem {
+  settings: ConnectorSettings;
+}
+
+interface ConnectorResponse {
+  items?: ConnectorItem[];
+}
+
+async function getResendCredentials(): Promise<ResendCredentials | null> {
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const xReplitToken = process.env.REPL_IDENTITY
+    ? "repl " + process.env.REPL_IDENTITY
+    : process.env.WEB_REPL_RENEWAL
+    ? "depl " + process.env.WEB_REPL_RENEWAL
+    : null;
+
+  if (hostname && xReplitToken) {
+    try {
+      const data: ConnectorResponse = await fetch(
+        "https://" + hostname + "/api/v2/connection?include_secrets=true&connector_names=resend",
+        {
+          headers: {
+            Accept: "application/json",
+            "X-Replit-Token": xReplitToken,
+          },
+        }
+      ).then((res) => res.json());
+
+      const item = data.items?.[0];
+      if (item?.settings?.api_key && item?.settings?.from_email) {
+        return {
+          apiKey: item.settings.api_key,
+          fromEmail: item.settings.from_email,
+        };
+      }
+    } catch (err) {
+      console.warn("[email] Failed to fetch Resend connector credentials:", err);
+    }
+  }
+
+  // Fallback to bare environment variable (non-Replit environments)
+  if (process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL) {
+    return {
+      apiKey: process.env.RESEND_API_KEY,
+      fromEmail: process.env.RESEND_FROM_EMAIL,
+    };
+  }
+
+  return null;
+}
 
 function esc(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-const FROM_ADDRESS = "FuelU <onboarding@resend.dev>";
+function formatFromAddress(fromEmail: string, displayName = "FuelU"): string {
+  return fromEmail.includes("<") ? fromEmail : `${displayName} <${fromEmail}>`;
+}
 
 export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }): Promise<void> {
-  if (!resend) {
-    console.warn("[email] RESEND_API_KEY not set — skipping email send. Would have sent to:", to, "| Subject:", subject);
+  const credentials = await getResendCredentials();
+  if (!credentials) {
+    console.warn("[email] Resend not configured — skipping email send. Would have sent to:", to, "| Subject:", subject);
     return;
   }
-  const { error } = await resend.emails.send({ from: FROM_ADDRESS, to, subject, html });
+
+  const resend = new Resend(credentials.apiKey);
+  const { error } = await resend.emails.send({
+    from: formatFromAddress(credentials.fromEmail),
+    to,
+    subject,
+    html,
+  });
   if (error) {
     throw new Error(`Email send failed: ${error.message}`);
   }

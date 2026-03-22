@@ -85,7 +85,7 @@
     "react-icons": "^5.4.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.4",
-    "resend": "^6.9.3",
+    "resend": "^6.9.4",
     "sharp": "^0.34.5",
     "stripe": "^20.4.1",
     "stripe-replit-sync": "^1.0.0",
