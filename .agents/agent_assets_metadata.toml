@@ -23,4 +23,16 @@ title = "FuelU — Advertising Model & Revised 5-Year Projection"
 id = "xiwB7qZ-zuzKdKwk2KZ8H"
 uri = "file://client/public/favicon.png"
 type = "image"
-title = "App Icon (favicon.png)"
+title = "Favicon"
+
+[[outputs]]
+id = "ozP8ymW3UWuoO6jx3dBKk"
+uri = "file://client/public/icon-512.png"
+type = "image"
+title = "App Icon 512×512"
+
+[[outputs]]
+id = "tI-1VL7oqYrx-jZk1aHue"
+uri = "file://client/public/icon-192.png"
+type = "image"
+title = "App Icon 192×192"
