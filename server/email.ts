@@ -72,6 +72,89 @@ function formatFromAddress(fromEmail: string, displayName = "FuelU"): string {
   return fromEmail.includes("<") ? fromEmail : `${displayName} <${fromEmail}>`;
 }
 
+// ─── Shared branded email wrapper ────────────────────────────────────────────
+
+function wrapEmailHtml(body: string, opts: {
+  title: string;
+  accentText?: string;
+  disclaimer?: string;
+}): string {
+  const year = new Date().getFullYear();
+  const accentHtml = opts.accentText
+    ? `<span style="color:#a1a1aa;font-size:13px;margin-left:12px;font-weight:400">${esc(opts.accentText)}</span>`
+    : "";
+  const disclaimerHtml = opts.disclaimer
+    ? `<p style="margin:12px 0 0;font-size:11px;color:#a1a1aa;line-height:1.5">${esc(opts.disclaimer)}</p>`
+    : "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${esc(opts.title)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#18181b">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f4f4f5;padding:32px 16px">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:560px;width:100%">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:#18181b;border-radius:14px 14px 0 0;padding:18px 24px">
+              <table cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td style="vertical-align:middle;padding-right:10px">
+                    <!-- Logomark: stem + circle, mirroring the in-app icon -->
+                    <table cellpadding="0" cellspacing="0" role="presentation" style="display:inline-table">
+                      <tr>
+                        <td align="center" style="padding-bottom:2px">
+                          <div style="width:3px;height:7px;background:#ffffff;border-radius:2px 2px 0 0;margin:0 auto"></div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td align="center">
+                          <div style="width:22px;height:22px;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center">
+                            <div style="width:10px;height:10px;background:#18181b;border-radius:50%;margin:6px auto"></div>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td style="vertical-align:middle">
+                    <span style="color:#ffffff;font-weight:700;font-size:18px;letter-spacing:-0.3px">FuelU</span>${accentHtml}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="background:#ffffff;padding:32px 24px">
+              ${body}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f9f9f9;border-top:1px solid #e4e4e7;border-radius:0 0 14px 14px;padding:16px 24px">
+              <p style="margin:0;font-size:12px;color:#71717a;line-height:1.5">&copy; ${year} FuelU. All rights reserved.</p>
+              ${disclaimerHtml}
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+// ─── Send ─────────────────────────────────────────────────────────────────────
+
 export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }): Promise<void> {
   const credentials = await getResendCredentials();
   if (!credentials) {
@@ -91,21 +174,17 @@ export async function sendEmail({ to, subject, html }: { to: string; subject: st
   }
 }
 
+// ─── Templates ────────────────────────────────────────────────────────────────
+
 export function buildPasswordResetEmailHtml(resetUrl: string, name: string): string {
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Reset your FuelU password</title></head>
-<body style="font-family:sans-serif;max-width:520px;margin:40px auto;padding:0 20px;color:#1a1a1a">
-  <div style="margin-bottom:24px">
-    <span style="font-weight:700;font-size:18px">FuelU</span>
-  </div>
-  <h2 style="font-size:22px;font-weight:700;margin-bottom:8px">Reset your password</h2>
-  <p style="color:#555;margin-bottom:24px">Hi ${esc(name)}, we received a request to reset your FuelU password. Click the button below to choose a new one. This link expires in 1 hour.</p>
-  <a href="${resetUrl}" style="display:inline-block;padding:12px 28px;background:#18181b;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px">Reset Password</a>
-  <p style="margin-top:24px;color:#888;font-size:12px">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
-  <p style="color:#888;font-size:12px">Or copy this link: <a href="${resetUrl}" style="color:#555">${resetUrl}</a></p>
-</body>
-</html>`;
+  const body = `
+    <h2 style="font-size:22px;font-weight:700;margin:0 0 12px">Reset your password</h2>
+    <p style="color:#52525b;font-size:15px;line-height:1.6;margin:0 0 24px">Hi ${esc(name)}, we received a request to reset your FuelU password. Click the button below to choose a new one. This link expires in 1 hour.</p>
+    <a href="${resetUrl}" style="display:inline-block;padding:13px 28px;background:#18181b;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px">Reset Password</a>
+    <p style="margin:24px 0 0;color:#a1a1aa;font-size:13px;line-height:1.5">If you didn't request this, you can safely ignore this email — your password won't change.</p>
+    <p style="margin:8px 0 0;color:#a1a1aa;font-size:12px">Or copy this link:<br><a href="${resetUrl}" style="color:#71717a;word-break:break-all">${resetUrl}</a></p>
+  `;
+  return wrapEmailHtml(body, { title: "Reset your FuelU password" });
 }
 
 export function buildMealPlanEmailHtml(planName: string, userName: string, planData: any, planType: string, shoppingList?: Record<string, Array<{ item: string; quantity: string }>>): string {
@@ -159,23 +238,17 @@ export function buildMealPlanEmailHtml(planName: string, userName: string, planD
     }
   }
 
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>${esc(planName)}</title></head>
-<body style="font-family:sans-serif;max-width:560px;margin:40px auto;padding:0 20px;color:#1a1a1a">
-  <div style="background:#18181b;border-radius:12px;padding:16px 20px;margin-bottom:24px">
-    <span style="color:#fff;font-weight:700;font-size:18px">FuelU</span>
-    <span style="color:#a1a1aa;font-size:13px;margin-left:12px">Meal Plan</span>
-  </div>
-  <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">${esc(planName)}</h2>
-  <p style="color:#71717a;font-size:13px;margin-bottom:20px">Hi ${esc(userName)} — here is your ${esc(planType)} meal plan.</p>
-  ${mealsHtml}
-  ${shoppingHtml}
-  <p style="font-size:11px;color:#a1a1aa;margin-top:28px;border-top:1px solid #e4e4e7;padding-top:16px">
-    Results are estimates. Consult a qualified healthcare professional before making dietary changes.
-  </p>
-</body>
-</html>`;
+  const body = `
+    <h2 style="font-size:20px;font-weight:700;margin:0 0 4px">${esc(planName)}</h2>
+    <p style="color:#71717a;font-size:13px;margin:0 0 20px">Hi ${esc(userName)} — here is your ${esc(planType)} meal plan.</p>
+    ${mealsHtml}
+    ${shoppingHtml}
+  `;
+  return wrapEmailHtml(body, {
+    title: planName,
+    accentText: "Meal Plan",
+    disclaimer: "Results are estimates. Consult a qualified healthcare professional before making dietary changes.",
+  });
 }
 
 export function buildWaitlistInviteEmailHtml(opts: {
@@ -183,21 +256,15 @@ export function buildWaitlistInviteEmailHtml(opts: {
   nutritionistName: string;
   inviteUrl: string;
 }): string {
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>You're invited to join FuelU</title></head>
-<body style="font-family:sans-serif;max-width:520px;margin:40px auto;padding:0 20px;color:#1a1a1a">
-  <div style="margin-bottom:24px">
-    <span style="font-weight:700;font-size:18px">FuelU</span>
-  </div>
-  <h2 style="font-size:22px;font-weight:700;margin-bottom:8px">You've been invited!</h2>
-  <p style="color:#555;margin-bottom:24px">Hi ${esc(opts.prospectName)}, great news — <strong>${esc(opts.nutritionistName)}</strong> has a spot available and would like to invite you to join as a client on FuelU.</p>
-  <p style="color:#555;margin-bottom:24px">Click the button below to create your account and get started. This invitation link will expire in 7 days.</p>
-  <a href="${opts.inviteUrl}" style="display:inline-block;padding:12px 28px;background:#18181b;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px">Accept Invitation</a>
-  <p style="margin-top:24px;color:#888;font-size:12px">If you didn't request this, you can safely ignore this email.</p>
-  <p style="color:#888;font-size:12px">Or copy this link: <a href="${opts.inviteUrl}" style="color:#555">${opts.inviteUrl}</a></p>
-</body>
-</html>`;
+  const body = `
+    <h2 style="font-size:22px;font-weight:700;margin:0 0 12px">You've been invited!</h2>
+    <p style="color:#52525b;font-size:15px;line-height:1.6;margin:0 0 16px">Hi ${esc(opts.prospectName)}, great news — <strong>${esc(opts.nutritionistName)}</strong> has a spot available and would like to invite you to join as a client on FuelU.</p>
+    <p style="color:#52525b;font-size:15px;line-height:1.6;margin:0 0 24px">Click the button below to create your account and get started. This invitation expires in 7 days.</p>
+    <a href="${opts.inviteUrl}" style="display:inline-block;padding:13px 28px;background:#18181b;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px">Accept Invitation</a>
+    <p style="margin:24px 0 0;color:#a1a1aa;font-size:13px;line-height:1.5">If you weren't expecting this, you can safely ignore this email.</p>
+    <p style="margin:8px 0 0;color:#a1a1aa;font-size:12px">Or copy this link:<br><a href="${opts.inviteUrl}" style="color:#71717a;word-break:break-all">${opts.inviteUrl}</a></p>
+  `;
+  return wrapEmailHtml(body, { title: "You're invited to join FuelU" });
 }
 
 export function buildFeedbackEmailHtml(opts: {
@@ -208,27 +275,21 @@ export function buildFeedbackEmailHtml(opts: {
   submittedAt: string;
 }): string {
   const categoryLabel = opts.category === "bug" ? "Bug Report" : opts.category === "feature" ? "Feature Request" : "General Feedback";
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>FuelU Beta Feedback</title></head>
-<body style="font-family:sans-serif;max-width:560px;margin:40px auto;padding:0 20px;color:#1a1a1a">
-  <div style="margin-bottom:24px">
-    <span style="font-weight:700;font-size:18px">FuelU</span>
-    <span style="margin-left:8px;font-size:13px;color:#71717a">Beta Feedback</span>
-  </div>
-  <div style="background:#f4f4f5;border-radius:10px;padding:20px 24px;margin-bottom:20px">
-    <p style="margin:0 0 4px 0;font-size:12px;color:#71717a;text-transform:uppercase;letter-spacing:.05em">Category</p>
-    <p style="margin:0;font-weight:600;font-size:15px">${esc(categoryLabel)}</p>
-  </div>
-  <div style="background:#f4f4f5;border-radius:10px;padding:20px 24px;margin-bottom:20px">
-    <p style="margin:0 0 4px 0;font-size:12px;color:#71717a;text-transform:uppercase;letter-spacing:.05em">Message</p>
-    <p style="margin:0;font-size:15px;line-height:1.6;white-space:pre-wrap">${esc(opts.message)}</p>
-  </div>
-  <div style="background:#f4f4f5;border-radius:10px;padding:16px 24px">
-    <p style="margin:0 0 6px 0;font-size:12px;color:#71717a;text-transform:uppercase;letter-spacing:.05em">Submitted by</p>
-    <p style="margin:0;font-size:14px"><strong>${esc(opts.userName)}</strong> &lt;${esc(opts.userEmail)}&gt;</p>
-    <p style="margin:4px 0 0 0;font-size:12px;color:#71717a">${esc(opts.submittedAt)}</p>
-  </div>
-</body>
-</html>`;
+  const body = `
+    <h2 style="font-size:20px;font-weight:700;margin:0 0 20px">Beta Feedback</h2>
+    <div style="background:#f4f4f5;border-radius:10px;padding:16px 20px;margin-bottom:12px">
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#71717a;text-transform:uppercase;letter-spacing:.06em">Category</p>
+      <p style="margin:0;font-weight:600;font-size:15px;color:#18181b">${esc(categoryLabel)}</p>
+    </div>
+    <div style="background:#f4f4f5;border-radius:10px;padding:16px 20px;margin-bottom:12px">
+      <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#71717a;text-transform:uppercase;letter-spacing:.06em">Message</p>
+      <p style="margin:0;font-size:15px;line-height:1.6;color:#18181b;white-space:pre-wrap">${esc(opts.message)}</p>
+    </div>
+    <div style="background:#f4f4f5;border-radius:10px;padding:16px 20px">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#71717a;text-transform:uppercase;letter-spacing:.06em">Submitted by</p>
+      <p style="margin:0;font-size:14px;color:#18181b"><strong>${esc(opts.userName)}</strong> &lt;${esc(opts.userEmail)}&gt;</p>
+      <p style="margin:4px 0 0;font-size:12px;color:#71717a">${esc(opts.submittedAt)}</p>
+    </div>
+  `;
+  return wrapEmailHtml(body, { title: "FuelU Beta Feedback" });
 }
