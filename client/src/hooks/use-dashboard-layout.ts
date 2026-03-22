@@ -17,10 +17,9 @@ export type WidgetId =
   | "weekly-summary"
   | "adaptive-tdee"
   | "macro-compliance"
-  | "my-momentum"
-  | "my-diary";
+  | "my-momentum";
 
-export const HOME_WIDGETS = new Set<WidgetId>(["my-momentum", "my-diary", "my-meals-food"]);
+export const HOME_WIDGETS = new Set<WidgetId>(["my-momentum", "my-meals-food"]);
 
 export const PLANNING_WIDGETS = new Set<WidgetId>(["meal-plan", "nutrition"]);
 
@@ -35,7 +34,6 @@ export const INSIGHTS_WIDGETS = new Set<WidgetId>([
 
 export const DEFAULT_ORDER: WidgetId[] = [
   "my-momentum",
-  "my-diary",
   "my-meals-food",
   "meal-plan",
   "nutrition",
@@ -52,9 +50,11 @@ export const DEFAULT_ORDER: WidgetId[] = [
 
 const ALL_WIDGET_IDS: WidgetId[] = DEFAULT_ORDER;
 
-const LEGACY_ID_MAP: Partial<Record<string, WidgetId>> = {
+// Legacy IDs that no longer exist — strip from saved layouts and replace if needed
+const LEGACY_ID_MAP: Record<string, WidgetId | undefined> = {
   "recipe-library": "my-meals-food",
-  "favourites": undefined as any,
+  "favourites": undefined,
+  "my-diary": undefined,
 };
 
 export function useDashboardLayout(isLoggedIn: boolean) {

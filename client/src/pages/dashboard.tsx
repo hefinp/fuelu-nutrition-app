@@ -15,7 +15,6 @@ const CycleTracker = lazy(() => import("@/components/cycle-tracker").then(m => (
 const VitalityTracker = lazy(() => import("@/components/vitality-tracker").then(m => ({ default: m.VitalityTracker })));
 import { MyMealsFoodWidget } from "@/components/my-meals-food-widget";
 import { MyMomentumWidget } from "@/components/my-momentum-widget";
-import { MyDiaryWidget } from "@/components/my-diary-widget";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
@@ -51,17 +50,12 @@ import {
 import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
-  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, TrendingUp, Home,
+  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, TrendingUp, Home,
   Sparkles, ScanLine, Heart, ShieldCheck, Zap, User, Crown, Briefcase, MessageSquare,
-  CalendarDays, Activity, PenLine, Target, RefreshCw, NotebookPen, ChevronLeft, ChevronRight, Trash2,
+  CalendarDays, Activity, PenLine, Target, RefreshCw,
 } from "lucide-react";
 import type { AdaptiveTdeeSuggestion } from "@shared/schema";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
-import {
-  type FoodLogEntry, type MealSlot,
-  SLOT_LABELS, SLOT_ICONS, SLOT_COLORS,
-  todayStr, formatDateLabel, shiftDate, MacroGrid,
-} from "@/components/food-log-shared";
 
 function ClientUnreadBadge() {
   const { user } = useAuth();
@@ -323,219 +317,9 @@ function useIsDesktop() {
 
 const TAB_ORDER: Array<'favourites' | 'planning' | 'tracking' | 'insights'> = ['favourites', 'planning', 'tracking', 'insights'];
 
-interface DiaryModalProps {
-  open: boolean;
-  onClose: () => void;
-  calTarget?: number;
-  protTarget?: number;
-  carbsTarget?: number;
-  fatTarget?: number;
-}
-
-function DiaryModal({ open, onClose, calTarget, protTarget, carbsTarget, fatTarget }: DiaryModalProps) {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-  const today = todayStr();
-  const [selectedDate, setSelectedDate] = useState(today);
-  const isToday = selectedDate === today;
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [open, onClose]);
-
-  const { data: dailyEntries = [], isLoading } = useQuery<FoodLogEntry[]>({
-    queryKey: ["/api/food-log", selectedDate],
-    queryFn: async () => {
-      const res = await fetch(`/api/food-log?date=${selectedDate}`, { credentials: "include" });
-      if (res.status === 401) return [];
-      if (!res.ok) throw new Error("Failed to load food log");
-      return res.json();
-    },
-    enabled: open && !!user,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/food-log/${id}`, undefined),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
-    },
-    onError: () => toast({ title: "Failed to delete entry", variant: "destructive" }),
-  });
-
-  const confirmedEntries = dailyEntries.filter(e => e.confirmed !== false);
-  const totalCal = confirmedEntries.reduce((s, e) => s + e.calories, 0);
-  const totalProt = confirmedEntries.reduce((s, e) => s + e.protein, 0);
-  const totalCarbs = confirmedEntries.reduce((s, e) => s + e.carbs, 0);
-  const totalFat = confirmedEntries.reduce((s, e) => s + e.fat, 0);
-
-  const slotOrder: (MealSlot | null)[] = ["breakfast", "lunch", "dinner", "snack", "drinks", null];
-  const grouped: Record<string, FoodLogEntry[]> = {};
-  for (const entry of dailyEntries) {
-    const key = entry.mealSlot ?? "__none__";
-    if (!grouped[key]) grouped[key] = [];
-    grouped[key].push(entry);
-  }
-  const orderedSlots = slotOrder.filter(s => grouped[s ?? "__none__"]?.length > 0);
-
-  return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            key="diary-modal-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[51] bg-black/40"
-            onClick={onClose}
-          />
-          <motion.div
-            key="diary-modal-panel"
-            initial={{ opacity: 0, scale: 0.97, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 12 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-            className="fixed z-[52] inset-x-4 top-[5%] bottom-[5%] max-w-lg mx-auto bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden"
-            onClick={e => e.stopPropagation()}
-            data-testid="diary-modal"
-          >
-            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-zinc-100 shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-zinc-900 rounded-lg text-white">
-                  <NotebookPen className="w-4 h-4" />
-                </div>
-                <span className="text-base font-bold text-zinc-900">My Diary</span>
-              </div>
-              <button
-                onClick={onClose}
-                className="p-1.5 hover:bg-zinc-100 rounded-lg transition-colors text-zinc-400 hover:text-zinc-600"
-                data-testid="button-close-diary-modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between mx-5 mt-4 mb-3 bg-zinc-50 rounded-xl px-2 py-1.5 shrink-0">
-              <button
-                onClick={() => setSelectedDate(d => shiftDate(d, -1))}
-                className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors text-zinc-500 hover:text-zinc-900"
-                data-testid="button-diary-modal-prev-day"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <div className="text-center">
-                <span className="text-sm font-semibold text-zinc-800" data-testid="text-diary-modal-date">
-                  {isToday ? "Today" : formatDateLabel(selectedDate)}
-                </span>
-                {isToday && <span className="block text-[10px] text-zinc-400">{formatDateLabel(selectedDate)}</span>}
-                {!isToday && (
-                  <button
-                    onClick={() => setSelectedDate(today)}
-                    className="block mx-auto text-[10px] text-zinc-400 hover:text-zinc-600 font-medium transition-colors mt-0.5"
-                    data-testid="button-diary-modal-go-to-today"
-                  >
-                    Back to today
-                  </button>
-                )}
-              </div>
-              <button
-                onClick={() => setSelectedDate(d => shiftDate(d, 1))}
-                className="p-1.5 hover:bg-zinc-200 rounded-lg transition-colors text-zinc-500 hover:text-zinc-900"
-                data-testid="button-diary-modal-next-day"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-5 pb-5">
-              <MacroGrid
-                cal={totalCal} prot={totalProt} carbs={totalCarbs} fat={totalFat}
-                calTarget={calTarget} protTarget={protTarget}
-                carbsTarget={carbsTarget} fatTarget={fatTarget}
-              />
-
-              {isLoading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
-                </div>
-              ) : dailyEntries.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 py-10 text-center">
-                  <NotebookPen className="w-8 h-8 text-zinc-300" />
-                  <p className="text-sm text-zinc-400">No meals logged for this day</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {orderedSlots.map(slot => {
-                    const key = slot ?? "__none__";
-                    const entries = grouped[key] ?? [];
-                    const SlotIcon = slot ? SLOT_ICONS[slot] : null;
-                    const slotColor = slot ? SLOT_COLORS[slot] : null;
-                    const label = slot ? SLOT_LABELS[slot] : "Other";
-
-                    return (
-                      <div key={key}>
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          {SlotIcon && slotColor && (
-                            <span className={`p-1 rounded-md ${slotColor}`}>
-                              <SlotIcon className="w-3 h-3" />
-                            </span>
-                          )}
-                          <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{label}</span>
-                        </div>
-                        <div className="space-y-1">
-                          {entries.map(entry => {
-                            const isPlanned = entry.confirmed === false;
-                            return (
-                              <div
-                                key={entry.id}
-                                className={`flex items-center gap-2 rounded-xl p-2.5 ${isPlanned ? "bg-zinc-50/60 border border-dashed border-zinc-200 opacity-70" : "bg-zinc-50"}`}
-                                data-testid={`diary-modal-entry-${entry.id}`}
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-zinc-900 truncate">
-                                    {entry.mealName}
-                                    {isPlanned && <span className="ml-1.5 text-[10px] font-normal text-zinc-400">(Planned)</span>}
-                                  </p>
-                                  <p className="text-xs text-zinc-500 mt-0.5">
-                                    {entry.calories} kcal · P:{entry.protein}g C:{entry.carbs}g F:{entry.fat}g
-                                  </p>
-                                </div>
-                                <button
-                                  onClick={() => deleteMutation.mutate(entry.id)}
-                                  disabled={deleteMutation.isPending}
-                                  className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
-                                  data-testid={`button-diary-modal-delete-${entry.id}`}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-}
-
 export default function Dashboard() {
   const [activeResult, setActiveResult] = useState<Calculation | null>(null);
   const [showSavedPlans, setShowSavedPlans] = useState(false);
-  const [showDiaryModal, setShowDiaryModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [welcomeDismissed, setWelcomeDismissed] = useState(() =>
     sessionStorage.getItem("welcomeWidgetDismissed") === "1"
@@ -905,13 +689,6 @@ export default function Dashboard() {
             hydrationGoalMl={userPrefs?.hydrationGoalMl ?? 2000}
           />
         ) : null;
-      case "my-diary":
-        return user ? <MyDiaryWidget
-          calTarget={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
-          protTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
-          carbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
-          fatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
-        /> : null;
       default:
         return null;
     }
@@ -1060,16 +837,6 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             {user ? (
               <>
-                <button
-                  onClick={() => setShowDiaryModal(true)}
-                  aria-label="My Diary"
-                  className="hidden sm:flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 transition-colors"
-                  data-testid="button-my-diary"
-                >
-                  <NotebookPen className="w-4 h-4" />
-                  <span className="text-[10px] font-medium leading-none">Diary</span>
-                </button>
-
                 <button
                   onClick={handleOpenMetrics}
                   aria-label="Settings"
@@ -1369,7 +1136,6 @@ export default function Dashboard() {
                     { id: "food-log",        label: "Food Log",           Icon: ClipboardList },
                     { id: "my-meals-food",   label: "My Meals & Food",    Icon: UtensilsCrossed },
                     { id: "my-momentum",     label: "My Momentum",        Icon: TrendingUp },
-                    { id: "my-diary",        label: "My Diary",           Icon: BookMarked },
                     { id: "hydration",       label: "Hydration",          Icon: Droplets },
                     { id: "activity",        label: "Activity",           Icon: Activity },
                     { id: "meal-plan",       label: "Meal Planner",       Icon: Salad },
@@ -1859,12 +1625,6 @@ export default function Dashboard() {
                             hydrationGoalMl={userPrefs?.hydrationGoalMl ?? 2000}
                           />
                         )}
-                        {!hiddenWidgets.includes("my-diary") && <MyDiaryWidget
-                          calTarget={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
-                          protTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
-                          carbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
-                          fatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
-                        />}
                         {!hiddenWidgets.includes("my-meals-food") && <MyMealsFoodWidget />}
                       </>
                     ) : (
@@ -2128,15 +1888,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── My Diary Modal ─────────────────────────────────────────────────── */}
-      <DiaryModal
-        open={showDiaryModal}
-        onClose={() => setShowDiaryModal(false)}
-        calTarget={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
-        protTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
-        carbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
-        fatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
-      />
 
       {/* ── My Plans overlay ────────────────────────────────────────────────── */}
       <AnimatePresence>
