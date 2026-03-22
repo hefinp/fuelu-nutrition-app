@@ -83,11 +83,11 @@ router.get("/api/vitality/daily-tip", requirePremiumVitality, async (req, res) =
 
   try {
     const phaseNames: Record<string, string> = {
-      morning: "morning (peak testosterone, cortisol awakening response, protein and zinc focus)",
-      afternoon: "afternoon (testosterone plateau, sustained energy via complex carbs and healthy fats)",
-      evening: "evening (recovery phase, magnesium and zinc for overnight testosterone production, sleep quality)",
+      morning: "morning (peak energy, cortisol awakening response, protein and zinc focus)",
+      afternoon: "afternoon (energy plateau, sustained energy via complex carbs and healthy fats)",
+      evening: "evening (recovery phase, magnesium and zinc for overnight recovery, sleep quality)",
     };
-    const prompt = `You are a men's health nutrition assistant. Give one practical, specific nutrition tip (2 sentences max) for a man during the ${phaseNames[phase]} phase of the daily testosterone rhythm. Name one specific food or nutrient backed by research. Find a supporting study from PubMed or a reputable nutrition/endocrinology journal. Be warm and actionable. Plain text only, no markdown, no bullet points.`;
+    const prompt = `You are a men's nutrition and wellbeing assistant. Give one practical, specific nutrition tip (2 sentences max) for a man during the ${phaseNames[phase]} phase of his daily energy rhythm. Name one specific food or nutrient backed by research. Find a supporting study from PubMed or a reputable nutrition journal. Be warm and actionable. Plain text only, no markdown, no bullet points.`;
 
     const result = await searchMedicalLiterature(prompt);
     const tip = result.text.trim();
@@ -216,7 +216,7 @@ router.get("/api/vitality/ai-insights", requirePremiumVitality, async (req, res)
   const snapshot = symptoms.map(s => `Day ${s.date.slice(5)}: energy=${s.energy ?? "?"},focus=${s.focus ?? "?"},motivation=${s.motivation ?? "?"},stress=${s.stress ?? "?"},sleep=${s.sleepQuality ?? "?"}`).slice(0, 15).join("; ");
   const topFoods = Array.from(new Set(foodLogs.map(f => f.mealName.toLowerCase().trim()).slice(0, 30))).slice(0, 10).join(", ");
 
-  const prompt = `You are an expert men's health nutrition researcher analysing one man's personal data. Here is his recent data (last 30 days): Energy, focus, motivation, stress, and sleep snapshot: ${snapshot}. Frequently logged foods: ${topFoods}. Write a personalised 2-3 paragraph nutrition insight focused on male hormonal health: identify one meaningful pattern in his data, find current peer-reviewed research (from PubMed or NIH) that helps explain or support it related to testosterone, cortisol, or male vitality, and give one specific dietary recommendation. Write in second person ("you"), warm but professional. Plain text only.`;
+  const prompt = `You are an expert men's nutrition researcher analysing one man's personal data. Here is his recent data (last 30 days): Energy, focus, motivation, stress, and sleep snapshot: ${snapshot}. Frequently logged foods: ${topFoods}. Write a personalised 2-3 paragraph nutrition insight focused on men's energy and wellbeing: identify one meaningful pattern in his data, find current peer-reviewed research (from PubMed or NIH) that helps explain or support it related to energy, stress management, or overall vitality, and give one specific dietary recommendation. Write in second person ("you"), warm but professional. Plain text only.`;
 
   try {
     const result = await searchMedicalLiterature(prompt);
@@ -245,7 +245,7 @@ router.get("/api/vitality/research-pulse", requirePremiumVitality, async (req, r
   }
 
   try {
-    const prompt = `Search PubMed, NIH, or sports science and endocrinology journals for recent research (published within the last 2 years) on nutrition and diet for male hormonal health, testosterone optimization, cortisol management, and male vitality. Summarise 3 key findings in plain English. Format as a numbered list: 1. [Finding in 1-2 sentences]. 2. [Finding]. 3. [Finding]. Include the source for each finding.`;
+    const prompt = `Search PubMed, NIH, or sports science and nutrition journals for recent research (published within the last 2 years) on nutrition and diet for men's energy, wellbeing, stress management, and vitality. Summarise 3 key findings in plain English. Format as a numbered list: 1. [Finding in 1-2 sentences]. 2. [Finding]. 3. [Finding]. Include the source for each finding.`;
 
     const result = await searchMedicalLiterature(prompt);
     const lines = result.text.split("\n").map(l => l.trim()).filter(l => /^\d\./.test(l));

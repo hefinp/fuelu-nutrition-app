@@ -245,7 +245,7 @@ export function VitalityTracker() {
                   {phaseInfo.name}
                 </span>
               </div>
-              <p className="text-xs text-zinc-500">Daily testosterone rhythm</p>
+              <p className="text-xs text-zinc-500">Daily energy rhythm</p>
             </div>
             <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${phaseInfo.bgClass} ${phaseInfo.textClass} border ${phaseInfo.borderClass} whitespace-nowrap`}>
               {phaseInfo.shortTip}

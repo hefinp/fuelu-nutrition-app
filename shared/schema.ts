@@ -108,7 +108,7 @@ export const userPreferencesSchema = z.object({
   onboardingComplete: z.boolean().optional(),
   includeCommunityMeals: z.boolean().optional(),
   vitalityInsightsEnabled: z.boolean().optional(),
-  hormoneBoostingMeals: z.boolean().optional(),
+  vitalityMeals: z.boolean().optional(),
   fastingEnabled: z.boolean().optional(),
   fastingProtocol: z.enum(["16:8", "18:6", "20:4", "5:2", "omad"]).optional(),
   eatingWindowStart: z.number().int().min(0).max(23).optional(),

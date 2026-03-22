@@ -85,8 +85,18 @@ router.get("/api/user/preferences", async (req, res) => {
   const user = await storage.getUserById(req.session.userId);
   const defaults: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false };
   const prefs = (user?.preferences as UserPreferences | null) ?? defaults;
+  let needsSave = false;
   if (prefs.onboardingComplete === undefined) {
     prefs.onboardingComplete = true;
+    needsSave = true;
+  }
+  const raw = user?.preferences as Record<string, unknown> | null;
+  if (raw && "hormoneBoostingMeals" in raw && !("vitalityMeals" in raw)) {
+    prefs.vitalityMeals = raw.hormoneBoostingMeals as boolean;
+    delete raw.hormoneBoostingMeals;
+    needsSave = true;
+  }
+  if (needsSave) {
     await storage.updateUserPreferences(req.session.userId, prefs);
   }
   res.json(prefs);

@@ -463,7 +463,7 @@ export function pickBestMeal(
       if (isPhaseMatch) score -= 0.15;
     }
 
-    if (preferences?.hormoneBoostingMeals) {
+    if (preferences?.vitalityMeals) {
       const mealLower = m.meal.toLowerCase();
       const isVitalityMatch = VITALITY_BOOST_KEYWORDS.some(kw => mealLower.includes(kw));
       if (isVitalityMatch) score -= 0.12;
@@ -525,7 +525,7 @@ export function buildDayPlan(
     const dayTotalFat      = dinnerList.reduce((s, m) => s + m.fat,      0);
 
     const addRationale = (meals: MealEntry[]) => {
-      if (!preferences?.hormoneBoostingMeals) return meals;
+      if (!preferences?.vitalityMeals) return meals;
       return meals.map(m => {
         const lower = m.meal.toLowerCase();
         const matched = Object.entries(VITALITY_RATIONALE).find(([kw]) => lower.includes(kw));
@@ -606,7 +606,7 @@ export function buildDayPlan(
   const dayTotalFat      = allMeals.reduce((s, m) => s + m.fat,      0);
 
   const addRationale = (meals: MealEntry[]) => {
-    if (!preferences?.hormoneBoostingMeals) return meals;
+    if (!preferences?.vitalityMeals) return meals;
     return meals.map(m => {
       const lower = m.meal.toLowerCase();
       const matched = Object.entries(VITALITY_RATIONALE).find(([kw]) => lower.includes(kw));

@@ -60,7 +60,7 @@ export const PHASE_NUTRITION_CALLOUTS: Record<CyclePhase, string[]> = {
   follicular: [
     "Lean proteins featured to support rising oestrogen and energy",
     "Complex carbs included for sustained fuel as activity picks up",
-    "Fermented foods added to support gut and hormone balance",
+    "Gut-friendly fermented foods added for digestive wellbeing",
   ],
   ovulatory: [
     "Antioxidant-rich foods to manage inflammation at peak oestrogen",

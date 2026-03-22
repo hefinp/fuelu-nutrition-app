@@ -831,7 +831,7 @@ export default function Dashboard() {
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-semibold text-zinc-800 mb-1">Vitality Insights</h4>
                   <p className="text-xs text-zinc-500 leading-relaxed mb-3">
-                    Track energy, focus, and motivation. Get research-backed nutrition insights optimised for male hormonal health.
+                    Track energy, focus, and motivation. Get research-backed nutrition insights to support overall wellbeing.
                   </p>
                   <button
                     onClick={() => updatePrefsMutation.mutate({ vitalityInsightsEnabled: true })}

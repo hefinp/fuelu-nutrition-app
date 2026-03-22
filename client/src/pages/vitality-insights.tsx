@@ -109,7 +109,7 @@ export default function VitalityInsightsPage({ onClose }: { onClose?: () => void
           </div>
           <h2 className="text-lg font-semibold text-zinc-800 mb-1" data-testid="vitality-insights-premium-gate">Advanced Analytics</h2>
           <p className="text-sm text-zinc-500 max-w-sm mx-auto mb-4">
-            Detailed trend analysis, food correlations, and AI-powered narrative insights on male hormonal nutrition — available on Simple and above.
+            Detailed trend analysis, food correlations, and AI-powered narrative insights on men's nutrition and wellbeing — available on Simple and above.
           </p>
           <Link href="/pricing">
             <button className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-medium hover:bg-zinc-800 transition-colors" data-testid="button-vitality-upgrade">
@@ -316,7 +316,7 @@ export default function VitalityInsightsPage({ onClose }: { onClose?: () => void
                 </div>
                 <h3 className="font-semibold text-zinc-800 mb-1 text-sm">AI-powered analysis</h3>
                 <p className="text-xs text-zinc-500 mb-4 max-w-xs mx-auto">
-                  Get a personalised vitality narrative and the latest research from PubMed & NIH on male hormonal nutrition, grounded in your actual data.
+                  Get a personalised vitality narrative and the latest research from PubMed & NIH on men's nutrition and wellbeing, grounded in your actual data.
                 </p>
                 <Button
                   size="sm"
@@ -401,7 +401,7 @@ export default function VitalityInsightsPage({ onClose }: { onClose?: () => void
                     <BookOpen className="w-4 h-4 text-blue-500" /> Research Pulse
                   </h2>
                   <p className="text-xs text-zinc-400 mb-4">
-                    Recent findings on male hormonal nutrition from sports science and endocrinology journals
+                    Recent findings on men's nutrition and wellbeing from sports science and nutrition journals
                   </p>
 
                   {pulseLoading && (

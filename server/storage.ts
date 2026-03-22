@@ -1213,7 +1213,7 @@ export class DatabaseStorage implements IStorage {
     if (user?.preferences) {
       const prefs = user.preferences as Record<string, unknown>;
       delete prefs.vitalityInsightsEnabled;
-      delete prefs.hormoneBoostingMeals;
+      delete prefs.vitalityMeals;
       await db.update(users).set({ preferences: prefs }).where(eq(users.id, userId));
     }
   }

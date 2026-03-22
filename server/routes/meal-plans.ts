@@ -35,8 +35,8 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
     if (req.session.userId) {
       const user = await storage.getUserById(req.session.userId);
       prefs = (user?.preferences as UserPreferences | null) ?? null;
-      if (prefs?.hormoneBoostingMeals && user && !(user.betaUser || user.tier !== "free")) {
-        prefs = { ...prefs, hormoneBoostingMeals: false };
+      if (prefs?.vitalityMeals && user && !(user.betaUser || user.tier !== "free")) {
+        prefs = { ...prefs, vitalityMeals: false };
       }
       baseDb = filterMealDbByPreferences(baseDb, prefs);
       const excludeKws = buildExcludeKeywords(prefs);
@@ -276,8 +276,8 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
     let prefs: UserPreferences | null = null;
     if (user) {
       prefs = (user.preferences as UserPreferences | null) ?? null;
-      if (prefs?.hormoneBoostingMeals && !(user.betaUser || user.tier !== "free")) {
-        prefs = { ...prefs, hormoneBoostingMeals: false };
+      if (prefs?.vitalityMeals && !(user.betaUser || user.tier !== "free")) {
+        prefs = { ...prefs, vitalityMeals: false };
       }
       baseDb = filterMealDbByPreferences(baseDb, prefs);
     }
@@ -396,8 +396,8 @@ router.post("/api/meal-plans/replace-meal", async (req, res) => {
     if (req.session.userId) {
       const user = await storage.getUserById(req.session.userId);
       prefs = (user?.preferences as UserPreferences | null) ?? null;
-      if (prefs?.hormoneBoostingMeals && user && !(user.betaUser || user.tier !== "free")) {
-        prefs = { ...prefs, hormoneBoostingMeals: false };
+      if (prefs?.vitalityMeals && user && !(user.betaUser || user.tier !== "free")) {
+        prefs = { ...prefs, vitalityMeals: false };
       }
       baseDb = filterMealDbByPreferences(baseDb, prefs);
       const excludeKws = buildExcludeKeywords(prefs);

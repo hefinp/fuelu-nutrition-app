@@ -23,7 +23,7 @@ router.get("/api/cycle/daily-tip", async (req, res) => {
 
   try {
     const phaseNames: Record<string, string> = {
-      menstrual: "menstrual (days 1–5, low hormones, iron/magnesium focus)",
+      menstrual: "menstrual (days 1–5, low energy, iron/magnesium focus)",
       follicular: "follicular (days 6–13, rising oestrogen, light foods focus)",
       ovulatory: "ovulatory (days 14–16, peak energy, antioxidants focus)",
       luteal: "luteal (days 17–28, progesterone rise, complex carbs/B6 focus)",

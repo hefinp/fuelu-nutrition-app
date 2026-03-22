@@ -447,7 +447,7 @@ function StepAboutYou({
                   <p className="text-sm font-medium text-zinc-900">Vitality Insights</p>
                   <span className="px-1.5 py-0.5 bg-amber-100 text-amber-600 text-[10px] font-semibold rounded-full">Premium</span>
                 </div>
-                <p className="text-xs text-zinc-400 mt-0.5">Track energy, focus & motivation with hormone-optimised nutrition tips</p>
+                <p className="text-xs text-zinc-400 mt-0.5">Track energy, focus & motivation with personalised nutrition tips</p>
               </div>
               <div className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${vitalityTracking ? "bg-amber-500" : "bg-zinc-200"}`}>
                 <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${vitalityTracking ? "translate-x-5" : "translate-x-1"}`} />

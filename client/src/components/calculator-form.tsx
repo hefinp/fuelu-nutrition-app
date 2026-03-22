@@ -15,7 +15,7 @@ import type { Calculation, UserPreferences } from "@shared/schema";
 const formSchema = z.object({
   weight: z.string().min(1, "Weight is required"),
   height: z.string().min(1, "Height is required"),
-  age: z.coerce.number().min(10).max(120),
+  age: z.coerce.number().min(16).max(120),
   gender: z.enum(["male", "female"]),
   activityLevel: z.enum(["sedentary", "light", "moderate", "active", "very_active"]),
   goal: z.enum(["fat_loss", "tone", "maintain", "muscle", "bulk"]),
@@ -423,7 +423,7 @@ export function CalculatorForm({
                       <div>
                         <p className="text-xs font-semibold text-zinc-800">Vitality Insights</p>
                         <p className="text-xs text-zinc-500 leading-relaxed mt-0.5">
-                          Optimises meal plans with hormone-supporting nutrients like zinc, magnesium and vitamin D for male vitality.
+                          Enriches meal plans with nutrient-dense foods rich in zinc, magnesium and vitamin D to support overall wellbeing.
                         </p>
                       </div>
                     </div>
@@ -739,7 +739,7 @@ export function CalculatorForm({
                     <div>
                       <p className="text-sm font-semibold text-zinc-800">Vitality Insights</p>
                       <p className="text-sm text-zinc-500 leading-relaxed mt-0.5">
-                        Optimises meal plans with hormone-supporting nutrients like zinc, magnesium and vitamin D for male vitality.
+                        Enriches meal plans with nutrient-dense foods rich in zinc, magnesium and vitamin D to support overall wellbeing.
                       </p>
                     </div>
                   </div>

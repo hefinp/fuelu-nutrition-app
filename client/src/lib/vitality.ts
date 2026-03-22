@@ -14,7 +14,7 @@ export interface VitalityPhaseInfo {
 const PHASE_DATA: Record<VitalityPhase, Omit<VitalityPhaseInfo, "phase">> = {
   morning: {
     name: "Morning Peak",
-    tip: "Testosterone peaks in the morning. Prioritise lean protein and zinc-rich foods to sustain your natural hormonal advantage.",
+    tip: "Energy peaks in the morning. Prioritise lean protein and zinc-rich foods to sustain focus and vitality.",
     shortTip: "Protein & zinc focus",
     colorClass: "text-amber-600",
     bgClass: "bg-amber-50",
@@ -23,7 +23,7 @@ const PHASE_DATA: Record<VitalityPhase, Omit<VitalityPhaseInfo, "phase">> = {
   },
   afternoon: {
     name: "Afternoon Plateau",
-    tip: "Testosterone levels stabilise. Complex carbs and healthy fats help maintain steady energy and focus through the day.",
+    tip: "Energy levels stabilise. Complex carbs and healthy fats help maintain steady focus through the day.",
     shortTip: "Sustained energy",
     colorClass: "text-blue-600",
     bgClass: "bg-blue-50",
@@ -32,7 +32,7 @@ const PHASE_DATA: Record<VitalityPhase, Omit<VitalityPhaseInfo, "phase">> = {
   },
   evening: {
     name: "Evening Recovery",
-    tip: "Support overnight hormonal recovery with magnesium, zinc, and vitamin D-rich foods. Quality sleep is key for testosterone production.",
+    tip: "Support overnight recovery with magnesium, zinc, and vitamin D-rich foods. Quality sleep is key for energy and wellbeing.",
     shortTip: "Recovery nutrients",
     colorClass: "text-indigo-600",
     bgClass: "bg-indigo-50",
@@ -43,18 +43,18 @@ const PHASE_DATA: Record<VitalityPhase, Omit<VitalityPhaseInfo, "phase">> = {
 
 export const VITALITY_NUTRITION_CALLOUTS: Record<VitalityPhase, string[]> = {
   morning: [
-    "Lean protein prioritised to sustain peak testosterone (eggs, chicken, fish)",
-    "Zinc-rich foods included to support hormonal production (pumpkin seeds, beef)",
-    "Vitamin D sources favoured for testosterone synthesis (eggs, salmon)",
+    "Lean protein prioritised for sustained morning energy (eggs, chicken, fish)",
+    "Zinc-rich foods included for micronutrient density (pumpkin seeds, beef)",
+    "Vitamin D sources favoured for overall wellbeing (eggs, salmon)",
   ],
   afternoon: [
-    "Complex carbs for sustained energy and cortisol management (sweet potato, quinoa)",
-    "Healthy fats to support hormone transport (avocado, olive oil, nuts)",
-    "Cruciferous vegetables for oestrogen clearance (broccoli, cauliflower, kale)",
+    "Complex carbs for sustained energy and stress management (sweet potato, quinoa)",
+    "Healthy fats to support nutrient absorption (avocado, olive oil, nuts)",
+    "Cruciferous vegetables rich in fibre and vitamins (broccoli, cauliflower, kale)",
   ],
   evening: [
     "Magnesium target increased to support sleep and recovery (dark leafy greens, almonds)",
-    "Zinc-rich foods to fuel overnight testosterone production (oysters, pumpkin seeds)",
+    "Zinc-rich foods to support overnight recovery (oysters, pumpkin seeds)",
     "Antioxidant-rich foods to reduce oxidative stress (berries, dark chocolate)",
   ],
 };
