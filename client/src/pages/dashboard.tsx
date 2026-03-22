@@ -914,10 +914,24 @@ export default function Dashboard() {
     return !PLANNING_WIDGETS.has(id) && !INSIGHTS_WIDGETS.has(id);
   });
 
+  const headerHeight = user && isNutritionist ? 96 : 56;
+  const tabToggleHeight = 56;
+  const snapTop = headerHeight + tabToggleHeight;
+
   useEffect(() => {
     document.documentElement.classList.add("dashboard-snap");
     return () => document.documentElement.classList.remove("dashboard-snap");
   }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--dashboard-header-h', `${headerHeight}px`);
+    root.style.setProperty('--dashboard-snap-top', `${snapTop}px`);
+    return () => {
+      root.style.removeProperty('--dashboard-header-h');
+      root.style.removeProperty('--dashboard-snap-top');
+    };
+  }, [headerHeight, snapTop]);
 
   useEffect(() => {
     if (welcomeDismissed) return;
@@ -1726,7 +1740,7 @@ export default function Dashboard() {
             )}
 
             {/* ── MOBILE tab toggle: Favourites / Planning / Tracking / Insights ── */}
-            <div className="xl:hidden mb-4">
+            <div className="xl:hidden sticky z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-2 bg-zinc-100" style={{ top: 'var(--dashboard-header-h)' }}>
               <div className="flex items-center gap-2" data-testid="dashboard-tab-toggle">
                 {(
                   [

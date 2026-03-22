@@ -114,7 +114,7 @@
 @media (pointer: coarse) {
   html.dashboard-snap {
     scroll-snap-type: y proximity;
-    scroll-padding-top: 4rem;
+    scroll-padding-top: var(--dashboard-snap-top, 7rem);
     scroll-padding-bottom: 4.5rem;
   }
 }
