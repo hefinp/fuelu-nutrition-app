@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Activity, Clock, Flame, Heart, MapPin, Loader2, Unplug, RefreshCw } from "lucide-react";
+import { Activity, Clock, Flame, Heart, MapPin, Loader2, Unplug, RefreshCw, Bike, Waves, Footprints, Mountain, Dumbbell, PersonStanding, type LucideIcon } from "lucide-react";
 
 interface StravaActivity {
   id: number;
@@ -54,19 +54,19 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function activityIcon(type: string): string {
-  const map: Record<string, string> = {
-    Run: "🏃",
-    Ride: "🚴",
-    Swim: "🏊",
-    Walk: "🚶",
-    Hike: "🥾",
-    Yoga: "🧘",
-    WeightTraining: "🏋️",
-    Workout: "💪",
-    CrossFit: "💪",
+function activityIcon(type: string): LucideIcon {
+  const map: Record<string, LucideIcon> = {
+    Run: Activity,
+    Ride: Bike,
+    Swim: Waves,
+    Walk: Footprints,
+    Hike: Mountain,
+    Yoga: PersonStanding,
+    WeightTraining: Dumbbell,
+    Workout: Dumbbell,
+    CrossFit: Dumbbell,
   };
-  return map[type] || "🏃";
+  return map[type] || Activity;
 }
 
 export function ActivityWidget() {
@@ -225,7 +225,11 @@ export function ActivityWidget() {
               <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-medium">Recent Activities</p>
               {activities.slice(0, 5).map((a) => (
                 <div key={a.id} className="flex items-start gap-3 py-2 border-b border-zinc-50 last:border-0" data-testid={`activity-item-${a.id}`}>
-                  <span className="text-base mt-0.5">{activityIcon(a.type)}</span>
+                  {((Icon) => (
+                    <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+                      <Icon className="w-3.5 h-3.5 text-orange-500" />
+                    </div>
+                  ))(activityIcon(a.type))}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2">
                       <p className="text-sm font-medium text-zinc-800 truncate">{a.name}</p>
