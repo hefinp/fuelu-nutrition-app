@@ -10,7 +10,7 @@ import {
   Activity, BarChart2, Bell, Building2, UserMinus, UserPlus, RefreshCw,
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
   MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2, Download, History,
-  LogOut, User, BookOpen, LineChart as LineChartIcon,
+  LogOut, User, BookOpen, LineChart as LineChartIcon, KanbanSquare,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { AnimatePresence, motion } from "framer-motion";
@@ -21,6 +21,7 @@ interface ClientWithUser {
   nutritionistId: number;
   clientId: number;
   status: string;
+  pipelineStage: string;
   goalSummary: string | null;
   healthNotes: string | null;
   lastActivityAt: string | null;
@@ -52,7 +53,9 @@ interface Capacity {
   tier: string;
   limit: number;
   count: number;
+  activeCount: number;
   canAddMore: boolean;
+  maxClients: number | null;
 }
 
 interface Note {
@@ -196,6 +199,14 @@ const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
   active: { label: "Active", classes: "bg-emerald-50 text-emerald-700" },
   paused: { label: "Paused", classes: "bg-zinc-100 text-zinc-500" },
 };
+
+const PIPELINE_STAGES = [
+  { id: "inquiry", label: "Inquiry", color: "bg-violet-50 border-violet-200", headerColor: "bg-violet-100 text-violet-700", dotColor: "bg-violet-400" },
+  { id: "onboarding", label: "Onboarding", color: "bg-blue-50 border-blue-200", headerColor: "bg-blue-100 text-blue-700", dotColor: "bg-blue-400" },
+  { id: "active", label: "Active", color: "bg-emerald-50 border-emerald-200", headerColor: "bg-emerald-100 text-emerald-700", dotColor: "bg-emerald-400" },
+  { id: "maintenance", label: "Maintenance", color: "bg-amber-50 border-amber-200", headerColor: "bg-amber-100 text-amber-700", dotColor: "bg-amber-400" },
+  { id: "alumni", label: "Alumni", color: "bg-zinc-50 border-zinc-200", headerColor: "bg-zinc-100 text-zinc-600", dotColor: "bg-zinc-400" },
+] as const;
 
 const ALERT_SEVERITY_COLORS: Record<string, { bg: string; text: string; border: string; icon: string }> = {
   high: { bg: "bg-red-50", text: "text-red-700", border: "border-red-200", icon: "text-red-500" },
@@ -541,6 +552,207 @@ function AdherenceView({ clientRecord, onBack }: { clientRecord: ClientWithUser;
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function CapacityBar({ count, max, label }: { count: number; max: number | null; label?: string }) {
+  if (max === null) return null;
+  const pct = Math.min(100, Math.round((count / max) * 100));
+  const color = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-emerald-500";
+  return (
+    <div data-testid="capacity-bar">
+      {label && <p className="text-xs text-zinc-500 mb-1">{label}</p>}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-2 bg-zinc-100 rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+        </div>
+        <span className="text-xs font-medium text-zinc-600 flex-shrink-0">{count}/{max}</span>
+      </div>
+    </div>
+  );
+}
+
+function PipelineKanban({
+  capacity,
+  onSelectClient,
+}: {
+  capacity: Capacity;
+  onSelectClient: (c: ClientWithUser) => void;
+}) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: monitoringData = [], isLoading } = useQuery<ClientWithMonitoring[]>({
+    queryKey: ["/api/nutritionist/monitoring/dashboard"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/monitoring/dashboard").then(r => r.json()),
+    refetchInterval: 60000,
+  });
+
+  const stageMutation = useMutation({
+    mutationFn: ({ id, stage }: { id: number; stage: string }) =>
+      apiRequest("PATCH", `/api/nutritionist/clients/${id}/pipeline-stage`, { stage }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/monitoring/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update stage", variant: "destructive" });
+    },
+  });
+
+  const activeCount = monitoringData.filter(c => (c.pipelineStage || "onboarding") === "active").length;
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-xl font-display font-bold text-zinc-900 flex items-center gap-2">
+            <KanbanSquare className="w-5 h-5 text-zinc-500" />
+            Client Pipeline
+          </h2>
+          <p className="text-sm text-zinc-500 mt-0.5">{monitoringData.length} client{monitoringData.length !== 1 ? "s" : ""} across all stages</p>
+        </div>
+        {capacity.maxClients !== null && (
+          <div className="w-48">
+            <CapacityBar count={activeCount} max={capacity.maxClients} label="Active capacity" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-3 overflow-x-auto pb-4" data-testid="pipeline-kanban-board">
+        {PIPELINE_STAGES.map(stage => {
+          const stageClients = monitoringData.filter(c => (c.pipelineStage || "onboarding") === stage.id);
+          return (
+            <div
+              key={stage.id}
+              className={`flex-shrink-0 w-60 rounded-2xl border ${stage.color} flex flex-col`}
+              data-testid={`pipeline-column-${stage.id}`}
+            >
+              <div className={`px-3 py-2.5 rounded-t-2xl ${stage.headerColor} flex items-center justify-between`}>
+                <div className="flex items-center gap-1.5">
+                  <div className={`w-2 h-2 rounded-full ${stage.dotColor}`} />
+                  <span className="text-xs font-semibold">{stage.label}</span>
+                </div>
+                <span className="text-xs font-bold opacity-70">{stageClients.length}</span>
+              </div>
+              <div className="p-2 space-y-2 flex-1 min-h-[100px]">
+                {stageClients.length === 0 && (
+                  <div className="flex items-center justify-center h-16 text-[11px] text-zinc-400 italic">No clients</div>
+                )}
+                {stageClients.map(client => (
+                  <PipelineCard
+                    key={client.id}
+                    client={client}
+                    currentStage={stage.id}
+                    onSelect={() => onSelectClient(client)}
+                    onMoveStage={(newStage) => stageMutation.mutate({ id: client.id, stage: newStage })}
+                    isPending={stageMutation.isPending}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PipelineCard({
+  client,
+  currentStage,
+  onSelect,
+  onMoveStage,
+  isPending,
+}: {
+  client: ClientWithMonitoring;
+  currentStage: string;
+  onSelect: () => void;
+  onMoveStage: (stage: string) => void;
+  isPending: boolean;
+}) {
+  const [showStageMenu, setShowStageMenu] = useState(false);
+  const monitoring = client.monitoring;
+
+  return (
+    <div className="bg-white rounded-xl border border-zinc-100 shadow-sm" data-testid={`pipeline-card-${client.id}`}>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="w-full text-left px-3 py-2.5 hover:bg-zinc-50 rounded-xl transition-colors"
+      >
+        <div className="flex items-center gap-2 mb-1.5">
+          <div className="w-6 h-6 bg-zinc-900 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+            {client.client.name.charAt(0).toUpperCase()}
+          </div>
+          <span className="text-xs font-semibold text-zinc-900 truncate">{client.client.name}</span>
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <div className="w-full h-1 bg-zinc-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full ${(monitoring.adherenceScore ?? 0) >= 80 ? "bg-emerald-400" : (monitoring.adherenceScore ?? 0) >= 60 ? "bg-amber-400" : "bg-red-400"}`}
+                style={{ width: `${Math.min(100, monitoring.adherenceScore ?? 0)}%` }}
+              />
+            </div>
+            <span className="text-[10px] text-zinc-400 flex-shrink-0">
+              {monitoring.adherenceScore !== null ? `${monitoring.adherenceScore}%` : "—"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-zinc-400">
+              {monitoring.daysInactive > 0 ? `${monitoring.daysInactive}d inactive` : monitoring.lastLogDate ? "Active" : "No logs"}
+            </span>
+            {monitoring.alerts.length > 0 && (
+              <span className="text-[10px] px-1 py-0.5 bg-red-50 text-red-600 rounded-full font-medium" data-testid={`pipeline-alert-${client.id}`}>
+                Alert
+              </span>
+            )}
+          </div>
+        </div>
+      </button>
+      <div className="px-3 pb-2">
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowStageMenu(v => !v)}
+            disabled={isPending}
+            className="w-full text-[10px] flex items-center justify-between px-2 py-1 border border-zinc-200 rounded-lg text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 transition-colors bg-white"
+            data-testid={`button-move-stage-${client.id}`}
+          >
+            <span>Move to...</span>
+            <ChevronDown className="w-3 h-3" />
+          </button>
+          {showStageMenu && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowStageMenu(false)} />
+              <div className="absolute bottom-full left-0 right-0 mb-1 z-20 bg-white border border-zinc-200 rounded-xl shadow-lg overflow-hidden">
+                {PIPELINE_STAGES.filter(s => s.id !== currentStage).map(s => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => { onMoveStage(s.id); setShowStageMenu(false); }}
+                    className="w-full text-left px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 transition-colors flex items-center gap-2"
+                    data-testid={`option-stage-${s.id}-${client.id}`}
+                  >
+                    <div className={`w-1.5 h-1.5 rounded-full ${s.dotColor}`} />
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -3026,6 +3238,12 @@ function PracticeAdminPanel({ profile }: { profile: NutritionistProfile }) {
     enabled: !!practice,
   });
 
+  const { data: capacityStats = [] } = useQuery<{ nutritionistId: number; activeCount: number; maxClients: number | null }[]>({
+    queryKey: ["/api/practice", practice?.id, "capacity"],
+    queryFn: () => apiRequest("GET", `/api/practice/${practice!.id}/capacity`).then(r => r.json()),
+    enabled: !!practice,
+  });
+
   const removeMemberMutation = useMutation({
     mutationFn: (nutritionistUserId: number) =>
       apiRequest("DELETE", `/api/practice/${practice!.id}/members/${nutritionistUserId}`).then(r => r.json()),
@@ -3136,6 +3354,7 @@ function PracticeAdminPanel({ profile }: { profile: NutritionistProfile }) {
               const group = practiceClients.find(g => g.nutritionistId === member.nutritionistUserId);
               const clientCount = group?.clients.length ?? 0;
               const isExpanded = expandedNutritionist === member.nutritionistUserId;
+              const capStat = capacityStats.find(s => s.nutritionistId === member.nutritionistUserId);
               return (
                 <div key={member.id} className="border border-zinc-100 rounded-xl" data-testid={`member-${member.nutritionistUserId}`}>
                   <div className="flex items-center gap-3 p-3">
@@ -3145,6 +3364,11 @@ function PracticeAdminPanel({ profile }: { profile: NutritionistProfile }) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-zinc-900">{member.nutritionist.name}</p>
                       <p className="text-xs text-zinc-400">{member.nutritionist.email} · {clientCount} client{clientCount !== 1 ? "s" : ""}</p>
+                      {capStat && capStat.maxClients !== null && (
+                        <div className="mt-1.5">
+                          <CapacityBar count={capStat.activeCount} max={capStat.maxClients} />
+                        </div>
+                      )}
                     </div>
                     {member.role === "admin" && (
                       <span className="text-[10px] font-medium px-1.5 py-0.5 bg-zinc-100 text-zinc-600 rounded-full">Admin</span>
@@ -3373,7 +3597,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-type Tab = "monitoring" | "clients" | "practice";
+type Tab = "monitoring" | "clients" | "pipeline" | "practice";
 type ViewState =
   | { kind: "list" }
   | { kind: "profile"; client: ClientWithUser }
@@ -3459,6 +3683,7 @@ export default function NutritionistPortalPage() {
   const TABS: { id: Tab; label: string; icon: typeof Activity }[] = [
     { id: "monitoring", label: "Monitoring", icon: Activity },
     { id: "clients", label: "Clients", icon: Users },
+    { id: "pipeline", label: "Pipeline", icon: KanbanSquare },
     { id: "practice", label: "Practice", icon: Building2 },
   ];
 
@@ -3489,6 +3714,18 @@ export default function NutritionistPortalPage() {
                 </button>
               );
             })}
+
+            {capacity && capacity.maxClients !== null && (
+              <div className="hidden sm:flex items-center gap-2 ml-2 px-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-xl" data-testid="header-capacity-indicator">
+                <div className="w-20 h-1.5 bg-zinc-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${Math.round((capacity.activeCount / capacity.maxClients) * 100) >= 90 ? "bg-red-500" : Math.round((capacity.activeCount / capacity.maxClients) * 100) >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
+                    style={{ width: `${Math.min(100, Math.round((capacity.activeCount / capacity.maxClients) * 100))}%` }}
+                  />
+                </div>
+                <span className="text-xs text-zinc-500 font-medium">{capacity.activeCount}/{capacity.maxClients} active</span>
+              </div>
+            )}
 
             <div className="relative ml-2">
               <button
@@ -3612,6 +3849,28 @@ export default function NutritionistPortalPage() {
                 onSelectClient={(c) => setView({ kind: "profile", client: c })}
                 onInvite={() => setShowInviteModal(true)}
                 unreadMap={unreadMap}
+              />
+            )
+          )
+        )}
+
+        {tab === "pipeline" && (
+          view.kind === "profile" ? (
+            <ClientProfile
+              clientRecord={view.client}
+              onBack={() => setView({ kind: "list" })}
+              onViewAdherence={() => setView({ kind: "adherence", client: view.client })}
+            />
+          ) : view.kind === "adherence" ? (
+            <AdherenceView
+              clientRecord={view.client}
+              onBack={() => setView({ kind: "profile", client: view.client })}
+            />
+          ) : (
+            capacity && (
+              <PipelineKanban
+                capacity={capacity}
+                onSelectClient={(c) => setView({ kind: "profile", client: c })}
               />
             )
           )

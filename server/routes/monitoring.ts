@@ -86,8 +86,11 @@ router.get("/api/nutritionist/monitoring/dashboard", async (req, res) => {
       clientId: c.clientId,
       nutritionistId: c.nutritionistId,
       status: c.status,
+      pipelineStage: c.pipelineStage,
       goalSummary: c.goalSummary,
+      healthNotes: c.healthNotes,
       lastActivityAt: c.lastActivityAt,
+      createdAt: c.createdAt,
       client: c.client,
       monitoring: {
         daysLogged,

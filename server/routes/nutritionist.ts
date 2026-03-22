@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import crypto from "crypto";
 import { storage } from "../storage";
-import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier, goalTypeEnum } from "@shared/schema";
+import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier, goalTypeEnum, pipelineStageEnum } from "@shared/schema";
 
 import OpenAI from "openai";
 import { generateMealPlan } from "../meal-data";
@@ -86,6 +86,7 @@ router.put("/api/nutritionist/clients/:id", async (req, res) => {
 
   const schema = z.object({
     status: z.enum(["onboarding", "active", "paused"]).optional(),
+    pipelineStage: z.enum(pipelineStageEnum).optional(),
     goalSummary: z.string().max(500).optional(),
     healthNotes: z.string().max(2000).optional(),
   });
@@ -93,6 +94,29 @@ router.put("/api/nutritionist/clients/:id", async (req, res) => {
   try {
     const updates = schema.parse(req.body);
     const updated = await storage.updateNutritionistClient(id, userId, updates);
+    if (!updated) return res.status(404).json({ message: "Client not found" });
+    res.json(updated);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.patch("/api/nutritionist/clients/:id/pipeline-stage", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const schema = z.object({ stage: z.enum(pipelineStageEnum) });
+
+  try {
+    const { stage } = schema.parse(req.body);
+    const updated = await storage.updateClientPipelineStage(id, userId, stage);
     if (!updated) return res.status(404).json({ message: "Client not found" });
     res.json(updated);
   } catch (err) {
@@ -328,8 +352,10 @@ router.get("/api/nutritionist/capacity", async (req, res) => {
   const tier = profile.tier as NutritionistTier;
   const limit = nutritionistTierLimits[tier] ?? 15;
   const count = await storage.getNutritionistClientCount(userId);
+  const activeCount = await storage.getActiveNutritionistClientCount(userId);
+  const maxClients = profile.maxClients ?? null;
 
-  res.json({ tier, limit, count, canAddMore: count < limit });
+  res.json({ tier, limit, count, activeCount, canAddMore: count < limit, maxClients });
 });
 
 const NUTRITIONIST_EMAILS = (process.env.NUTRITIONIST_EMAILS || "hefin.price@gmail.com").split(",").map(e => e.trim());

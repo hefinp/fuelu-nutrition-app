@@ -17,6 +17,9 @@ export const nutritionistTierLimits: Record<NutritionistTier, number> = {
 export const clientStatusEnum = ["onboarding", "active", "paused"] as const;
 export type ClientStatus = typeof clientStatusEnum[number];
 
+export const pipelineStageEnum = ["inquiry", "onboarding", "active", "maintenance", "alumni"] as const;
+export type PipelineStage = typeof pipelineStageEnum[number];
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
@@ -697,6 +700,7 @@ export const nutritionistProfiles = pgTable("nutritionist_profiles", {
   bio: text("bio"),
   credentials: text("credentials"),
   specializations: text("specializations").array(),
+  maxClients: integer("max_clients"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -711,6 +715,7 @@ export const insertNutritionistProfileSchema = createInsertSchema(nutritionistPr
   bio: z.preprocess((val) => (val === "" ? undefined : val), z.string().max(1000).optional()),
   credentials: z.preprocess((val) => (val === "" ? undefined : val), z.string().max(500).optional()),
   specializations: z.array(z.string()).optional(),
+  maxClients: z.number().int().min(1).max(999).optional(),
 });
 
 export type InsertNutritionistProfile = z.infer<typeof insertNutritionistProfileSchema>;
@@ -721,6 +726,7 @@ export const nutritionistClients = pgTable("nutritionist_clients", {
   nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
   clientId: integer("client_id").notNull().references(() => users.id),
   status: text("status").notNull().default("onboarding"),
+  pipelineStage: text("pipeline_stage").notNull().default("onboarding"),
   goalSummary: text("goal_summary"),
   healthNotes: text("health_notes"),
   notes: text("notes"),
@@ -734,6 +740,7 @@ export const insertNutritionistClientSchema = createInsertSchema(nutritionistCli
   nutritionistId: true,
 }).extend({
   status: z.enum(clientStatusEnum).default("onboarding"),
+  pipelineStage: z.enum(pipelineStageEnum).default("onboarding"),
   goalSummary: z.string().max(500).optional(),
   healthNotes: z.string().max(2000).optional(),
 });

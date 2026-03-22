@@ -453,6 +453,8 @@ export async function runMigrations(): Promise<void> {
       )
     `);
     await client.query(`ALTER TABLE nutritionist_clients ADD COLUMN IF NOT EXISTS health_notes TEXT`);
+    await client.query(`ALTER TABLE nutritionist_clients ADD COLUMN IF NOT EXISTS pipeline_stage TEXT NOT NULL DEFAULT 'onboarding'`);
+    await client.query(`ALTER TABLE nutritionist_profiles ADD COLUMN IF NOT EXISTS max_clients INTEGER`);
 
     await client.query(`CREATE INDEX IF NOT EXISTS idx_nutritionist_clients_nutritionist ON nutritionist_clients (nutritionist_id)`);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_nutritionist_clients_client_unique ON nutritionist_clients (client_id)`);

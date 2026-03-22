@@ -194,6 +194,25 @@ router.delete("/api/practice/:id/members/:nutritionistUserId", async (req, res) 
   res.json({ success: true });
 });
 
+router.get("/api/practice/:id/capacity", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid practice ID" });
+
+  const practice = await storage.getPracticeById(id);
+  if (!practice) return res.status(404).json({ message: "Practice not found" });
+
+  const isMember = await storage.getPracticeMemberByNutritionist(id, userId);
+  if (!isMember && practice.adminUserId !== userId) {
+    return res.status(403).json({ message: "Not a member of this practice." });
+  }
+
+  const stats = await storage.getCapacityStatsByPractice(id);
+  res.json(stats);
+});
+
 router.get("/api/practice/:id/clients", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;

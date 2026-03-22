@@ -214,8 +214,11 @@ export interface IStorage {
   // Nutritionist clients
   getNutritionistClients(nutritionistId: number): Promise<(NutritionistClient & { client: Pick<User, "id" | "name" | "email" | "isManagedClient" | "createdAt"> })[]>;
   getNutritionistClientCount(nutritionistId: number): Promise<number>;
+  getActiveNutritionistClientCount(nutritionistId: number): Promise<number>;
   addNutritionistClient(nutritionistId: number, clientId: number, data?: { status?: string; goalSummary?: string; notes?: string }): Promise<NutritionistClient>;
-  updateNutritionistClient(id: number, nutritionistId: number, updates: { status?: string; goalSummary?: string; healthNotes?: string; notes?: string; lastActivityAt?: Date }): Promise<NutritionistClient | undefined>;
+  updateNutritionistClient(id: number, nutritionistId: number, updates: { status?: string; pipelineStage?: string; goalSummary?: string; healthNotes?: string; notes?: string; lastActivityAt?: Date }): Promise<NutritionistClient | undefined>;
+  updateClientPipelineStage(id: number, nutritionistId: number, stage: string): Promise<NutritionistClient | undefined>;
+  getCapacityStatsByPractice(practiceId: number): Promise<{ nutritionistId: number; activeCount: number; maxClients: number | null }[]>;
   removeNutritionistClient(id: number, nutritionistId: number): Promise<void>;
   getNutritionistClientByClientId(nutritionistId: number, clientId: number): Promise<NutritionistClient | undefined>;
   getNutritionistClientByClientIdAny(clientId: number): Promise<NutritionistClient | undefined>;
@@ -1794,6 +1797,17 @@ export class DatabaseStorage implements IStorage {
     return Number(result?.count ?? 0);
   }
 
+  async getActiveNutritionistClientCount(nutritionistId: number): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(nutritionistClients)
+      .where(and(
+        eq(nutritionistClients.nutritionistId, nutritionistId),
+        eq(nutritionistClients.pipelineStage, "active")
+      ));
+    return Number(result?.count ?? 0);
+  }
+
   async addNutritionistClient(nutritionistId: number, clientId: number, data?: { status?: string; goalSummary?: string; notes?: string }): Promise<NutritionistClient> {
     const [client] = await db.insert(nutritionistClients).values({
       nutritionistId,
@@ -1806,12 +1820,36 @@ export class DatabaseStorage implements IStorage {
     return client;
   }
 
-  async updateNutritionistClient(id: number, nutritionistId: number, updates: { status?: string; goalSummary?: string; healthNotes?: string; lastActivityAt?: Date }): Promise<NutritionistClient | undefined> {
+  async updateNutritionistClient(id: number, nutritionistId: number, updates: { status?: string; pipelineStage?: string; goalSummary?: string; healthNotes?: string; lastActivityAt?: Date }): Promise<NutritionistClient | undefined> {
     const [updated] = await db.update(nutritionistClients)
       .set(updates)
       .where(and(eq(nutritionistClients.id, id), eq(nutritionistClients.nutritionistId, nutritionistId)))
       .returning();
     return updated;
+  }
+
+  async updateClientPipelineStage(id: number, nutritionistId: number, stage: string): Promise<NutritionistClient | undefined> {
+    const [updated] = await db.update(nutritionistClients)
+      .set({ pipelineStage: stage })
+      .where(and(eq(nutritionistClients.id, id), eq(nutritionistClients.nutritionistId, nutritionistId)))
+      .returning();
+    return updated;
+  }
+
+  async getCapacityStatsByPractice(practiceId: number): Promise<{ nutritionistId: number; activeCount: number; maxClients: number | null }[]> {
+    const members = await db.select().from(practiceMembers).where(eq(practiceMembers.practiceId, practiceId));
+    const results = [];
+    for (const member of members) {
+      const profile = await db.select().from(nutritionistProfiles).where(eq(nutritionistProfiles.userId, member.nutritionistUserId)).then(r => r[0]);
+      const allClients = await db.select().from(nutritionistClients)
+        .where(and(eq(nutritionistClients.nutritionistId, member.nutritionistUserId), eq(nutritionistClients.pipelineStage, "active")));
+      results.push({
+        nutritionistId: member.nutritionistUserId,
+        activeCount: allClients.length,
+        maxClients: profile?.maxClients ?? null,
+      });
+    }
+    return results;
   }
 
   async removeNutritionistClient(id: number, nutritionistId: number): Promise<void> {
