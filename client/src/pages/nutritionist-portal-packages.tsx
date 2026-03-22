@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import {
   Loader2, Plus, Check, Edit2, Trash2, Save, Package, Timer, Clock, Zap,
   Activity, Building2, KanbanSquare, Minus, Tags, User, Users, UserPlus, LogOut,
-  Link as LinkIcon, ClipboardList, CheckCircle2,
+  Link as LinkIcon, ClipboardList, CheckCircle2, X, PackageCheck,
 } from "lucide-react";
 
 interface ClientWithUser {
