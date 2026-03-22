@@ -217,16 +217,17 @@ export interface IStorage {
   getNutritionistClients(nutritionistId: number): Promise<(NutritionistClient & { client: Pick<User, "id" | "name" | "email" | "isManagedClient" | "createdAt"> })[]>;
   getNutritionistClientCount(nutritionistId: number): Promise<number>;
   getActiveNutritionistClientCount(nutritionistId: number): Promise<number>;
-  addNutritionistClient(nutritionistId: number, clientId: number, data?: { status?: string; goalSummary?: string; notes?: string }): Promise<NutritionistClient>;
-  updateNutritionistClient(id: number, nutritionistId: number, updates: { status?: string; pipelineStage?: string; goalSummary?: string; healthNotes?: string; notes?: string; lastActivityAt?: Date }): Promise<NutritionistClient | undefined>;
+  addNutritionistClient(nutritionistId: number, clientId: number, data?: { status?: string; goalSummary?: string; notes?: string; referralSource?: string; referredByClientId?: number | null }): Promise<NutritionistClient>;
+  updateNutritionistClient(id: number, nutritionistId: number, updates: { status?: string; pipelineStage?: string; goalSummary?: string; healthNotes?: string; notes?: string; lastActivityAt?: Date; referralSource?: string | null; referredByClientId?: number | null }): Promise<NutritionistClient | undefined>;
   updateClientPipelineStage(id: number, nutritionistId: number, stage: string): Promise<NutritionistClient | undefined>;
   getCapacityStatsByPractice(practiceId: number): Promise<{ nutritionistId: number; activeCount: number; maxClients: number | null }[]>;
   removeNutritionistClient(id: number, nutritionistId: number): Promise<void>;
   getNutritionistClientByClientId(nutritionistId: number, clientId: number): Promise<NutritionistClient | undefined>;
   getNutritionistClientByClientIdAny(clientId: number): Promise<NutritionistClient | undefined>;
+  getReferralSummary(nutritionistId: number): Promise<{ totalReferred: number; channelBreakdown: { source: string; count: number }[]; topReferrers: { clientId: number; clientName: string; count: number }[] }>;
 
   // Nutritionist invitations
-  createNutritionistInvitation(nutritionistId: number, email: string, token: string, expiresAt: Date): Promise<NutritionistInvitation>;
+  createNutritionistInvitation(nutritionistId: number, email: string, token: string, expiresAt: Date, referral?: { referralSource?: string; referredByClientId?: number }): Promise<NutritionistInvitation>;
   getNutritionistInvitationByToken(token: string): Promise<NutritionistInvitation | undefined>;
   acceptNutritionistInvitation(token: string): Promise<NutritionistInvitation | undefined>;
   getNutritionistInvitations(nutritionistId: number): Promise<NutritionistInvitation[]>;
@@ -1849,7 +1850,7 @@ export class DatabaseStorage implements IStorage {
     return Number(result?.count ?? 0);
   }
 
-  async addNutritionistClient(nutritionistId: number, clientId: number, data?: { status?: string; goalSummary?: string; notes?: string }): Promise<NutritionistClient> {
+  async addNutritionistClient(nutritionistId: number, clientId: number, data?: { status?: string; goalSummary?: string; notes?: string; referralSource?: string; referredByClientId?: number | null }): Promise<NutritionistClient> {
     const [client] = await db.insert(nutritionistClients).values({
       nutritionistId,
       clientId,
@@ -1857,11 +1858,13 @@ export class DatabaseStorage implements IStorage {
       goalSummary: data?.goalSummary,
       healthNotes: data?.notes,
       lastActivityAt: new Date(),
+      referralSource: data?.referralSource ?? null,
+      referredByClientId: data?.referredByClientId ?? null,
     }).returning();
     return client;
   }
 
-  async updateNutritionistClient(id: number, nutritionistId: number, updates: { status?: string; pipelineStage?: string; goalSummary?: string; healthNotes?: string; lastActivityAt?: Date }): Promise<NutritionistClient | undefined> {
+  async updateNutritionistClient(id: number, nutritionistId: number, updates: { status?: string; pipelineStage?: string; goalSummary?: string; healthNotes?: string; lastActivityAt?: Date; referralSource?: string | null; referredByClientId?: number | null }): Promise<NutritionistClient | undefined> {
     const [updated] = await db.update(nutritionistClients)
       .set(updates)
       .where(and(eq(nutritionistClients.id, id), eq(nutritionistClients.nutritionistId, nutritionistId)))
@@ -1893,6 +1896,46 @@ export class DatabaseStorage implements IStorage {
     return results;
   }
 
+  async getReferralSummary(nutritionistId: number): Promise<{ totalReferred: number; channelBreakdown: { source: string; count: number }[]; topReferrers: { clientId: number; clientName: string; count: number }[] }> {
+    const allClients = await db
+      .select({
+        referralSource: nutritionistClients.referralSource,
+        referredByClientId: nutritionistClients.referredByClientId,
+      })
+      .from(nutritionistClients)
+      .where(and(
+        eq(nutritionistClients.nutritionistId, nutritionistId),
+        sql`${nutritionistClients.referralSource} IS NOT NULL`
+      ));
+
+    const totalReferred = allClients.length;
+
+    const channelMap = new Map<string, number>();
+    for (const c of allClients) {
+      const src = c.referralSource ?? "other";
+      channelMap.set(src, (channelMap.get(src) ?? 0) + 1);
+    }
+    const channelBreakdown = Array.from(channelMap.entries()).map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count);
+
+    const referrerMap = new Map<number, number>();
+    for (const c of allClients) {
+      if (c.referredByClientId) {
+        referrerMap.set(c.referredByClientId, (referrerMap.get(c.referredByClientId) ?? 0) + 1);
+      }
+    }
+
+    const referrerEntries = Array.from(referrerMap.entries());
+    const topReferrers: { clientId: number; clientName: string; count: number }[] = [];
+    for (let i = 0; i < referrerEntries.length; i++) {
+      const [referrerClientId, count] = referrerEntries[i];
+      const referrerUser = await this.getUserById(referrerClientId);
+      topReferrers.push({ clientId: referrerClientId, clientName: referrerUser?.name ?? "Unknown", count });
+    }
+    topReferrers.sort((a, b) => b.count - a.count);
+
+    return { totalReferred, channelBreakdown, topReferrers };
+  }
+
   async removeNutritionistClient(id: number, nutritionistId: number): Promise<void> {
     await db.delete(nutritionistClients)
       .where(and(eq(nutritionistClients.id, id), eq(nutritionistClients.nutritionistId, nutritionistId)));
@@ -1910,8 +1953,15 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  async createNutritionistInvitation(nutritionistId: number, email: string, token: string, expiresAt: Date): Promise<NutritionistInvitation> {
-    const [inv] = await db.insert(nutritionistInvitations).values({ nutritionistId, email, token, expiresAt }).returning();
+  async createNutritionistInvitation(nutritionistId: number, email: string, token: string, expiresAt: Date, referral?: { referralSource?: string; referredByClientId?: number }): Promise<NutritionistInvitation> {
+    const [inv] = await db.insert(nutritionistInvitations).values({
+      nutritionistId,
+      email,
+      token,
+      expiresAt,
+      referralSource: referral?.referralSource ?? null,
+      referredByClientId: referral?.referredByClientId ?? null,
+    }).returning();
     return inv;
   }
 

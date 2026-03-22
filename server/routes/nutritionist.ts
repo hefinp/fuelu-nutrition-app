@@ -90,6 +90,8 @@ router.put("/api/nutritionist/clients/:id", async (req, res) => {
     pipelineStage: z.enum(pipelineStageEnum).optional(),
     goalSummary: z.string().max(500).optional(),
     healthNotes: z.string().max(2000).optional(),
+    referralSource: z.enum(["client", "social_media", "website", "other"]).nullable().optional(),
+    referredByClientId: z.number().int().positive().nullable().optional(),
   });
 
   try {
@@ -192,12 +194,19 @@ router.post("/api/nutritionist/invitations", async (req, res) => {
     });
   }
 
-  const schema = z.object({ email: z.string().email() });
+  const schema = z.object({
+    email: z.string().email(),
+    referralSource: z.enum(["client", "social_media", "website", "other"]).optional(),
+    referredByClientId: z.number().int().positive().nullable().optional(),
+  });
   try {
-    const { email } = schema.parse(req.body);
+    const { email, referralSource, referredByClientId } = schema.parse(req.body);
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const invitation = await storage.createNutritionistInvitation(userId, email, token, expiresAt);
+    const invitation = await storage.createNutritionistInvitation(userId, email, token, expiresAt, {
+      referralSource,
+      referredByClientId: referredByClientId ?? undefined,
+    });
     res.status(201).json({ ...invitation, inviteUrl: `/auth?tab=register&nutritionist_invite=${token}` });
   } catch (err) {
     if (isZodError(err)) return res.status(400).json({ message: "Invalid email", errors: err.errors });
@@ -250,7 +259,11 @@ router.post("/api/nutritionist/invitations/accept", async (req, res) => {
     if (currentCount >= clientLimit) return res.status(403).json({ message: "Nutritionist has reached their client limit." });
 
     await storage.acceptNutritionistInvitation(token);
-    await storage.addNutritionistClient(invitation.nutritionistId, clientUserId, { status: "onboarding" });
+    await storage.addNutritionistClient(invitation.nutritionistId, clientUserId, {
+      status: "onboarding",
+      referralSource: invitation.referralSource ?? undefined,
+      referredByClientId: invitation.referredByClientId ?? undefined,
+    });
     await storage.setManagedClientFlag(clientUserId, true, invitation.nutritionistId);
 
     res.json({ success: true });
@@ -357,6 +370,21 @@ router.get("/api/nutritionist/capacity", async (req, res) => {
   const maxClients = profile.maxClients ?? null;
 
   res.json({ tier, limit, count, activeCount, canAddMore: count < limit, maxClients });
+});
+
+router.get("/api/nutritionist/referrals/summary", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  try {
+    const summary = await storage.getReferralSummary(userId);
+    res.json(summary);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch referral summary" });
+  }
 });
 
 const NUTRITIONIST_EMAILS = (process.env.NUTRITIONIST_EMAILS || "hefin.price@gmail.com").split(",").map(e => e.trim());

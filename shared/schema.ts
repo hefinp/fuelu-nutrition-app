@@ -723,6 +723,9 @@ export const insertNutritionistProfileSchema = createInsertSchema(nutritionistPr
 export type InsertNutritionistProfile = z.infer<typeof insertNutritionistProfileSchema>;
 export type NutritionistProfile = typeof nutritionistProfiles.$inferSelect;
 
+export const referralSourceEnum = ["client", "social_media", "website", "other"] as const;
+export type ReferralSource = typeof referralSourceEnum[number];
+
 export const nutritionistClients = pgTable("nutritionist_clients", {
   id: serial("id").primaryKey(),
   nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
@@ -734,6 +737,8 @@ export const nutritionistClients = pgTable("nutritionist_clients", {
   notes: text("notes"),
   lastActivityAt: timestamp("last_activity_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
+  referralSource: text("referral_source"),
+  referredByClientId: integer("referred_by_client_id").references(() => users.id),
 });
 
 export const insertNutritionistClientSchema = createInsertSchema(nutritionistClients).omit({
@@ -745,6 +750,8 @@ export const insertNutritionistClientSchema = createInsertSchema(nutritionistCli
   pipelineStage: z.enum(pipelineStageEnum).default("onboarding"),
   goalSummary: z.string().max(500).optional(),
   healthNotes: z.string().max(2000).optional(),
+  referralSource: z.enum(referralSourceEnum).optional(),
+  referredByClientId: z.number().int().positive().optional().nullable(),
 });
 
 export type InsertNutritionistClient = z.infer<typeof insertNutritionistClientSchema>;
@@ -758,6 +765,8 @@ export const nutritionistInvitations = pgTable("nutritionist_invitations", {
   expiresAt: timestamp("expires_at").notNull(),
   acceptedAt: timestamp("accepted_at"),
   createdAt: timestamp("created_at").defaultNow(),
+  referralSource: text("referral_source"),
+  referredByClientId: integer("referred_by_client_id").references(() => users.id),
 });
 
 export const insertNutritionistInvitationSchema = createInsertSchema(nutritionistInvitations).omit({

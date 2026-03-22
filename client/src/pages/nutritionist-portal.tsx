@@ -27,6 +27,8 @@ interface ClientWithUser {
   healthNotes: string | null;
   lastActivityAt: string | null;
   createdAt: string;
+  referralSource: string | null;
+  referredByClientId: number | null;
   client: {
     id: number;
     name: string;
@@ -75,6 +77,8 @@ interface ClientProfileData {
   healthNotes: string | null;
   lastActivityAt: string | null;
   createdAt: string;
+  referralSource: string | null;
+  referredByClientId: number | null;
   client: {
     id: number;
     name: string;
@@ -85,6 +89,19 @@ interface ClientProfileData {
   };
   preferences: Record<string, unknown> | null;
 }
+
+interface ReferralSummary {
+  totalReferred: number;
+  channelBreakdown: { source: string; count: number }[];
+  topReferrers: { clientId: number; clientName: string; count: number }[];
+}
+
+const REFERRAL_SOURCE_LABELS: Record<string, string> = {
+  client: "Existing Client",
+  social_media: "Social Media",
+  website: "Website",
+  other: "Other",
+};
 
 interface Invitation {
   id: number;
@@ -2818,6 +2835,8 @@ function ClientProfile({
   const [editingStatus, setEditingStatus] = useState(clientRecord.status);
   const [editingGoal, setEditingGoal] = useState(clientRecord.goalSummary ?? "");
   const [editingHealthNotes, setEditingHealthNotes] = useState(clientRecord.healthNotes ?? "");
+  const [editingReferralSource, setEditingReferralSource] = useState(clientRecord.referralSource ?? "");
+  const [editingReferredByClientId, setEditingReferredByClientId] = useState(clientRecord.referredByClientId?.toString() ?? "");
   const [editMode, setEditMode] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
 
@@ -2851,14 +2870,20 @@ function ClientProfile({
   });
 
   const updateClientMutation = useMutation({
-    mutationFn: (updates: { status?: string; goalSummary?: string; healthNotes?: string }) =>
+    mutationFn: (updates: { status?: string; goalSummary?: string; healthNotes?: string; referralSource?: string | null; referredByClientId?: number | null }) =>
       apiRequest("PUT", `/api/nutritionist/clients/${clientRecord.id}`, updates).then(r => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/referrals/summary"] });
       setEditMode(false);
       toast({ title: "Client updated" });
     },
     onError: () => toast({ title: "Failed to update client", variant: "destructive" }),
+  });
+
+  const { data: allClients = [] } = useQuery<ClientWithUser[]>({
+    queryKey: ["/api/nutritionist/clients"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/clients").then(r => r.json()),
   });
 
   const prefs = profileData?.preferences as Record<string, unknown> | null;
@@ -2908,7 +2933,7 @@ function ClientProfile({
             </button>
             <button
               type="button"
-              onClick={() => { setEditMode(v => !v); setEditingStatus(clientRecord.status); setEditingGoal(clientRecord.goalSummary ?? ""); setEditingHealthNotes(clientRecord.healthNotes ?? ""); }}
+              onClick={() => { setEditMode(v => !v); setEditingStatus(clientRecord.status); setEditingGoal(clientRecord.goalSummary ?? ""); setEditingHealthNotes(clientRecord.healthNotes ?? ""); setEditingReferralSource(clientRecord.referralSource ?? ""); setEditingReferredByClientId(clientRecord.referredByClientId?.toString() ?? ""); }}
               className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-xl text-sm text-zinc-600 hover:bg-zinc-50 transition-colors"
               data-testid="button-edit-client"
             >
@@ -2958,10 +2983,47 @@ function ClientProfile({
               />
               <p className="text-xs text-zinc-400 mt-1">Private — not visible to client</p>
             </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-500 block mb-1">Referral Source</label>
+              <select
+                value={editingReferralSource}
+                onChange={e => { setEditingReferralSource(e.target.value); setEditingReferredByClientId(""); }}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 text-zinc-700 bg-white"
+                data-testid="select-client-referral-source"
+              >
+                <option value="">— No referral source —</option>
+                <option value="client">Existing Client</option>
+                <option value="social_media">Social Media</option>
+                <option value="website">Website</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            {editingReferralSource === "client" && (
+              <div>
+                <label className="text-xs font-medium text-zinc-500 block mb-1">Referred by (client)</label>
+                <select
+                  value={editingReferredByClientId}
+                  onChange={e => setEditingReferredByClientId(e.target.value)}
+                  className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 text-zinc-700 bg-white"
+                  data-testid="select-client-referred-by"
+                >
+                  <option value="">— Select a client —</option>
+                  {allClients.filter(c => c.clientId !== clientRecord.clientId).map(c => (
+                    <option key={c.clientId} value={c.clientId}>{c.client.name} ({c.client.email})</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => updateClientMutation.mutate({ status: editingStatus, goalSummary: editingGoal, healthNotes: editingHealthNotes })}
+                onClick={() => updateClientMutation.mutate({
+                  status: editingStatus,
+                  goalSummary: editingGoal,
+                  healthNotes: editingHealthNotes,
+                  referralSource: editingReferralSource || null,
+                  referredByClientId: editingReferralSource === "client" && editingReferredByClientId ? Number(editingReferredByClientId) : null,
+                })}
                 disabled={updateClientMutation.isPending}
                 className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
                 data-testid="button-save-client"
@@ -2991,6 +3053,15 @@ function ClientProfile({
               <Calendar className="w-3.5 h-3.5" />
               Joined {formatDate(clientRecord.createdAt)}
             </span>
+            {clientRecord.referralSource && (
+              <span className="text-zinc-400 flex items-center gap-1" data-testid="text-referral-source">
+                Via {REFERRAL_SOURCE_LABELS[clientRecord.referralSource] ?? clientRecord.referralSource}
+                {clientRecord.referralSource === "client" && clientRecord.referredByClientId && (() => {
+                  const referrer = allClients.find(c => c.clientId === clientRecord.referredByClientId);
+                  return referrer ? ` (${referrer.client.name})` : null;
+                })()}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -3534,33 +3605,213 @@ function PracticeAdminPanel({ profile }: { profile: NutritionistProfile }) {
   );
 }
 
+function ReferralsSummaryView({
+  clients,
+  onSelectClient,
+}: {
+  clients: ClientWithUser[];
+  onSelectClient: (c: ClientWithUser) => void;
+}) {
+  const { data: summary, isLoading } = useQuery<ReferralSummary>({
+    queryKey: ["/api/nutritionist/referrals/summary"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/referrals/summary").then(r => r.json()),
+  });
+
+  const clientsByReferrer = new Map<number, ClientWithUser[]>();
+  for (const c of clients) {
+    if (c.referredByClientId) {
+      if (!clientsByReferrer.has(c.referredByClientId)) clientsByReferrer.set(c.referredByClientId, []);
+      clientsByReferrer.get(c.referredByClientId)!.push(c);
+    }
+  }
+
+  const referredClients = clients.filter(c => c.referralSource);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-display font-bold text-zinc-900 flex items-center gap-2">
+            <UserPlus className="w-5 h-5 text-zinc-500" />
+            Referrals
+          </h2>
+          <p className="text-sm text-zinc-500 mt-0.5">Track how clients discovered your practice</p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="bg-white rounded-2xl border border-zinc-100 p-5" data-testid="card-total-referred">
+              <p className="text-xs text-zinc-500 mb-1">Total Referred</p>
+              <p className="text-3xl font-bold text-zinc-900">{summary?.totalReferred ?? 0}</p>
+            </div>
+            <div className="bg-white rounded-2xl border border-zinc-100 p-5" data-testid="card-top-channel">
+              <p className="text-xs text-zinc-500 mb-1">Top Channel</p>
+              <p className="text-xl font-bold text-zinc-900">
+                {summary?.channelBreakdown?.[0]
+                  ? REFERRAL_SOURCE_LABELS[summary.channelBreakdown[0].source] ?? summary.channelBreakdown[0].source
+                  : "—"}
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl border border-zinc-100 p-5" data-testid="card-top-referrers-count">
+              <p className="text-xs text-zinc-500 mb-1">Top Referrers</p>
+              <p className="text-3xl font-bold text-zinc-900">{summary?.topReferrers?.length ?? 0}</p>
+            </div>
+          </div>
+
+          {(summary?.channelBreakdown?.length ?? 0) > 0 && (
+            <div className="bg-white rounded-2xl border border-zinc-100 p-5">
+              <h3 className="text-sm font-semibold text-zinc-900 mb-4">Acquisition Channels</h3>
+              <div className="space-y-3">
+                {summary!.channelBreakdown.map(({ source, count }) => {
+                  const pct = summary!.totalReferred > 0 ? Math.round((count / summary!.totalReferred) * 100) : 0;
+                  return (
+                    <div key={source} data-testid={`channel-bar-${source}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-zinc-700">{REFERRAL_SOURCE_LABELS[source] ?? source}</span>
+                        <span className="text-sm font-semibold text-zinc-900">{count} <span className="text-xs font-normal text-zinc-400">({pct}%)</span></span>
+                      </div>
+                      <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-zinc-800 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {(summary?.topReferrers?.length ?? 0) > 0 && (
+            <div className="bg-white rounded-2xl border border-zinc-100 p-5">
+              <h3 className="text-sm font-semibold text-zinc-900 mb-4">Top Referrers</h3>
+              <div className="space-y-2">
+                {summary!.topReferrers.map((referrer) => {
+                  const referrerClient = clients.find(c => c.clientId === referrer.clientId);
+                  const referred = clientsByReferrer.get(referrer.clientId) ?? [];
+                  return (
+                    <div key={referrer.clientId} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl" data-testid={`referrer-row-${referrer.clientId}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-zinc-900 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                          {referrer.clientName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => referrerClient && onSelectClient(referrerClient)}
+                            className="text-sm font-medium text-zinc-900 hover:underline text-left"
+                            disabled={!referrerClient}
+                          >
+                            {referrer.clientName}
+                          </button>
+                          {referred.length > 0 && (
+                            <p className="text-xs text-zinc-400">
+                              Referred: {referred.map(r => r.client.name).join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-sm font-bold text-zinc-900">{referrer.count} referral{referrer.count !== 1 ? "s" : ""}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white rounded-2xl border border-zinc-100 p-5">
+            <h3 className="text-sm font-semibold text-zinc-900 mb-4">All Referred Clients</h3>
+            {referredClients.length === 0 ? (
+              <div className="text-center py-8">
+                <UserPlus className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
+                <p className="text-sm text-zinc-500">No referrals recorded yet.</p>
+                <p className="text-xs text-zinc-400 mt-1">When you invite a client, optionally record how they heard about you.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {referredClients.map(c => {
+                  const referrerClient = c.referredByClientId ? clients.find(r => r.clientId === c.referredByClientId) : null;
+                  return (
+                    <div key={c.id} className="flex items-center justify-between p-3 rounded-xl border border-zinc-100 hover:border-zinc-200 transition-colors" data-testid={`referred-client-${c.id}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-600 text-xs font-bold">
+                          {c.client.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => onSelectClient(c)}
+                            className="text-sm font-medium text-zinc-900 hover:underline text-left"
+                          >
+                            {c.client.name}
+                          </button>
+                          <p className="text-xs text-zinc-400">
+                            {REFERRAL_SOURCE_LABELS[c.referralSource!] ?? c.referralSource}
+                            {referrerClient && ` via ${referrerClient.client.name}`}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-xs text-zinc-400">{formatDate(c.createdAt)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InviteModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
+  const [referralSource, setReferralSource] = useState<string>("");
+  const [referredByClientId, setReferredByClientId] = useState<string>("");
+
+  const { data: clients = [] } = useQuery<ClientWithUser[]>({
+    queryKey: ["/api/nutritionist/clients"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/clients").then(r => r.json()),
+  });
 
   const inviteMutation = useMutation({
-    mutationFn: (email: string) =>
-      apiRequest("POST", "/api/nutritionist/invitations", { email }).then(r => r.json()),
-    onSuccess: (data) => {
+    mutationFn: ({ email, referralSource, referredByClientId }: { email: string; referralSource?: string; referredByClientId?: number | null }) =>
+      apiRequest("POST", "/api/nutritionist/invitations", { email, referralSource: referralSource || undefined, referredByClientId: referredByClientId || undefined }).then(r => r.json()),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/invitations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/referrals/summary"] });
       toast({
         title: "Invitation created",
         description: `Invite link generated for ${email}. Share the link with your client.`,
       });
       setEmail("");
+      setReferralSource("");
+      setReferredByClientId("");
     },
     onError: (err: Error) => {
       toast({ title: "Failed to create invitation", description: err.message, variant: "destructive" });
     },
   });
 
-  const { data: invitations = [], isLoading } = useQuery<Invitation[]>({
+  const { data: invitations = [] } = useQuery<Invitation[]>({
     queryKey: ["/api/nutritionist/invitations"],
     queryFn: () => apiRequest("GET", "/api/nutritionist/invitations").then(r => r.json()),
   });
 
   const baseUrl = window.location.origin;
+
+  const handleGenerate = () => {
+    if (!email) return;
+    inviteMutation.mutate({
+      email,
+      referralSource: referralSource || undefined,
+      referredByClientId: referralSource === "client" && referredByClientId ? Number(referredByClientId) : null,
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -3582,27 +3833,61 @@ function InviteModal({ onClose }: { onClose: () => void }) {
             Enter your client's email address. They will receive an invitation link to create their account pre-linked to your practice.
           </p>
 
-          <div className="flex gap-2 mb-6">
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="client@example.com"
-              className="flex-1 px-3 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
-              data-testid="input-invite-email"
-              onKeyDown={e => e.key === "Enter" && email && inviteMutation.mutate(email)}
-            />
-            <button
-              type="button"
-              onClick={() => email && inviteMutation.mutate(email)}
-              disabled={!email || inviteMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
-              data-testid="button-generate-invite"
-            >
-              {inviteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-              Generate Link
-            </button>
+          <div className="space-y-3 mb-5">
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="client@example.com"
+                className="flex-1 px-3 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-invite-email"
+                onKeyDown={e => e.key === "Enter" && email && handleGenerate()}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-500 block mb-1">Referral source (optional)</label>
+              <select
+                value={referralSource}
+                onChange={e => { setReferralSource(e.target.value); setReferredByClientId(""); }}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 text-zinc-700 bg-white"
+                data-testid="select-invite-referral-source"
+              >
+                <option value="">— No referral source —</option>
+                <option value="client">Existing Client</option>
+                <option value="social_media">Social Media</option>
+                <option value="website">Website</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            {referralSource === "client" && (
+              <div>
+                <label className="text-xs font-medium text-zinc-500 block mb-1">Referred by (client)</label>
+                <select
+                  value={referredByClientId}
+                  onChange={e => setReferredByClientId(e.target.value)}
+                  className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 text-zinc-700 bg-white"
+                  data-testid="select-invite-referred-by"
+                >
+                  <option value="">— Select a client —</option>
+                  {clients.map(c => (
+                    <option key={c.clientId} value={c.clientId}>{c.client.name} ({c.client.email})</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
+
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={!email || inviteMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors mb-6"
+            data-testid="button-generate-invite"
+          >
+            {inviteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+            Generate Link
+          </button>
 
           {invitations.length > 0 && (
             <div>
@@ -4487,7 +4772,7 @@ function StartJobForm({
   );
 }
 
-type Tab = "monitoring" | "clients" | "pipeline" | "reengagement" | "waitlist" | "practice";
+type Tab = "monitoring" | "clients" | "pipeline" | "reengagement" | "waitlist" | "referrals" | "practice";
 type ViewState =
   | { kind: "list" }
   | { kind: "profile"; client: ClientWithUser }
@@ -4576,6 +4861,7 @@ export default function NutritionistPortalPage() {
     { id: "pipeline", label: "Pipeline", icon: KanbanSquare },
     { id: "reengagement", label: "Re-engage", icon: Zap },
     { id: "waitlist", label: "Waitlist", icon: Clock },
+    { id: "referrals", label: "Referrals", icon: UserPlus },
     { id: "practice", label: "Practice", icon: Building2 },
   ];
 
@@ -4774,6 +5060,10 @@ export default function NutritionistPortalPage() {
 
         {tab === "waitlist" && (
           <WaitlistPanel nutritionistId={profile.userId} capacity={capacity} />
+        )}
+
+        {tab === "referrals" && (
+          <ReferralsSummaryView clients={clients} onSelectClient={(c) => { setTab("clients"); setView({ kind: "profile", client: c }); }} />
         )}
 
         {tab === "practice" && (
