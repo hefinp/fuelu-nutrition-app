@@ -914,24 +914,47 @@ export default function Dashboard() {
     return !PLANNING_WIDGETS.has(id) && !INSIGHTS_WIDGETS.has(id);
   });
 
-  const headerHeight = user && isNutritionist ? 96 : 56;
-  const tabToggleHeight = 56;
-  const snapTop = headerHeight + tabToggleHeight;
+  const headerRef = useRef<HTMLElement | null>(null);
+  const tabToggleRef = useRef<HTMLDivElement | null>(null);
+  const roRef = useRef<ResizeObserver | null>(null);
 
-  useEffect(() => {
-    document.documentElement.classList.add("dashboard-snap");
-    return () => document.documentElement.classList.remove("dashboard-snap");
+  const updateSnapVars = useCallback(() => {
+    const root = document.documentElement;
+    const hH = headerRef.current?.offsetHeight ?? 0;
+    const tH = tabToggleRef.current?.offsetHeight ?? 0;
+    root.style.setProperty('--dashboard-header-h', `${hH}px`);
+    root.style.setProperty('--dashboard-snap-top', `${hH + tH}px`);
   }, []);
 
   useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty('--dashboard-header-h', `${headerHeight}px`);
-    root.style.setProperty('--dashboard-snap-top', `${snapTop}px`);
+    document.documentElement.classList.add("dashboard-snap");
+    const ro = new ResizeObserver(updateSnapVars);
+    roRef.current = ro;
+    if (headerRef.current) ro.observe(headerRef.current);
+    if (tabToggleRef.current) ro.observe(tabToggleRef.current);
+    updateSnapVars();
     return () => {
-      root.style.removeProperty('--dashboard-header-h');
-      root.style.removeProperty('--dashboard-snap-top');
+      document.documentElement.classList.remove("dashboard-snap");
+      ro.disconnect();
+      roRef.current = null;
+      document.documentElement.style.removeProperty('--dashboard-header-h');
+      document.documentElement.style.removeProperty('--dashboard-snap-top');
     };
-  }, [headerHeight, snapTop]);
+  }, [updateSnapVars]);
+
+  const headerCallbackRef = useCallback((node: HTMLElement | null) => {
+    if (headerRef.current) roRef.current?.unobserve(headerRef.current);
+    headerRef.current = node;
+    if (node) roRef.current?.observe(node);
+    updateSnapVars();
+  }, [updateSnapVars]);
+
+  const tabToggleCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    if (tabToggleRef.current) roRef.current?.unobserve(tabToggleRef.current);
+    tabToggleRef.current = node;
+    if (node) roRef.current?.observe(node);
+    updateSnapVars();
+  }, [updateSnapVars]);
 
   useEffect(() => {
     if (welcomeDismissed) return;
@@ -1011,7 +1034,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-zinc-100 pb-36 sm:pb-20">
       {/* Header */}
-      <header className="bg-white border-b border-zinc-100 sticky top-0 z-50">
+      <header ref={headerCallbackRef} className="bg-white border-b border-zinc-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center relative">
@@ -1740,7 +1763,7 @@ export default function Dashboard() {
             )}
 
             {/* ── MOBILE tab toggle: Favourites / Planning / Tracking / Insights ── */}
-            <div className="xl:hidden sticky z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-2 bg-zinc-100" style={{ top: 'var(--dashboard-header-h)' }}>
+            <div ref={tabToggleCallbackRef} className="xl:hidden sticky z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-2 bg-zinc-100" style={{ top: 'var(--dashboard-header-h)' }}>
               <div className="flex items-center gap-2" data-testid="dashboard-tab-toggle">
                 {(
                   [
