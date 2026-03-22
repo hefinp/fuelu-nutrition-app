@@ -217,7 +217,7 @@ export function useDashboardLayout(isLoggedIn: boolean) {
   };
 }
 
-export const MOBILE_PLANNING_IDS = new Set<WidgetId>(["meal-plan", "nutrition", "my-meals-food", "my-diary"]);
+export const MOBILE_PLANNING_IDS = new Set<WidgetId>(["meal-plan", "nutrition", "my-meals-food"]);
 export const MOBILE_INSIGHTS_IDS = new Set<WidgetId>(["weight", "cycle", "vitality", "weekly-summary", "adaptive-tdee", "macro-compliance", "my-momentum"]);
 
 function getMobileGroup(id: WidgetId): "planning" | "tracking" | "insights" {
