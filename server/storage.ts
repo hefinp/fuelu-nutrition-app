@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, clientDocuments, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, nutritionistSessions, sessionTemplates, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, stravaActivities, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob , type NutritionistSession , type InsertNutritionistSession , type SessionTemplate , type InsertSessionTemplate } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, clientDocuments, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, nutritionistSessions, sessionTemplates, surveyTemplates, surveyDeliveries, surveyResponses, stravaActivities, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob, type ClientDocument, type NutritionistSession, type InsertNutritionistSession, type SessionTemplate, type InsertSessionTemplate, type SurveyTemplate, type InsertSurveyTemplate, type SurveyDelivery, type SurveyResponse } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -397,6 +397,26 @@ export interface IStorage {
   createSessionTemplate(nutritionistId: number, data: InsertSessionTemplate): Promise<SessionTemplate>;
   updateSessionTemplate(id: number, nutritionistId: number, updates: Partial<InsertSessionTemplate>): Promise<SessionTemplate | undefined>;
   deleteSessionTemplate(id: number, nutritionistId: number): Promise<void>;
+  // Survey templates
+  getSurveyTemplates(nutritionistId: number): Promise<SurveyTemplate[]>;
+  getSurveyTemplateById(id: number, nutritionistId: number): Promise<SurveyTemplate | undefined>;
+  createSurveyTemplate(nutritionistId: number, data: InsertSurveyTemplate): Promise<SurveyTemplate>;
+  updateSurveyTemplate(id: number, nutritionistId: number, data: Partial<InsertSurveyTemplate>): Promise<SurveyTemplate | undefined>;
+  deleteSurveyTemplate(id: number, nutritionistId: number): Promise<void>;
+  seedDefaultSurveyTemplates(nutritionistId: number): Promise<void>;
+
+  // Survey deliveries
+  getSurveyDeliveries(nutritionistId: number, clientId?: number): Promise<(SurveyDelivery & { template: SurveyTemplate })[]>;
+  getPendingSurveysForClient(clientId: number): Promise<(SurveyDelivery & { template: SurveyTemplate })[]>;
+  createSurveyDelivery(nutritionistId: number, clientId: number, surveyTemplateId: number): Promise<SurveyDelivery>;
+  markSurveyDeliveryCompleted(id: number, clientId: number): Promise<SurveyDelivery | undefined>;
+  checkMilestoneSurveyExists(surveyTemplateId: number, clientId: number): Promise<boolean>;
+
+  // Survey responses
+  getSurveyResponses(nutritionistId: number, clientId?: number): Promise<(SurveyResponse & { delivery: SurveyDelivery & { template: SurveyTemplate } })[]>;
+  getSurveyResponseByDelivery(deliveryId: number): Promise<SurveyResponse | undefined>;
+  createSurveyResponse(deliveryId: number, clientId: number, answers: Record<string, unknown>): Promise<SurveyResponse>;
+  getAggregateSurveyResults(nutritionistId: number, templateId: number): Promise<{ questionId: string; questionText: string; questionType: string; answers: unknown[] }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3382,6 +3402,173 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSessionTemplate(id: number, nutritionistId: number): Promise<void> {
     await db.delete(sessionTemplates).where(and(eq(sessionTemplates.id, id), eq(sessionTemplates.nutritionistId, nutritionistId)));
+  async getSurveyTemplates(nutritionistId: number): Promise<SurveyTemplate[]> {
+    return db.select().from(surveyTemplates).where(eq(surveyTemplates.nutritionistId, nutritionistId)).orderBy(desc(surveyTemplates.createdAt));
+  }
+
+  async getSurveyTemplateById(id: number, nutritionistId: number): Promise<SurveyTemplate | undefined> {
+    const [row] = await db.select().from(surveyTemplates).where(and(eq(surveyTemplates.id, id), eq(surveyTemplates.nutritionistId, nutritionistId)));
+    return row;
+  }
+
+  async createSurveyTemplate(nutritionistId: number, data: InsertSurveyTemplate): Promise<SurveyTemplate> {
+    const [created] = await db.insert(surveyTemplates).values({ ...data, nutritionistId }).returning();
+    return created;
+  }
+
+  async updateSurveyTemplate(id: number, nutritionistId: number, data: Partial<InsertSurveyTemplate>): Promise<SurveyTemplate | undefined> {
+    const [updated] = await db.update(surveyTemplates).set({ ...data, updatedAt: new Date() }).where(and(eq(surveyTemplates.id, id), eq(surveyTemplates.nutritionistId, nutritionistId))).returning();
+    return updated;
+  }
+
+  async deleteSurveyTemplate(id: number, nutritionistId: number): Promise<void> {
+    await db.delete(surveyTemplates).where(and(eq(surveyTemplates.id, id), eq(surveyTemplates.nutritionistId, nutritionistId)));
+  }
+
+  async seedDefaultSurveyTemplates(nutritionistId: number): Promise<void> {
+    const existing = await db.select().from(surveyTemplates)
+      .where(and(eq(surveyTemplates.nutritionistId, nutritionistId), eq(surveyTemplates.isDefault, true)));
+    if (existing.length > 0) return;
+
+    const defaults = [
+      {
+        name: "Onboarding Check-in",
+        description: "A quick check-in at the end of your first week to see how onboarding is going.",
+        triggerType: "onboarding_7d" as const,
+        triggerDayOffset: 7,
+        isDefault: true,
+        questions: [
+          { id: "q1", type: "rating", text: "How satisfied are you with the onboarding process so far? (1 = very dissatisfied, 5 = very satisfied)", required: true },
+          { id: "q2", type: "yes_no", text: "Do you feel you have a clear understanding of your nutrition plan?", required: true },
+          { id: "q3", type: "yes_no", text: "Have you been able to use the app tools without issues?", required: true },
+          { id: "q4", type: "free_text", text: "Is there anything you'd like us to cover in more detail?", required: false },
+        ],
+      },
+      {
+        name: "30-Day Review",
+        description: "A comprehensive review at the 30-day mark to assess progress and satisfaction.",
+        triggerType: "active_30d" as const,
+        triggerDayOffset: 30,
+        isDefault: true,
+        questions: [
+          { id: "q1", type: "rating", text: "How satisfied are you with your nutrition coaching experience overall? (1 = very dissatisfied, 5 = very satisfied)", required: true },
+          { id: "q2", type: "rating", text: "How would you rate your progress towards your goals? (1 = no progress, 5 = excellent progress)", required: true },
+          { id: "q3", type: "yes_no", text: "Do you feel the nutrition plan suits your lifestyle?", required: true },
+          { id: "q4", type: "yes_no", text: "Would you recommend this coaching service to a friend or family member?", required: true },
+          { id: "q5", type: "free_text", text: "What has been the most valuable aspect of your coaching experience?", required: false },
+          { id: "q6", type: "free_text", text: "What could we improve to better support you?", required: false },
+        ],
+      },
+    ];
+
+    for (const tmpl of defaults) {
+      await db.insert(surveyTemplates).values({ ...tmpl, nutritionistId, active: true });
+    }
+  }
+
+  async getSurveyDeliveries(nutritionistId: number, clientId?: number): Promise<(SurveyDelivery & { template: SurveyTemplate })[]> {
+    const whereConditions = clientId
+      ? and(eq(surveyDeliveries.nutritionistId, nutritionistId), eq(surveyDeliveries.clientId, clientId))
+      : eq(surveyDeliveries.nutritionistId, nutritionistId);
+
+    const rows = await db.select({
+      delivery: surveyDeliveries,
+      template: surveyTemplates,
+    }).from(surveyDeliveries)
+      .innerJoin(surveyTemplates, eq(surveyDeliveries.surveyTemplateId, surveyTemplates.id))
+      .where(whereConditions)
+      .orderBy(desc(surveyDeliveries.sentAt));
+
+    return rows.map(r => ({ ...r.delivery, template: r.template }));
+  }
+
+  async getPendingSurveysForClient(clientId: number): Promise<(SurveyDelivery & { template: SurveyTemplate })[]> {
+    const rows = await db.select({
+      delivery: surveyDeliveries,
+      template: surveyTemplates,
+    }).from(surveyDeliveries)
+      .innerJoin(surveyTemplates, eq(surveyDeliveries.surveyTemplateId, surveyTemplates.id))
+      .where(and(eq(surveyDeliveries.clientId, clientId), sql`${surveyDeliveries.completedAt} IS NULL`))
+      .orderBy(desc(surveyDeliveries.sentAt));
+
+    return rows.map(r => ({ ...r.delivery, template: r.template }));
+  }
+
+  async createSurveyDelivery(nutritionistId: number, clientId: number, surveyTemplateId: number): Promise<SurveyDelivery> {
+    const [created] = await db.insert(surveyDeliveries).values({
+      surveyTemplateId,
+      nutritionistId,
+      clientId,
+      sentAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async markSurveyDeliveryCompleted(id: number, clientId: number): Promise<SurveyDelivery | undefined> {
+    const [updated] = await db.update(surveyDeliveries)
+      .set({ completedAt: new Date() })
+      .where(and(eq(surveyDeliveries.id, id), eq(surveyDeliveries.clientId, clientId)))
+      .returning();
+    return updated;
+  }
+
+  async checkMilestoneSurveyExists(surveyTemplateId: number, clientId: number): Promise<boolean> {
+    const [row] = await db.select({ id: surveyDeliveries.id }).from(surveyDeliveries)
+      .where(and(eq(surveyDeliveries.surveyTemplateId, surveyTemplateId), eq(surveyDeliveries.clientId, clientId)));
+    return !!row;
+  }
+
+  async getSurveyResponses(nutritionistId: number, clientId?: number): Promise<(SurveyResponse & { delivery: SurveyDelivery & { template: SurveyTemplate } })[]> {
+    const whereConditions = clientId
+      ? and(eq(surveyDeliveries.nutritionistId, nutritionistId), eq(surveyResponses.clientId, clientId))
+      : eq(surveyDeliveries.nutritionistId, nutritionistId);
+
+    const rows = await db.select({
+      response: surveyResponses,
+      delivery: surveyDeliveries,
+      template: surveyTemplates,
+    }).from(surveyResponses)
+      .innerJoin(surveyDeliveries, eq(surveyResponses.surveyDeliveryId, surveyDeliveries.id))
+      .innerJoin(surveyTemplates, eq(surveyDeliveries.surveyTemplateId, surveyTemplates.id))
+      .where(whereConditions)
+      .orderBy(desc(surveyResponses.submittedAt));
+
+    return rows.map(r => ({ ...r.response, delivery: { ...r.delivery, template: r.template } }));
+  }
+
+  async getSurveyResponseByDelivery(deliveryId: number): Promise<SurveyResponse | undefined> {
+    const [row] = await db.select().from(surveyResponses).where(eq(surveyResponses.surveyDeliveryId, deliveryId));
+    return row;
+  }
+
+  async createSurveyResponse(deliveryId: number, clientId: number, answers: Record<string, unknown>): Promise<SurveyResponse> {
+    const [created] = await db.insert(surveyResponses).values({
+      surveyDeliveryId: deliveryId,
+      clientId,
+      answers,
+      submittedAt: new Date(),
+    }).returning();
+    return created;
+  }
+
+  async getAggregateSurveyResults(nutritionistId: number, templateId: number): Promise<{ questionId: string; questionText: string; questionType: string; answers: unknown[] }[]> {
+    const template = await db.select().from(surveyTemplates)
+      .where(and(eq(surveyTemplates.id, templateId), eq(surveyTemplates.nutritionistId, nutritionistId)));
+    if (!template.length) return [];
+
+    const questions = template[0].questions as { id: string; text: string; type: string }[];
+
+    const responses = await db.select({ answers: surveyResponses.answers })
+      .from(surveyResponses)
+      .innerJoin(surveyDeliveries, eq(surveyResponses.surveyDeliveryId, surveyDeliveries.id))
+      .where(eq(surveyDeliveries.surveyTemplateId, templateId));
+
+    return questions.map(q => ({
+      questionId: q.id,
+      questionText: q.text,
+      questionType: q.type,
+      answers: responses.map(r => (r.answers as Record<string, unknown>)[q.id]).filter(a => a !== undefined && a !== null && a !== ""),
+    }));
   }
 }
 

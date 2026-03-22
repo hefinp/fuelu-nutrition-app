@@ -1190,6 +1190,97 @@ export const bulkActionLogs = pgTable("bulk_action_logs", {
 
 export type BulkActionLog = typeof bulkActionLogs.$inferSelect;
 
+// ─── Survey Templates ─────────────────────────────────────────────────────
+
+export const surveyTriggerTypeEnum = ["manual", "onboarding_7d", "active_30d", "quarterly"] as const;
+export type SurveyTriggerType = typeof surveyTriggerTypeEnum[number];
+
+export const surveyQuestionTypeEnum = ["rating", "yes_no", "free_text"] as const;
+export type SurveyQuestionType = typeof surveyQuestionTypeEnum[number];
+
+export const surveyTemplates = pgTable("survey_templates", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  questions: jsonb("questions").notNull(),
+  triggerType: text("trigger_type").notNull().default("manual"),
+  triggerDayOffset: integer("trigger_day_offset"),
+  isDefault: boolean("is_default").notNull().default(false),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertSurveyTemplateSchema = createInsertSchema(surveyTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  nutritionistId: true,
+}).extend({
+  name: z.string().min(1).max(200),
+  description: z.string().max(500).optional(),
+  triggerType: z.enum(surveyTriggerTypeEnum).default("manual"),
+  triggerDayOffset: z.number().int().min(1).max(365).optional(),
+  questions: z.array(z.object({
+    id: z.string(),
+    type: z.enum(surveyQuestionTypeEnum),
+    text: z.string().min(1).max(500),
+    required: z.boolean().optional(),
+  })).min(1).max(10),
+  active: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
+});
+
+export type InsertSurveyTemplate = z.infer<typeof insertSurveyTemplateSchema>;
+export type SurveyTemplate = typeof surveyTemplates.$inferSelect;
+
+// ─── Survey Deliveries ────────────────────────────────────────────────────
+
+export const surveyDeliveries = pgTable("survey_deliveries", {
+  id: serial("id").primaryKey(),
+  surveyTemplateId: integer("survey_template_id").notNull().references(() => surveyTemplates.id),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  sentAt: timestamp("sent_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  notified: boolean("notified").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSurveyDeliverySchema = createInsertSchema(surveyDeliveries).omit({
+  id: true,
+  createdAt: true,
+  sentAt: true,
+  completedAt: true,
+  notified: true,
+  nutritionistId: true,
+});
+
+export type InsertSurveyDelivery = z.infer<typeof insertSurveyDeliverySchema>;
+export type SurveyDelivery = typeof surveyDeliveries.$inferSelect;
+
+// ─── Survey Responses ─────────────────────────────────────────────────────
+
+export const surveyResponses = pgTable("survey_responses", {
+  id: serial("id").primaryKey(),
+  surveyDeliveryId: integer("survey_delivery_id").notNull().references(() => surveyDeliveries.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  answers: jsonb("answers").notNull(),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+});
+
+export const insertSurveyResponseSchema = createInsertSchema(surveyResponses).omit({
+  id: true,
+  submittedAt: true,
+  clientId: true,
+}).extend({
+  answers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+});
+
+export type InsertSurveyResponse = z.infer<typeof insertSurveyResponseSchema>;
+export type SurveyResponse = typeof surveyResponses.$inferSelect;
+
 // ─── Strava Activities ─────────────────────────────────────────────────────
 
 export const stravaActivities = pgTable("strava_activities", {

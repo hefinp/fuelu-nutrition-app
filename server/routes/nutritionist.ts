@@ -4,7 +4,7 @@ import { z } from "zod";
 import crypto from "crypto";
 import { storage } from "../storage";
 import { pool } from "../db";
-import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier, goalTypeEnum, pipelineStageEnum, insertReengagementSequenceSchema, insertNutritionistSessionSchema, insertSessionTemplateSchema } from "@shared/schema";
+import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier, goalTypeEnum, pipelineStageEnum, insertReengagementSequenceSchema, insertNutritionistSessionSchema, insertSessionTemplateSchema, insertSurveyTemplateSchema, surveyTriggerTypeEnum, surveyQuestionTypeEnum } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -2594,6 +2594,181 @@ router.delete("/api/nutritionist/session-templates/:templateId", async (req, res
   if (isNaN(templateId)) return res.status(400).json({ message: "Invalid template ID" });
   await storage.deleteSessionTemplate(templateId, userId);
   res.json({ success: true });
+});
+
+// ─── Survey Templates ─────────────────────────────────────────────────────────
+
+router.get("/api/nutritionist/surveys/templates", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  await storage.seedDefaultSurveyTemplates(userId);
+  const templates = await storage.getSurveyTemplates(userId);
+  res.json(templates);
+});
+
+router.post("/api/nutritionist/surveys/templates", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  try {
+    const data = insertSurveyTemplateSchema.parse(req.body);
+    const template = await storage.createSurveyTemplate(userId, data);
+    res.status(201).json(template);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.put("/api/nutritionist/surveys/templates/:id", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+
+  try {
+    const data = insertSurveyTemplateSchema.partial().parse(req.body);
+    const updated = await storage.updateSurveyTemplate(id, userId, data);
+    if (!updated) return res.status(404).json({ message: "Survey template not found" });
+    res.json(updated);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.delete("/api/nutritionist/surveys/templates/:id", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+
+  await storage.deleteSurveyTemplate(id, userId);
+  res.json({ success: true });
+});
+
+// ─── Survey Deliveries ─────────────────────────────────────────────────────────
+
+router.get("/api/nutritionist/surveys/deliveries", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = req.query.clientId ? parseInt(req.query.clientId as string) : undefined;
+  const deliveries = await storage.getSurveyDeliveries(userId, clientId);
+  res.json(deliveries);
+});
+
+router.post("/api/nutritionist/surveys/send", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const schema = z.object({
+    surveyTemplateId: z.number().int(),
+    clientId: z.number().int(),
+  });
+
+  try {
+    const { surveyTemplateId, clientId } = schema.parse(req.body);
+
+    const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+    if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+    const template = await storage.getSurveyTemplateById(surveyTemplateId, userId);
+    if (!template) return res.status(404).json({ message: "Survey template not found." });
+
+    const delivery = await storage.createSurveyDelivery(userId, clientId, surveyTemplateId);
+    res.status(201).json(delivery);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+// ─── Survey Responses ─────────────────────────────────────────────────────────
+
+router.get("/api/nutritionist/surveys/responses", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = req.query.clientId ? parseInt(req.query.clientId as string) : undefined;
+  const responses = await storage.getSurveyResponses(userId, clientId);
+  res.json(responses);
+});
+
+router.get("/api/nutritionist/surveys/aggregate/:templateId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const templateId = parseInt(req.params.templateId);
+  if (isNaN(templateId)) return res.status(400).json({ message: "Invalid template ID" });
+
+  const results = await storage.getAggregateSurveyResults(userId, templateId);
+  res.json(results);
+});
+
+// ─── Client-facing Surveys ────────────────────────────────────────────────────
+
+router.get("/api/my-nutritionist/surveys/pending", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const surveys = await storage.getPendingSurveysForClient(userId);
+  res.json(surveys);
+});
+
+router.post("/api/my-nutritionist/surveys/:deliveryId/respond", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const deliveryId = parseInt(req.params.deliveryId);
+  if (isNaN(deliveryId)) return res.status(400).json({ message: "Invalid delivery ID" });
+
+  const schema = z.object({
+    answers: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+  });
+
+  try {
+    const { answers } = schema.parse(req.body);
+
+    const pendingSurveys = await storage.getPendingSurveysForClient(userId);
+    const delivery = pendingSurveys.find(d => d.id === deliveryId);
+    if (!delivery) return res.status(404).json({ message: "Survey not found or already completed." });
+
+    const response = await storage.createSurveyResponse(deliveryId, userId, answers as Record<string, unknown>);
+    await storage.markSurveyDeliveryCompleted(deliveryId, userId);
+
+    res.status(201).json(response);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
 });
 
 export default router;

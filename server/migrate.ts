@@ -918,6 +918,52 @@ export async function runMigrations(): Promise<void> {
         ON client_documents (client_id, shared_with_client)
     `);
 
+    // ─── Survey Tables ────────────────────────────────────────────────────────
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS survey_templates (
+        id                  SERIAL PRIMARY KEY,
+        nutritionist_id     INTEGER NOT NULL REFERENCES users(id),
+        name                TEXT NOT NULL,
+        description         TEXT,
+        questions           JSONB NOT NULL DEFAULT '[]',
+        trigger_type        TEXT NOT NULL DEFAULT 'manual',
+        trigger_day_offset  INTEGER,
+        is_default          BOOLEAN NOT NULL DEFAULT FALSE,
+        active              BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at          TIMESTAMP DEFAULT NOW(),
+        updated_at          TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_survey_templates_nutritionist ON survey_templates (nutritionist_id)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS survey_deliveries (
+        id                    SERIAL PRIMARY KEY,
+        survey_template_id    INTEGER NOT NULL REFERENCES survey_templates(id) ON DELETE CASCADE,
+        nutritionist_id       INTEGER NOT NULL REFERENCES users(id),
+        client_id             INTEGER NOT NULL REFERENCES users(id),
+        sent_at               TIMESTAMP DEFAULT NOW(),
+        completed_at          TIMESTAMP,
+        notified              BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at            TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_survey_deliveries_client ON survey_deliveries (client_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_survey_deliveries_nutritionist ON survey_deliveries (nutritionist_id)`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_survey_deliveries_unique ON survey_deliveries (survey_template_id, client_id) WHERE completed_at IS NULL`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS survey_responses (
+        id                  SERIAL PRIMARY KEY,
+        survey_delivery_id  INTEGER NOT NULL REFERENCES survey_deliveries(id) ON DELETE CASCADE,
+        client_id           INTEGER NOT NULL REFERENCES users(id),
+        answers             JSONB NOT NULL DEFAULT '{}',
+        submitted_at        TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_survey_responses_delivery ON survey_responses (survey_delivery_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_survey_responses_client ON survey_responses (client_id)`);
+
   } finally {
     client.release();
   }

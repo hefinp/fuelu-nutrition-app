@@ -72,6 +72,23 @@ function ClientUnreadBadge() {
   );
 }
 
+function ClientPendingSurveysBadge() {
+  const { user } = useAuth();
+  const { data } = useQuery<{ id: number }[]>({
+    queryKey: ["/api/my-nutritionist/surveys/pending"],
+    queryFn: () => apiRequest("GET", "/api/my-nutritionist/surveys/pending").then(r => r.json()),
+    enabled: !!user?.isManagedClient,
+    refetchInterval: 60000,
+  });
+  const count = data?.length ?? 0;
+  if (!count) return null;
+  return (
+    <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-amber-500 text-white text-[10px] font-bold rounded-full" data-testid="badge-pending-surveys">
+      {count}
+    </span>
+  );
+}
+
 function FreeWeeklySummaryCard() {
   const { user } = useAuth();
   const [expanded, setExpanded] = useState(false);
@@ -760,6 +777,18 @@ export default function Dashboard() {
                   >
                     <TrendingUp className="w-4 h-4" />
                     <span className="hidden sm:inline">My Progress</span>
+                  </Link>
+                )}
+
+                {user.isManagedClient && (
+                  <Link
+                    href="/my-surveys"
+                    className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg text-zinc-600 hover:bg-zinc-100 transition-colors relative"
+                    data-testid="link-my-surveys"
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    <span className="hidden sm:inline">Surveys</span>
+                    <ClientPendingSurveysBadge />
                   </Link>
                 )}
 

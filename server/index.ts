@@ -174,6 +174,13 @@ app.use((req, res, next) => {
     console.error("[init] Failed to seed strava_activity_level feature gate:", err)
   );
 
+  // Run the survey milestone job on startup and then every 24 hours
+  const { runSurveyMilestoneJob } = await import("./lib/survey-milestone-job");
+  runSurveyMilestoneJob().catch(err => console.error("[surveys] Initial milestone job failed:", err));
+  setInterval(() => {
+    runSurveyMilestoneJob().catch(err => console.error("[surveys] Milestone job failed:", err));
+  }, 24 * 60 * 60 * 1000);
+
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
