@@ -4,7 +4,7 @@ import { z } from "zod";
 import crypto from "crypto";
 import { storage } from "../storage";
 import { pool } from "../db";
-import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier, goalTypeEnum, pipelineStageEnum, insertReengagementSequenceSchema, insertNutritionistSessionSchema, insertSessionTemplateSchema, insertSurveyTemplateSchema, surveyTriggerTypeEnum, surveyQuestionTypeEnum } from "@shared/schema";
+import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier, goalTypeEnum, pipelineStageEnum, insertReengagementSequenceSchema, insertNutritionistSessionSchema, insertSessionTemplateSchema, insertSurveyTemplateSchema, surveyTriggerTypeEnum, surveyQuestionTypeEnum, insertServicePackageSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -2770,5 +2770,161 @@ router.post("/api/my-nutritionist/surveys/:deliveryId/respond", async (req, res)
     throw err;
   }
 });
+
+// ─── Service Package Templates ────────────────────────────────────────────────
+
+router.get("/api/nutritionist/packages", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const packages = await storage.getServicePackages(userId);
+  res.json(packages);
+});
+
+router.post("/api/nutritionist/packages", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  try {
+    const data = insertServicePackageSchema.parse(req.body);
+    const pkg = await storage.createServicePackage(userId, data);
+    res.status(201).json(pkg);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.put("/api/nutritionist/packages/:id", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid package ID" });
+  try {
+    const data = insertServicePackageSchema.partial().parse(req.body);
+    const pkg = await storage.updateServicePackage(id, userId, data);
+    if (!pkg) return res.status(404).json({ message: "Package not found" });
+    res.json(pkg);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.delete("/api/nutritionist/packages/:id", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid package ID" });
+  await storage.deleteServicePackage(id, userId);
+  res.json({ success: true });
+});
+
+// ─── Client Package Assignments ───────────────────────────────────────────────
+
+router.get("/api/nutritionist/clients/:clientId/package", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+  const cp = await storage.getActiveClientPackage(userId, clientId);
+  res.json(cp ?? null);
+});
+
+router.post("/api/nutritionist/clients/:clientId/package", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const schema = z.object({
+    packageId: z.number().int().positive(),
+    startDate: z.string().min(1),
+  });
+  try {
+    const { packageId, startDate } = schema.parse(req.body);
+    const pkg = await storage.getServicePackageById(packageId, userId);
+    if (!pkg) return res.status(404).json({ message: "Package not found" });
+
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setDate(end.getDate() + pkg.durationWeeks * 7);
+    const endDate = end.toISOString().split("T")[0];
+
+    const cp = await storage.assignClientPackage(userId, clientId, { packageId, startDate, endDate });
+    res.status(201).json(cp);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.patch("/api/nutritionist/clients/:clientId/package/:packageAssignmentId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  const assignmentId = parseInt(req.params.packageAssignmentId);
+  if (isNaN(clientId) || isNaN(assignmentId)) return res.status(400).json({ message: "Invalid ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const schema = z.object({
+    sessionsUsed: z.number().int().min(0).optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+  });
+  try {
+    const data = schema.parse(req.body);
+    const updated = await storage.updateClientPackage(assignmentId, userId, data);
+    if (!updated) return res.status(404).json({ message: "Package assignment not found" });
+    res.json(updated);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.delete("/api/nutritionist/clients/:clientId/package/:packageAssignmentId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  const assignmentId = parseInt(req.params.packageAssignmentId);
+  if (isNaN(clientId) || isNaN(assignmentId)) return res.status(400).json({ message: "Invalid ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+  await storage.removeClientPackage(assignmentId, userId);
+  res.json({ success: true });
+});
+
+// ─── Expiring Soon Summary ────────────────────────────────────────────────────
+
+router.get("/api/nutritionist/packages/expiring-soon", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const withinDays = parseInt(req.query.days as string) || 14;
+  const list = await storage.getExpiringSoonClients(userId, withinDays);
+  res.json(list);
+});
+
 
 export default router;

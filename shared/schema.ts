@@ -1488,3 +1488,63 @@ export const insertSessionTemplateSchema = createInsertSchema(sessionTemplates).
 
 export type InsertSessionTemplate = z.infer<typeof insertSessionTemplateSchema>;
 export type SessionTemplate = typeof sessionTemplates.$inferSelect;
+
+// ─── Service Packages ─────────────────────────────────────────────────────────
+
+export const servicePackages = pgTable("service_packages", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  sessionCount: integer("session_count").notNull(),
+  durationWeeks: integer("duration_weeks").notNull(),
+  referencePrice: numeric("reference_price"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertServicePackageSchema = createInsertSchema(servicePackages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  nutritionistId: true,
+}).extend({
+  name: z.string().min(1, "Name is required").max(200),
+  description: z.string().max(1000).optional(),
+  sessionCount: z.number().int().min(1, "Must have at least 1 session"),
+  durationWeeks: z.number().int().min(1, "Must be at least 1 week"),
+  referencePrice: z.string().optional(),
+});
+
+export type InsertServicePackage = z.infer<typeof insertServicePackageSchema>;
+export type ServicePackage = typeof servicePackages.$inferSelect;
+
+// ─── Client Packages (Assignments) ───────────────────────────────────────────
+
+export const clientPackages = pgTable("client_packages", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  packageId: integer("package_id").notNull().references(() => servicePackages.id),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  sessionsUsed: integer("sessions_used").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertClientPackageSchema = createInsertSchema(clientPackages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  nutritionistId: true,
+  clientId: true,
+  endDate: true,
+  sessionsUsed: true,
+}).extend({
+  packageId: z.number().int().positive(),
+  startDate: z.string().min(1, "Start date is required"),
+});
+
+export type InsertClientPackage = z.infer<typeof insertClientPackageSchema>;
+export type ClientPackage = typeof clientPackages.$inferSelect;

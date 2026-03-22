@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, clientDocuments, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, nutritionistSessions, sessionTemplates, surveyTemplates, surveyDeliveries, surveyResponses, stravaActivities, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob, type ClientDocument, type NutritionistSession, type InsertNutritionistSession, type SessionTemplate, type InsertSessionTemplate, type SurveyTemplate, type InsertSurveyTemplate, type SurveyDelivery, type SurveyResponse } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, clientDocuments, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, nutritionistSessions, sessionTemplates, surveyTemplates, surveyDeliveries, surveyResponses, stravaActivities, servicePackages, clientPackages, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob, type ClientDocument, type NutritionistSession, type InsertNutritionistSession, type SessionTemplate, type InsertSessionTemplate, type SurveyTemplate, type InsertSurveyTemplate, type SurveyDelivery, type SurveyResponse, type ServicePackage, type InsertServicePackage, type ClientPackage, type InsertClientPackage } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -417,6 +417,20 @@ export interface IStorage {
   getSurveyResponseByDelivery(deliveryId: number): Promise<SurveyResponse | undefined>;
   createSurveyResponse(deliveryId: number, clientId: number, answers: Record<string, unknown>): Promise<SurveyResponse>;
   getAggregateSurveyResults(nutritionistId: number, templateId: number): Promise<{ questionId: string; questionText: string; questionType: string; answers: unknown[] }[]>;
+
+  // Service packages (package templates)
+  getServicePackages(nutritionistId: number): Promise<ServicePackage[]>;
+  getServicePackageById(id: number, nutritionistId: number): Promise<ServicePackage | undefined>;
+  createServicePackage(nutritionistId: number, data: InsertServicePackage): Promise<ServicePackage>;
+  updateServicePackage(id: number, nutritionistId: number, data: Partial<InsertServicePackage>): Promise<ServicePackage | undefined>;
+  deleteServicePackage(id: number, nutritionistId: number): Promise<void>;
+
+  // Client packages (assignments)
+  getActiveClientPackage(nutritionistId: number, clientId: number): Promise<(ClientPackage & { package: ServicePackage }) | undefined>;
+  assignClientPackage(nutritionistId: number, clientId: number, data: { packageId: number; startDate: string; endDate: string }): Promise<ClientPackage & { package: ServicePackage }>;
+  updateClientPackage(id: number, nutritionistId: number, data: { startDate?: string; endDate?: string; sessionsUsed?: number }): Promise<(ClientPackage & { package: ServicePackage }) | undefined>;
+  removeClientPackage(id: number, nutritionistId: number): Promise<void>;
+  getExpiringSoonClients(nutritionistId: number, withinDays: number): Promise<{ clientId: number; clientName: string; endDate: string; daysRemaining: number; packageName: string }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3402,6 +3416,8 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSessionTemplate(id: number, nutritionistId: number): Promise<void> {
     await db.delete(sessionTemplates).where(and(eq(sessionTemplates.id, id), eq(sessionTemplates.nutritionistId, nutritionistId)));
+  }
+
   async getSurveyTemplates(nutritionistId: number): Promise<SurveyTemplate[]> {
     return db.select().from(surveyTemplates).where(eq(surveyTemplates.nutritionistId, nutritionistId)).orderBy(desc(surveyTemplates.createdAt));
   }
@@ -3569,6 +3585,124 @@ export class DatabaseStorage implements IStorage {
       questionType: q.type,
       answers: responses.map(r => (r.answers as Record<string, unknown>)[q.id]).filter(a => a !== undefined && a !== null && a !== ""),
     }));
+  }
+
+  async getServicePackages(nutritionistId: number): Promise<ServicePackage[]> {
+    return db
+      .select()
+      .from(servicePackages)
+      .where(eq(servicePackages.nutritionistId, nutritionistId))
+      .orderBy(servicePackages.name);
+  }
+
+  async getServicePackageById(id: number, nutritionistId: number): Promise<ServicePackage | undefined> {
+    const [pkg] = await db
+      .select()
+      .from(servicePackages)
+      .where(and(eq(servicePackages.id, id), eq(servicePackages.nutritionistId, nutritionistId)));
+    return pkg;
+  }
+
+  async createServicePackage(nutritionistId: number, data: InsertServicePackage): Promise<ServicePackage> {
+    const [pkg] = await db.insert(servicePackages).values({
+      ...data,
+      nutritionistId,
+    }).returning();
+    return pkg;
+  }
+
+  async updateServicePackage(id: number, nutritionistId: number, data: Partial<InsertServicePackage>): Promise<ServicePackage | undefined> {
+    const [pkg] = await db
+      .update(servicePackages)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(servicePackages.id, id), eq(servicePackages.nutritionistId, nutritionistId)))
+      .returning();
+    return pkg;
+  }
+
+  async deleteServicePackage(id: number, nutritionistId: number): Promise<void> {
+    await db.delete(servicePackages).where(and(eq(servicePackages.id, id), eq(servicePackages.nutritionistId, nutritionistId)));
+  }
+
+  async getActiveClientPackage(nutritionistId: number, clientId: number): Promise<(ClientPackage & { package: ServicePackage }) | undefined> {
+    const [row] = await db
+      .select()
+      .from(clientPackages)
+      .innerJoin(servicePackages, eq(clientPackages.packageId, servicePackages.id))
+      .where(and(eq(clientPackages.nutritionistId, nutritionistId), eq(clientPackages.clientId, clientId)))
+      .orderBy(desc(clientPackages.createdAt))
+      .limit(1);
+    if (!row) return undefined;
+    return { ...row.client_packages, package: row.service_packages };
+  }
+
+  async assignClientPackage(nutritionistId: number, clientId: number, data: { packageId: number; startDate: string; endDate: string }): Promise<ClientPackage & { package: ServicePackage }> {
+    await db.delete(clientPackages).where(and(
+      eq(clientPackages.nutritionistId, nutritionistId),
+      eq(clientPackages.clientId, clientId),
+    ));
+    const [cp] = await db.insert(clientPackages).values({
+      nutritionistId,
+      clientId,
+      packageId: data.packageId,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      sessionsUsed: 0,
+    }).returning();
+    const pkg = await this.getServicePackageById(data.packageId, nutritionistId);
+    return { ...cp, package: pkg! };
+  }
+
+  async updateClientPackage(id: number, nutritionistId: number, data: { startDate?: string; endDate?: string; sessionsUsed?: number }): Promise<(ClientPackage & { package: ServicePackage }) | undefined> {
+    const [cp] = await db
+      .update(clientPackages)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(clientPackages.id, id), eq(clientPackages.nutritionistId, nutritionistId)))
+      .returning();
+    if (!cp) return undefined;
+    const pkg = await this.getServicePackageById(cp.packageId, nutritionistId);
+    if (!pkg) return undefined;
+    return { ...cp, package: pkg };
+  }
+
+  async removeClientPackage(id: number, nutritionistId: number): Promise<void> {
+    await db.delete(clientPackages).where(and(eq(clientPackages.id, id), eq(clientPackages.nutritionistId, nutritionistId)));
+  }
+
+  async getExpiringSoonClients(nutritionistId: number, withinDays: number): Promise<{ clientId: number; clientName: string; endDate: string; daysRemaining: number; packageName: string }[]> {
+    const today = new Date();
+    const cutoff = new Date(today.getTime() + withinDays * 24 * 60 * 60 * 1000);
+    const todayStr = today.toISOString().split("T")[0];
+    const cutoffStr = cutoff.toISOString().split("T")[0];
+
+    const rows = await db
+      .select({
+        clientId: clientPackages.clientId,
+        clientName: users.name,
+        endDate: clientPackages.endDate,
+        packageName: servicePackages.name,
+      })
+      .from(clientPackages)
+      .innerJoin(servicePackages, eq(clientPackages.packageId, servicePackages.id))
+      .innerJoin(users, eq(clientPackages.clientId, users.id))
+      .where(and(
+        eq(clientPackages.nutritionistId, nutritionistId),
+        gte(clientPackages.endDate, todayStr),
+        lte(clientPackages.endDate, cutoffStr),
+      ))
+      .orderBy(clientPackages.endDate);
+
+    return rows.map(r => {
+      const end = new Date(r.endDate);
+      const daysRemaining = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return {
+        clientId: r.clientId,
+        clientName: r.clientName,
+        endDate: r.endDate,
+        daysRemaining,
+        packageName: r.packageName,
+      };
+    });
   }
 }
 
