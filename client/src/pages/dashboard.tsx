@@ -49,7 +49,7 @@ import {
 import {
   LogOut, BookOpen, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
-  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, TrendingUp, Star,
+  Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, BookMarked, TrendingUp, Home,
   Sparkles, ScanLine, Heart, ShieldCheck, Zap, User, Crown, Briefcase, MessageSquare,
   CalendarDays, Activity, PenLine, Target, RefreshCw,
 } from "lucide-react";
@@ -1421,7 +1421,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-2" data-testid="dashboard-tab-toggle">
                 {(
                   [
-                    { key: 'favourites' as const, label: 'Favourites', icon: Star },
+                    { key: 'favourites' as const, label: 'Home', icon: Home },
                     { key: 'planning' as const, label: 'Planning', icon: CalendarDays },
                     { key: 'tracking' as const, label: 'Tracking', icon: Activity },
                     { key: 'insights' as const, label: 'Insights', icon: TrendingUp },
@@ -1493,8 +1493,8 @@ export default function Dashboard() {
                       <MyMealsFoodWidget />
                     ) : (
                       <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 text-center" data-testid="favourites-sign-in-prompt">
-                        <Star className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
-                        <p className="text-sm font-medium text-zinc-500 mb-1">Sign in to view your favourites</p>
+                        <Home className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
+                        <p className="text-sm font-medium text-zinc-500 mb-1">Sign in to view your home</p>
                         <p className="text-xs text-zinc-400">Save meals and foods you love for quick access.</p>
                       </div>
                     )}
