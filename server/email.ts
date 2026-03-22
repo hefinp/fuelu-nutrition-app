@@ -111,7 +111,7 @@ function wrapEmailHtml(body: string, opts: {
                       <tr>
                         <td align="center" width="36" style="background:#18181b;line-height:0;font-size:0">
                           <div style="width:36px;height:36px;background:#ffffff;border-radius:8px;line-height:0;font-size:0">
-                            <div style="width:3px;height:14px;background:#18181b;margin:0 auto"></div>
+                            <div style="width:3px;height:12px;background:#18181b;margin:0 auto"></div>
                             <div style="width:17px;height:17px;background:#18181b;border-radius:9px;margin:0 auto"></div>
                           </div>
                         </td>
