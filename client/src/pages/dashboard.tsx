@@ -542,6 +542,7 @@ export default function Dashboard() {
   );
   const [welcomeExiting, setWelcomeExiting] = useState(false);
   const welcomeWidgetRef = useRef<HTMLDivElement | null>(null);
+  const welcomeHeightRef = useRef<number>(0);
   const isCoarsePointer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const [showMetricsPanel, setShowMetricsPanel] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -930,12 +931,39 @@ export default function Dashboard() {
       ([entry]) => {
         if (entry.intersectionRatio === 0 && !exitTriggered) {
           exitTriggered = true;
+          const bannerEl = welcomeWidgetRef.current;
+          if (!bannerEl) return;
+          const bannerHeight = bannerEl.offsetHeight;
+          const bannerMargin = parseFloat(getComputedStyle(bannerEl).marginBottom || "0");
+          const totalRemoved = bannerHeight + bannerMargin;
+          welcomeHeightRef.current = totalRemoved;
+          document.documentElement.classList.remove("dashboard-snap");
           setWelcomeExiting(true);
-          exitTimer = setTimeout(() => {
+          bannerEl.style.overflow = "hidden";
+          bannerEl.style.height = bannerHeight + "px";
+          requestAnimationFrame(() => {
+            bannerEl.style.height = "0px";
+            bannerEl.style.marginBottom = "0px";
+          });
+          let completed = false;
+          const finalize = () => {
+            if (completed) return;
+            completed = true;
+            const scrollCompensation = welcomeHeightRef.current;
+            if (scrollCompensation > 0) {
+              window.scrollTo({ top: Math.max(0, window.scrollY - scrollCompensation), behavior: "auto" });
+            }
             sessionStorage.setItem("welcomeWidgetDismissed", "1");
             setWelcomeDismissed(true);
             setWelcomeExiting(false);
-          }, 300);
+            requestAnimationFrame(() => {
+              document.documentElement.classList.add("dashboard-snap");
+            });
+          };
+          bannerEl.addEventListener("transitionend", (e) => {
+            if (e.propertyName === "height") finalize();
+          }, { once: true });
+          exitTimer = setTimeout(finalize, 400);
         }
       },
       { threshold: 0 }
@@ -944,6 +972,9 @@ export default function Dashboard() {
     return () => {
       observer.disconnect();
       if (exitTimer !== null) clearTimeout(exitTimer);
+      if (!document.documentElement.classList.contains("dashboard-snap")) {
+        document.documentElement.classList.add("dashboard-snap");
+      }
     };
   }, [welcomeDismissed]);
 
@@ -1649,7 +1680,7 @@ export default function Dashboard() {
               data-testid="widget-welcome"
               className="mb-6"
               style={isCoarsePointer ? {
-                transition: "opacity 0.3s ease, transform 0.3s ease",
+                transition: "opacity 0.3s ease, transform 0.3s ease, height 0.35s ease, margin-bottom 0.35s ease",
                 opacity: welcomeExiting ? 0 : 1,
                 transform: welcomeExiting ? "translateY(-8px)" : "translateY(0)",
               } : undefined}
