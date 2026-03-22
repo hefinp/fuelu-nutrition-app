@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type MealComment, type StravaConnection, stravaActivities, type InsertStravaActivity, type StravaActivity } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, reengagementSequences, activeReengagementJobs, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type MealComment, type StravaConnection, stravaActivities, type InsertStravaActivity, type StravaActivity } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -335,6 +335,22 @@ export interface IStorage {
   getClientMetricsByClientId(clientId: number): Promise<ClientMetric[]>;
 
   deleteUser(userId: number): Promise<void>;
+
+  // Re-engagement sequences
+  getReengagementSequences(nutritionistId: number): Promise<ReengagementSequence[]>;
+  getReengagementSequenceById(id: number, nutritionistId: number): Promise<ReengagementSequence | undefined>;
+  createReengagementSequence(nutritionistId: number, data: InsertReengagementSequence): Promise<ReengagementSequence>;
+  updateReengagementSequence(id: number, nutritionistId: number, data: Partial<InsertReengagementSequence>): Promise<ReengagementSequence | undefined>;
+  deleteReengagementSequence(id: number, nutritionistId: number): Promise<void>;
+
+  // Active re-engagement jobs
+  getActiveReengagementJobs(nutritionistId: number): Promise<(ActiveReengagementJob & { sequence: ReengagementSequence })[]>;
+  getActiveReengagementJobByClient(nutritionistId: number, clientId: number): Promise<ActiveReengagementJob | undefined>;
+  createActiveReengagementJob(nutritionistId: number, clientId: number, sequenceId: number, nextSendAt: Date): Promise<ActiveReengagementJob>;
+  updateActiveReengagementJob(id: number, updates: { currentStep?: number; nextSendAt?: Date; status?: string }): Promise<ActiveReengagementJob | undefined>;
+  getDueReengagementJobs(): Promise<(ActiveReengagementJob & { sequence: ReengagementSequence })[]>;
+  getAllNutritionistsWithDefaultSequences(): Promise<{ nutritionistId: number; sequence: ReengagementSequence }[]>;
+  getClientLastLogDate(clientId: number): Promise<string | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2822,6 +2838,116 @@ export class DatabaseStorage implements IStorage {
       .from(clientMetrics)
       .where(eq(clientMetrics.clientId, clientId))
       .orderBy(desc(clientMetrics.recordedAt));
+  async getReengagementSequences(nutritionistId: number): Promise<ReengagementSequence[]> {
+    return db.select().from(reengagementSequences)
+      .where(eq(reengagementSequences.nutritionistId, nutritionistId))
+      .orderBy(desc(reengagementSequences.createdAt));
+  }
+
+  async getReengagementSequenceById(id: number, nutritionistId: number): Promise<ReengagementSequence | undefined> {
+    const [seq] = await db.select().from(reengagementSequences)
+      .where(and(eq(reengagementSequences.id, id), eq(reengagementSequences.nutritionistId, nutritionistId)));
+    return seq;
+  }
+
+  async createReengagementSequence(nutritionistId: number, data: InsertReengagementSequence): Promise<ReengagementSequence> {
+    if (data.isDefault) {
+      await db.update(reengagementSequences)
+        .set({ isDefault: false })
+        .where(eq(reengagementSequences.nutritionistId, nutritionistId));
+    }
+    const [seq] = await db.insert(reengagementSequences)
+      .values({ ...data, nutritionistId })
+      .returning();
+    return seq;
+  }
+
+  async updateReengagementSequence(id: number, nutritionistId: number, data: Partial<InsertReengagementSequence>): Promise<ReengagementSequence | undefined> {
+    if (data.isDefault) {
+      await db.update(reengagementSequences)
+        .set({ isDefault: false })
+        .where(and(eq(reengagementSequences.nutritionistId, nutritionistId), sql`id != ${id}`));
+    }
+    const [updated] = await db.update(reengagementSequences)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(eq(reengagementSequences.id, id), eq(reengagementSequences.nutritionistId, nutritionistId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteReengagementSequence(id: number, nutritionistId: number): Promise<void> {
+    await db.update(activeReengagementJobs)
+      .set({ status: "cancelled", updatedAt: new Date() })
+      .where(and(eq(activeReengagementJobs.sequenceId, id), eq(activeReengagementJobs.nutritionistId, nutritionistId)));
+    await db.delete(reengagementSequences)
+      .where(and(eq(reengagementSequences.id, id), eq(reengagementSequences.nutritionistId, nutritionistId)));
+  }
+
+  async getActiveReengagementJobs(nutritionistId: number): Promise<(ActiveReengagementJob & { sequence: ReengagementSequence })[]> {
+    const rows = await db.select({
+      job: activeReengagementJobs,
+      sequence: reengagementSequences,
+    })
+      .from(activeReengagementJobs)
+      .innerJoin(reengagementSequences, eq(activeReengagementJobs.sequenceId, reengagementSequences.id))
+      .where(eq(activeReengagementJobs.nutritionistId, nutritionistId))
+      .orderBy(desc(activeReengagementJobs.createdAt));
+    return rows.map(r => ({ ...r.job, sequence: r.sequence }));
+  }
+
+  async getActiveReengagementJobByClient(nutritionistId: number, clientId: number): Promise<ActiveReengagementJob | undefined> {
+    const [job] = await db.select().from(activeReengagementJobs)
+      .where(and(eq(activeReengagementJobs.nutritionistId, nutritionistId), eq(activeReengagementJobs.clientId, clientId)));
+    return job;
+  }
+
+  async createActiveReengagementJob(nutritionistId: number, clientId: number, sequenceId: number, nextSendAt: Date): Promise<ActiveReengagementJob> {
+    const [job] = await db.insert(activeReengagementJobs)
+      .values({ nutritionistId, clientId, sequenceId, nextSendAt, currentStep: 0, status: "active" })
+      .onConflictDoUpdate({
+        target: [activeReengagementJobs.nutritionistId, activeReengagementJobs.clientId],
+        set: { sequenceId, nextSendAt, currentStep: 0, status: "active", updatedAt: new Date() },
+      })
+      .returning();
+    return job;
+  }
+
+  async updateActiveReengagementJob(id: number, updates: { currentStep?: number; nextSendAt?: Date; status?: string }): Promise<ActiveReengagementJob | undefined> {
+    const [updated] = await db.update(activeReengagementJobs)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(activeReengagementJobs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getDueReengagementJobs(): Promise<(ActiveReengagementJob & { sequence: ReengagementSequence })[]> {
+    const now = new Date();
+    const rows = await db.select({
+      job: activeReengagementJobs,
+      sequence: reengagementSequences,
+    })
+      .from(activeReengagementJobs)
+      .innerJoin(reengagementSequences, eq(activeReengagementJobs.sequenceId, reengagementSequences.id))
+      .where(and(
+        eq(activeReengagementJobs.status, "active"),
+        lte(activeReengagementJobs.nextSendAt, now),
+      ));
+    return rows.map(r => ({ ...r.job, sequence: r.sequence }));
+  }
+
+  async getAllNutritionistsWithDefaultSequences(): Promise<{ nutritionistId: number; sequence: ReengagementSequence }[]> {
+    const rows = await db.select().from(reengagementSequences)
+      .where(eq(reengagementSequences.isDefault, true));
+    return rows.map(r => ({ nutritionistId: r.nutritionistId, sequence: r }));
+  }
+
+  async getClientLastLogDate(clientId: number): Promise<string | null> {
+    const [latest] = await db.select({ date: foodLogEntries.date })
+      .from(foodLogEntries)
+      .where(eq(foodLogEntries.userId, clientId))
+      .orderBy(desc(foodLogEntries.date))
+      .limit(1);
+    return latest?.date ?? null;
   }
 }
 

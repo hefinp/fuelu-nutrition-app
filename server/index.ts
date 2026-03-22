@@ -164,6 +164,11 @@ app.use((req, res, next) => {
     console.error("[init] Strava webhook registration failed:", err)
   );
 
+  const { runReengagementWorker } = await import("./reengagement-worker");
+  runReengagementWorker().catch(err =>
+    console.error("[init] Re-engagement worker failed to start:", err)
+  );
+
   storage.upsertFeatureGate("strava_activity_level", "advanced", 0, "Strava-derived activity level in calculator").catch(err =>
     console.error("[init] Failed to seed strava_activity_level feature gate:", err)
   );

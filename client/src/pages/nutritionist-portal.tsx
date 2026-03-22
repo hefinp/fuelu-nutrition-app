@@ -10,7 +10,7 @@ import {
   Activity, BarChart2, Bell, Building2, UserMinus, UserPlus, RefreshCw,
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
   MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2, Download, History,
-  LogOut, User, BookOpen, LineChart as LineChartIcon, KanbanSquare,
+  LogOut, User, BookOpen, LineChart as LineChartIcon, KanbanSquare, Zap, Pause, Play, Ban,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { AnimatePresence, motion } from "framer-motion";
@@ -150,6 +150,35 @@ interface Alert {
   date: string;
 }
 
+interface ReengagementMessage {
+  delayDays: number;
+  body: string;
+}
+
+interface ReengagementSequence {
+  id: number;
+  nutritionistId: number;
+  name: string;
+  triggerAfterDays: number;
+  messages: ReengagementMessage[];
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ActiveReengagementJob {
+  id: number;
+  nutritionistId: number;
+  clientId: number;
+  sequenceId: number;
+  currentStep: number;
+  nextSendAt: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  sequence: ReengagementSequence;
+}
+
 interface AdherenceData {
   clientId: number;
   fromDate: string;
@@ -261,6 +290,13 @@ function MonitoringDashboard({
     queryFn: () => apiRequest("GET", "/api/nutritionist/monitoring/alerts").then(r => r.json()),
   });
 
+  const { data: reengagementJobs = [] } = useQuery<ActiveReengagementJob[]>({
+    queryKey: ["/api/nutritionist/reengagement/jobs"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/reengagement/jobs").then(r => r.json()),
+  });
+
+  const reengagementMap = new Map(reengagementJobs.map(j => [j.clientId, j]));
+
   const highAlerts = alerts.filter(a => a.severity === "high");
 
   let filtered = dashboardData.filter(c => {
@@ -366,6 +402,7 @@ function MonitoringDashboard({
             const s = STATUS_LABELS[c.status] ?? STATUS_LABELS.onboarding;
             const m = c.monitoring;
             const hasAlerts = m.alerts.length > 0;
+            const reJob = reengagementMap.get(c.clientId);
             return (
               <button
                 key={c.id}
@@ -378,7 +415,7 @@ function MonitoringDashboard({
                   {c.client.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="text-sm font-semibold text-zinc-900">{c.client.name}</span>
                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${s.classes}`}>{s.label}</span>
                     {m.alerts.filter(a => a.startsWith("inactive")).map((a, i) => (
@@ -386,6 +423,12 @@ function MonitoringDashboard({
                         {a.replace("inactive_", "").replace("d", "d inactive")}
                       </span>
                     ))}
+                    {reJob && (reJob.status === "active" || reJob.status === "paused") && (
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex items-center gap-0.5 ${reJob.status === "active" ? "bg-violet-50 text-violet-700" : "bg-zinc-100 text-zinc-500"}`} data-testid={`badge-reengagement-${c.id}`}>
+                        <Zap className="w-2.5 h-2.5" />
+                        {reJob.status === "active" ? "Sequence active" : "Sequence paused"}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="w-24">
@@ -3597,7 +3640,519 @@ function InviteModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-type Tab = "monitoring" | "clients" | "pipeline" | "practice";
+const DEFAULT_MESSAGES: ReengagementMessage[] = [
+  { delayDays: 0, body: "Hi! I noticed you haven't logged your meals in a few days. How are you getting on? I'm here if you need any support or adjustments to your plan." },
+  { delayDays: 4, body: "Just checking in again — it can be tough to stay consistent, but even small steps count. Would it help to review your meal plan together? Don't hesitate to reach out." },
+  { delayDays: 7, body: "It's been a couple of weeks since your last log. Your health journey matters — let's reconnect when you're ready. I'm available any time to help you get back on track." },
+];
+
+function ReengagementManager({ clients }: { clients: ClientWithUser[] }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editingSeq, setEditingSeq] = useState<ReengagementSequence | null>(null);
+  const [showNewSeq, setShowNewSeq] = useState(false);
+
+  const { data: sequences = [], isLoading: seqLoading } = useQuery<ReengagementSequence[]>({
+    queryKey: ["/api/nutritionist/reengagement/sequences"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/reengagement/sequences").then(r => r.json()),
+  });
+
+  const { data: jobs = [], isLoading: jobsLoading } = useQuery<ActiveReengagementJob[]>({
+    queryKey: ["/api/nutritionist/reengagement/jobs"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/reengagement/jobs").then(r => r.json()),
+  });
+
+  const deleteSeqMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/nutritionist/reengagement/sequences/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/reengagement/sequences"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/reengagement/jobs"] });
+      toast({ title: "Sequence deleted" });
+    },
+  });
+
+  const cancelJobMutation = useMutation({
+    mutationFn: ({ clientId }: { clientId: number }) =>
+      apiRequest("POST", `/api/nutritionist/clients/${clientId}/reengagement/cancel`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/reengagement/jobs"] });
+      toast({ title: "Sequence cancelled" });
+    },
+  });
+
+  const pauseJobMutation = useMutation({
+    mutationFn: ({ clientId }: { clientId: number }) =>
+      apiRequest("POST", `/api/nutritionist/clients/${clientId}/reengagement/pause`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/reengagement/jobs"] });
+      toast({ title: "Sequence paused" });
+    },
+  });
+
+  const resumeJobMutation = useMutation({
+    mutationFn: ({ clientId }: { clientId: number }) =>
+      apiRequest("POST", `/api/nutritionist/clients/${clientId}/reengagement/resume`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/reengagement/jobs"] });
+      toast({ title: "Sequence resumed" });
+    },
+  });
+
+  const startJobMutation = useMutation({
+    mutationFn: ({ clientId, sequenceId }: { clientId: number; sequenceId: number }) =>
+      apiRequest("POST", `/api/nutritionist/clients/${clientId}/reengagement/start`, { sequenceId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/reengagement/jobs"] });
+      toast({ title: "Sequence started" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to start sequence", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const activeJobs = jobs.filter(j => j.status === "active" || j.status === "paused");
+  const clientMap = new Map(clients.map(c => [c.clientId, c]));
+
+  if (seqLoading || jobsLoading) {
+    return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>;
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-display font-bold text-zinc-900 flex items-center gap-2">
+              <Zap className="w-5 h-5 text-zinc-500" />
+              Re-engagement Sequences
+            </h2>
+            <p className="text-sm text-zinc-500 mt-0.5">Pre-written message chains that send automatically when clients go inactive</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowNewSeq(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors"
+            data-testid="button-new-sequence"
+          >
+            <Plus className="w-4 h-4" />
+            New Sequence
+          </button>
+        </div>
+
+        {sequences.length === 0 && !showNewSeq ? (
+          <div className="bg-white rounded-2xl border border-zinc-100 p-12 text-center">
+            <Zap className="w-10 h-10 text-zinc-300 mx-auto mb-3" />
+            <p className="text-sm font-medium text-zinc-600 mb-1">No sequences yet</p>
+            <p className="text-xs text-zinc-400 mb-4">Create a message sequence to automatically re-engage inactive clients</p>
+            <button
+              type="button"
+              onClick={() => setShowNewSeq(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors"
+              data-testid="button-create-first-sequence"
+            >
+              <Plus className="w-4 h-4" />
+              Create Your First Sequence
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {sequences.map(seq => (
+              <div key={seq.id} className="bg-white rounded-2xl border border-zinc-100 p-4" data-testid={`card-sequence-${seq.id}`}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold text-zinc-900">{seq.name}</span>
+                      {seq.isDefault && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-zinc-900 text-white">Default</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-zinc-500">
+                      Triggers after <strong>{seq.triggerAfterDays}</strong> days of inactivity ·{" "}
+                      <strong>{seq.messages.length}</strong> message{seq.messages.length !== 1 ? "s" : ""}
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {seq.messages.map((m, i) => (
+                        <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-50 border border-zinc-100 text-zinc-500">
+                          Day {seq.messages.slice(0, i).reduce((sum, msg) => sum + msg.delayDays, 0) + m.delayDays}: {m.body.slice(0, 40)}…
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setEditingSeq(seq)}
+                      className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
+                      data-testid={`button-edit-sequence-${seq.id}`}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm("Delete this sequence? Any active jobs using it will be cancelled.")) {
+                          deleteSeqMutation.mutate(seq.id);
+                        }
+                      }}
+                      className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      data-testid={`button-delete-sequence-${seq.id}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {(showNewSeq || editingSeq) && (
+          <SequenceForm
+            sequence={editingSeq ?? undefined}
+            clients={clients}
+            onClose={() => { setShowNewSeq(false); setEditingSeq(null); }}
+          />
+        )}
+      </div>
+
+      <div>
+        <h3 className="text-base font-semibold text-zinc-900 mb-4 flex items-center gap-2">
+          <Activity className="w-4 h-4 text-zinc-500" />
+          Active Sequences
+        </h3>
+
+        {activeJobs.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-zinc-100 p-8 text-center">
+            <p className="text-sm text-zinc-400">No active sequences running</p>
+            {sequences.length > 0 && clients.length > 0 && (
+              <p className="text-xs text-zinc-400 mt-1">Start a sequence from a client profile or use the form below</p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {activeJobs.map(job => {
+              const client = clientMap.get(job.clientId);
+              const totalSteps = job.sequence.messages.length;
+              const isActive = job.status === "active";
+              return (
+                <div key={job.id} className="bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-4" data-testid={`card-job-${job.id}`}>
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ${isActive ? "bg-zinc-900" : "bg-zinc-300"}`}>
+                    {client?.client.name.charAt(0).toUpperCase() ?? "?"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-semibold text-zinc-900">{client?.client.name ?? `Client #${job.clientId}`}</span>
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${isActive ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-500"}`}>
+                        {isActive ? "Active" : "Paused"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-500">
+                      {job.sequence.name} · Step {job.currentStep + 1}/{totalSteps} ·{" "}
+                      Next: {new Date(job.nextSendAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {isActive ? (
+                      <button
+                        type="button"
+                        onClick={() => pauseJobMutation.mutate({ clientId: job.clientId })}
+                        disabled={pauseJobMutation.isPending}
+                        className="p-1.5 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Pause sequence"
+                        data-testid={`button-pause-job-${job.id}`}
+                      >
+                        <Pause className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => resumeJobMutation.mutate({ clientId: job.clientId })}
+                        disabled={resumeJobMutation.isPending}
+                        className="p-1.5 text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="Resume sequence"
+                        data-testid={`button-resume-job-${job.id}`}
+                      >
+                        <Play className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm("Cancel this sequence for this client?")) {
+                          cancelJobMutation.mutate({ clientId: job.clientId });
+                        }
+                      }}
+                      disabled={cancelJobMutation.isPending}
+                      className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Cancel sequence"
+                      data-testid={`button-cancel-job-${job.id}`}
+                    >
+                      <Ban className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {sequences.length > 0 && clients.length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Start a Sequence for a Client</h4>
+            <StartJobForm sequences={sequences} clients={clients} onStart={({ clientId, sequenceId }) => startJobMutation.mutate({ clientId, sequenceId })} isPending={startJobMutation.isPending} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SequenceForm({ sequence, clients, onClose }: { sequence?: ReengagementSequence; clients: ClientWithUser[]; onClose: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const isEdit = !!sequence;
+
+  const [name, setName] = useState(sequence?.name ?? "");
+  const [triggerAfterDays, setTriggerAfterDays] = useState(sequence?.triggerAfterDays ?? 3);
+  const [isDefault, setIsDefault] = useState(sequence?.isDefault ?? false);
+  const [messages, setMessages] = useState<ReengagementMessage[]>(
+    sequence?.messages ?? DEFAULT_MESSAGES.map(m => ({ ...m }))
+  );
+
+  const saveMutation = useMutation({
+    mutationFn: (data: { name: string; triggerAfterDays: number; isDefault: boolean; messages: ReengagementMessage[] }) =>
+      isEdit
+        ? apiRequest("PUT", `/api/nutritionist/reengagement/sequences/${sequence!.id}`, data)
+        : apiRequest("POST", "/api/nutritionist/reengagement/sequences", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/reengagement/sequences"] });
+      toast({ title: isEdit ? "Sequence updated" : "Sequence created" });
+      onClose();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!name.trim()) return toast({ title: "Name is required", variant: "destructive" });
+    if (messages.length === 0) return toast({ title: "At least one message is required", variant: "destructive" });
+    for (const m of messages) {
+      if (!m.body.trim()) return toast({ title: "All messages must have content", variant: "destructive" });
+    }
+    saveMutation.mutate({ name: name.trim(), triggerAfterDays, isDefault, messages });
+  };
+
+  const addMessage = () => {
+    if (messages.length >= 3) return;
+    setMessages(ms => [...ms, { delayDays: 7, body: "" }]);
+  };
+
+  const removeMessage = (i: number) => {
+    setMessages(ms => ms.filter((_, idx) => idx !== i));
+  };
+
+  const updateMessage = (i: number, field: keyof ReengagementMessage, value: string | number) => {
+    setMessages(ms => ms.map((m, idx) => idx === i ? { ...m, [field]: value } : m));
+  };
+
+  return (
+    <div className="mt-4 bg-white rounded-2xl border border-zinc-200 p-5" data-testid="form-sequence">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-zinc-900">{isEdit ? "Edit Sequence" : "New Sequence"}</h3>
+        <button type="button" onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-700" data-testid="button-close-sequence-form">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-medium text-zinc-700 mb-1">Sequence Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="e.g. 3-Day Check-in"
+            className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+            data-testid="input-sequence-name"
+          />
+        </div>
+
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-zinc-700 mb-1">Trigger after inactivity (days)</label>
+            <input
+              type="number"
+              min={1}
+              max={90}
+              value={triggerAfterDays}
+              onChange={e => setTriggerAfterDays(parseInt(e.target.value) || 3)}
+              className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+              data-testid="input-trigger-days"
+            />
+          </div>
+          <div className="flex items-end pb-0.5">
+            <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer pb-2.5">
+              <input
+                type="checkbox"
+                checked={isDefault}
+                onChange={e => setIsDefault(e.target.checked)}
+                className="rounded border-zinc-300"
+                data-testid="checkbox-is-default"
+              />
+              Set as default
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-medium text-zinc-700">Messages ({messages.length}/3)</label>
+            {messages.length < 3 && (
+              <button
+                type="button"
+                onClick={addMessage}
+                className="text-xs text-zinc-500 hover:text-zinc-900 flex items-center gap-1"
+                data-testid="button-add-message"
+              >
+                <Plus className="w-3 h-3" />
+                Add message
+              </button>
+            )}
+          </div>
+          <div className="space-y-3">
+            {messages.map((msg, i) => (
+              <div key={i} className="p-3 bg-zinc-50 rounded-xl space-y-2" data-testid={`message-item-${i}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-zinc-500">Message {i + 1}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-zinc-500">Send</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={90}
+                        value={msg.delayDays}
+                        onChange={e => updateMessage(i, "delayDays", parseInt(e.target.value) || 0)}
+                        className="w-14 px-2 py-1 border border-zinc-200 rounded-lg text-xs text-center focus:outline-none focus:ring-2 focus:ring-zinc-900/20 bg-white"
+                        data-testid={`input-delay-${i}`}
+                      />
+                      <span className="text-xs text-zinc-500">days after {i === 0 ? "trigger" : "previous"}</span>
+                    </div>
+                  </div>
+                  {messages.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeMessage(i)}
+                      className="p-1 text-zinc-300 hover:text-red-500 transition-colors"
+                      data-testid={`button-remove-message-${i}`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  value={msg.body}
+                  onChange={e => updateMessage(i, "body", e.target.value)}
+                  placeholder="Write your message..."
+                  rows={3}
+                  className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900/20 bg-white resize-none"
+                  data-testid={`textarea-message-${i}`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-zinc-600 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors"
+            data-testid="button-cancel-sequence-form"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saveMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+            data-testid="button-save-sequence"
+          >
+            {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            {isEdit ? "Save Changes" : "Create Sequence"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StartJobForm({
+  sequences,
+  clients,
+  onStart,
+  isPending,
+}: {
+  sequences: ReengagementSequence[];
+  clients: ClientWithUser[];
+  onStart: (data: { clientId: number; sequenceId: number }) => void;
+  isPending: boolean;
+}) {
+  const [clientId, setClientId] = useState<number | "">("");
+  const [sequenceId, setSequenceId] = useState<number | "">("");
+
+  return (
+    <div className="bg-white rounded-2xl border border-zinc-100 p-4" data-testid="form-start-job">
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="flex-1 min-w-[160px]">
+          <label className="block text-xs font-medium text-zinc-700 mb-1">Client</label>
+          <select
+            value={clientId}
+            onChange={e => setClientId(parseInt(e.target.value) || "")}
+            className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none text-zinc-700 bg-white"
+            data-testid="select-start-job-client"
+          >
+            <option value="">Select client…</option>
+            {clients.map(c => (
+              <option key={c.clientId} value={c.clientId}>{c.client.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 min-w-[160px]">
+          <label className="block text-xs font-medium text-zinc-700 mb-1">Sequence</label>
+          <select
+            value={sequenceId}
+            onChange={e => setSequenceId(parseInt(e.target.value) || "")}
+            className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl text-sm focus:outline-none text-zinc-700 bg-white"
+            data-testid="select-start-job-sequence"
+          >
+            <option value="">Select sequence…</option>
+            {sequences.map(s => (
+              <option key={s.id} value={s.id}>{s.name}{s.isDefault ? " (default)" : ""}</option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (!clientId || !sequenceId) return;
+            onStart({ clientId: clientId as number, sequenceId: sequenceId as number });
+          }}
+          disabled={!clientId || !sequenceId || isPending}
+          className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+          data-testid="button-start-job"
+        >
+          {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+          Start
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type Tab = "monitoring" | "clients" | "pipeline" | "reengagement" | "practice";
 type ViewState =
   | { kind: "list" }
   | { kind: "profile"; client: ClientWithUser }
@@ -3684,6 +4239,7 @@ export default function NutritionistPortalPage() {
     { id: "monitoring", label: "Monitoring", icon: Activity },
     { id: "clients", label: "Clients", icon: Users },
     { id: "pipeline", label: "Pipeline", icon: KanbanSquare },
+    { id: "reengagement", label: "Re-engage", icon: Zap },
     { id: "practice", label: "Practice", icon: Building2 },
   ];
 
@@ -3874,6 +4430,9 @@ export default function NutritionistPortalPage() {
               />
             )
           )
+
+        {tab === "reengagement" && (
+          <ReengagementManager clients={clients} />
         )}
 
         {tab === "practice" && (

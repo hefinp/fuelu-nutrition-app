@@ -455,6 +455,7 @@ export async function runMigrations(): Promise<void> {
     await client.query(`ALTER TABLE nutritionist_clients ADD COLUMN IF NOT EXISTS health_notes TEXT`);
     await client.query(`ALTER TABLE nutritionist_clients ADD COLUMN IF NOT EXISTS pipeline_stage TEXT NOT NULL DEFAULT 'onboarding'`);
     await client.query(`ALTER TABLE nutritionist_profiles ADD COLUMN IF NOT EXISTS max_clients INTEGER`);
+    await client.query(`ALTER TABLE nutritionist_clients ADD COLUMN IF NOT EXISTS notes TEXT`);
 
     await client.query(`CREATE INDEX IF NOT EXISTS idx_nutritionist_clients_nutritionist ON nutritionist_clients (nutritionist_id)`);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_nutritionist_clients_client_unique ON nutritionist_clients (client_id)`);
@@ -844,6 +845,37 @@ export async function runMigrations(): Promise<void> {
       END
       WHERE source_quality = 40 AND source NOT IN ('ingredient_parsed')
     `);
+
+    // Re-engagement sequences
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS reengagement_sequences (
+        id                  SERIAL PRIMARY KEY,
+        nutritionist_id     INTEGER NOT NULL REFERENCES users(id),
+        name                TEXT NOT NULL,
+        trigger_after_days  INTEGER NOT NULL DEFAULT 3,
+        messages            JSONB NOT NULL DEFAULT '[]',
+        is_default          BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at          TIMESTAMP DEFAULT NOW(),
+        updated_at          TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_reengagement_sequences_nutritionist ON reengagement_sequences (nutritionist_id)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS active_reengagement_jobs (
+        id                SERIAL PRIMARY KEY,
+        nutritionist_id   INTEGER NOT NULL REFERENCES users(id),
+        client_id         INTEGER NOT NULL REFERENCES users(id),
+        sequence_id       INTEGER NOT NULL REFERENCES reengagement_sequences(id),
+        current_step      INTEGER NOT NULL DEFAULT 0,
+        next_send_at      TIMESTAMP NOT NULL,
+        status            TEXT NOT NULL DEFAULT 'active',
+        created_at        TIMESTAMP DEFAULT NOW(),
+        updated_at        TIMESTAMP DEFAULT NOW(),
+        UNIQUE(nutritionist_id, client_id)
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_active_reengagement_jobs_status ON active_reengagement_jobs (status, next_send_at) WHERE status = 'active'`);
 
   } finally {
     client.release();

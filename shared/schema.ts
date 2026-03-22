@@ -1160,3 +1160,58 @@ export const insertStravaActivitySchema = createInsertSchema(stravaActivities).o
 
 export type InsertStravaActivity = z.infer<typeof insertStravaActivitySchema>;
 export type StravaActivity = typeof stravaActivities.$inferSelect;
+
+// ─── Re-engagement Sequences ─────────────────────────────────────────────────
+
+export const reengagementSequences = pgTable("reengagement_sequences", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  triggerAfterDays: integer("trigger_after_days").notNull().default(3),
+  messages: jsonb("messages").notNull().$type<{ delayDays: number; body: string }[]>(),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertReengagementSequenceSchema = createInsertSchema(reengagementSequences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  nutritionistId: true,
+}).extend({
+  name: z.string().min(1).max(200),
+  triggerAfterDays: z.number().int().min(1).max(90).default(3),
+  messages: z.array(z.object({
+    delayDays: z.number().int().min(0).max(90),
+    body: z.string().min(1).max(2000),
+  })).min(1).max(3),
+  isDefault: z.boolean().optional().default(false),
+});
+
+export type InsertReengagementSequence = z.infer<typeof insertReengagementSequenceSchema>;
+export type ReengagementSequence = typeof reengagementSequences.$inferSelect;
+
+export const activeReengagementJobs = pgTable("active_reengagement_jobs", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  sequenceId: integer("sequence_id").notNull().references(() => reengagementSequences.id),
+  currentStep: integer("current_step").notNull().default(0),
+  nextSendAt: timestamp("next_send_at").notNull(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertActiveReengagementJobSchema = createInsertSchema(activeReengagementJobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  nutritionistId: true,
+  currentStep: true,
+  status: true,
+});
+
+export type InsertActiveReengagementJob = z.infer<typeof insertActiveReengagementJobSchema>;
+export type ActiveReengagementJob = typeof activeReengagementJobs.$inferSelect;

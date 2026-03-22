@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import crypto from "crypto";
 import { storage } from "../storage";
-import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier, goalTypeEnum, pipelineStageEnum } from "@shared/schema";
+import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier, goalTypeEnum, pipelineStageEnum, insertReengagementSequenceSchema } from "@shared/schema";
 
 import OpenAI from "openai";
 import { generateMealPlan } from "../meal-data";
@@ -1736,6 +1736,38 @@ router.post("/api/nutritionist/clients/:clientId/metrics", async (req, res) => {
   }
 });
 
+// ─── Re-engagement Sequences ─────────────────────────────────────────────────
+
+router.get("/api/nutritionist/reengagement/sequences", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const sequences = await storage.getReengagementSequences(userId);
+  res.json(sequences);
+});
+
+router.post("/api/nutritionist/reengagement/sequences", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  try {
+    const data = insertReengagementSequenceSchema.parse(req.body);
+    const sequence = await storage.createReengagementSequence(userId, data);
+    res.status(201).json(sequence);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
 router.delete("/api/nutritionist/clients/:clientId/metrics/:metricId", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
@@ -1762,6 +1794,129 @@ router.get("/api/my-nutritionist/metrics", async (req, res) => {
 
   const metrics = await storage.getClientMetricsByClientId(userId);
   res.json(metrics);
+router.put("/api/nutritionist/reengagement/sequences/:id", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+  try {
+    const data = insertReengagementSequenceSchema.partial().parse(req.body);
+    const updated = await storage.updateReengagementSequence(id, userId, data);
+    if (!updated) return res.status(404).json({ message: "Sequence not found" });
+    res.json(updated);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.delete("/api/nutritionist/reengagement/sequences/:id", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+  await storage.deleteReengagementSequence(id, userId);
+  res.json({ success: true });
+});
+
+// ─── Active Re-engagement Jobs ────────────────────────────────────────────────
+
+router.get("/api/nutritionist/reengagement/jobs", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const jobs = await storage.getActiveReengagementJobs(userId);
+  res.json(jobs);
+});
+
+router.get("/api/nutritionist/clients/:clientId/reengagement", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+  const job = await storage.getActiveReengagementJobByClient(userId, clientId);
+  res.json(job ?? null);
+});
+
+router.post("/api/nutritionist/clients/:clientId/reengagement/start", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const schema = z.object({ sequenceId: z.number().int().positive() });
+  try {
+    const { sequenceId } = schema.parse(req.body);
+    const sequence = await storage.getReengagementSequenceById(sequenceId, userId);
+    if (!sequence) return res.status(404).json({ message: "Sequence not found" });
+    const messages = sequence.messages as { delayDays: number; body: string }[];
+    if (!messages || messages.length === 0) return res.status(400).json({ message: "Sequence has no messages" });
+    const firstMsg = messages[0];
+    const nextSendAt = new Date(Date.now() + firstMsg.delayDays * 24 * 60 * 60 * 1000);
+    const job = await storage.createActiveReengagementJob(userId, clientId, sequenceId, nextSendAt);
+    res.status(201).json(job);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.post("/api/nutritionist/clients/:clientId/reengagement/pause", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+  const job = await storage.getActiveReengagementJobByClient(userId, clientId);
+  if (!job) return res.status(404).json({ message: "No active sequence for this client" });
+  const updated = await storage.updateActiveReengagementJob(job.id, { status: "paused" });
+  res.json(updated);
+});
+
+router.post("/api/nutritionist/clients/:clientId/reengagement/resume", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+  const job = await storage.getActiveReengagementJobByClient(userId, clientId);
+  if (!job) return res.status(404).json({ message: "No sequence found for this client" });
+  const updated = await storage.updateActiveReengagementJob(job.id, { status: "active" });
+  res.json(updated);
+});
+
+router.post("/api/nutritionist/clients/:clientId/reengagement/cancel", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+  const job = await storage.getActiveReengagementJobByClient(userId, clientId);
+  if (!job) return res.status(404).json({ message: "No sequence found for this client" });
+  const updated = await storage.updateActiveReengagementJob(job.id, { status: "cancelled" });
+  res.json(updated);
 });
 
 export default router;
