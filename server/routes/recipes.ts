@@ -7,7 +7,7 @@ import { promisify } from "util";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { parseIngredientsFromArray, crossValidateIngredients, type IngredientResult } from "../lib/ingredient-parser";
+import { parseIngredientsFromArray, crossValidateIngredients, type IngredientResult, type DivergenceWarning } from "../lib/ingredient-parser";
 
 const execFileAsync = promisify(execFile);
 
@@ -276,11 +276,14 @@ router.post("/api/recipes/import", async (req, res) => {
       let ingredientsJson: IngredientResult[] = [];
       const parsedServings = typeof aiJson.servings === "number" && aiJson.servings > 0 ? aiJson.servings : 1;
       const statedCalories = typeof aiJson.calories === "number" ? aiJson.calories : null;
+      let divergenceWarning: DivergenceWarning | null = null;
       try {
         if (aiIngredients.length > 0) {
           ingredientsJson = await parseIngredientsFromArray(aiIngredients, req.session.userId);
           if (statedCalories != null) {
-            ingredientsJson = crossValidateIngredients(ingredientsJson, statedCalories, parsedServings);
+            const result = crossValidateIngredients(ingredientsJson, statedCalories, parsedServings);
+            ingredientsJson = result.ingredients;
+            divergenceWarning = result.divergenceWarning;
           }
           if (parsedServings > 1) {
             ingredientsJson = ingredientsJson.map(ing => ({
@@ -307,6 +310,7 @@ router.post("/api/recipes/import", async (req, res) => {
         fat: typeof aiJson.fat === "number" ? aiJson.fat : null,
         hasNutrition: statedCalories !== null,
         suggestedSlot: aiSlot,
+        divergenceWarning,
       });
     } catch (e: any) {
       return res.status(422).json({ message: "Could not extract recipe data from that page. Try a different URL or a site like Once Upon a Chef, Sally's Baking Addiction, or Pinch of Yum." });
@@ -375,11 +379,14 @@ router.post("/api/recipes/import", async (req, res) => {
   }
 
   let ingredientsJson: IngredientResult[] = [];
+  let divergenceWarningLD: DivergenceWarning | null = null;
   try {
     if (ingredients.length > 0) {
       ingredientsJson = await parseIngredientsFromArray(ingredients, req.session.userId);
       if (calories != null) {
-        ingredientsJson = crossValidateIngredients(ingredientsJson, calories, servings);
+        const result = crossValidateIngredients(ingredientsJson, calories, servings);
+        ingredientsJson = result.ingredients;
+        divergenceWarningLD = result.divergenceWarning;
       }
       if (servings > 1) {
         ingredientsJson = ingredientsJson.map(ing => ({
@@ -406,6 +413,7 @@ router.post("/api/recipes/import", async (req, res) => {
     fat,
     hasNutrition: calories !== null,
     suggestedSlot,
+    divergenceWarning: divergenceWarningLD,
   });
 });
 
@@ -472,9 +480,16 @@ router.post("/api/recipes/import-photo", async (req, res) => {
   const photoIngredients = Array.isArray(aiJson.ingredients) ? aiJson.ingredients.map(String) : [];
   let photoIngredientsJson: IngredientResult[] = [];
   const photoServings = typeof aiJson.servings === "number" && aiJson.servings > 0 ? aiJson.servings : 1;
+  const photoStatedCalories = typeof aiJson.calories === "number" ? aiJson.calories : null;
+  let photoDivergenceWarning: DivergenceWarning | null = null;
   try {
     if (photoIngredients.length > 0) {
       photoIngredientsJson = await parseIngredientsFromArray(photoIngredients, req.session.userId);
+      if (photoStatedCalories != null) {
+        const result = crossValidateIngredients(photoIngredientsJson, photoStatedCalories, photoServings);
+        photoIngredientsJson = result.ingredients;
+        photoDivergenceWarning = result.divergenceWarning;
+      }
       if (photoServings > 1) {
         photoIngredientsJson = photoIngredientsJson.map(ing => ({
           ...ing,
@@ -494,12 +509,13 @@ router.post("/api/recipes/import-photo", async (req, res) => {
     instructions: Array.isArray(aiJson.instructions) ? aiJson.instructions.map(String) : [],
     servings: photoServings,
     sourceUrl: "photo://recipe-book",
-    calories: typeof aiJson.calories === "number" ? aiJson.calories : null,
+    calories: photoStatedCalories,
     protein: typeof aiJson.protein === "number" ? aiJson.protein : null,
     carbs: typeof aiJson.carbs === "number" ? aiJson.carbs : null,
     fat: typeof aiJson.fat === "number" ? aiJson.fat : null,
     hasNutrition: typeof aiJson.calories === "number",
     suggestedSlot: photoSlot,
+    divergenceWarning: photoDivergenceWarning,
   });
 });
 
@@ -812,9 +828,16 @@ router.post("/api/recipes/import-video", async (req, res) => {
     const videoIngredients = Array.isArray(aiJson.ingredients) ? aiJson.ingredients.map(String) : [];
     let videoIngredientsJson: IngredientResult[] = [];
     const videoServings = typeof aiJson.servings === "number" && aiJson.servings > 0 ? aiJson.servings : 1;
+    const videoStatedCalories = typeof aiJson.calories === "number" ? aiJson.calories : null;
+    let videoDivergenceWarning: DivergenceWarning | null = null;
     try {
       if (videoIngredients.length > 0) {
         videoIngredientsJson = await parseIngredientsFromArray(videoIngredients, req.session.userId);
+        if (videoStatedCalories != null) {
+          const result = crossValidateIngredients(videoIngredientsJson, videoStatedCalories, videoServings);
+          videoIngredientsJson = result.ingredients;
+          videoDivergenceWarning = result.divergenceWarning;
+        }
         if (videoServings > 1) {
           videoIngredientsJson = videoIngredientsJson.map(ing => ({
             ...ing,
@@ -834,12 +857,13 @@ router.post("/api/recipes/import-video", async (req, res) => {
       instructions: Array.isArray(aiJson.instructions) ? aiJson.instructions.map(String) : [],
       servings: videoServings,
       sourceUrl: url,
-      calories: typeof aiJson.calories === "number" ? aiJson.calories : null,
+      calories: videoStatedCalories,
       protein: typeof aiJson.protein === "number" ? aiJson.protein : null,
       carbs: typeof aiJson.carbs === "number" ? aiJson.carbs : null,
       fat: typeof aiJson.fat === "number" ? aiJson.fat : null,
       hasNutrition: typeof aiJson.calories === "number",
       suggestedSlot: videoSlot,
+      divergenceWarning: videoDivergenceWarning,
     });
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });

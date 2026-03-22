@@ -9,7 +9,7 @@ import {
 import { DuplicateWarningBanner, type DuplicateWarning } from "@/components/duplicate-warning-banner";
 import {
   type MealSlot, type ImportStep, type ParsedRecipe, type Ingredient,
-  SLOT_OPTIONS, fileToBase64,
+  SLOT_OPTIONS, fileToBase64, getSourceLabel,
 } from "@/components/meals-food-shared";
 import { useMobileViewport } from "@/hooks/use-mobile-viewport";
 
@@ -43,6 +43,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       setFat(data.fat != null ? String(data.fat) : "");
       setInstructions(Array.isArray(data.instructions) && data.instructions.length > 0 ? data.instructions.join("\n") : "");
       setSlot((data.suggestedSlot as MealSlot) || "dinner");
+      setUseWebsiteCalories(false);
       setStep("confirm");
     },
     onError: () => setUrlError("Could not load that URL. Try a different recipe site."),
@@ -70,6 +71,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       setFat(data.fat != null ? String(data.fat) : "");
       setInstructions(Array.isArray(data.instructions) && data.instructions.length > 0 ? data.instructions.join("\n") : "");
       setSlot((data.suggestedSlot as MealSlot) || "dinner");
+      setUseWebsiteCalories(false);
       if (data._uploadedUrls && data._uploadedUrls.length > 0) {
         setUploadedPhotoUrls(data._uploadedUrls);
       }
@@ -92,6 +94,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       setFat(data.fat != null ? String(data.fat) : "");
       setInstructions(Array.isArray(data.instructions) && data.instructions.length > 0 ? data.instructions.join("\n") : "");
       setSlot((data.suggestedSlot as MealSlot) || "dinner");
+      setUseWebsiteCalories(false);
       setStep("confirm");
     },
     onError: (err: Error) => {
@@ -105,6 +108,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
   });
 
   const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([]);
+  const [useWebsiteCalories, setUseWebsiteCalories] = useState(false);
 
   function buildImportPayload(confirm = false) {
     let calVal = parseInt(calories) || 0;
@@ -128,6 +132,10 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
       proVal = Math.round(totals.pro);
       carbVal = Math.round(totals.carb);
       fatVal = Math.round(totals.fat);
+    }
+
+    if (useWebsiteCalories && parsed?.divergenceWarning && parsed.calories != null) {
+      calVal = parsed.calories;
     }
 
     return {
@@ -382,6 +390,21 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
                   ))}
                 </div>
               </div>
+              {parsed.divergenceWarning && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2" data-testid="divergence-warning">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                    <p className="text-xs text-amber-700">{parsed.divergenceWarning.message}</p>
+                  </div>
+                  <button
+                    onClick={() => setUseWebsiteCalories(!useWebsiteCalories)}
+                    className={`text-xs px-3 py-1 rounded-lg border transition-colors ${useWebsiteCalories ? "bg-amber-100 border-amber-300 text-amber-800" : "bg-white border-zinc-200 text-zinc-600 hover:border-zinc-300"}`}
+                    data-testid="button-use-website-calories"
+                  >
+                    {useWebsiteCalories ? "Using website calories" : "Use website calories instead"}
+                  </button>
+                </div>
+              )}
               {parsed.ingredientsJson && parsed.ingredientsJson.length > 0 ? (
                 <div>
                   <label className="block text-xs font-medium text-zinc-500 mb-1">Ingredients ({parsed.ingredientsJson.length})</label>
@@ -390,6 +413,19 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
                       <li key={i} className="flex items-start gap-1" data-testid={`import-ingredient-${i}`}>
                         <span className="mt-1 w-1 h-1 rounded-full bg-emerald-400 shrink-0" />
                         <span className="flex-1">{Math.round(ing.grams)}g {ing.name}</span>
+                        {ing.sourceDetail && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
+                            ing.sourceDetail === "usda_cached" || ing.sourceDetail === "nzfcd" || ing.sourceDetail === "fsanz" || ing.sourceDetail === "ausnut"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : ing.sourceDetail === "barcode_scan" || ing.sourceDetail === "openfoodfacts" || ing.sourceDetail === "open_food_facts"
+                              ? "bg-blue-100 text-blue-700"
+                              : ing.sourceDetail === "nz_regional" || ing.sourceDetail === "au_regional" || ing.sourceDetail === "restaurant_nz"
+                              ? "bg-teal-100 text-teal-700"
+                              : ing.sourceDetail === "ai_generated"
+                              ? "bg-orange-100 text-orange-700"
+                              : "bg-zinc-100 text-zinc-500"
+                          }`} data-testid={`source-badge-${i}`}>{getSourceLabel(ing.sourceDetail)}</span>
+                        )}
                         <span className="text-zinc-400 shrink-0">{Math.round(ing.calories100g * ing.grams / 100)} kcal</span>
                       </li>
                     ))}

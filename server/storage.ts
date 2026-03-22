@@ -2,7 +2,7 @@ import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, pas
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
-import { isKnownZeroCalorieFood } from "./lib/ingredient-parser";
+import { isKnownZeroCalorieFood, getSourceQuality } from "./lib/ingredient-parser";
 
 export interface IStorage {
   // Auth
@@ -136,7 +136,7 @@ export interface IStorage {
 
   // Meal ingredients junction table
   getMealIngredients(userMealId: number): Promise<(MealIngredient & { canonicalFood: CanonicalFood | null })[]>;
-  syncMealIngredientsFromJson(userMealId: number, ingredientsJson: { name: string; grams: number; calories100g: number; protein100g: number; carbs100g: number; fat100g: number }[]): Promise<void>;
+  syncMealIngredientsFromJson(userMealId: number, ingredientsJson: { name: string; grams: number; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; sourceDetail?: string }[]): Promise<void>;
   recomputeMealMacros(userMealId: number, userId: number): Promise<UserMeal | undefined>;
   deleteMealIngredients(userMealId: number): Promise<void>;
 
@@ -571,6 +571,7 @@ export class DatabaseStorage implements IStorage {
         boostRegion
           ? sql`CASE WHEN ${canonicalFoods.region} = ${boostRegion} THEN 0 WHEN ${canonicalFoods.region} IS NOT NULL THEN 1 ELSE 2 END`
           : sql`CASE WHEN ${canonicalFoods.verifiedAt} IS NOT NULL THEN 0 ELSE 1 END`,
+        desc(canonicalFoods.sourceQuality),
         sql`CASE WHEN ${canonicalFoods.verifiedAt} IS NOT NULL THEN 0 ELSE 1 END`,
         desc(canonicalFoods.createdAt),
       )
@@ -759,8 +760,7 @@ export class DatabaseStorage implements IStorage {
       const existing = await this.getCanonicalFoodByBarcode(food.barcode);
       if (existing) return existing;
     }
-    const TRUSTED_SOURCES = ["usda_cached", "barcode_scan", "openfoodfacts", "open_food_facts", "nzfcd", "fsanz", "nz_regional", "au_regional"];
-    const incomingIsTrusted = !!food.fdcId || (!!food.barcode && TRUSTED_SOURCES.includes(food.source ?? "")) || TRUSTED_SOURCES.includes(food.source ?? "");
+    const incomingQuality = getSourceQuality(food.source ?? "user_manual");
 
     if (!food.barcode) {
       const existing = await this.canonicalFoodExistsByName(food.name);
@@ -774,32 +774,30 @@ export class DatabaseStorage implements IStorage {
           }).where(eq(canonicalFoods.id, existing.id));
           return { ...existing, calories100g: 0, protein100g: 0, carbs100g: 0, fat100g: 0 };
         }
-        const existingIsTrusted = !!existing.fdcId || TRUSTED_SOURCES.includes(existing.source ?? "");
-        if (existingIsTrusted && !incomingIsTrusted) {
+        const existingQuality = existing.sourceQuality ?? getSourceQuality(existing.source ?? "user_manual");
+        if (incomingQuality < existingQuality) {
+          console.log(
+            `[upsertCanonicalFood] Blocked downgrade for "${name}": existing source "${existing.source}" (quality ${existingQuality}) > incoming "${food.source}" (quality ${incomingQuality})`
+          );
           return existing;
         }
-        if (!existingIsTrusted && !incomingIsTrusted) {
-          return existing;
-        }
-        if (incomingIsTrusted && !existingIsTrusted) {
-          await db.update(canonicalFoods).set({
-            calories100g: food.calories100g,
-            protein100g: food.protein100g,
-            carbs100g: food.carbs100g,
-            fat100g: food.fat100g,
-            fibre100g: food.fibre100g ?? existing.fibre100g,
-            sodium100g: food.sodium100g ?? existing.sodium100g,
-            fdcId: food.fdcId ?? existing.fdcId,
-            source: food.source ?? existing.source,
-            verifiedAt: new Date(),
-          }).where(eq(canonicalFoods.id, existing.id));
-          return { ...existing, calories100g: food.calories100g, protein100g: food.protein100g, carbs100g: food.carbs100g, fat100g: food.fat100g, source: food.source ?? existing.source, verifiedAt: new Date() };
-        }
-        return existing;
+        await db.update(canonicalFoods).set({
+          calories100g: food.calories100g,
+          protein100g: food.protein100g,
+          carbs100g: food.carbs100g,
+          fat100g: food.fat100g,
+          fibre100g: food.fibre100g ?? existing.fibre100g,
+          sodium100g: food.sodium100g ?? existing.sodium100g,
+          fdcId: food.fdcId ?? existing.fdcId,
+          source: food.source ?? existing.source,
+          sourceQuality: incomingQuality,
+          verifiedAt: new Date(),
+        }).where(eq(canonicalFoods.id, existing.id));
+        return { ...existing, calories100g: food.calories100g, protein100g: food.protein100g, carbs100g: food.carbs100g, fat100g: food.fat100g, source: food.source ?? existing.source, sourceQuality: incomingQuality, verifiedAt: new Date() };
       }
     }
 
-    const trustedSource = incomingIsTrusted;
+    const trustedSource = incomingQuality >= 80;
     try {
       const [created] = await db.insert(canonicalFoods).values({
         name: food.name,
@@ -814,6 +812,7 @@ export class DatabaseStorage implements IStorage {
         barcode: food.barcode ?? null,
         fdcId: food.fdcId ?? null,
         source: food.source ?? "user_manual",
+        sourceQuality: incomingQuality,
         region: food.region ?? null,
         contributedByUserId: food.contributedByUserId ?? null,
         verifiedAt: trustedSource ? new Date() : null,
@@ -1137,7 +1136,7 @@ export class DatabaseStorage implements IStorage {
 
   async syncMealIngredientsFromJson(
     userMealId: number,
-    ingredientsJson: { name: string; grams: number; calories100g: number; protein100g: number; carbs100g: number; fat100g: number }[]
+    ingredientsJson: { name: string; grams: number; calories100g: number; protein100g: number; carbs100g: number; fat100g: number; sourceDetail?: string }[]
   ): Promise<void> {
     await db.delete(mealIngredients).where(eq(mealIngredients.userMealId, userMealId));
     if (!ingredientsJson || ingredientsJson.length === 0) return;
@@ -1147,24 +1146,47 @@ export class DatabaseStorage implements IStorage {
       if (!ing.name) continue;
       if (ing.calories100g < 0) continue;
       try {
-        const canonicalFood = await this.upsertCanonicalFood({
-          name: ing.name,
-          calories100g: Math.round(ing.calories100g),
-          protein100g: Math.round(ing.protein100g * 10) / 10,
-          carbs100g: Math.round(ing.carbs100g * 10) / 10,
-          fat100g: Math.round(ing.fat100g * 10) / 10,
-          servingGrams: 100,
-          source: "ingredient_parsed",
-        });
+        const existingCanonical = await this.canonicalFoodExistsByName(ing.name);
+        let canonicalFood: CanonicalFood;
+        if (existingCanonical) {
+          const existingQuality = existingCanonical.sourceQuality ?? getSourceQuality(existingCanonical.source ?? "user_manual");
+          const incomingQuality = getSourceQuality(ing.sourceDetail ?? "ingredient_parsed");
+          if (incomingQuality > existingQuality) {
+            canonicalFood = await this.upsertCanonicalFood({
+              name: ing.name,
+              calories100g: Math.round(ing.calories100g),
+              protein100g: Math.round(ing.protein100g * 10) / 10,
+              carbs100g: Math.round(ing.carbs100g * 10) / 10,
+              fat100g: Math.round(ing.fat100g * 10) / 10,
+              servingGrams: 100,
+              source: ing.sourceDetail ?? "ingredient_parsed",
+            });
+          } else {
+            canonicalFood = existingCanonical;
+          }
+        } else {
+          canonicalFood = await this.upsertCanonicalFood({
+            name: ing.name,
+            calories100g: Math.round(ing.calories100g),
+            protein100g: Math.round(ing.protein100g * 10) / 10,
+            carbs100g: Math.round(ing.carbs100g * 10) / 10,
+            fat100g: Math.round(ing.fat100g * 10) / 10,
+            servingGrams: 100,
+            source: ing.sourceDetail ?? "ingredient_parsed",
+          });
+        }
+        const canonicalQuality = canonicalFood.sourceQuality ?? getSourceQuality(canonicalFood.source ?? "user_manual");
+        const incomingQuality = getSourceQuality(ing.sourceDetail ?? "ingredient_parsed");
+        const useCanonicalValues = canonicalQuality >= incomingQuality;
         await db.insert(mealIngredients).values({
           userMealId,
           canonicalFoodId: canonicalFood.id,
           name: ing.name,
           grams: ing.grams,
-          calories100g: ing.calories100g,
-          protein100g: ing.protein100g,
-          carbs100g: ing.carbs100g,
-          fat100g: ing.fat100g,
+          calories100g: useCanonicalValues ? canonicalFood.calories100g : ing.calories100g,
+          protein100g: useCanonicalValues ? canonicalFood.protein100g : ing.protein100g,
+          carbs100g: useCanonicalValues ? canonicalFood.carbs100g : ing.carbs100g,
+          fat100g: useCanonicalValues ? canonicalFood.fat100g : ing.fat100g,
           orderIndex: i,
         });
       } catch (err) {

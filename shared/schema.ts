@@ -285,6 +285,7 @@ export const canonicalFoods = pgTable("canonical_foods", {
   barcode: text("barcode"),
   fdcId: text("fdc_id"),
   source: text("source").notNull().default("user_manual"),
+  sourceQuality: integer("source_quality").notNull().default(40),
   region: text("region"),
   brand: text("brand"),
   category: text("category"),

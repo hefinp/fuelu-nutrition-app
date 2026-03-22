@@ -20,6 +20,7 @@ const ingredientItemSchema = z.object({
   carbs100g: z.number(),
   fat100g: z.number(),
   grams: z.number(),
+  sourceDetail: z.string().optional(),
 });
 
 router.get("/api/user-meals", async (req, res) => {

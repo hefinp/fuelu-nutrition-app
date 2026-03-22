@@ -829,6 +829,20 @@ export async function runMigrations(): Promise<void> {
     `);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_lower ON users (LOWER(username))`);
 
+    await client.query(`ALTER TABLE canonical_foods ADD COLUMN IF NOT EXISTS source_quality INTEGER NOT NULL DEFAULT 40`);
+    await client.query(`
+      UPDATE canonical_foods SET source_quality = CASE
+        WHEN source IN ('usda_cached', 'nzfcd', 'ausnut', 'fsanz') THEN 100
+        WHEN source IN ('barcode_scan', 'openfoodfacts', 'open_food_facts') THEN 80
+        WHEN source IN ('nz_regional', 'au_regional', 'restaurant_nz') THEN 70
+        WHEN source = 'user_manual' THEN 60
+        WHEN source = 'ingredient_parsed' THEN 40
+        WHEN source = 'ai_generated' THEN 20
+        ELSE 40
+      END
+      WHERE source_quality = 40 AND source NOT IN ('ingredient_parsed')
+    `);
+
   } finally {
     client.release();
   }

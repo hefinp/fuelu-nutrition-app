@@ -23,6 +23,14 @@ export const SLOT_COLOURS: Record<MealSlot, string> = {
   snack: "bg-purple-50 text-purple-700",
 };
 
+export interface DivergenceWarning {
+  calculatedCalories: number;
+  statedCalories: number;
+  ratio: number;
+  message: string;
+  isExtreme?: boolean;
+}
+
 export interface ParsedRecipe {
   name: string;
   imageUrl: string | null;
@@ -37,6 +45,7 @@ export interface ParsedRecipe {
   fat: number | null;
   hasNutrition: boolean;
   suggestedSlot: string | null;
+  divergenceWarning?: DivergenceWarning | null;
 }
 
 export interface Ingredient {
@@ -47,6 +56,29 @@ export interface Ingredient {
   carbs100g: number;
   fat100g: number;
   grams: number;
+  sourceDetail?: string;
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  usda_cached: "USDA",
+  nzfcd: "NZFCD",
+  ausnut: "AUSNUT",
+  fsanz: "FSANZ",
+  barcode_scan: "Barcode",
+  openfoodfacts: "OFF",
+  open_food_facts: "OFF",
+  nz_regional: "NZ",
+  au_regional: "AU",
+  restaurant_nz: "Restaurant",
+  user_manual: "Manual",
+  ingredient_parsed: "Parsed",
+  ai_generated: "AI estimate",
+  db: "Database",
+};
+
+export function getSourceLabel(source?: string): string {
+  if (!source) return "";
+  return SOURCE_LABELS[source] ?? source;
 }
 
 export function todayStr() {

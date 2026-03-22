@@ -4,6 +4,34 @@ import { storage } from "../storage";
 
 const openai = new OpenAI();
 
+export const SOURCE_QUALITY_MAP: Record<string, number> = {
+  usda_cached: 100,
+  nzfcd: 100,
+  ausnut: 100,
+  fsanz: 100,
+  barcode_scan: 80,
+  openfoodfacts: 80,
+  open_food_facts: 80,
+  nz_regional: 70,
+  au_regional: 70,
+  restaurant_nz: 70,
+  user_manual: 60,
+  ingredient_parsed: 40,
+  ai_generated: 20,
+};
+
+export function getSourceQuality(source: string): number {
+  return SOURCE_QUALITY_MAP[source] ?? 40;
+}
+
+export interface DivergenceWarning {
+  calculatedCalories: number;
+  statedCalories: number;
+  ratio: number;
+  message: string;
+  isExtreme: boolean;
+}
+
 export interface IngredientResult {
   key: string;
   name: string;
@@ -13,6 +41,7 @@ export interface IngredientResult {
   fat100g: number;
   grams: number;
   source: "db" | "ai";
+  sourceDetail?: string;
 }
 
 interface UsdaNutrient {
@@ -220,9 +249,8 @@ Respond ONLY with JSON.`,
   }
 }
 
-export async function searchFoodDb(name: string): Promise<{ calories100g: number; protein100g: number; carbs100g: number; fat100g: number } | null> {
+export async function searchFoodDb(name: string): Promise<{ calories100g: number; protein100g: number; carbs100g: number; fat100g: number; sourceDetail?: string } | null> {
   try {
-    // 1. Check canonical foods DB first
     const canonicalHits = await storage.searchCanonicalFoods(name, 3);
     if (canonicalHits.length > 0) {
       const hit = canonicalHits[0];
@@ -238,10 +266,10 @@ export async function searchFoodDb(name: string): Promise<{ calories100g: number
         protein100g: clamped.protein100g,
         carbs100g: clamped.carbs100g,
         fat100g: clamped.fat100g,
+        sourceDetail: hit.source ?? "db",
       };
     }
 
-    // 2. Fall back to USDA, cache into canonical DB
     const apiKey = process.env.USDA_API_KEY || "DEMO_KEY";
     const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(name)}&pageSize=3&api_key=${apiKey}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
@@ -267,10 +295,14 @@ export async function searchFoodDb(name: string): Promise<{ calories100g: number
       protein100g: sanitized.protein100g,
       carbs100g: sanitized.carbs100g,
       fat100g: sanitized.fat100g,
+      sourceDetail: "usda_cached",
     };
     storage.upsertCanonicalFood({
       name: foodName,
-      ...result,
+      calories100g: result.calories100g,
+      protein100g: result.protein100g,
+      carbs100g: result.carbs100g,
+      fat100g: result.fat100g,
       fdcId: food.fdcId ? String(food.fdcId) : null,
       source: "usda_cached",
     }).catch(() => {});
@@ -404,13 +436,18 @@ function sanitizeAiNutrition(est: { name: string; calories100g: number; protein1
   return clampNutritionToCeiling(est);
 }
 
+export interface CrossValidationResult {
+  ingredients: IngredientResult[];
+  divergenceWarning: DivergenceWarning | null;
+}
+
 export function crossValidateIngredients(
   ingredients: IngredientResult[],
   statedCaloriesPerServing: number | null,
   servings: number,
-): IngredientResult[] {
+): CrossValidationResult {
   if (statedCaloriesPerServing == null || statedCaloriesPerServing <= 0 || servings <= 0) {
-    return ingredients;
+    return { ingredients, divergenceWarning: null };
   }
 
   const totalIngredientCalories = ingredients.reduce((sum, ing) => {
@@ -419,48 +456,43 @@ export function crossValidateIngredients(
   const ingredientCaloriesPerServing = totalIngredientCalories / servings;
   const statedTotal = statedCaloriesPerServing;
 
-  if (statedTotal <= 0) return ingredients;
+  if (statedTotal <= 0) return { ingredients, divergenceWarning: null };
 
   if (ingredientCaloriesPerServing <= 0) {
     console.warn(
       `[crossValidateIngredients] Ingredient-computed calories are zero/negative — skipping cross-validation`
     );
-    return ingredients;
+    return { ingredients, divergenceWarning: null };
   }
 
   const divergenceRatio = ingredientCaloriesPerServing / statedTotal;
-
-  if (divergenceRatio > 1.8 || divergenceRatio < 0.2) {
-    console.warn(
-      `[crossValidateIngredients] Significant calorie divergence detected: ` +
-      `ingredient-computed ${Math.round(ingredientCaloriesPerServing)} kcal/serving vs stated ${statedTotal} kcal/serving ` +
-      `(ratio: ${divergenceRatio.toFixed(2)}, servings: ${servings}). ` +
-      `Falling back to stated website calories. Ingredients: ${ingredients.map(i => `${i.name}(${i.calories100g}kcal/100g, ${i.grams}g)`).join(", ")}`
-    );
-
-    const scale = statedTotal / ingredientCaloriesPerServing;
-    return ingredients.map(ing => {
-      const scaled = {
-        ...ing,
-        calories100g: Math.round(ing.calories100g * scale),
-        protein100g: Math.round(ing.protein100g * scale * 10) / 10,
-        carbs100g: Math.round(ing.carbs100g * scale * 10) / 10,
-        fat100g: Math.round(ing.fat100g * scale * 10) / 10,
-      };
-      const clamped = clampNutritionToCeiling(scaled);
-      return { ...scaled, ...clamped };
-    });
-  }
+  const calculatedCalories = Math.round(ingredientCaloriesPerServing);
 
   if (divergenceRatio > 1.3 || divergenceRatio < 0.7) {
+    const isExtreme = divergenceRatio > 2 || divergenceRatio < 0.5;
+    const message = isExtreme
+      ? `Large discrepancy: ingredients add up to ${calculatedCalories} kcal — website states ${Math.round(statedTotal)} kcal. Gram amounts may be incorrect. Using ingredient-calculated value.`
+      : `Ingredients add up to ${calculatedCalories} kcal — website states ${Math.round(statedTotal)} kcal. Using ingredient-calculated value.`;
     console.warn(
-      `[crossValidateIngredients] Moderate calorie divergence: ` +
-      `ingredient-computed ${Math.round(ingredientCaloriesPerServing)} kcal/serving vs stated ${statedTotal} kcal/serving ` +
-      `(ratio: ${divergenceRatio.toFixed(2)})`
+      `[crossValidateIngredients] Calorie divergence detected (${isExtreme ? 'extreme' : 'moderate'}): ` +
+      `ingredient-computed ${calculatedCalories} kcal/serving vs stated ${Math.round(statedTotal)} kcal/serving ` +
+      `(ratio: ${divergenceRatio.toFixed(2)}, servings: ${servings}). ` +
+      `Keeping ingredient-calculated values (per-100g values are immutable).`
     );
+
+    return {
+      ingredients,
+      divergenceWarning: {
+        calculatedCalories,
+        statedCalories: Math.round(statedTotal),
+        ratio: Math.round(divergenceRatio * 100) / 100,
+        message,
+        isExtreme,
+      },
+    };
   }
 
-  return ingredients;
+  return { ingredients, divergenceWarning: null };
 }
 
 export async function parseIngredientsFromArray(ingredientLines: string[], userId?: number): Promise<IngredientResult[]> {
@@ -509,12 +541,14 @@ export async function parseIngredients(ingredientText: string, userId?: number):
 
     const dbResult = await searchFoodDb(name);
     if (dbResult) {
+      const { sourceDetail, ...nutrition } = dbResult;
       results.push({
         key: `parsed-db-${Date.now()}-${Math.random()}`,
         name,
         grams,
         source: "db",
-        ...dbResult,
+        sourceDetail: sourceDetail ?? "db",
+        ...nutrition,
       });
       continue;
     }
@@ -525,6 +559,7 @@ export async function parseIngredients(ingredientText: string, userId?: number):
         name,
         grams,
         source: "ai",
+        sourceDetail: "ai_generated",
         calories100g: 0,
         protein100g: 0,
         carbs100g: 0,
@@ -551,6 +586,7 @@ export async function parseIngredients(ingredientText: string, userId?: number):
         name: sanitized.name,
         grams,
         source: "ai",
+        sourceDetail: "ai_generated",
         calories100g: sanitized.calories100g,
         protein100g: sanitized.protein100g,
         carbs100g: sanitized.carbs100g,
@@ -562,6 +598,7 @@ export async function parseIngredients(ingredientText: string, userId?: number):
         name,
         grams,
         source: "ai",
+        sourceDetail: "ai_generated",
         calories100g: 0,
         protein100g: 0,
         carbs100g: 0,
