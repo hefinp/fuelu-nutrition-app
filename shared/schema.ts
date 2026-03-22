@@ -1291,6 +1291,7 @@ export const stravaActivities = pgTable("strava_activities", {
   type: text("type").notNull(),
   sportType: text("sport_type"),
   startDate: timestamp("start_date").notNull(),
+  startDateLocal: text("start_date_local"),
   movingTime: integer("moving_time").notNull(),
   distance: real("distance").notNull().default(0),
   totalElevationGain: real("total_elevation_gain").default(0),

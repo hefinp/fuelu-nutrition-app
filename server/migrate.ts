@@ -560,6 +560,7 @@ export async function runMigrations(): Promise<void> {
         type                  TEXT NOT NULL,
         sport_type            TEXT,
         start_date            TIMESTAMP NOT NULL,
+        start_date_local      TEXT,
         moving_time           INTEGER NOT NULL,
         distance              REAL NOT NULL DEFAULT 0,
         total_elevation_gain  REAL DEFAULT 0,
@@ -570,8 +571,10 @@ export async function runMigrations(): Promise<void> {
         created_at            TIMESTAMP DEFAULT NOW()
       )
     `);
+    await client.query(`ALTER TABLE strava_activities ADD COLUMN IF NOT EXISTS start_date_local TEXT`);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_strava_activities_user_strava ON strava_activities (user_id, strava_activity_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_strava_activities_user_date ON strava_activities (user_id, start_date)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_strava_activities_user_local_date ON strava_activities (user_id, start_date_local)`);
 
     console.log(`${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })} [migrate] migrations applied`);
 

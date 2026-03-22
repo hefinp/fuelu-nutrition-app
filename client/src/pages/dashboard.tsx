@@ -685,6 +685,7 @@ export default function Dashboard() {
         toast({ title: "Strava connected", description: "Your Strava account has been linked successfully." });
         queryClient.invalidateQueries({ queryKey: ["/api/strava/status"] });
         queryClient.invalidateQueries({ queryKey: ["/api/strava/activities"] });
+        fetch("/api/strava/sync", { method: "POST", credentials: "include" }).catch(() => {});
       } else if (stravaParam === "error") {
         toast({ title: "Strava connection failed", description: "Something went wrong connecting to Strava. Please try again.", variant: "destructive" });
       }

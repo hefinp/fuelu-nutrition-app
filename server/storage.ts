@@ -1,6 +1,6 @@
 import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, clientDocuments, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, nutritionistSessions, sessionTemplates, surveyTemplates, surveyDeliveries, surveyResponses, stravaActivities, servicePackages, clientPackages, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob, type ClientDocument, type NutritionistSession, type InsertNutritionistSession, type SessionTemplate, type InsertSessionTemplate, type SurveyTemplate, type InsertSurveyTemplate, type SurveyDelivery, type SurveyResponse, type ServicePackage, type InsertServicePackage, type ClientPackage, type InsertClientPackage } from "@shared/schema";
 import { db } from "./db";
-import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray } from "drizzle-orm";
+import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray, isNull } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
 import { isKnownZeroCalorieFood, getSourceQuality } from "./lib/ingredient-parser";
 
@@ -2905,6 +2905,7 @@ export class DatabaseStorage implements IStorage {
           type: data.type,
           sportType: data.sportType,
           startDate: data.startDate,
+          startDateLocal: data.startDateLocal,
           movingTime: data.movingTime,
           distance: data.distance,
           totalElevationGain: data.totalElevationGain,
@@ -2924,7 +2925,19 @@ export class DatabaseStorage implements IStorage {
     return db
       .select()
       .from(stravaActivities)
-      .where(and(eq(stravaActivities.userId, userId), gte(stravaActivities.startDate, dayStart), lte(stravaActivities.startDate, dayEnd)))
+      .where(
+        and(
+          eq(stravaActivities.userId, userId),
+          or(
+            eq(stravaActivities.startDateLocal, date),
+            and(
+              isNull(stravaActivities.startDateLocal),
+              gte(stravaActivities.startDate, dayStart),
+              lte(stravaActivities.startDate, dayEnd)
+            )
+          )
+        )
+      )
       .orderBy(desc(stravaActivities.startDate));
   }
 
