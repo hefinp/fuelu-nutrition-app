@@ -7433,34 +7433,6 @@ export default function NutritionistPortalPage() {
             <h1 className="font-display font-bold text-xl tracking-tight text-zinc-900">FuelU</h1>
           </Link>
           <div className="flex items-center gap-1">
-            {TABS.map(t => {
-              const Icon = t.icon;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => { setTab(t.id); setView({ kind: "list" }); }}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${tab === t.id ? "bg-zinc-900 text-white" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"}`}
-                  data-testid={`tab-${t.id}`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden sm:block">{t.label}</span>
-                </button>
-              );
-            })}
-
-            {capacity && capacity.maxClients !== null && (
-              <div className="hidden sm:flex items-center gap-2 ml-2 px-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-xl" data-testid="header-capacity-indicator">
-                <div className="w-20 h-1.5 bg-zinc-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${Math.round((capacity.activeCount / capacity.maxClients) * 100) >= 90 ? "bg-red-500" : Math.round((capacity.activeCount / capacity.maxClients) * 100) >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
-                    style={{ width: `${Math.min(100, Math.round((capacity.activeCount / capacity.maxClients) * 100))}%` }}
-                  />
-                </div>
-                <span className="text-xs text-zinc-500 font-medium">{capacity.activeCount}/{capacity.maxClients} active</span>
-              </div>
-            )}
-
             <div className="relative ml-2">
               <button
                 onClick={() => setShowUserMenu(v => !v)}
@@ -7538,6 +7510,32 @@ export default function NutritionistPortalPage() {
               >
                 Professional
               </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Section tabs banner */}
+        <div className="border-t border-zinc-100 bg-white" data-testid="tab-banner-section">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-start gap-1 py-2 overflow-x-auto">
+              {TABS.map(t => {
+                const Icon = t.icon;
+                const isActive = tab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => { setTab(t.id); setView({ kind: "list" }); }}
+                    className="flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-colors min-w-[56px] hover:bg-zinc-50"
+                    data-testid={`tab-${t.id}`}
+                  >
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${isActive ? "bg-zinc-900" : "bg-zinc-100"}`}>
+                      <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-zinc-500"}`} />
+                    </div>
+                    <span className={`text-[10px] font-medium leading-tight text-center whitespace-nowrap ${isActive ? "text-zinc-900" : "text-zinc-500"}`}>{t.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
