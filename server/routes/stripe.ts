@@ -37,10 +37,8 @@ router.get("/api/tier/status", async (req, res) => {
 
 router.get("/api/tier/pricing", async (_req, res) => {
   const pricing = await storage.getTierPricing();
-  const activePricing = pricing.filter(p => p.active);
-  const creditPacks = await storage.getCreditPacks();
-  const activePacks = creditPacks.filter(p => p.active);
-  res.json({ tiers: activePricing, creditPacks: activePacks });
+  const activePricing = pricing.filter(p => p.active && p.tier !== "payg");
+  res.json({ tiers: activePricing, creditPacks: [] });
 });
 
 router.post("/api/stripe/create-checkout", async (req, res) => {
@@ -78,23 +76,7 @@ router.post("/api/stripe/create-checkout", async (req, res) => {
     const appUrl = process.env.APP_URL || (replitDomain ? `https://${replitDomain}` : "http://localhost:5000");
 
     if (creditPackId) {
-      const pack = (await storage.getCreditPacks()).find(p => p.id === creditPackId && p.active);
-      if (!pack) return res.status(400).json({ message: "Invalid credit pack" });
-
-      if (!pack.stripePriceId) {
-        return res.status(400).json({ message: "Credit pack not configured in Stripe" });
-      }
-
-      const session = await stripe.checkout.sessions.create({
-        customer: customerId,
-        mode: "payment",
-        line_items: [{ price: pack.stripePriceId, quantity: 1 }],
-        success_url: `${appUrl}/billing?success=credits`,
-        cancel_url: `${appUrl}/billing?cancelled=true`,
-        metadata: { userId: String(user.id), type: "credit_pack", creditPackId: String(pack.id), credits: String(pack.credits), priceUsd: String(pack.priceUsd) },
-      });
-
-      return res.json({ url: session.url });
+      return res.status(410).json({ message: "Credit packs are no longer available." });
     }
 
     if (!tier || !billing) {
@@ -405,27 +387,12 @@ router.post("/api/stripe/downgrade-to-free", async (req, res) => {
   }
 });
 
-router.post("/api/tier/activate-payg", async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
-  const user = await storage.getUserById(req.session.userId);
-  if (!user) return res.status(401).json({ message: "User not found" });
-
-  if (user.stripeSubscriptionId) {
-    return res.status(400).json({ message: "Cancel your subscription first to switch to Pay As You Go" });
-  }
-
-  await storage.updateUserTier(user.id, {
-    tier: "payg",
-    pendingTier: null,
-  });
-
-  res.json({ message: "Switched to Pay As You Go! Purchase credit packs to use AI features.", tier: "payg" });
+router.post("/api/tier/activate-payg", async (_req, res) => {
+  res.status(410).json({ message: "Pay As You Go is no longer available." });
 });
 
-router.get("/api/tier/credit-transactions", async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
-  const transactions = await storage.getCreditTransactions(req.session.userId, 50);
-  res.json(transactions);
+router.get("/api/tier/credit-transactions", async (_req, res) => {
+  res.status(410).json({ message: "Credit transactions are no longer available." });
 });
 
 router.post("/api/stripe/webhook", async (req: Request, res: Response) => {

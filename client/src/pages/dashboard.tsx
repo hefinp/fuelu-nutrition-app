@@ -844,7 +844,7 @@ export default function Dashboard() {
                                     : "bg-zinc-100 text-zinc-600"
                                 }`} data-testid="badge-menu-tier">
                                   <Crown className="w-3 h-3" />
-                                  {tierStatus.tier === "advanced" ? "Advanced" : tierStatus.tier === "simple" ? "Simple" : "Pay As You Go"}
+                                  {tierStatus.tier === "advanced" ? "Advanced" : tierStatus.tier === "simple" ? "Simple" : "Free"}
                                 </span>
                                 {tierStatus.betaUser && (
                                   <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700" data-testid="badge-menu-beta">

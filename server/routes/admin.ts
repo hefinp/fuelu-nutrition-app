@@ -234,34 +234,16 @@ router.delete("/api/admin/feature-gates/:key", async (req, res) => {
   res.json({ ok: true });
 });
 
-// Credit packs management
-router.get("/api/admin/credit-packs", async (req, res) => {
-  if (!await requireAdmin(req, res)) return;
-  const packs = await storage.getCreditPacks();
-  res.json(packs);
+router.get("/api/admin/credit-packs", async (_req, res) => {
+  res.status(410).json({ message: "Credit packs are no longer available." });
 });
 
-const creditPackSchema = z.object({
-  id: z.number().int().positive().optional(),
-  credits: z.number().int().positive(),
-  priceUsd: z.number().int().min(0),
-  stripePriceId: z.string().optional(),
-  active: z.boolean().optional(),
+router.post("/api/admin/credit-packs", async (_req, res) => {
+  res.status(410).json({ message: "Credit packs are no longer available." });
 });
 
-router.post("/api/admin/credit-packs", async (req, res) => {
-  if (!await requireAdmin(req, res)) return;
-  const parsed = creditPackSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
-  const { id, credits, priceUsd, stripePriceId, active } = parsed.data;
-  const pack = await storage.upsertCreditPack({ id, credits, priceUsd, stripePriceId, active });
-  res.json(pack);
-});
-
-router.delete("/api/admin/credit-packs/:id", async (req, res) => {
-  if (!await requireAdmin(req, res)) return;
-  await storage.deleteCreditPack(parseInt(req.params.id));
-  res.json({ ok: true });
+router.delete("/api/admin/credit-packs/:id", async (_req, res) => {
+  res.status(410).json({ message: "Credit packs are no longer available." });
 });
 
 // Beta user tier override

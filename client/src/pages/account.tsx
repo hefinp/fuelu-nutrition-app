@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { PublicUser, UserPreferences } from "@shared/schema";
 import {
   Crown, CreditCard, AlertTriangle, ArrowRight, Loader2, CheckCircle2,
-  Coins, ArrowUpRight, User, Lock, ChevronRight, Zap, Globe, Database, ExternalLink, Trash2,
+  ArrowUpRight, User, Lock, ChevronRight, Globe, Database, ExternalLink, Trash2,
 } from "lucide-react";
 import { ConfirmDialog, useConfirmDialog } from "@/components/confirm-dialog";
 
@@ -36,8 +36,8 @@ export default function AccountPage() {
   useEffect(() => {
     if (successParam) {
       toast({
-        title: successParam === "credits" ? "Credits added!" : "Subscription activated!",
-        description: successParam === "credits" ? "Your credit balance has been updated." : "Welcome to your new plan.",
+        title: "Subscription activated!",
+        description: "Welcome to your new plan.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/tier/status"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
@@ -46,11 +46,6 @@ export default function AccountPage() {
       toast({ title: "Checkout cancelled", description: "No changes were made to your account." });
     }
   }, [successParam, cancelledParam]);
-
-  const { data: transactions = [] } = useQuery<{ id: number; amount: number; type: string; featureKey: string | null; description: string | null; createdAt: string }[]>({
-    queryKey: ["/api/tier/credit-transactions"],
-    enabled: !!user && (tierStatus?.tier === "payg" || (tierStatus?.creditBalance ?? 0) > 0),
-  });
 
   const [profileName, setProfileName] = useState("");
   const [profileUsername, setProfileUsername] = useState("");
@@ -247,15 +242,14 @@ export default function AccountPage() {
     );
   }
 
-  const tier = tierStatus?.tier || "free";
+  const tier = tierStatus?.tier === "payg" ? "free" : (tierStatus?.tier || "free");
   const betaUser = tierStatus?.betaUser || false;
-  const creditBalance = tierStatus?.creditBalance ?? 0;
   const tierExpiresAt = tierStatus?.tierExpiresAt;
   const pendingTier = tierStatus?.pendingTier;
   const paymentFailed = !!tierStatus?.paymentFailedAt;
   const isPaid = tier === "simple" || tier === "advanced";
 
-  const tierNames: Record<string, string> = { free: "Free", simple: "Simple", advanced: "Advanced", payg: "Pay As You Go" };
+  const tierNames: Record<string, string> = { free: "Free", simple: "Simple", advanced: "Advanced" };
 
   function handleProfileSave(e: React.FormEvent) {
     e.preventDefault();
@@ -724,62 +718,6 @@ export default function AccountPage() {
                       <>Manage <ArrowUpRight className="w-3.5 h-3.5" /></>
                     )}
                   </button>
-                </div>
-              </div>
-            )}
-
-            {(tier === "payg" || creditBalance > 0) && (
-              <div className="bg-white rounded-2xl border border-zinc-100 p-6" data-testid="card-credit-balance">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Coins className="w-5 h-5 text-emerald-500" />
-                    <div>
-                      <h2 className="text-sm font-semibold text-zinc-900">Credit Balance</h2>
-                      <p className="text-2xl font-bold text-zinc-900 mt-1" data-testid="text-credit-balance">{creditBalance}</p>
-                    </div>
-                  </div>
-                  <Link
-                    href="/pricing"
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium border border-zinc-200 text-zinc-700 rounded-xl hover:bg-zinc-50 transition-colors"
-                    data-testid="link-buy-more-credits"
-                  >
-                    Buy more
-                  </Link>
-                </div>
-
-                {transactions.length > 0 && (
-                  <div className="border-t border-zinc-100 pt-4 mt-4">
-                    <p className="text-xs font-medium text-zinc-500 mb-2">Recent transactions</p>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {transactions.slice(0, 10).map(tx => (
-                        <div key={tx.id} className="flex items-center justify-between text-xs" data-testid={`row-transaction-${tx.id}`}>
-                          <span className="text-zinc-600">{tx.description || tx.type}</span>
-                          <span className={`font-medium ${tx.amount > 0 ? "text-emerald-600" : "text-red-600"}`}>
-                            {tx.amount > 0 ? "+" : ""}{tx.amount}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {tierStatus?.suggestUpgrade && !betaUser && !user?.isManagedClient && (
-              <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-2xl" data-testid="banner-upgrade-suggestion">
-                <Coins className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-sm font-semibold text-blue-800">Save money with a subscription</p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Your credit usage this month (${((tierStatus?.monthlySpend ?? 0) / 100).toFixed(2)}) exceeds the {tierStatus.suggestUpgrade === "advanced" ? "Advanced" : "Simple"} plan price. Consider upgrading to save.
-                  </p>
-                  <Link
-                    href="/pricing"
-                    className="mt-2 inline-block text-xs font-medium text-blue-700 underline hover:text-blue-900"
-                    data-testid="link-upgrade-suggestion"
-                  >
-                    View plans
-                  </Link>
                 </div>
               </div>
             )}

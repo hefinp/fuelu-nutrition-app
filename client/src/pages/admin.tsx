@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import { CheckCircle2, Circle, Plus, ShieldAlert, RefreshCw, Sparkles, Settings, Users, Coins, Loader2 } from "lucide-react";
+import { CheckCircle2, Circle, Plus, ShieldAlert, RefreshCw, Sparkles, Settings, Users, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface CommunityMealBucket {
@@ -46,14 +46,6 @@ interface FeatureGateItem {
   description: string | null;
 }
 
-interface CreditPackItem {
-  id: number;
-  credits: number;
-  priceUsd: number;
-  stripePriceId: string | null;
-  active: boolean;
-}
-
 interface AdminUser {
   id: number;
   email: string;
@@ -61,7 +53,6 @@ interface AdminUser {
   tier: string;
   betaUser: boolean;
   betaTierLocked: boolean;
-  creditBalance: number;
 }
 
 const ADMIN_EMAIL = "hefin.price@gmail.com";
@@ -93,11 +84,6 @@ export default function AdminPage() {
 
   const { data: featureGates = [], refetch: refetchGates } = useQuery<FeatureGateItem[]>({
     queryKey: ["/api/admin/feature-gates"],
-    enabled: isAdmin,
-  });
-
-  const { data: creditPacks = [], refetch: refetchPacks } = useQuery<CreditPackItem[]>({
-    queryKey: ["/api/admin/credit-packs"],
     enabled: isAdmin,
   });
 
@@ -172,24 +158,6 @@ export default function AdminPage() {
     },
   });
 
-  const saveCreditPackMutation = useMutation({
-    mutationFn: (data: { id?: number; credits: number; priceUsd: number; stripePriceId?: string; active?: boolean }) =>
-      apiRequest("POST", "/api/admin/credit-packs", data),
-    onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/credit-packs"] });
-      toast({ title: "Credit pack saved" });
-    },
-    onError: () => toast({ title: "Error saving credit pack", variant: "destructive" }),
-  });
-
-  const deleteCreditPackMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/admin/credit-packs/${id}`, {}),
-    onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/credit-packs"] });
-      toast({ title: "Credit pack deleted" });
-    },
-  });
-
   const syncStripeMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/sync-stripe-prices", {}),
     onSuccess: async (data: any) => {
@@ -250,7 +218,7 @@ export default function AdminPage() {
         <div className="flex gap-1 bg-zinc-100 rounded-xl p-1">
           {[
             { key: "codes" as const, label: "Codes", icon: CheckCircle2 },
-            { key: "pricing" as const, label: "Pricing", icon: Coins },
+            { key: "pricing" as const, label: "Pricing", icon: Settings },
             { key: "features" as const, label: "Features", icon: Settings },
             { key: "users" as const, label: "Users", icon: Users },
           ].map(tab => (
@@ -433,10 +401,6 @@ export default function AdminPage() {
             tierPricing={tierPricing}
             onSave={(data) => savePricingMutation.mutate(data)}
             isSaving={savePricingMutation.isPending}
-            creditPacks={creditPacks}
-            onSavePack={(data) => saveCreditPackMutation.mutate(data)}
-            onDeletePack={(id) => deleteCreditPackMutation.mutate(id)}
-            isSavingPack={saveCreditPackMutation.isPending}
             onSyncStripe={() => syncStripeMutation.mutate()}
             isSyncingStripe={syncStripeMutation.isPending}
           />
@@ -462,14 +426,10 @@ export default function AdminPage() {
   );
 }
 
-function PricingTab({ tierPricing, onSave, isSaving, creditPacks, onSavePack, onDeletePack, isSavingPack, onSyncStripe, isSyncingStripe }: {
+function PricingTab({ tierPricing, onSave, isSaving, onSyncStripe, isSyncingStripe }: {
   tierPricing: TierPricingItem[];
   onSave: (data: { tier: string; monthlyPriceUsd: number; annualPriceUsd: number; active: boolean; features: string[]; displayOrder: number }) => void;
   isSaving: boolean;
-  creditPacks: CreditPackItem[];
-  onSavePack: (data: { id?: number; credits: number; priceUsd: number; stripePriceId?: string; active?: boolean }) => void;
-  onDeletePack: (id: number) => void;
-  isSavingPack: boolean;
   onSyncStripe: () => void;
   isSyncingStripe: boolean;
 }) {
@@ -477,7 +437,6 @@ function PricingTab({ tierPricing, onSave, isSaving, creditPacks, onSavePack, on
   const [editData, setEditData] = useState<{ monthlyPriceUsd: number; annualPriceUsd: number; active: boolean; features: string; displayOrder: number }>({
     monthlyPriceUsd: 0, annualPriceUsd: 0, active: true, features: "", displayOrder: 0,
   });
-  const [newPack, setNewPack] = useState({ credits: 100, priceUsd: 499, stripePriceId: "", active: true });
 
   const tiers = ["simple", "advanced"];
 
@@ -621,106 +580,6 @@ function PricingTab({ tierPricing, onSave, isSaving, creditPacks, onSavePack, on
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-100 p-5">
-        <h2 className="text-sm font-semibold text-zinc-900 mb-4">Credit Packs (PAYG)</h2>
-        <p className="text-xs text-zinc-400 mb-4">Manage credit pack options for pay-as-you-go users.</p>
-
-        <div className="space-y-2 mb-6">
-          {creditPacks.length === 0 ? (
-            <p className="text-xs text-zinc-400 py-4 text-center">No credit packs configured yet.</p>
-          ) : (
-            creditPacks.map(pack => (
-              <div key={pack.id} className="flex items-center justify-between px-3 py-2 border border-zinc-100 rounded-xl" data-testid={`pack-${pack.id}`}>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm font-medium text-zinc-900">{pack.credits} credits</span>
-                  <span className="text-xs text-zinc-500">${(pack.priceUsd / 100).toFixed(2)}</span>
-                  {pack.stripePriceId && <span className="text-xs text-zinc-300 font-mono">{pack.stripePriceId.slice(0, 20)}...</span>}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${pack.active ? "bg-emerald-50 text-emerald-700" : "bg-zinc-100 text-zinc-400"}`}>
-                    {pack.active ? "Active" : "Inactive"}
-                  </span>
-                  <button
-                    onClick={() => onDeletePack(pack.id)}
-                    className="text-xs text-red-500 hover:text-red-700"
-                    data-testid={`button-delete-pack-${pack.id}`}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="border-t border-zinc-100 pt-4">
-          <p className="text-xs font-medium text-zinc-700 mb-3">Add credit pack</p>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div>
-              <label className="text-xs text-zinc-500">Credits</label>
-              <input
-                type="number"
-                value={newPack.credits}
-                onChange={e => setNewPack({ ...newPack, credits: parseInt(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                data-testid="input-pack-credits"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500">Price (cents)</label>
-              <input
-                type="number"
-                value={newPack.priceUsd}
-                onChange={e => setNewPack({ ...newPack, priceUsd: parseInt(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                data-testid="input-pack-price"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div>
-              <label className="text-xs text-zinc-500">Stripe Price ID (optional)</label>
-              <input
-                value={newPack.stripePriceId}
-                onChange={e => setNewPack({ ...newPack, stripePriceId: e.target.value })}
-                placeholder="price_..."
-                className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                data-testid="input-pack-stripe-id"
-              />
-            </div>
-            <div className="flex items-end">
-              <label className="flex items-center gap-2 text-xs pb-2">
-                <input
-                  type="checkbox"
-                  checked={newPack.active}
-                  onChange={e => setNewPack({ ...newPack, active: e.target.checked })}
-                  className="rounded"
-                  data-testid="checkbox-pack-active"
-                />
-                Active
-              </label>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              if (newPack.credits <= 0) return;
-              onSavePack({
-                credits: newPack.credits,
-                priceUsd: newPack.priceUsd,
-                ...(newPack.stripePriceId ? { stripePriceId: newPack.stripePriceId } : {}),
-                active: newPack.active,
-              });
-              setNewPack({ credits: 100, priceUsd: 499, stripePriceId: "", active: true });
-            }}
-            disabled={newPack.credits <= 0 || isSavingPack}
-            className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-xs font-medium rounded-xl hover:bg-zinc-800 disabled:opacity-40 transition-colors"
-            data-testid="button-add-pack"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            {isSavingPack ? "Saving..." : "Add pack"}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -788,7 +647,7 @@ function FeaturesTab({ gates, onSave, onDelete, isSaving }: { gates: FeatureGate
               type="number"
               value={newGate.creditCost}
               onChange={e => setNewGate({ ...newGate, creditCost: parseInt(e.target.value) || 0 })}
-              placeholder="Credit cost (PAYG)"
+              placeholder="Credit cost"
               className="px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-zinc-900"
               data-testid="input-gate-credit-cost"
             />
@@ -849,9 +708,6 @@ function UsersTab({ users, onUpdateTier }: { users: AdminUser[]; onUpdateTier: (
                   >
                     {u.betaTierLocked ? "Locked" : "Unlocked"}
                   </button>
-                )}
-                {u.creditBalance > 0 && (
-                  <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{u.creditBalance} credits</span>
                 )}
                 <select
                   value={u.tier}

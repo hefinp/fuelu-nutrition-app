@@ -6,28 +6,26 @@ import { useTierPricing, useTierStatus } from "@/hooks/use-tier";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
-import { Check, ArrowRight, Zap, Crown, Rocket, Coins, Loader2 } from "lucide-react";
+import { Check, ArrowRight, Zap, Crown, Rocket, Loader2 } from "lucide-react";
 
 const TIER_META: Record<string, { name: string; icon: typeof Check; color: string; description: string }> = {
   free: { name: "Free", icon: Zap, color: "bg-zinc-100 text-zinc-700", description: "Get started with the basics" },
   simple: { name: "Simple", icon: Rocket, color: "bg-blue-100 text-blue-700", description: "For regular meal planners" },
   advanced: { name: "Advanced", icon: Crown, color: "bg-amber-100 text-amber-700", description: "Full access to every feature" },
-  payg: { name: "Pay As You Go", icon: Coins, color: "bg-emerald-100 text-emerald-700", description: "Only pay for what you use" },
 };
 
 const DEFAULT_FEATURES: Record<string, string[]> = {
   free: ["Basic calorie calculator", "Manual food logging", "Weight tracking", "1 saved meal plan", "Weekly AI nutrition summary"],
   simple: ["Everything in Free", "AI meal plans (Simple tier)", "Barcode scanning", "PDF export", "Up to 5 saved meal plans", "Hydration tracking"],
   advanced: ["Everything in Simple", "AI meal plans (all tiers)", "AI food recognition", "AI insights & trends", "Cycle-aware nutrition", "Unlimited saved plans", "Priority support"],
-  payg: ["Everything in Free", "Pay per AI feature use", "No monthly commitment", "Credits never expire"],
 };
 
 export default function PricingPage() {
   usePageMeta({
     title: "Pricing — FuelU | Simple, Transparent Nutrition Plans",
-    description: "Choose the FuelU plan that fits your nutrition journey. Free, Simple, Advanced, or Pay As You Go — upgrade or downgrade anytime. No ads on paid plans.",
+    description: "Choose the FuelU plan that fits your nutrition journey. Free, Simple, or Advanced — upgrade or downgrade anytime. No ads on paid plans.",
     ogTitle: "FuelU Pricing — Plans for Every Nutrition Goal",
-    ogDescription: "Compare FuelU plans: Free basics, Simple meal planning, Advanced AI features, or flexible Pay As You Go credits. No ads on any paid plan.",
+    ogDescription: "Compare FuelU plans: Free basics, Simple meal planning, or Advanced AI features. No ads on any paid plan.",
     ogImage: `${window.location.origin}/icon-512.png`,
     ogUrl: "https://fuelu.app/pricing",
     ogType: "website",
@@ -63,39 +61,10 @@ export default function PricingPage() {
     },
   });
 
-  const paygMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/tier/activate-payg", {});
-      return res.json();
-    },
-    onSuccess: (data: { message: string }) => {
-      toast({ title: "Plan updated", description: data.message });
-      queryClient.invalidateQueries({ queryKey: ["/api/tier/status"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      navigate("/billing");
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const creditCheckoutMutation = useMutation({
-    mutationFn: async (creditPackId: number) => {
-      const res = await apiRequest("POST", "/api/stripe/create-checkout", { creditPackId });
-      return res.json();
-    },
-    onSuccess: (data: { url: string }) => {
-      if (data.url) window.location.href = data.url;
-    },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    },
-  });
-
   const tiers = pricing?.tiers ?? [];
-  const creditPacks = pricing?.creditPacks ?? [];
 
-  const currentTier = tierStatus?.tier || user?.tier || "free";
+  const rawTier = tierStatus?.tier || user?.tier || "free";
+  const currentTier = rawTier === "payg" ? "free" : rawTier;
 
   return (
     <div className="min-h-screen bg-white">
@@ -159,8 +128,8 @@ export default function PricingPage() {
             <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {["free", "simple", "advanced", "payg"].map((tierKey) => {
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {["free", "simple", "advanced"].map((tierKey) => {
               const meta = TIER_META[tierKey];
               const tierData = tiers.find(t => t.tier === tierKey);
               const monthlyPrice = tierData ? tierData.monthlyPriceUsd / 100 : 0;
@@ -196,11 +165,6 @@ export default function PricingPage() {
                       <div className="flex items-baseline gap-1">
                         <span className="text-3xl font-bold text-zinc-900">$0</span>
                         <span className="text-sm text-zinc-400">/month</span>
-                      </div>
-                    ) : tierKey === "payg" ? (
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold text-zinc-900">$0</span>
-                        <span className="text-sm text-zinc-400">/month + credits</span>
                       </div>
                     ) : tierData ? (
                       billing === "annual" ? (
@@ -252,14 +216,8 @@ export default function PricingPage() {
                     <div />
                   ) : user ? (
                     <button
-                      onClick={() => {
-                        if (tierKey === "payg") {
-                          paygMutation.mutate();
-                        } else {
-                          checkoutMutation.mutate({ tier: tierKey, billing });
-                        }
-                      }}
-                      disabled={checkoutMutation.isPending || paygMutation.isPending}
+                      onClick={() => checkoutMutation.mutate({ tier: tierKey, billing })}
+                      disabled={checkoutMutation.isPending}
                       className={`w-full py-2.5 text-sm font-medium rounded-xl transition-colors flex items-center justify-center gap-1.5 ${
                         isPopular
                           ? "bg-zinc-900 text-white hover:bg-zinc-800"
@@ -267,11 +225,11 @@ export default function PricingPage() {
                       } disabled:opacity-40`}
                       data-testid={`button-tier-select-${tierKey}`}
                     >
-                      {(checkoutMutation.isPending || paygMutation.isPending) ? (
+                      {checkoutMutation.isPending ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <>
-                          {tierKey === "payg" ? "Select PAYG" : hasActiveSubscription ? "Switch plan" : "Get started"}
+                          {hasActiveSubscription ? "Switch plan" : "Get started"}
                           <ArrowRight className="w-4 h-4" />
                         </>
                       )}
@@ -293,43 +251,6 @@ export default function PricingPage() {
                 </div>
               );
             })}
-          </div>
-        )}
-
-        {creditPacks.length > 0 && (
-          <div className="mt-16">
-            <h2 className="font-semibold text-xl text-zinc-900 text-center mb-2" data-testid="text-credit-packs-title">Credit Packs</h2>
-            <p className="text-sm text-zinc-500 text-center mb-8">Purchase credits for pay-as-you-go AI features</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
-              {creditPacks.map(pack => (
-                <div key={pack.id} className="border border-zinc-200 rounded-2xl p-5 text-center" data-testid={`card-credit-pack-${pack.id}`}>
-                  <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <Coins className="w-5 h-5 text-emerald-700" />
-                  </div>
-                  <p className="font-bold text-2xl text-zinc-900">{pack.credits}</p>
-                  <p className="text-sm text-zinc-500">credits</p>
-                  <p className="text-lg font-semibold text-zinc-900 mt-2">${(pack.priceUsd / 100).toFixed(2)}</p>
-                  {user ? (
-                    <button
-                      onClick={() => creditCheckoutMutation.mutate(pack.id)}
-                      disabled={creditCheckoutMutation.isPending}
-                      className="mt-3 w-full py-2 text-sm font-medium rounded-xl border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors disabled:opacity-40"
-                      data-testid={`button-buy-credits-${pack.id}`}
-                    >
-                      {creditCheckoutMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Buy credits"}
-                    </button>
-                  ) : (
-                    <Link
-                      href="/auth?tab=register"
-                      className="mt-3 block w-full py-2 text-sm font-medium rounded-xl border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition-colors text-center"
-                      data-testid={`link-credits-signup-${pack.id}`}
-                    >
-                      Sign up to buy
-                    </Link>
-                  )}
-                </div>
-              ))}
-            </div>
           </div>
         )}
       </main>
