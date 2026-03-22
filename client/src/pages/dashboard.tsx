@@ -892,7 +892,12 @@ export default function Dashboard() {
           />
         ) : null;
       case "my-diary":
-        return user ? <MyDiaryWidget onLogMeal={handleLogMeal} /> : null;
+        return user ? <MyDiaryWidget
+          calTarget={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
+          protTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
+          carbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
+          fatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
+        /> : null;
       default:
         return null;
     }
@@ -1773,7 +1778,12 @@ export default function Dashboard() {
                             hydrationGoalMl={userPrefs?.hydrationGoalMl ?? 2000}
                           />
                         )}
-                        {!hiddenWidgets.includes("my-diary") && <MyDiaryWidget onLogMeal={handleLogMeal} />}
+                        {!hiddenWidgets.includes("my-diary") && <MyDiaryWidget
+                          calTarget={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
+                          protTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
+                          carbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
+                          fatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
+                        />}
                         {!hiddenWidgets.includes("my-meals-food") && <MyMealsFoodWidget />}
                       </>
                     ) : (
