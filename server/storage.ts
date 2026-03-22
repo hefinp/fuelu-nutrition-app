@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, reengagementSequences, activeReengagementJobs, waitlistEntries, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type MealComment, type StravaConnection, stravaActivities, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, stravaActivities, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -363,6 +363,20 @@ export interface IStorage {
   getDueReengagementJobs(): Promise<(ActiveReengagementJob & { sequence: ReengagementSequence })[]>;
   getAllNutritionistsWithDefaultSequences(): Promise<{ nutritionistId: number; sequence: ReengagementSequence }[]>;
   getClientLastLogDate(clientId: number): Promise<string | null>;
+
+  // Client tags & segmentation
+  getClientTags(nutritionistId: number): Promise<ClientTag[]>;
+  createClientTag(nutritionistId: number, data: { name: string; color?: string }): Promise<ClientTag>;
+  updateClientTag(id: number, nutritionistId: number, data: { name?: string; color?: string }): Promise<ClientTag | undefined>;
+  deleteClientTag(id: number, nutritionistId: number): Promise<void>;
+  getTagAssignmentsForClient(nutritionistId: number, clientId: number): Promise<ClientTag[]>;
+  getTagsWithClientCounts(nutritionistId: number): Promise<(ClientTag & { clientCount: number })[]>;
+  getClientsByTag(nutritionistId: number, tagId: number): Promise<(NutritionistClient & { client: Pick<User, "id" | "name" | "email" | "isManagedClient" | "createdAt"> })[]>;
+  assignTagToClient(nutritionistId: number, tagId: number, clientId: number): Promise<void>;
+  removeTagFromClient(nutritionistId: number, tagId: number, clientId: number): Promise<void>;
+  setClientTags(nutritionistId: number, clientId: number, tagIds: number[]): Promise<void>;
+  createBulkActionLog(nutritionistId: number, actionType: string, clientIds: number[], tagId?: number | null, payload?: object | null): Promise<BulkActionLog>;
+  getBulkActionLogs(nutritionistId: number, limit?: number): Promise<BulkActionLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3096,6 +3110,124 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(nutritionistProfiles, eq(users.id, nutritionistProfiles.userId))
       .where(eq(users.id, nutritionistId));
     return user;
+  }
+
+  // ─── Client Tags & Segmentation ────────────────────────────────────────────
+
+  async getClientTags(nutritionistId: number): Promise<ClientTag[]> {
+    return db.select().from(clientTags).where(eq(clientTags.nutritionistId, nutritionistId)).orderBy(clientTags.name);
+  }
+
+  async createClientTag(nutritionistId: number, data: { name: string; color?: string }): Promise<ClientTag> {
+    const [tag] = await db.insert(clientTags).values({
+      nutritionistId,
+      name: data.name,
+      color: data.color ?? "#6366f1",
+    }).returning();
+    return tag;
+  }
+
+  async updateClientTag(id: number, nutritionistId: number, data: { name?: string; color?: string }): Promise<ClientTag | undefined> {
+    const updates: Record<string, unknown> = {};
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.color !== undefined) updates.color = data.color;
+    const [updated] = await db.update(clientTags).set(updates).where(and(eq(clientTags.id, id), eq(clientTags.nutritionistId, nutritionistId))).returning();
+    return updated;
+  }
+
+  async deleteClientTag(id: number, nutritionistId: number): Promise<void> {
+    await db.delete(clientTags).where(and(eq(clientTags.id, id), eq(clientTags.nutritionistId, nutritionistId)));
+  }
+
+  async getTagAssignmentsForClient(nutritionistId: number, clientId: number): Promise<ClientTag[]> {
+    const rows = await db
+      .select({ tag: clientTags })
+      .from(clientTagAssignments)
+      .innerJoin(clientTags, eq(clientTagAssignments.tagId, clientTags.id))
+      .where(and(eq(clientTagAssignments.nutritionistId, nutritionistId), eq(clientTagAssignments.clientId, clientId)));
+    return rows.map(r => r.tag);
+  }
+
+  async getTagsWithClientCounts(nutritionistId: number): Promise<(ClientTag & { clientCount: number })[]> {
+    const rows = await db
+      .select({
+        id: clientTags.id,
+        nutritionistId: clientTags.nutritionistId,
+        name: clientTags.name,
+        color: clientTags.color,
+        createdAt: clientTags.createdAt,
+        clientCount: sql<number>`count(${clientTagAssignments.clientId})::int`,
+      })
+      .from(clientTags)
+      .leftJoin(clientTagAssignments, eq(clientTagAssignments.tagId, clientTags.id))
+      .where(eq(clientTags.nutritionistId, nutritionistId))
+      .groupBy(clientTags.id)
+      .orderBy(clientTags.name);
+    return rows;
+  }
+
+  async getClientsByTag(nutritionistId: number, tagId: number): Promise<(NutritionistClient & { client: Pick<User, "id" | "name" | "email" | "isManagedClient" | "createdAt"> })[]> {
+    const rows = await db
+      .select({
+        nc: nutritionistClients,
+        client: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          isManagedClient: users.isManagedClient,
+          createdAt: users.createdAt,
+        },
+      })
+      .from(clientTagAssignments)
+      .innerJoin(nutritionistClients, and(
+        eq(nutritionistClients.clientId, clientTagAssignments.clientId),
+        eq(nutritionistClients.nutritionistId, nutritionistId),
+      ))
+      .innerJoin(users, eq(users.id, clientTagAssignments.clientId))
+      .where(and(eq(clientTagAssignments.tagId, tagId), eq(clientTagAssignments.nutritionistId, nutritionistId)));
+    return rows.map(r => ({ ...r.nc, client: r.client }));
+  }
+
+  async assignTagToClient(nutritionistId: number, tagId: number, clientId: number): Promise<void> {
+    await db.insert(clientTagAssignments).values({ tagId, clientId, nutritionistId }).onConflictDoNothing();
+  }
+
+  async removeTagFromClient(nutritionistId: number, tagId: number, clientId: number): Promise<void> {
+    await db.delete(clientTagAssignments).where(and(
+      eq(clientTagAssignments.tagId, tagId),
+      eq(clientTagAssignments.clientId, clientId),
+      eq(clientTagAssignments.nutritionistId, nutritionistId),
+    ));
+  }
+
+  async setClientTags(nutritionistId: number, clientId: number, tagIds: number[]): Promise<void> {
+    await db.delete(clientTagAssignments).where(and(
+      eq(clientTagAssignments.clientId, clientId),
+      eq(clientTagAssignments.nutritionistId, nutritionistId),
+    ));
+    if (tagIds.length > 0) {
+      await db.insert(clientTagAssignments).values(
+        tagIds.map(tagId => ({ tagId, clientId, nutritionistId }))
+      );
+    }
+  }
+
+  async createBulkActionLog(nutritionistId: number, actionType: string, clientIds: number[], tagId?: number | null, payload?: object | null): Promise<BulkActionLog> {
+    const [log] = await db.insert(bulkActionLogs).values({
+      nutritionistId,
+      actionType,
+      clientIds,
+      tagId: tagId ?? null,
+      payload: payload ?? null,
+    }).returning();
+    return log;
+  }
+
+  async getBulkActionLogs(nutritionistId: number, limit?: number): Promise<BulkActionLog[]> {
+    const q = db.select().from(bulkActionLogs).where(eq(bulkActionLogs.nutritionistId, nutritionistId)).orderBy(desc(bulkActionLogs.createdAt));
+    if (limit) return q.limit(limit);
+    return q;
+  }
   }
 }
 

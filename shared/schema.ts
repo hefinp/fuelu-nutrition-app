@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, numeric, real, timestamp, text, jsonb, boolean, bigint } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, numeric, real, timestamp, text, jsonb, boolean, bigint, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1143,6 +1143,52 @@ export const insertMealCommentSchema = createInsertSchema(mealComments).omit({
 
 export type InsertMealComment = z.infer<typeof insertMealCommentSchema>;
 export type MealComment = typeof mealComments.$inferSelect;
+
+// ─── Client Tags & Segmentation ─────────────────────────────────────────────
+
+export const clientTags = pgTable("client_tags", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("#6366f1"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertClientTagSchema = createInsertSchema(clientTags).omit({
+  id: true,
+  createdAt: true,
+  nutritionistId: true,
+}).extend({
+  name: z.string().min(1, "Tag name is required").max(50),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Invalid color").optional(),
+});
+
+export type InsertClientTag = z.infer<typeof insertClientTagSchema>;
+export type ClientTag = typeof clientTags.$inferSelect;
+
+export const clientTagAssignments = pgTable("client_tag_assignments", {
+  id: serial("id").primaryKey(),
+  tagId: integer("tag_id").notNull().references(() => clientTags.id, { onDelete: "cascade" }),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+}, (t) => ({
+  uniqueTagClient: uniqueIndex("client_tag_assignments_unique").on(t.tagId, t.clientId),
+}));
+
+export type ClientTagAssignment = typeof clientTagAssignments.$inferSelect;
+
+export const bulkActionLogs = pgTable("bulk_action_logs", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  tagId: integer("tag_id").references(() => clientTags.id, { onDelete: "set null" }),
+  actionType: text("action_type").notNull(),
+  clientIds: jsonb("client_ids").notNull(),
+  payload: jsonb("payload"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type BulkActionLog = typeof bulkActionLogs.$inferSelect;
 
 // ─── Strava Activities ─────────────────────────────────────────────────────
 

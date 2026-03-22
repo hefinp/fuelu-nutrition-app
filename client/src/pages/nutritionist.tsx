@@ -79,6 +79,29 @@ interface PlanTemplate {
   createdAt: string;
 }
 
+interface ClientTag {
+  id: number;
+  nutritionistId: number;
+  name: string;
+  color: string;
+  createdAt: string;
+  clientCount?: number;
+}
+
+interface TaggedClient extends ClientUser {
+  assignedAt: string;
+}
+
+interface BulkActionLog {
+  id: number;
+  nutritionistId: number;
+  tagId: number | null;
+  actionType: string;
+  clientIds: unknown;
+  payload: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<string, string> = {
@@ -504,6 +527,493 @@ function PlanDetailView({ plan, onClose, clients }: { plan: NutritionistPlan; on
   );
 }
 
+// ─── ClientTagBadge ───────────────────────────────────────────────────────────
+
+function ClientTagBadge({ tag }: { tag: ClientTag }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium text-white"
+      style={{ backgroundColor: tag.color }}
+    >
+      {tag.name}
+    </span>
+  );
+}
+
+// ─── ClientTagPicker ──────────────────────────────────────────────────────────
+
+function ClientTagPicker({ clientId }: { clientId: number }) {
+  const { toast } = useToast();
+
+  const { data: allTags = [] } = useQuery<ClientTag[]>({
+    queryKey: ["/api/nutritionist/tags"],
+  });
+
+  const { data: clientTags = [] } = useQuery<ClientTag[]>({
+    queryKey: ["/api/nutritionist/clients", clientId, "tags"],
+    queryFn: async () => {
+      const res = await fetch(`/api/nutritionist/clients/${clientId}/tags`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!clientId,
+  });
+
+  const setTagsMutation = useMutation({
+    mutationFn: (tagIds: number[]) =>
+      apiRequest("PUT", `/api/nutritionist/clients/${clientId}/tags`, { tagIds }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientId, "tags"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/tags"] });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const assignedIds = new Set(clientTags.map(t => t.id));
+
+  const toggleTag = (tag: ClientTag) => {
+    const newIds = assignedIds.has(tag.id)
+      ? Array.from(assignedIds).filter(id => id !== tag.id)
+      : Array.from(assignedIds).concat(tag.id);
+    setTagsMutation.mutate(newIds);
+  };
+
+  if (allTags.length === 0) return null;
+
+  return (
+    <div className="mt-3">
+      <p className="text-xs font-medium text-muted-foreground mb-1.5">Tags</p>
+      <div className="flex flex-wrap gap-1.5">
+        {allTags.map(tag => {
+          const active = assignedIds.has(tag.id);
+          return (
+            <button
+              key={tag.id}
+              onClick={() => toggleTag(tag)}
+              disabled={setTagsMutation.isPending}
+              data-testid={`toggle-tag-${tag.id}`}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-all"
+              style={active
+                ? { backgroundColor: tag.color, borderColor: tag.color, color: "white" }
+                : { backgroundColor: "transparent", borderColor: tag.color, color: tag.color }}
+            >
+              {active && <span className="text-[10px]">✓</span>}
+              {tag.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── SegmentsTab ──────────────────────────────────────────────────────────────
+
+const TAG_COLORS = [
+  "#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ef4444", "#06b6d4"
+];
+
+function SegmentsTab({ templates }: { templates: PlanTemplate[] }) {
+  const { toast } = useToast();
+
+  const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
+  const [selectedClientIds, setSelectedClientIds] = useState<Set<number>>(new Set());
+  const [creatingTag, setCreatingTag] = useState(false);
+  const [editingTag, setEditingTag] = useState<ClientTag | null>(null);
+  const [tagName, setTagName] = useState("");
+  const [tagColor, setTagColor] = useState(TAG_COLORS[0]);
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [bulkTemplateId, setBulkTemplateId] = useState<number | null>(null);
+  const [bulkAction, setBulkAction] = useState<"message" | "template">("message");
+
+  const { data: tags = [], isLoading: tagsLoading } = useQuery<ClientTag[]>({
+    queryKey: ["/api/nutritionist/tags"],
+  });
+
+  const { data: tagClients = [], isLoading: tagClientsLoading } = useQuery<TaggedClient[]>({
+    queryKey: ["/api/nutritionist/tags", selectedTagId, "clients"],
+    queryFn: async () => {
+      if (!selectedTagId) return [];
+      const res = await fetch(`/api/nutritionist/tags/${selectedTagId}/clients`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedTagId,
+  });
+
+  const { data: actionLogs = [] } = useQuery<BulkActionLog[]>({
+    queryKey: ["/api/nutritionist/bulk-action-logs"],
+  });
+
+  const selectedTag = tags.find(t => t.id === selectedTagId) ?? null;
+
+  const createTagMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/nutritionist/tags", { name: tagName.trim(), color: tagColor }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/tags"] });
+      toast({ title: "Tag created" });
+      setCreatingTag(false);
+      setTagName("");
+      setTagColor(TAG_COLORS[0]);
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const updateTagMutation = useMutation({
+    mutationFn: () => apiRequest("PUT", `/api/nutritionist/tags/${editingTag?.id}`, { name: tagName.trim(), color: tagColor }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/tags"] });
+      toast({ title: "Tag updated" });
+      setEditingTag(null);
+      setTagName("");
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteTagMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/nutritionist/tags/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/tags"] });
+      if (selectedTagId === deleteTagMutation.variables) setSelectedTagId(null);
+      toast({ title: "Tag deleted" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const bulkMessageMutation = useMutation({
+    mutationFn: (data: { clientIds: number[]; message: string; tagId: number }) =>
+      apiRequest("POST", "/api/nutritionist/segments/bulk-message", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/bulk-action-logs"] });
+      toast({ title: "Message sent", description: `Sent to ${selectedClientIds.size} clients` });
+      setBulkMessage("");
+      setSelectedClientIds(new Set());
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const bulkAssignMutation = useMutation({
+    mutationFn: (data: { clientIds: number[]; templateId: number; tagId: number }) =>
+      apiRequest("POST", "/api/nutritionist/segments/bulk-assign-template", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/bulk-action-logs"] });
+      toast({ title: "Plans assigned", description: `Template assigned to ${selectedClientIds.size} clients` });
+      setBulkTemplateId(null);
+      setSelectedClientIds(new Set());
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const toggleClient = (id: number) => {
+    setSelectedClientIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedClientIds.size === tagClients.length) {
+      setSelectedClientIds(new Set());
+    } else {
+      setSelectedClientIds(new Set(tagClients.map(c => c.id)));
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Left: Tags list */}
+      <div className="md:col-span-1 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Tags</h2>
+          <Button size="sm" variant="outline" onClick={() => { setCreatingTag(true); setEditingTag(null); setTagName(""); setTagColor(TAG_COLORS[0]); }} data-testid="button-create-tag">
+            <Plus className="h-4 w-4 mr-1" /> New Tag
+          </Button>
+        </div>
+
+        {/* Create/Edit form */}
+        {(creatingTag || editingTag) && (
+          <Card>
+            <CardContent className="pt-4 space-y-3">
+              <div>
+                <Label className="text-xs">Tag Name</Label>
+                <Input
+                  value={tagName}
+                  onChange={e => setTagName(e.target.value)}
+                  placeholder="e.g. PCOS, Athletes"
+                  className="mt-1"
+                  data-testid="input-tag-name"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Color</Label>
+                <div className="flex gap-1.5 mt-1 flex-wrap">
+                  {TAG_COLORS.map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setTagColor(c)}
+                      className="w-6 h-6 rounded-full border-2 transition-all"
+                      style={{ backgroundColor: c, borderColor: tagColor === c ? "black" : "transparent" }}
+                      data-testid={`color-swatch-${c.replace("#", "")}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => editingTag ? updateTagMutation.mutate() : createTagMutation.mutate()}
+                  disabled={!tagName.trim() || createTagMutation.isPending || updateTagMutation.isPending}
+                  data-testid="button-save-tag"
+                >
+                  {(createTagMutation.isPending || updateTagMutation.isPending)
+                    ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    : <Save className="h-3 w-3 mr-1" />}
+                  Save
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => { setCreatingTag(false); setEditingTag(null); }} data-testid="button-cancel-tag">
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {tagsLoading ? (
+          <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        ) : tags.length === 0 ? (
+          <Card>
+            <CardContent className="pt-6 text-center text-sm text-muted-foreground">
+              No tags yet. Create one to start segmenting clients.
+            </CardContent>
+          </Card>
+        ) : (
+          tags.map(tag => (
+            <Card
+              key={tag.id}
+              className={`cursor-pointer transition-colors ${selectedTagId === tag.id ? "border-primary bg-primary/5" : "hover:border-muted-foreground/30"}`}
+              onClick={() => { setSelectedTagId(tag.id); setSelectedClientIds(new Set()); }}
+              data-testid={`tag-card-${tag.id}`}
+            >
+              <CardContent className="p-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                  <span className="font-medium text-sm truncate">{tag.name}</span>
+                  <span className="text-xs text-muted-foreground">({tag.clientCount ?? 0})</span>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={e => { e.stopPropagation(); setEditingTag(tag); setCreatingTag(false); setTagName(tag.name); setTagColor(tag.color); }}
+                    className="p-1 hover:bg-muted rounded"
+                    data-testid={`edit-tag-${tag.id}`}
+                  >
+                    <Edit3 className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); deleteTagMutation.mutate(tag.id); }}
+                    className="p-1 hover:bg-muted rounded"
+                    data-testid={`delete-tag-${tag.id}`}
+                  >
+                    <Trash2 className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Right: Clients in segment + bulk actions */}
+      <div className="md:col-span-2 space-y-4">
+        {!selectedTag ? (
+          <Card>
+            <CardContent className="py-12 text-center text-sm text-muted-foreground">
+              Select a tag to view its clients and take bulk actions.
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedTag.color }} />
+                    {selectedTag.name}
+                    <span className="text-sm font-normal text-muted-foreground">
+                      — {tagClients.length} client{tagClients.length !== 1 ? "s" : ""}
+                    </span>
+                  </CardTitle>
+                  {tagClients.length > 0 && (
+                    <Button size="sm" variant="outline" onClick={toggleAll} data-testid="button-select-all">
+                      {selectedClientIds.size === tagClients.length ? "Deselect all" : "Select all"}
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {tagClientsLoading ? (
+                  <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin" /></div>
+                ) : tagClients.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No clients assigned to this tag yet. Go to a client's profile to add tags.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {tagClients.map(client => (
+                      <div
+                        key={client.id}
+                        className={`flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-colors ${selectedClientIds.has(client.id) ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                        onClick={() => toggleClient(client.id)}
+                        data-testid={`segment-client-${client.id}`}
+                      >
+                        <input
+                          type="checkbox"
+                          readOnly
+                          checked={selectedClientIds.has(client.id)}
+                          className="pointer-events-none"
+                          data-testid={`checkbox-client-${client.id}`}
+                        />
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm">{client.name}</div>
+                          <div className="text-xs text-muted-foreground">{client.email}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Bulk actions */}
+            {selectedClientIds.size > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">
+                    Bulk Actions — {selectedClientIds.size} client{selectedClientIds.size !== 1 ? "s" : ""} selected
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant={bulkAction === "message" ? "default" : "outline"}
+                      onClick={() => setBulkAction("message")}
+                      data-testid="button-bulk-action-message"
+                    >
+                      <Send className="h-3.5 w-3.5 mr-1" /> Message
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={bulkAction === "template" ? "default" : "outline"}
+                      onClick={() => setBulkAction("template")}
+                      data-testid="button-bulk-action-template"
+                    >
+                      <Star className="h-3.5 w-3.5 mr-1" /> Assign Template
+                    </Button>
+                  </div>
+
+                  {bulkAction === "message" && (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={bulkMessage}
+                        onChange={e => setBulkMessage(e.target.value)}
+                        placeholder="Type your message to all selected clients..."
+                        className="min-h-[80px]"
+                        data-testid="textarea-bulk-message"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => bulkMessageMutation.mutate({
+                          clientIds: Array.from(selectedClientIds),
+                          message: bulkMessage,
+                          tagId: selectedTag.id,
+                        })}
+                        disabled={!bulkMessage.trim() || bulkMessageMutation.isPending}
+                        data-testid="button-send-bulk-message"
+                      >
+                        {bulkMessageMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+                        Send to {selectedClientIds.size} client{selectedClientIds.size !== 1 ? "s" : ""}
+                      </Button>
+                    </div>
+                  )}
+
+                  {bulkAction === "template" && (
+                    <div className="space-y-2">
+                      {templates.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No templates yet. Create one in the Templates tab.</p>
+                      ) : (
+                        <>
+                          <Select value={bulkTemplateId?.toString() ?? ""} onValueChange={v => setBulkTemplateId(parseInt(v))}>
+                            <SelectTrigger data-testid="select-bulk-template">
+                              <SelectValue placeholder="Select a template" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {templates.map(t => (
+                                <SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            size="sm"
+                            onClick={() => bulkTemplateId && bulkAssignMutation.mutate({
+                              clientIds: Array.from(selectedClientIds),
+                              templateId: bulkTemplateId,
+                              tagId: selectedTag.id,
+                            })}
+                            disabled={!bulkTemplateId || bulkAssignMutation.isPending}
+                            data-testid="button-assign-bulk-template"
+                          >
+                            {bulkAssignMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Star className="h-3.5 w-3.5 mr-1" />}
+                            Assign to {selectedClientIds.size} client{selectedClientIds.size !== 1 ? "s" : ""}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Action log history */}
+            {actionLogs.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-1.5">
+                    <History className="h-4 w-4" /> Bulk Action History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {actionLogs.slice(0, 10).map(log => {
+                    const logTag = tags.find(t => t.id === log.tagId);
+                    return (
+                      <div key={log.id} className="border rounded-lg p-3 space-y-1" data-testid={`log-entry-${log.id}`}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className="text-xs">
+                            {log.actionType === "bulk_message" ? "Message" : "Template Assigned"}
+                          </Badge>
+                          {logTag && <ClientTagBadge tag={logTag} />}
+                          <span className="text-xs text-muted-foreground ml-auto">{formatDate(log.createdAt)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Sent to {(log.clientIds as number[]).length} client{(log.clientIds as number[]).length !== 1 ? "s" : ""}
+                          {log.payload?.message ? (
+                            <span className="italic"> — &ldquo;{String(log.payload.message).slice(0, 60)}{String(log.payload.message).length > 60 ? "..." : ""}&rdquo;</span>
+                          ) : null}
+                          {log.payload?.templateName ? (
+                            <span> — template: {String(log.payload.templateName)}</span>
+                          ) : null}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function NutritionistPage() {
@@ -511,7 +1021,7 @@ export default function NutritionistPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<"clients" | "queue" | "templates">("clients");
+  const [activeTab, setActiveTab] = useState<"clients" | "queue" | "templates" | "segments">("clients");
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<NutritionistPlan | null>(null);
 
@@ -732,6 +1242,9 @@ export default function NutritionistPage() {
               <TabsTrigger value="templates" data-testid="tab-templates">
                 <Star className="h-4 w-4 mr-1" /> Templates
               </TabsTrigger>
+              <TabsTrigger value="segments" data-testid="tab-segments">
+                <BookTemplate className="h-4 w-4 mr-1" /> Segments
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -825,6 +1338,9 @@ export default function NutritionistPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Tags */}
+                    {selectedClientId && <ClientTagPicker clientId={selectedClientId} />}
 
                     {/* Plan history */}
                     <div>
@@ -1012,6 +1528,11 @@ export default function NutritionistPage() {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          {/* ─── Segments Tab ─────────────────────────────────────────────────── */}
+          <TabsContent value="segments">
+            <SegmentsTab templates={templates} />
           </TabsContent>
         </Tabs>
       </div>

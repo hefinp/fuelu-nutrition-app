@@ -11,7 +11,7 @@ import {
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
   MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2, Download, History,
   LogOut, User, BookOpen, LineChart as LineChartIcon, KanbanSquare, Zap, Pause, Play, Ban,
-  Clock, MoveVertical, Link as LinkIcon,
+  Clock, MoveVertical, Link as LinkIcon, Tag, Tags,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { AnimatePresence, motion } from "framer-motion";
@@ -239,6 +239,25 @@ interface PracticeClientsGroup {
   nutritionistId: number;
   nutritionistName: string;
   clients: ClientWithUser[];
+}
+
+interface ClientTag {
+  id: number;
+  nutritionistId: number;
+  name: string;
+  color: string;
+  createdAt: string;
+  clientCount?: number;
+}
+
+interface BulkActionLog {
+  id: number;
+  nutritionistId: number;
+  tagId: number | null;
+  actionType: string;
+  clientIds: number[];
+  payload: Record<string, unknown> | null;
+  createdAt: string;
 }
 
 const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
@@ -728,6 +747,80 @@ function PipelineKanban({
   );
 }
 
+function ClientTagBadge({ tag }: { tag: ClientTag }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+      style={{ backgroundColor: tag.color + "22", color: tag.color, border: `1px solid ${tag.color}44` }}
+      data-testid={`badge-tag-${tag.id}`}
+    >
+      {tag.name}
+    </span>
+  );
+}
+
+function ClientTagPicker({ clientId }: { clientId: number }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: allTags = [] } = useQuery<ClientTag[]>({
+    queryKey: ["/api/nutritionist/tags"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/tags").then(r => r.json()),
+  });
+
+  const { data: clientTags = [] } = useQuery<ClientTag[]>({
+    queryKey: ["/api/nutritionist/clients", clientId, "tags"],
+    queryFn: () => apiRequest("GET", `/api/nutritionist/clients/${clientId}/tags`).then(r => r.json()),
+  });
+
+  const setTagsMutation = useMutation({
+    mutationFn: (tagIds: number[]) =>
+      apiRequest("PUT", `/api/nutritionist/clients/${clientId}/tags`, { tagIds }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientId, "tags"] });
+    },
+    onError: () => toast({ title: "Failed to update tags", variant: "destructive" }),
+  });
+
+  const assignedIds = new Set(clientTags.map(t => t.id));
+
+  const toggleTag = (tag: ClientTag) => {
+    const newIds = assignedIds.has(tag.id)
+      ? Array.from(assignedIds).filter(id => id !== tag.id)
+      : Array.from(assignedIds).concat(tag.id);
+    setTagsMutation.mutate(newIds);
+  };
+
+  if (allTags.length === 0) return null;
+
+  return (
+    <div className="mt-3">
+      <p className="text-xs font-medium text-zinc-500 mb-1.5">Tags</p>
+      <div className="flex flex-wrap gap-1.5">
+        {allTags.map(tag => {
+          const active = assignedIds.has(tag.id);
+          return (
+            <button
+              key={tag.id}
+              type="button"
+              onClick={() => toggleTag(tag)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all"
+              style={active
+                ? { backgroundColor: tag.color + "33", color: tag.color, border: `1px solid ${tag.color}` }
+                : { backgroundColor: "#f4f4f5", color: "#71717a", border: "1px solid #e4e4e7" }
+              }
+              data-testid={`toggle-tag-${tag.id}`}
+            >
+              {active && <Check className="w-2.5 h-2.5" />}
+              {tag.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PipelineCard({
   client,
   currentStage,
@@ -814,6 +907,475 @@ function PipelineCard({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function SegmentsView() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [selectedTag, setSelectedTag] = useState<ClientTag | null>(null);
+  const [selectedClientIds, setSelectedClientIds] = useState<Set<number>>(new Set());
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [showMessageForm, setShowMessageForm] = useState(false);
+  const [showTemplateForm, setShowTemplateForm] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState("#6366f1");
+  const [showCreateTag, setShowCreateTag] = useState(false);
+  const [editingTag, setEditingTag] = useState<ClientTag | null>(null);
+  const [editTagName, setEditTagName] = useState("");
+  const [editTagColor, setEditTagColor] = useState("");
+
+  const { data: tags = [], isLoading: tagsLoading } = useQuery<ClientTag[]>({
+    queryKey: ["/api/nutritionist/tags"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/tags").then(r => r.json()),
+  });
+
+  const { data: segmentClients = [], isLoading: segmentLoading } = useQuery<ClientWithUser[]>({
+    queryKey: ["/api/nutritionist/tags", selectedTag?.id, "clients"],
+    queryFn: () => apiRequest("GET", `/api/nutritionist/tags/${selectedTag!.id}/clients`).then(r => r.json()),
+    enabled: !!selectedTag,
+  });
+
+  const { data: templates = [] } = useQuery<Array<{ id: number; name: string; description?: string }>>({
+    queryKey: ["/api/nutritionist/plan-templates"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/plan-templates").then(r => r.json()),
+  });
+
+  const { data: actionLogs = [] } = useQuery<BulkActionLog[]>({
+    queryKey: ["/api/nutritionist/bulk-action-logs"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/bulk-action-logs?limit=10").then(r => r.json()),
+  });
+
+  const createTagMutation = useMutation({
+    mutationFn: (data: { name: string; color: string }) =>
+      apiRequest("POST", "/api/nutritionist/tags", data).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/tags"] });
+      toast({ title: "Tag created" });
+      setNewTagName("");
+      setShowCreateTag(false);
+    },
+    onError: (err: Error) => toast({ title: "Failed to create tag", description: err.message, variant: "destructive" }),
+  });
+
+  const updateTagMutation = useMutation({
+    mutationFn: ({ id, name, color }: { id: number; name: string; color: string }) =>
+      apiRequest("PUT", `/api/nutritionist/tags/${id}`, { name, color }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/tags"] });
+      toast({ title: "Tag updated" });
+      setEditingTag(null);
+    },
+    onError: (err: Error) => toast({ title: "Failed to update tag", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteTagMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest("DELETE", `/api/nutritionist/tags/${id}`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/tags"] });
+      toast({ title: "Tag deleted" });
+      if (selectedTag && deleteTagMutation.variables === selectedTag.id) setSelectedTag(null);
+    },
+    onError: (err: Error) => toast({ title: "Failed to delete tag", description: err.message, variant: "destructive" }),
+  });
+
+  const bulkMessageMutation = useMutation({
+    mutationFn: (data: { clientIds: number[]; message: string; tagId?: number }) =>
+      apiRequest("POST", "/api/nutritionist/segments/bulk-message", data).then(r => r.json()),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/bulk-action-logs"] });
+      toast({ title: `Message sent to ${data.sentTo} client${data.sentTo !== 1 ? "s" : ""}` });
+      setBulkMessage("");
+      setShowMessageForm(false);
+      setSelectedClientIds(new Set());
+    },
+    onError: (err: Error) => toast({ title: "Failed to send message", description: err.message, variant: "destructive" }),
+  });
+
+  const bulkAssignMutation = useMutation({
+    mutationFn: (data: { clientIds: number[]; templateId: number; tagId?: number }) =>
+      apiRequest("POST", "/api/nutritionist/segments/bulk-assign-template", data).then(r => r.json()),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/bulk-action-logs"] });
+      toast({ title: `Template assigned to ${data.assignedTo} client${data.assignedTo !== 1 ? "s" : ""}` });
+      setShowTemplateForm(false);
+      setSelectedClientIds(new Set());
+    },
+    onError: (err: Error) => toast({ title: "Failed to assign template", description: err.message, variant: "destructive" }),
+  });
+
+  const allSelected = segmentClients.length > 0 && selectedClientIds.size === segmentClients.length;
+
+  const toggleSelectAll = () => {
+    if (allSelected) setSelectedClientIds(new Set());
+    else setSelectedClientIds(new Set(segmentClients.map(c => c.clientId)));
+  };
+
+  const toggleClient = (clientId: number) => {
+    const s = new Set(selectedClientIds);
+    if (s.has(clientId)) s.delete(clientId);
+    else s.add(clientId);
+    setSelectedClientIds(s);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-display font-bold text-zinc-900 flex items-center gap-2">
+            <Tags className="w-5 h-5 text-zinc-500" />
+            Segments
+          </h2>
+          <p className="text-sm text-zinc-500 mt-0.5">Group clients by tag and send bulk messages or assign plans</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowCreateTag(v => !v)}
+          className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-xl hover:bg-zinc-800 transition-colors"
+          data-testid="button-create-tag"
+        >
+          <Plus className="w-4 h-4" />
+          New Tag
+        </button>
+      </div>
+
+      {showCreateTag && (
+        <div className="bg-white border border-zinc-200 rounded-2xl p-4 mb-4" data-testid="form-create-tag">
+          <h3 className="text-sm font-semibold text-zinc-900 mb-3">Create Tag</h3>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={newTagName}
+              onChange={e => setNewTagName(e.target.value)}
+              placeholder="Tag name (e.g. PCOS, Athletes)"
+              className="flex-1 px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+              data-testid="input-tag-name"
+            />
+            <input
+              type="color"
+              value={newTagColor}
+              onChange={e => setNewTagColor(e.target.value)}
+              className="w-10 h-10 border border-zinc-200 rounded-xl cursor-pointer"
+              title="Tag color"
+              data-testid="input-tag-color"
+            />
+            <button
+              type="button"
+              onClick={() => newTagName.trim() && createTagMutation.mutate({ name: newTagName.trim(), color: newTagColor })}
+              disabled={!newTagName.trim() || createTagMutation.isPending}
+              className="px-4 py-2 bg-zinc-900 text-white text-sm rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+              data-testid="button-save-tag"
+            >
+              {createTagMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCreateTag(false)}
+              className="px-3 py-2 border border-zinc-200 text-sm rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+              data-testid="button-cancel-create-tag"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="md:col-span-1">
+          <div className="bg-white border border-zinc-100 rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-zinc-100">
+              <h3 className="text-sm font-semibold text-zinc-900">Tags</h3>
+            </div>
+            {tagsLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
+            ) : tags.length === 0 ? (
+              <div className="p-8 text-center">
+                <Tag className="w-8 h-8 text-zinc-300 mx-auto mb-2" />
+                <p className="text-sm text-zinc-500">No tags yet</p>
+                <p className="text-xs text-zinc-400 mt-1">Create a tag to segment your clients</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-zinc-50">
+                {tags.map(tag => (
+                  <div key={tag.id} className="flex items-center gap-3 px-4 py-3" data-testid={`row-tag-${tag.id}`}>
+                    {editingTag?.id === tag.id ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <input
+                          type="text"
+                          value={editTagName}
+                          onChange={e => setEditTagName(e.target.value)}
+                          className="flex-1 px-2 py-1 border border-zinc-200 rounded-lg text-sm focus:outline-none"
+                          data-testid="input-edit-tag-name"
+                        />
+                        <input
+                          type="color"
+                          value={editTagColor}
+                          onChange={e => setEditTagColor(e.target.value)}
+                          className="w-8 h-8 border border-zinc-200 rounded-lg cursor-pointer"
+                          data-testid="input-edit-tag-color"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => updateTagMutation.mutate({ id: tag.id, name: editTagName, color: editTagColor })}
+                          disabled={updateTagMutation.isPending}
+                          className="p-1.5 bg-zinc-900 text-white rounded-lg"
+                          data-testid={`button-save-edit-tag-${tag.id}`}
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingTag(null)}
+                          className="p-1.5 border border-zinc-200 text-zinc-600 rounded-lg hover:bg-zinc-50"
+                          data-testid={`button-cancel-edit-tag-${tag.id}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => { setSelectedTag(tag); setSelectedClientIds(new Set()); setShowMessageForm(false); setShowTemplateForm(false); }}
+                          className={`flex-1 flex items-center gap-2 text-left ${selectedTag?.id === tag.id ? "opacity-100" : "opacity-80 hover:opacity-100"}`}
+                          data-testid={`button-select-tag-${tag.id}`}
+                        >
+                          <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                          <span className="text-sm font-medium text-zinc-900">{tag.name}</span>
+                          <span className="ml-auto text-xs text-zinc-400">{tag.clientCount ?? 0}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingTag(tag); setEditTagName(tag.name); setEditTagColor(tag.color); }}
+                          className="p-1 text-zinc-400 hover:text-zinc-700 transition-colors"
+                          data-testid={`button-edit-tag-${tag.id}`}
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteTagMutation.mutate(tag.id)}
+                          disabled={deleteTagMutation.isPending}
+                          className="p-1 text-zinc-400 hover:text-red-500 transition-colors"
+                          data-testid={`button-delete-tag-${tag.id}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="md:col-span-2">
+          {!selectedTag ? (
+            <div className="bg-white border border-zinc-100 rounded-2xl p-10 text-center h-full flex items-center justify-center">
+              <div>
+                <Tags className="w-10 h-10 text-zinc-300 mx-auto mb-3" />
+                <p className="text-sm text-zinc-500">Select a tag to see its clients</p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white border border-zinc-100 rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-zinc-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedTag.color }} />
+                  <h3 className="text-sm font-semibold text-zinc-900">{selectedTag.name}</h3>
+                  <span className="text-xs text-zinc-400">{segmentClients.length} client{segmentClients.length !== 1 ? "s" : ""}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedClientIds.size > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => { setShowMessageForm(v => !v); setShowTemplateForm(false); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 transition-colors"
+                        data-testid="button-bulk-message"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        Message ({selectedClientIds.size})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowTemplateForm(v => !v); setShowMessageForm(false); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 transition-colors"
+                        data-testid="button-bulk-assign-template"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Assign Plan ({selectedClientIds.size})
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {showMessageForm && (
+                <div className="border-b border-zinc-100 px-4 py-3 bg-zinc-50" data-testid="form-bulk-message">
+                  <p className="text-xs font-medium text-zinc-700 mb-2">Send message to {selectedClientIds.size} client{selectedClientIds.size !== 1 ? "s" : ""}</p>
+                  <textarea
+                    value={bulkMessage}
+                    onChange={e => setBulkMessage(e.target.value)}
+                    placeholder="Write your message..."
+                    rows={3}
+                    maxLength={5000}
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 resize-none"
+                    data-testid="textarea-bulk-message"
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => bulkMessageMutation.mutate({ clientIds: Array.from(selectedClientIds), message: bulkMessage, tagId: selectedTag.id })}
+                      disabled={!bulkMessage.trim() || bulkMessageMutation.isPending}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-xs font-medium rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                      data-testid="button-send-bulk-message"
+                    >
+                      {bulkMessageMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                      Send
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowMessageForm(false)}
+                      className="px-3 py-2 border border-zinc-200 text-xs rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+                      data-testid="button-cancel-bulk-message"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showTemplateForm && (
+                <div className="border-b border-zinc-100 px-4 py-3 bg-zinc-50" data-testid="form-bulk-template">
+                  <p className="text-xs font-medium text-zinc-700 mb-2">Assign plan template to {selectedClientIds.size} client{selectedClientIds.size !== 1 ? "s" : ""}</p>
+                  {templates.length === 0 ? (
+                    <p className="text-xs text-zinc-400">No plan templates available. Create one first in the Clients tab.</p>
+                  ) : (
+                    <>
+                      <select
+                        value={selectedTemplateId ?? ""}
+                        onChange={e => setSelectedTemplateId(parseInt(e.target.value) || null)}
+                        className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none bg-white mb-2"
+                        data-testid="select-template"
+                      >
+                        <option value="">Select a template...</option>
+                        {templates.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => selectedTemplateId && bulkAssignMutation.mutate({ clientIds: Array.from(selectedClientIds), templateId: selectedTemplateId, tagId: selectedTag.id })}
+                          disabled={!selectedTemplateId || bulkAssignMutation.isPending}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-xs font-medium rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                          data-testid="button-confirm-assign-template"
+                        >
+                          {bulkAssignMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          Assign to {selectedClientIds.size} client{selectedClientIds.size !== 1 ? "s" : ""}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowTemplateForm(false)}
+                          className="px-3 py-2 border border-zinc-200 text-xs rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+                          data-testid="button-cancel-assign-template"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {segmentLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
+              ) : segmentClients.length === 0 ? (
+                <div className="p-8 text-center">
+                  <Users className="w-8 h-8 text-zinc-300 mx-auto mb-2" />
+                  <p className="text-sm text-zinc-500">No clients in this segment</p>
+                  <p className="text-xs text-zinc-400 mt-1">Assign this tag to clients from their profile</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-zinc-50">
+                  <div className="px-4 py-2.5 flex items-center gap-3 bg-zinc-50/50">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-zinc-300"
+                      data-testid="checkbox-select-all"
+                    />
+                    <span className="text-xs text-zinc-500">Select all</span>
+                  </div>
+                  {segmentClients.map(c => (
+                    <div key={c.id} className="px-4 py-3 flex items-center gap-3" data-testid={`row-segment-client-${c.clientId}`}>
+                      <input
+                        type="checkbox"
+                        checked={selectedClientIds.has(c.clientId)}
+                        onChange={() => toggleClient(c.clientId)}
+                        className="w-4 h-4 rounded border-zinc-300"
+                        data-testid={`checkbox-client-${c.clientId}`}
+                      />
+                      <div className="w-8 h-8 bg-zinc-900 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                        {c.client.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-zinc-900">{c.client.name}</p>
+                        <p className="text-xs text-zinc-400">{c.client.email}</p>
+                      </div>
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${STATUS_LABELS[c.status]?.classes ?? STATUS_LABELS.onboarding.classes}`}>
+                        {STATUS_LABELS[c.status]?.label ?? c.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {actionLogs.length > 0 && (
+        <div className="bg-white border border-zinc-100 rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-zinc-100">
+            <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+              <History className="w-4 h-4 text-zinc-400" />
+              Bulk Action History
+            </h3>
+          </div>
+          <div className="divide-y divide-zinc-50">
+            {actionLogs.map(log => {
+              const tag = tags.find(t => t.id === log.tagId);
+              return (
+                <div key={log.id} className="px-4 py-3" data-testid={`row-log-${log.id}`}>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${log.actionType === "bulk_message" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700"}`}>
+                      {log.actionType === "bulk_message" ? "Message" : "Plan Assigned"}
+                    </span>
+                    {tag && <ClientTagBadge tag={tag} />}
+                    <span className="text-xs text-zinc-400 ml-auto">{formatDate(log.createdAt)}</span>
+                  </div>
+                  <p className="text-xs text-zinc-500">
+                    Sent to {(log.clientIds as number[]).length} client{(log.clientIds as number[]).length !== 1 ? "s" : ""}
+                    {log.payload?.message ? (
+                      <span className="italic"> — &#34;{String(log.payload.message).slice(0, 60)}{String(log.payload.message).length > 60 ? "..." : ""}&#34;</span>
+                    ) : null}
+                    {log.payload?.templateName ? (
+                      <span> — template: {String(log.payload.templateName)}</span>
+                    ) : null}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3064,6 +3626,7 @@ function ClientProfile({
             )}
           </div>
         )}
+        <ClientTagPicker clientId={clientRecord.clientId} />
       </div>
 
       <div className="flex gap-1 mb-4 flex-wrap">
@@ -4772,7 +5335,7 @@ function StartJobForm({
   );
 }
 
-type Tab = "monitoring" | "clients" | "pipeline" | "reengagement" | "waitlist" | "referrals" | "practice";
+type Tab = "monitoring" | "clients" | "pipeline" | "reengagement" | "waitlist" | "referrals" | "segments" | "practice";
 type ViewState =
   | { kind: "list" }
   | { kind: "profile"; client: ClientWithUser }
@@ -4862,6 +5425,7 @@ export default function NutritionistPortalPage() {
     { id: "reengagement", label: "Re-engage", icon: Zap },
     { id: "waitlist", label: "Waitlist", icon: Clock },
     { id: "referrals", label: "Referrals", icon: UserPlus },
+    { id: "segments", label: "Segments", icon: Tags },
     { id: "practice", label: "Practice", icon: Building2 },
   ];
 
@@ -5064,6 +5628,10 @@ export default function NutritionistPortalPage() {
 
         {tab === "referrals" && (
           <ReferralsSummaryView clients={clients} onSelectClient={(c) => { setTab("clients"); setView({ kind: "profile", client: c }); }} />
+        )}
+
+        {tab === "segments" && (
+          <SegmentsView />
         )}
 
         {tab === "practice" && (

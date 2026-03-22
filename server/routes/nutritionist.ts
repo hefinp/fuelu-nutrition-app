@@ -1819,6 +1819,195 @@ router.get("/api/my-nutritionist/metrics", async (req, res) => {
   res.json(metrics);
 });
 
+// ─── Client Tags & Segmentation ──────────────────────────────────────────────
+
+router.get("/api/nutritionist/tags", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const tags = await storage.getTagsWithClientCounts(userId);
+  res.json(tags);
+});
+
+router.post("/api/nutritionist/tags", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const schema = z.object({ name: z.string().min(1).max(50), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() });
+  try {
+    const { name, color } = schema.parse(req.body);
+    const tag = await storage.createClientTag(userId, { name, color });
+    res.status(201).json(tag);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+    res.status(500).json({ message: "Failed to create tag" });
+  }
+});
+
+router.put("/api/nutritionist/tags/:id", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid tag ID" });
+  const schema = z.object({ name: z.string().min(1).max(50).optional(), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional() });
+  try {
+    const data = schema.parse(req.body);
+    const updated = await storage.updateClientTag(id, userId, data);
+    if (!updated) return res.status(404).json({ message: "Tag not found" });
+    res.json(updated);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+    res.status(500).json({ message: "Failed to update tag" });
+  }
+});
+
+router.delete("/api/nutritionist/tags/:id", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid tag ID" });
+  await storage.deleteClientTag(id, userId);
+  res.json({ success: true });
+});
+
+router.get("/api/nutritionist/tags/:id/clients", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ message: "Invalid tag ID" });
+  const clients = await storage.getClientsByTag(userId, id);
+  res.json(clients);
+});
+
+router.get("/api/nutritionist/clients/:clientId/tags", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+  const tags = await storage.getTagAssignmentsForClient(userId, clientId);
+  res.json(tags);
+});
+
+router.put("/api/nutritionist/clients/:clientId/tags", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+  const schema = z.object({ tagIds: z.array(z.number().int()) });
+  try {
+    const { tagIds } = schema.parse(req.body);
+    await storage.setClientTags(userId, clientId, tagIds);
+    const updated = await storage.getTagAssignmentsForClient(userId, clientId);
+    res.json(updated);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+    res.status(500).json({ message: "Failed to update client tags" });
+  }
+});
+
+router.post("/api/nutritionist/segments/bulk-message", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const schema = z.object({
+    clientIds: z.array(z.number().int()).min(1, "Select at least one client"),
+    message: z.string().min(1, "Message cannot be empty").max(5000),
+    tagId: z.number().int().optional(),
+  });
+
+  try {
+    const { clientIds, message, tagId } = schema.parse(req.body);
+
+    const clients = await storage.getNutritionistClients(userId);
+    const validClientIds = clients.map(c => c.clientId);
+    const filteredIds = clientIds.filter(id => validClientIds.includes(id));
+    if (filteredIds.length === 0) return res.status(400).json({ message: "None of the selected clients are in your roster." });
+
+    for (const clientId of filteredIds) {
+      await storage.createMessage(userId, clientId, userId, message);
+    }
+
+    const log = await storage.createBulkActionLog(userId, "bulk_message", filteredIds, tagId ?? null, { message });
+    res.status(201).json({ success: true, sentTo: filteredIds.length, logId: log.id });
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+    res.status(500).json({ message: "Failed to send bulk message" });
+  }
+});
+
+router.post("/api/nutritionist/segments/bulk-assign-template", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const schema = z.object({
+    clientIds: z.array(z.number().int()).min(1, "Select at least one client"),
+    templateId: z.number().int().positive("Template ID is required"),
+    tagId: z.number().int().optional(),
+  });
+
+  try {
+    const { clientIds, templateId, tagId } = schema.parse(req.body);
+
+    const template = await storage.getPlanTemplates(userId);
+    const tpl = template.find(t => t.id === templateId);
+    if (!tpl) return res.status(404).json({ message: "Template not found" });
+
+    const clients = await storage.getNutritionistClients(userId);
+    const validClientIds = clients.map(c => c.clientId);
+    const filteredIds = clientIds.filter(id => validClientIds.includes(id));
+    if (filteredIds.length === 0) return res.status(400).json({ message: "None of the selected clients are in your roster." });
+
+    for (const clientId of filteredIds) {
+      await storage.createNutritionistPlan({
+        nutritionistId: userId,
+        clientId,
+        name: tpl.name,
+        planType: tpl.planType as "daily" | "weekly",
+        planData: tpl.planData as Record<string, unknown>,
+        status: "draft",
+        promptNote: null,
+        scheduledDeliverAt: null,
+      });
+    }
+
+    const log = await storage.createBulkActionLog(userId, "bulk_assign_template", filteredIds, tagId ?? null, { templateId, templateName: tpl.name });
+    res.status(201).json({ success: true, assignedTo: filteredIds.length, logId: log.id });
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+    res.status(500).json({ message: "Failed to bulk assign template" });
+  }
+});
+
+router.get("/api/nutritionist/bulk-action-logs", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+  const logs = await storage.getBulkActionLogs(userId, limit);
+  res.json(logs);
+});
+
 router.put("/api/nutritionist/reengagement/sequences/:id", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
