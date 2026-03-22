@@ -1307,3 +1307,26 @@ export const insertWaitlistEntrySchema = createInsertSchema(waitlistEntries).omi
 
 export type InsertWaitlistEntry = z.infer<typeof insertWaitlistEntrySchema>;
 export type WaitlistEntry = typeof waitlistEntries.$inferSelect;
+
+// ─── Client Documents (Document Vault) ───────────────────────────────────────
+
+export const clientDocuments = pgTable("client_documents", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  uploaderId: integer("uploader_id").notNull().references(() => users.id),
+  filename: text("filename").notNull(),
+  storagePath: text("storage_path").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  sharedWithClient: boolean("shared_with_client").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertClientDocumentSchema = createInsertSchema(clientDocuments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertClientDocument = z.infer<typeof insertClientDocumentSchema>;
+export type ClientDocument = typeof clientDocuments.$inferSelect;

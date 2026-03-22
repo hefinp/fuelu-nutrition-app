@@ -10,7 +10,7 @@ import {
   Activity, BarChart2, Bell, Building2, UserMinus, UserPlus, RefreshCw,
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
   MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2, Download, History,
-  LogOut, User, BookOpen, LineChart as LineChartIcon, KanbanSquare, Zap, Pause, Play, Ban,
+  LogOut, User, BookOpen, LineChart as LineChartIcon, KanbanSquare, Zap, Pause, Play, Ban, FolderOpen, Upload, Eye, EyeOff,
   Clock, MoveVertical, Link as LinkIcon, Tag, Tags,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -3358,6 +3358,205 @@ function FoodDiaryTab({ clientId }: { clientId: number }) {
   );
 }
 
+interface ClientDocument {
+  id: number;
+  nutritionistId: number;
+  clientId: number;
+  uploaderId: number;
+  uploaderName: string;
+  uploaderEmail: string;
+  filename: string;
+  storagePath: string;
+  mimeType: string;
+  size: number;
+  sharedWithClient: boolean;
+  createdAt: string;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function DocumentVaultPanel({ clientRecord }: { clientRecord: ClientWithUser }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [shareOnUpload, setShareOnUpload] = useState(false);
+
+  const { data: documents = [], isLoading } = useQuery<ClientDocument[]>({
+    queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "documents"],
+    queryFn: () => apiRequest("GET", `/api/nutritionist/clients/${clientRecord.clientId}/documents`).then(r => r.json()),
+  });
+
+  const toggleSharingMutation = useMutation({
+    mutationFn: ({ id, sharedWithClient }: { id: number; sharedWithClient: boolean }) =>
+      apiRequest("PATCH", `/api/nutritionist/clients/${clientRecord.clientId}/documents/${id}/sharing`, { sharedWithClient }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "documents"] });
+    },
+    onError: () => toast({ title: "Failed to update sharing", variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest("DELETE", `/api/nutritionist/clients/${clientRecord.clientId}/documents/${id}`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "documents"] });
+      toast({ title: "Document deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete document", variant: "destructive" }),
+  });
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("sharedWithClient", shareOnUpload ? "true" : "false");
+
+    try {
+      const res = await fetch(`/api/nutritionist/clients/${clientRecord.clientId}/documents`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Upload failed" }));
+        throw new Error(err.message);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "documents"] });
+      toast({ title: "Document uploaded" });
+    } catch (err: unknown) {
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDownload = (doc: ClientDocument) => {
+    window.open(`/api/nutritionist/clients/${clientRecord.clientId}/documents/${doc.id}/download`, "_blank");
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-4" data-testid="panel-document-vault">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <FolderOpen className="w-4 h-4 text-zinc-400" />
+          <h3 className="text-sm font-semibold text-zinc-900">Document Vault</h3>
+          {documents.length > 0 && (
+            <span className="text-xs text-zinc-400">{documents.length} file{documents.length !== 1 ? "s" : ""}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-xs text-zinc-500 cursor-pointer select-none" data-testid="toggle-share-on-upload">
+            <input
+              type="checkbox"
+              checked={shareOnUpload}
+              onChange={e => setShareOnUpload(e.target.checked)}
+              className="rounded"
+            />
+            Share on upload
+          </label>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-white text-xs font-medium rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+            data-testid="button-upload-document"
+          >
+            {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+            Upload
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv"
+            onChange={handleFileChange}
+            data-testid="input-file-upload"
+          />
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
+      ) : documents.length === 0 ? (
+        <div className="text-center py-8">
+          <FolderOpen className="w-10 h-10 text-zinc-200 mx-auto mb-3" />
+          <p className="text-sm font-medium text-zinc-500 mb-1" data-testid="state-no-documents">No documents yet</p>
+          <p className="text-xs text-zinc-400">Upload lab results, handouts, or other files for this client.</p>
+        </div>
+      ) : (
+        <div className="space-y-2" data-testid="document-list">
+          {documents.map(doc => (
+            <div
+              key={doc.id}
+              className="flex items-center gap-3 p-3 border border-zinc-100 rounded-xl hover:bg-zinc-50 transition-colors"
+              data-testid={`document-${doc.id}`}
+            >
+              <div className="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <FileText className="w-4 h-4 text-zinc-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-zinc-900 truncate" data-testid={`doc-filename-${doc.id}`}>{doc.filename}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-xs text-zinc-400">{formatFileSize(doc.size)}</span>
+                  <span className="text-zinc-300">·</span>
+                  <span className="text-xs text-zinc-400">{formatDate(doc.createdAt)}</span>
+                  <span className="text-zinc-300">·</span>
+                  <span className="text-xs text-zinc-400" data-testid={`doc-uploader-${doc.id}`}>{doc.uploaderName}</span>
+                  {doc.sharedWithClient && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full" data-testid={`badge-shared-${doc.id}`}>
+                      Shared
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => toggleSharingMutation.mutate({ id: doc.id, sharedWithClient: !doc.sharedWithClient })}
+                  disabled={toggleSharingMutation.isPending}
+                  className={`p-1.5 rounded-lg transition-colors ${doc.sharedWithClient ? "text-blue-600 hover:text-blue-800 hover:bg-blue-50" : "text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"}`}
+                  title={doc.sharedWithClient ? "Unshare from client" : "Share with client"}
+                  data-testid={`button-toggle-share-${doc.id}`}
+                >
+                  {doc.sharedWithClient ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownload(doc)}
+                  className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
+                  title="Download"
+                  data-testid={`button-download-doc-${doc.id}`}
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteMutation.mutate(doc.id)}
+                  disabled={deleteMutation.isPending}
+                  className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Delete"
+                  data-testid={`button-delete-doc-${doc.id}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ClientProfile({
   clientRecord,
   onBack,
@@ -3370,7 +3569,7 @@ function ClientProfile({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [activeSection, setActiveSection] = useState<"profile" | "messages" | "food-diary" | "outcomes">("profile");
+  const [activeSection, setActiveSection] = useState<"profile" | "messages" | "food-diary" | "outcomes" | "documents">("profile");
 
   const { data: profileData, isLoading: profileLoading } = useQuery<ClientProfileData>({
     queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "profile"],
@@ -3671,7 +3870,20 @@ function ClientProfile({
           <LineChartIcon className="w-3.5 h-3.5" />
           Outcomes
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection("documents")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeSection === "documents" ? "bg-zinc-900 text-white" : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
+          data-testid="tab-client-documents"
+        >
+          <FolderOpen className="w-3.5 h-3.5" />
+          Documents
+        </button>
       </div>
+
+      {activeSection === "documents" && (
+        <DocumentVaultPanel clientRecord={clientRecord} />
+      )}
 
       {activeSection === "messages" && user && (
         <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">

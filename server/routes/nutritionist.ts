@@ -3,7 +3,49 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import crypto from "crypto";
 import { storage } from "../storage";
+import { pool } from "../db";
 import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier, goalTypeEnum, pipelineStageEnum, insertReengagementSequenceSchema } from "@shared/schema";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+const UPLOADS_DIR = path.join(process.cwd(), "uploads", "client-documents");
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const diskStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}`;
+    const ext = path.extname(file.originalname);
+    cb(null, `${uniqueSuffix}${ext}`);
+  },
+});
+
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+  "text/csv",
+];
+
+const upload = multer({
+  storage: diskStorage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("File type not allowed. Please upload PDF, image, or document files."));
+    }
+  },
+});
 import { sendEmail, buildWaitlistInviteEmailHtml } from "../email";
 
 import OpenAI from "openai";
@@ -2133,6 +2175,199 @@ router.post("/api/nutritionist/clients/:clientId/reengagement/cancel", async (re
   res.json(updated);
 });
 
+// ─── Document Vault ───────────────────────────────────────────────────────────
+
+router.get("/api/nutritionist/clients/:clientId/documents", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const { rows } = await pool.query(
+    `SELECT cd.*, u.name AS uploader_name, u.email AS uploader_email
+     FROM client_documents cd
+     JOIN users u ON u.id = cd.uploader_id
+     WHERE cd.nutritionist_id = $1 AND cd.client_id = $2
+     ORDER BY cd.created_at DESC`,
+    [userId, clientId],
+  );
+  res.json(rows.map((r: any) => ({
+    id: r.id,
+    nutritionistId: r.nutritionist_id,
+    clientId: r.client_id,
+    uploaderId: r.uploader_id,
+    uploaderName: r.uploader_name,
+    uploaderEmail: r.uploader_email,
+    filename: r.filename,
+    storagePath: r.storage_path,
+    mimeType: r.mime_type,
+    size: r.size,
+    sharedWithClient: r.shared_with_client,
+    createdAt: r.created_at,
+  })));
+});
+
+router.post("/api/nutritionist/clients/:clientId/documents", upload.single("file"), async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+  const sharedWithClient = req.body.sharedWithClient === "true";
+
+  try {
+    const doc = await storage.createClientDocument({
+      nutritionistId: userId,
+      clientId,
+      uploaderId: userId,
+      filename: req.file.originalname,
+      storagePath: req.file.filename,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+      sharedWithClient,
+    });
+    res.status(201).json(doc);
+  } catch (err) {
+    if (req.file) {
+      fs.unlink(path.join(UPLOADS_DIR, req.file.filename), () => {});
+    }
+    res.status(500).json({ message: "Failed to save document" });
+  }
+});
+
+router.patch("/api/nutritionist/clients/:clientId/documents/:docId/sharing", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  const docId = parseInt(req.params.docId);
+  if (isNaN(clientId) || isNaN(docId)) return res.status(400).json({ message: "Invalid ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const schema = z.object({ sharedWithClient: z.boolean() });
+  try {
+    const { sharedWithClient } = schema.parse(req.body);
+    const updated = await storage.toggleClientDocumentSharing(docId, userId, sharedWithClient);
+    if (!updated) return res.status(404).json({ message: "Document not found" });
+    res.json(updated);
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ message: "Invalid input" });
+    res.status(500).json({ message: "Failed to update sharing" });
+  }
+});
+
+router.delete("/api/nutritionist/clients/:clientId/documents/:docId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  const docId = parseInt(req.params.docId);
+  if (isNaN(clientId) || isNaN(docId)) return res.status(400).json({ message: "Invalid ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const doc = await storage.getClientDocumentById(docId);
+  if (!doc || doc.nutritionistId !== userId || doc.clientId !== clientId) {
+    return res.status(404).json({ message: "Document not found" });
+  }
+
+  await storage.deleteClientDocument(docId, userId);
+  fs.unlink(path.join(UPLOADS_DIR, doc.storagePath), () => {});
+  res.json({ success: true });
+});
+
+router.get("/api/nutritionist/clients/:clientId/documents/:docId/download", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  const docId = parseInt(req.params.docId);
+  if (isNaN(clientId) || isNaN(docId)) return res.status(400).json({ message: "Invalid ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const doc = await storage.getClientDocumentById(docId);
+  if (!doc || doc.nutritionistId !== userId || doc.clientId !== clientId) {
+    return res.status(404).json({ message: "Document not found" });
+  }
+
+  const filePath = path.join(UPLOADS_DIR, doc.storagePath);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ message: "File not found on disk" });
+
+  res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(doc.filename)}"`);
+  res.setHeader("Content-Type", doc.mimeType);
+  fs.createReadStream(filePath).pipe(res);
+});
+
+// ─── Client-facing document endpoints ────────────────────────────────────────
+
+router.get("/api/client/documents", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const user = await storage.getUserById(userId);
+  if (!user || !user.isManagedClient || !user.managedByNutritionistId) {
+    return res.status(403).json({ message: "You are not a managed client." });
+  }
+
+  const docs = await storage.getSharedDocumentsForClient(userId, user.managedByNutritionistId);
+  res.json(docs);
+});
+
+router.get("/api/client/documents/:docId/download", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const user = await storage.getUserById(userId);
+  if (!user || !user.isManagedClient || !user.managedByNutritionistId) {
+    return res.status(403).json({ message: "You are not a managed client." });
+  }
+
+  const docId = parseInt(req.params.docId);
+  if (isNaN(docId)) return res.status(400).json({ message: "Invalid document ID" });
+
+  const doc = await storage.getClientDocumentById(docId);
+  if (!doc || doc.clientId !== userId || doc.nutritionistId !== user.managedByNutritionistId || !doc.sharedWithClient) {
+    return res.status(404).json({ message: "Document not found" });
+  }
+
+  const filePath = path.join(UPLOADS_DIR, doc.storagePath);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ message: "File not found on disk" });
+
+  res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(doc.filename)}"`);
+  res.setHeader("Content-Type", doc.mimeType);
+  fs.createReadStream(filePath).pipe(res);
+});
+
 // ─── Waitlist ─────────────────────────────────────────────────────────────────
 
 router.get("/api/nutritionist/waitlist", async (req, res) => {
@@ -2274,6 +2509,5 @@ router.post("/api/public/waitlist/:nutritionistId", async (req, res) => {
     if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
     throw err;
   }
-});
 
 export default router;

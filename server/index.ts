@@ -89,7 +89,8 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+// NOTE: /uploads/client-documents is NOT served statically - documents are served only
+// through authenticated API endpoints to enforce access control
 
 app.use(
   session({

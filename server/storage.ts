@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, stravaActivities, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, clientDocuments, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, stravaActivities, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -336,6 +336,13 @@ export interface IStorage {
   createClientMetric(nutritionistId: number, clientId: number, data: { metricType: string; customLabel?: string | null; value: string; unit?: string | null; notes?: string | null; recordedAt?: Date }): Promise<ClientMetric>;
   deleteClientMetric(id: number, nutritionistId: number, clientId: number): Promise<void>;
   getClientMetricsByClientId(clientId: number): Promise<ClientMetric[]>;
+  // Client documents (document vault)
+  getClientDocuments(nutritionistId: number, clientId: number): Promise<ClientDocument[]>;
+  createClientDocument(data: { nutritionistId: number; clientId: number; uploaderId: number; filename: string; storagePath: string; mimeType: string; size: number; sharedWithClient?: boolean }): Promise<ClientDocument>;
+  getClientDocumentById(id: number): Promise<ClientDocument | undefined>;
+  toggleClientDocumentSharing(id: number, nutritionistId: number, sharedWithClient: boolean): Promise<ClientDocument | undefined>;
+  deleteClientDocument(id: number, nutritionistId: number): Promise<void>;
+  getSharedDocumentsForClient(clientId: number, nutritionistId: number): Promise<ClientDocument[]>;
 
   // Waitlist
   getWaitlistEntries(nutritionistId: number): Promise<WaitlistEntry[]>;
@@ -3228,6 +3235,48 @@ export class DatabaseStorage implements IStorage {
     if (limit) return q.limit(limit);
     return q;
   }
+
+  async getClientDocuments(nutritionistId: number, clientId: number): Promise<ClientDocument[]> {
+    return db
+      .select()
+      .from(clientDocuments)
+      .where(and(eq(clientDocuments.nutritionistId, nutritionistId), eq(clientDocuments.clientId, clientId)))
+      .orderBy(desc(clientDocuments.createdAt));
+  }
+
+  async createClientDocument(data: { nutritionistId: number; clientId: number; uploaderId: number; filename: string; storagePath: string; mimeType: string; size: number; sharedWithClient?: boolean }): Promise<ClientDocument> {
+    const [doc] = await db.insert(clientDocuments).values({ ...data, sharedWithClient: data.sharedWithClient ?? false }).returning();
+    return doc;
+  }
+
+  async getClientDocumentById(id: number): Promise<ClientDocument | undefined> {
+    const [doc] = await db.select().from(clientDocuments).where(eq(clientDocuments.id, id));
+    return doc;
+  }
+
+  async toggleClientDocumentSharing(id: number, nutritionistId: number, sharedWithClient: boolean): Promise<ClientDocument | undefined> {
+    const [doc] = await db
+      .update(clientDocuments)
+      .set({ sharedWithClient })
+      .where(and(eq(clientDocuments.id, id), eq(clientDocuments.nutritionistId, nutritionistId)))
+      .returning();
+    return doc;
+  }
+
+  async deleteClientDocument(id: number, nutritionistId: number): Promise<void> {
+    await db.delete(clientDocuments).where(and(eq(clientDocuments.id, id), eq(clientDocuments.nutritionistId, nutritionistId)));
+  }
+
+  async getSharedDocumentsForClient(clientId: number, nutritionistId: number): Promise<ClientDocument[]> {
+    return db
+      .select()
+      .from(clientDocuments)
+      .where(and(
+        eq(clientDocuments.clientId, clientId),
+        eq(clientDocuments.nutritionistId, nutritionistId),
+        eq(clientDocuments.sharedWithClient, true),
+      ))
+      .orderBy(desc(clientDocuments.createdAt));
   }
 }
 

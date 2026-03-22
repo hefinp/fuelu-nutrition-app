@@ -895,6 +895,28 @@ export async function runMigrations(): Promise<void> {
 
     await client.query(`ALTER TABLE food_log_entries ADD COLUMN IF NOT EXISTS volume_ml INTEGER`);
     await client.query(`ALTER TABLE food_log_entries ADD COLUMN IF NOT EXISTS hydration_log_id INTEGER`);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS client_documents (
+        id                  SERIAL PRIMARY KEY,
+        nutritionist_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        client_id           INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        uploader_id         INTEGER NOT NULL REFERENCES users(id),
+        filename            TEXT NOT NULL,
+        storage_path        TEXT NOT NULL,
+        mime_type           TEXT NOT NULL,
+        size                INTEGER NOT NULL,
+        shared_with_client  BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at          TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_client_documents_nutritionist_client
+        ON client_documents (nutritionist_id, client_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_client_documents_client_shared
+        ON client_documents (client_id, shared_with_client)
+    `);
 
   } finally {
     client.release();
