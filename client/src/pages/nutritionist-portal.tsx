@@ -2376,7 +2376,7 @@ function ClientProfile({
           data-testid="tab-client-food-diary"
         >
           <BookOpen className="w-3.5 h-3.5" />
-          Food Diary
+          My Diary
           {streakDays !== null && (
             <span className={`ml-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${activeSection === "food-diary" ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-700"}`}>
               {streakDays}/7 days

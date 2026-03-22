@@ -652,7 +652,7 @@ function DiaryContent({
             <ArrowLeft className="w-5 h-5 text-zinc-600" />
           </button>
           <div className="flex-1">
-            <h1 className="text-lg font-display font-bold text-zinc-900">Food Diary</h1>
+            <h1 className="text-lg font-display font-bold text-zinc-900">My Diary</h1>
           </div>
           <button
             onClick={() => setDrawerOpen(true)}
