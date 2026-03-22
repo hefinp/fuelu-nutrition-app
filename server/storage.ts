@@ -62,6 +62,16 @@ export interface IStorage {
   getCanonicalFoodByBarcode(barcode: string): Promise<CanonicalFood | undefined>;
   getCanonicalFoodByFdcId(fdcId: string): Promise<CanonicalFood | undefined>;
   canonicalFoodExistsByName(name: string): Promise<CanonicalFood | undefined>;
+  canonicalFoodExistsByExactName(name: string): Promise<CanonicalFood | undefined>;
+  insertCanonicalFoodIfNoExactMatch(food: {
+    name: string;
+    calories100g: number;
+    protein100g: number;
+    carbs100g: number;
+    fat100g: number;
+    servingGrams?: number;
+    source?: string;
+  }): Promise<CanonicalFood | undefined>;
   checkCanonicalFoodNames(names: string[]): Promise<Set<string>>;
   upsertCanonicalFood(food: {
     name: string;
@@ -755,6 +765,53 @@ export class DatabaseStorage implements IStorage {
 
     const trustedFallback = await this.findTrustedCanonicalBySubstring(canonical);
     return trustedFallback ?? row;
+  }
+
+  async canonicalFoodExistsByExactName(name: string): Promise<CanonicalFood | undefined> {
+    const canonical = name.toLowerCase().replace(/\s+/g, " ").trim();
+    const rows = await db.select().from(canonicalFoods)
+      .where(eq(canonicalFoods.canonicalName, canonical))
+      .orderBy(
+        sql`CASE WHEN ${canonicalFoods.source} IN (${sql.join(DatabaseStorage.TRUSTED_SOURCES.map(s => sql`${s}`), sql`, `)}) THEN 0 ELSE 1 END`,
+        desc(canonicalFoods.verifiedAt)
+      )
+      .limit(1);
+    return rows[0];
+  }
+
+  async insertCanonicalFoodIfNoExactMatch(food: {
+    name: string;
+    calories100g: number;
+    protein100g: number;
+    carbs100g: number;
+    fat100g: number;
+    servingGrams?: number;
+    source?: string;
+  }): Promise<CanonicalFood | undefined> {
+    const canonical = food.name.toLowerCase().replace(/\s+/g, " ").trim();
+    const existing = await this.canonicalFoodExistsByExactName(food.name);
+    if (existing) return undefined;
+    const incomingQuality = getSourceQuality(food.source ?? "user_manual");
+    const trustedSource = incomingQuality >= 80;
+    try {
+      const [created] = await db.insert(canonicalFoods).values({
+        name: food.name,
+        canonicalName: canonical,
+        calories100g: food.calories100g,
+        protein100g: food.protein100g,
+        carbs100g: food.carbs100g,
+        fat100g: food.fat100g,
+        servingGrams: food.servingGrams ?? 100,
+        source: food.source ?? "user_manual",
+        sourceQuality: incomingQuality,
+        verifiedAt: trustedSource ? new Date() : null,
+      }).returning();
+      return created;
+    } catch (err: unknown) {
+      const pgErr = err as { code?: string };
+      if (pgErr.code === "23505") return undefined;
+      throw err;
+    }
   }
 
   private async findTrustedCanonicalBySubstring(canonical: string): Promise<CanonicalFood | undefined> {

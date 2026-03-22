@@ -53,6 +53,7 @@ interface UsdaNutrient {
 interface UsdaFood {
   fdcId: number;
   description: string;
+  dataType?: string;
   foodNutrients?: UsdaNutrient[];
   servingSize?: number;
   servingSizeUnit?: string;
@@ -311,10 +312,43 @@ function scoreCanonicalMatch(searchTerm: string, candidateName: string, sourceQu
   return score;
 }
 
+const USDA_LIQUID_PENALTY_WORDS = /\b(dry|dried|powder|powdered|condensed|evaporated|dehydrated|instant|mix)\b/i;
+
+function pickBestUsdaFood(foods: UsdaFood[], searchTerm: string): UsdaFood {
+  const isLiquid = LIQUID_PATTERNS.some(p => p.test(searchTerm));
+  let bestFood = foods[0];
+  let bestScore = -Infinity;
+
+  for (const food of foods) {
+    let score = 0;
+    const desc = (food.description ?? "").toLowerCase();
+    const dt = (food.dataType ?? "").toLowerCase();
+
+    if (dt === "foundation" || dt === "sr legacy") {
+      score += 20;
+    }
+
+    if (isLiquid && USDA_LIQUID_PENALTY_WORDS.test(desc)) {
+      score -= 50;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestFood = food;
+    }
+  }
+
+  return bestFood;
+}
+
 export async function searchFoodDb(rawName: string): Promise<{ calories100g: number; protein100g: number; carbs100g: number; fat100g: number; sourceDetail?: string } | null> {
   const name = normalizeIngredientName(rawName);
   try {
+    const exactMatch = await storage.canonicalFoodExistsByExactName(name);
     const canonicalHits = await storage.searchCanonicalFoods(name, 10);
+    if (exactMatch && !canonicalHits.some(h => h.id === exactMatch.id)) {
+      canonicalHits.push(exactMatch);
+    }
     if (canonicalHits.length > 0) {
       const scored = canonicalHits
         .map(hit => ({ hit, score: scoreCanonicalMatch(name, hit.name, hit.sourceQuality ?? 40) }))
@@ -361,7 +395,7 @@ export async function searchFoodDb(rawName: string): Promise<{ calories100g: num
     const data = await res.json() as UsdaSearchResponse;
     const foods = data.foods ?? [];
     if (foods.length === 0) return null;
-    const food = foods[0];
+    const food = pickBestUsdaFood(foods, name);
     const nutrients = food.foodNutrients ?? [];
     const calories = getNutrient(nutrients, 1008) || getNutrient(nutrients, 2047) || getNutrient(nutrients, 2048);
     if (!calories) return null;
@@ -618,11 +652,11 @@ export async function seedGenericStapleFoods(): Promise<void> {
   let seeded = 0;
   for (const staple of GENERIC_STAPLES) {
     try {
-      const existing = await storage.canonicalFoodExistsByName(staple.name);
+      const existing = await storage.canonicalFoodExistsByExactName(staple.name);
       if (existing && existing.source === "generic_staple") continue;
       if (existing && getSourceQuality(existing.source ?? "user_manual") >= 90) continue;
 
-      await storage.upsertCanonicalFood({
+      const created = await storage.insertCanonicalFoodIfNoExactMatch({
         name: staple.name,
         calories100g: staple.calories100g,
         protein100g: staple.protein100g,
@@ -631,7 +665,7 @@ export async function seedGenericStapleFoods(): Promise<void> {
         servingGrams: 100,
         source: "generic_staple",
       });
-      seeded++;
+      if (created) seeded++;
     } catch (err) {
       console.warn(`[seedGenericStapleFoods] Failed to seed "${staple.name}":`, err);
     }
