@@ -106,6 +106,28 @@ export function buildMealPlanEmailHtml(planName: string, userName: string, planD
 </html>`;
 }
 
+export function buildWaitlistInviteEmailHtml(opts: {
+  prospectName: string;
+  nutritionistName: string;
+  inviteUrl: string;
+}): string {
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>You're invited to join FuelU</title></head>
+<body style="font-family:sans-serif;max-width:520px;margin:40px auto;padding:0 20px;color:#1a1a1a">
+  <div style="margin-bottom:24px">
+    <span style="font-weight:700;font-size:18px">FuelU</span>
+  </div>
+  <h2 style="font-size:22px;font-weight:700;margin-bottom:8px">You've been invited!</h2>
+  <p style="color:#555;margin-bottom:24px">Hi ${esc(opts.prospectName)}, great news — <strong>${esc(opts.nutritionistName)}</strong> has a spot available and would like to invite you to join as a client on FuelU.</p>
+  <p style="color:#555;margin-bottom:24px">Click the button below to create your account and get started. This invitation link will expire in 7 days.</p>
+  <a href="${opts.inviteUrl}" style="display:inline-block;padding:12px 28px;background:#18181b;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px">Accept Invitation</a>
+  <p style="margin-top:24px;color:#888;font-size:12px">If you didn't request this, you can safely ignore this email.</p>
+  <p style="color:#888;font-size:12px">Or copy this link: <a href="${opts.inviteUrl}" style="color:#555">${opts.inviteUrl}</a></p>
+</body>
+</html>`;
+}
+
 export function buildFeedbackEmailHtml(opts: {
   userName: string;
   userEmail: string;

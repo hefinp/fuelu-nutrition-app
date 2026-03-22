@@ -19,6 +19,7 @@ import BillingPage from "@/pages/billing";
 import AccountPage from "@/pages/account";
 import NutritionistRegisterPage from "@/pages/nutritionist-register";
 import NutritionistPortalPage from "@/pages/nutritionist-portal";
+import WaitlistSignupPage from "@/pages/waitlist-signup";
 import { useAuth } from "@/hooks/use-auth";
 import { TrialModal } from "@/components/trial-modal";
 import { UsernamePrompt } from "@/components/username-prompt";
@@ -75,6 +76,7 @@ function Router() {
       <Route path="/account" component={AccountPage} />
       <Route path="/nutritionist/register" component={NutritionistRegisterPage} />
       <Route path="/nutritionist/portal" component={NutritionistPortalPage} />
+      <Route path="/waitlist/:nutritionistId" component={WaitlistSignupPage} />
       <Route path="/insights">{() => <Suspense fallback={<LazyFallback />}><InsightsPage /></Suspense>}</Route>
       <Route path="/diary">{() => <Suspense fallback={<LazyFallback />}><DiaryPage /></Suspense>}</Route>
       <Route path="/my-library">{() => <Suspense fallback={<LazyFallback />}><MyLibraryPage /></Suspense>}</Route>

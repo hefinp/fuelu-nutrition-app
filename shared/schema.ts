@@ -1215,3 +1215,38 @@ export const insertActiveReengagementJobSchema = createInsertSchema(activeReenga
 
 export type InsertActiveReengagementJob = z.infer<typeof insertActiveReengagementJobSchema>;
 export type ActiveReengagementJob = typeof activeReengagementJobs.$inferSelect;
+
+// ─── Waitlist Entries ─────────────────────────────────────────────────────────
+
+export const waitlistStatusEnum = ["waiting", "invited", "converted", "removed"] as const;
+export type WaitlistStatus = typeof waitlistStatusEnum[number];
+
+export const waitlistEntries = pgTable("waitlist_entries", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  notes: text("notes"),
+  position: integer("position").notNull().default(0),
+  status: text("status").notNull().default("waiting"),
+  invitedAt: timestamp("invited_at"),
+  addedAt: timestamp("added_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWaitlistEntrySchema = createInsertSchema(waitlistEntries).omit({
+  id: true,
+  createdAt: true,
+  addedAt: true,
+  nutritionistId: true,
+  invitedAt: true,
+}).extend({
+  name: z.string().min(1, "Name is required").max(200),
+  email: z.string().email("Invalid email address"),
+  notes: z.string().max(2000).optional(),
+  position: z.number().int().min(0).optional(),
+  status: z.enum(waitlistStatusEnum).default("waiting"),
+});
+
+export type InsertWaitlistEntry = z.infer<typeof insertWaitlistEntrySchema>;
+export type WaitlistEntry = typeof waitlistEntries.$inferSelect;

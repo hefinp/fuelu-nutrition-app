@@ -877,6 +877,22 @@ export async function runMigrations(): Promise<void> {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_active_reengagement_jobs_status ON active_reengagement_jobs (status, next_send_at) WHERE status = 'active'`);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS waitlist_entries (
+        id                SERIAL PRIMARY KEY,
+        nutritionist_id   INTEGER NOT NULL REFERENCES users(id),
+        name              TEXT NOT NULL,
+        email             TEXT NOT NULL,
+        notes             TEXT,
+        position          INTEGER NOT NULL DEFAULT 0,
+        status            TEXT NOT NULL DEFAULT 'waiting',
+        invited_at        TIMESTAMP,
+        added_at          TIMESTAMP DEFAULT NOW(),
+        created_at        TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_waitlist_entries_nutritionist ON waitlist_entries (nutritionist_id)`);
+
   } finally {
     client.release();
   }

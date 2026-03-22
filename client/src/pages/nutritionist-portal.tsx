@@ -11,6 +11,7 @@ import {
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
   MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2, Download, History,
   LogOut, User, BookOpen, LineChart as LineChartIcon, KanbanSquare, Zap, Pause, Play, Ban,
+  Clock, MoveVertical, Link as LinkIcon,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { AnimatePresence, motion } from "framer-motion";
@@ -4089,6 +4090,340 @@ function SequenceForm({ sequence, clients, onClose }: { sequence?: ReengagementS
   );
 }
 
+interface WaitlistEntry {
+  id: number;
+  nutritionistId: number;
+  name: string;
+  email: string;
+  notes: string | null;
+  position: number;
+  status: string;
+  invitedAt: string | null;
+  addedAt: string | null;
+  createdAt: string | null;
+}
+
+function WaitlistPanel({ nutritionistId, capacity }: { nutritionistId: number; capacity: Capacity | undefined }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addNotes, setAddNotes] = useState("");
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
+  const [showCopied, setShowCopied] = useState(false);
+
+  const { data: entries = [], isLoading } = useQuery<WaitlistEntry[]>({
+    queryKey: ["/api/nutritionist/waitlist"],
+    queryFn: () => apiRequest("GET", "/api/nutritionist/waitlist").then(r => r.json()),
+  });
+
+  const addMutation = useMutation({
+    mutationFn: (data: { name: string; email: string; notes?: string }) =>
+      apiRequest("POST", "/api/nutritionist/waitlist", data).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/waitlist"] });
+      setShowAddForm(false);
+      setAddName("");
+      setAddEmail("");
+      setAddNotes("");
+      toast({ title: "Added to waitlist" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to add", description: err?.message ?? "Unknown error", variant: "destructive" });
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest("DELETE", `/api/nutritionist/waitlist/${id}`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/waitlist"] });
+      toast({ title: "Removed from waitlist" });
+    },
+    onError: () => {
+      toast({ title: "Failed to remove", variant: "destructive" });
+    },
+  });
+
+  const inviteMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest("POST", `/api/nutritionist/waitlist/${id}/invite`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/waitlist"] });
+      toast({ title: "Invitation sent", description: "An email invitation has been sent to the prospect." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to invite", description: err?.message ?? "Unknown error", variant: "destructive" });
+    },
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: (orderedIds: number[]) =>
+      apiRequest("PUT", "/api/nutritionist/waitlist/reorder", { orderedIds }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/waitlist"] });
+    },
+  });
+
+  const waitingEntries = entries.filter(e => e.status === "waiting");
+  const otherEntries = entries.filter(e => e.status !== "waiting");
+
+  const hasCapacity = capacity && capacity.canAddMore;
+
+  const publicWaitlistUrl = `${window.location.origin}/waitlist/${nutritionistId}`;
+
+  function handleCopyLink() {
+    navigator.clipboard.writeText(publicWaitlistUrl).then(() => {
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+    });
+  }
+
+  function handleDragStart(e: React.DragEvent, id: number) {
+    e.dataTransfer.setData("waitlist-id", String(id));
+  }
+
+  function handleDrop(e: React.DragEvent, targetId: number) {
+    e.preventDefault();
+    const draggedId = parseInt(e.dataTransfer.getData("waitlist-id"));
+    if (draggedId === targetId) return;
+    const ids = waitingEntries.map(e => e.id);
+    const from = ids.indexOf(draggedId);
+    const to = ids.indexOf(targetId);
+    if (from === -1 || to === -1) return;
+    const newIds = [...ids];
+    newIds.splice(from, 1);
+    newIds.splice(to, 0, draggedId);
+    reorderMutation.mutate(newIds);
+    setDragOverId(null);
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-display font-bold text-zinc-900 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-zinc-500" />
+            Waitlist
+          </h2>
+          <p className="text-sm text-zinc-500 mt-0.5">{waitingEntries.length} prospect{waitingEntries.length !== 1 ? "s" : ""} waiting</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+            data-testid="button-copy-waitlist-link"
+          >
+            <LinkIcon className="w-4 h-4" />
+            {showCopied ? "Copied!" : "Share link"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAddForm(v => !v)}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors"
+            data-testid="button-add-waitlist"
+          >
+            <Plus className="w-4 h-4" />
+            Add prospect
+          </button>
+        </div>
+      </div>
+
+      {hasCapacity && waitingEntries.length > 0 && (
+        <div className="mb-4 flex items-start gap-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50" data-testid="banner-capacity-available">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-emerald-700">You have capacity available</p>
+            <p className="text-xs text-emerald-600 mt-0.5">{capacity.limit - capacity.count} slot{capacity.limit - capacity.count !== 1 ? "s" : ""} open — consider inviting your next prospect.</p>
+          </div>
+        </div>
+      )}
+
+      {showAddForm && (
+        <div className="mb-4 bg-white border border-zinc-100 rounded-2xl p-4" data-testid="form-add-waitlist">
+          <h3 className="text-sm font-semibold text-zinc-900 mb-3">Add prospect to waitlist</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-zinc-500 mb-1 block">Name *</label>
+              <input
+                type="text"
+                value={addName}
+                onChange={e => setAddName(e.target.value)}
+                placeholder="Full name"
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-waitlist-name"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-500 mb-1 block">Email *</label>
+              <input
+                type="email"
+                value={addEmail}
+                onChange={e => setAddEmail(e.target.value)}
+                placeholder="email@example.com"
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-waitlist-email"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-500 mb-1 block">Notes (optional)</label>
+              <textarea
+                value={addNotes}
+                onChange={e => setAddNotes(e.target.value)}
+                placeholder="Any relevant notes about this prospect..."
+                rows={2}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 resize-none"
+                data-testid="input-waitlist-notes"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!addName.trim() || !addEmail.trim()) return;
+                  addMutation.mutate({ name: addName.trim(), email: addEmail.trim(), notes: addNotes.trim() || undefined });
+                }}
+                disabled={addMutation.isPending || !addName.trim() || !addEmail.trim()}
+                className="px-4 py-2 bg-zinc-900 text-white text-sm rounded-xl font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                data-testid="button-submit-waitlist"
+              >
+                {addMutation.isPending ? "Adding..." : "Add to waitlist"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="px-4 py-2 text-sm border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+                data-testid="button-cancel-waitlist"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>
+      ) : waitingEntries.length === 0 && otherEntries.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-zinc-100 p-12 text-center">
+          <Clock className="w-10 h-10 text-zinc-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-zinc-600 mb-1">No prospects on your waitlist</p>
+          <p className="text-xs text-zinc-400">Add a prospect manually or share your sign-up link.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {waitingEntries.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Waiting ({waitingEntries.length})</h3>
+              <div className="space-y-2">
+                {waitingEntries.map((entry, idx) => (
+                  <div
+                    key={entry.id}
+                    draggable
+                    onDragStart={e => handleDragStart(e, entry.id)}
+                    onDragOver={e => { e.preventDefault(); setDragOverId(entry.id); }}
+                    onDragLeave={() => setDragOverId(null)}
+                    onDrop={e => handleDrop(e, entry.id)}
+                    className={`bg-white rounded-2xl border p-4 flex items-center gap-3 transition-all ${dragOverId === entry.id ? "border-zinc-400 shadow-sm" : "border-zinc-100"}`}
+                    data-testid={`row-waitlist-${entry.id}`}
+                  >
+                    <div className="cursor-grab text-zinc-300 hover:text-zinc-500 flex-shrink-0" title="Drag to reorder">
+                      <MoveVertical className="w-4 h-4" />
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 text-sm font-bold flex-shrink-0">
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-zinc-900">{entry.name}</p>
+                      <p className="text-xs text-zinc-500">{entry.email}</p>
+                      {entry.notes && <p className="text-xs text-zinc-400 mt-0.5 truncate">{entry.notes}</p>}
+                    </div>
+                    <div className="text-right flex-shrink-0 hidden sm:block">
+                      <p className="text-xs text-zinc-400">{entry.addedAt ? formatDate(entry.addedAt) : "—"}</p>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => inviteMutation.mutate(entry.id)}
+                        disabled={inviteMutation.isPending}
+                        title="Invite this prospect"
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-lg hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+                        data-testid={`button-invite-waitlist-${entry.id}`}
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        Invite
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeMutation.mutate(entry.id)}
+                        disabled={removeMutation.isPending}
+                        title="Remove from waitlist"
+                        className="p-1.5 text-zinc-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                        data-testid={`button-remove-waitlist-${entry.id}`}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {otherEntries.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">Previously invited / other ({otherEntries.length})</h3>
+              <div className="space-y-2">
+                {otherEntries.map(entry => {
+                  const statusColors: Record<string, string> = {
+                    invited: "bg-blue-50 text-blue-700",
+                    converted: "bg-emerald-50 text-emerald-700",
+                    removed: "bg-zinc-50 text-zinc-500",
+                  };
+                  return (
+                    <div
+                      key={entry.id}
+                      className="bg-white rounded-2xl border border-zinc-100 p-4 flex items-center gap-3"
+                      data-testid={`row-waitlist-other-${entry.id}`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-400 text-sm font-bold flex-shrink-0">
+                        {entry.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-zinc-700">{entry.name}</p>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${statusColors[entry.status] ?? "bg-zinc-50 text-zinc-500"}`}>
+                            {entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-400">{entry.email}</p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => removeMutation.mutate(entry.id)}
+                          disabled={removeMutation.isPending}
+                          title="Remove record"
+                          className="p-1.5 text-zinc-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                          data-testid={`button-remove-waitlist-other-${entry.id}`}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StartJobForm({
   sequences,
   clients,
@@ -4152,7 +4487,7 @@ function StartJobForm({
   );
 }
 
-type Tab = "monitoring" | "clients" | "pipeline" | "reengagement" | "practice";
+type Tab = "monitoring" | "clients" | "pipeline" | "reengagement" | "waitlist" | "practice";
 type ViewState =
   | { kind: "list" }
   | { kind: "profile"; client: ClientWithUser }
@@ -4240,6 +4575,7 @@ export default function NutritionistPortalPage() {
     { id: "clients", label: "Clients", icon: Users },
     { id: "pipeline", label: "Pipeline", icon: KanbanSquare },
     { id: "reengagement", label: "Re-engage", icon: Zap },
+    { id: "waitlist", label: "Waitlist", icon: Clock },
     { id: "practice", label: "Practice", icon: Building2 },
   ];
 
@@ -4430,9 +4766,14 @@ export default function NutritionistPortalPage() {
               />
             )
           )
+        )}
 
         {tab === "reengagement" && (
           <ReengagementManager clients={clients} />
+        )}
+
+        {tab === "waitlist" && (
+          <WaitlistPanel nutritionistId={profile.userId} capacity={capacity} />
         )}
 
         {tab === "practice" && (

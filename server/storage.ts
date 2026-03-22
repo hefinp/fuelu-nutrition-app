@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, reengagementSequences, activeReengagementJobs, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type MealComment, type StravaConnection, stravaActivities, type InsertStravaActivity, type StravaActivity } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, reengagementSequences, activeReengagementJobs, waitlistEntries, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type MealComment, type StravaConnection, stravaActivities, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -333,6 +333,15 @@ export interface IStorage {
   createClientMetric(nutritionistId: number, clientId: number, data: { metricType: string; customLabel?: string | null; value: string; unit?: string | null; notes?: string | null; recordedAt?: Date }): Promise<ClientMetric>;
   deleteClientMetric(id: number, nutritionistId: number, clientId: number): Promise<void>;
   getClientMetricsByClientId(clientId: number): Promise<ClientMetric[]>;
+
+  // Waitlist
+  getWaitlistEntries(nutritionistId: number): Promise<WaitlistEntry[]>;
+  getWaitlistEntryById(id: number, nutritionistId: number): Promise<WaitlistEntry | undefined>;
+  addWaitlistEntry(nutritionistId: number, data: { name: string; email: string; notes?: string | null }): Promise<WaitlistEntry>;
+  updateWaitlistEntry(id: number, nutritionistId: number, updates: Partial<Pick<WaitlistEntry, 'name' | 'email' | 'notes' | 'status' | 'position' | 'invitedAt'>>): Promise<WaitlistEntry | undefined>;
+  reorderWaitlistEntries(nutritionistId: number, orderedIds: number[]): Promise<void>;
+  removeWaitlistEntry(id: number, nutritionistId: number): Promise<void>;
+  getNutritionistByIdPublic(nutritionistId: number): Promise<{ id: number; name: string } | undefined>;
 
   deleteUser(userId: number): Promise<void>;
 
@@ -2838,6 +2847,8 @@ export class DatabaseStorage implements IStorage {
       .from(clientMetrics)
       .where(eq(clientMetrics.clientId, clientId))
       .orderBy(desc(clientMetrics.recordedAt));
+  }
+
   async getReengagementSequences(nutritionistId: number): Promise<ReengagementSequence[]> {
     return db.select().from(reengagementSequences)
       .where(eq(reengagementSequences.nutritionistId, nutritionistId))
@@ -2948,6 +2959,77 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(foodLogEntries.date))
       .limit(1);
     return latest?.date ?? null;
+  }
+
+  async getWaitlistEntries(nutritionistId: number): Promise<WaitlistEntry[]> {
+    return db
+      .select()
+      .from(waitlistEntries)
+      .where(eq(waitlistEntries.nutritionistId, nutritionistId))
+      .orderBy(waitlistEntries.position, waitlistEntries.addedAt);
+  }
+
+  async getWaitlistEntryById(id: number, nutritionistId: number): Promise<WaitlistEntry | undefined> {
+    const [entry] = await db
+      .select()
+      .from(waitlistEntries)
+      .where(and(eq(waitlistEntries.id, id), eq(waitlistEntries.nutritionistId, nutritionistId)));
+    return entry;
+  }
+
+  async addWaitlistEntry(nutritionistId: number, data: { name: string; email: string; notes?: string | null }): Promise<WaitlistEntry> {
+    const existing = await db
+      .select()
+      .from(waitlistEntries)
+      .where(eq(waitlistEntries.nutritionistId, nutritionistId))
+      .orderBy(desc(waitlistEntries.position))
+      .limit(1);
+    const nextPosition = existing.length > 0 ? existing[0].position + 1 : 0;
+    const [entry] = await db
+      .insert(waitlistEntries)
+      .values({
+        nutritionistId,
+        name: data.name,
+        email: data.email,
+        notes: data.notes ?? null,
+        position: nextPosition,
+        status: "waiting",
+      })
+      .returning();
+    return entry;
+  }
+
+  async updateWaitlistEntry(id: number, nutritionistId: number, updates: Partial<Pick<WaitlistEntry, 'name' | 'email' | 'notes' | 'status' | 'position' | 'invitedAt'>>): Promise<WaitlistEntry | undefined> {
+    const [updated] = await db
+      .update(waitlistEntries)
+      .set(updates)
+      .where(and(eq(waitlistEntries.id, id), eq(waitlistEntries.nutritionistId, nutritionistId)))
+      .returning();
+    return updated;
+  }
+
+  async reorderWaitlistEntries(nutritionistId: number, orderedIds: number[]): Promise<void> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db
+        .update(waitlistEntries)
+        .set({ position: i })
+        .where(and(eq(waitlistEntries.id, orderedIds[i]), eq(waitlistEntries.nutritionistId, nutritionistId)));
+    }
+  }
+
+  async removeWaitlistEntry(id: number, nutritionistId: number): Promise<void> {
+    await db
+      .delete(waitlistEntries)
+      .where(and(eq(waitlistEntries.id, id), eq(waitlistEntries.nutritionistId, nutritionistId)));
+  }
+
+  async getNutritionistByIdPublic(nutritionistId: number): Promise<{ id: number; name: string } | undefined> {
+    const [user] = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .innerJoin(nutritionistProfiles, eq(users.id, nutritionistProfiles.userId))
+      .where(eq(users.id, nutritionistId));
+    return user;
   }
 }
 
