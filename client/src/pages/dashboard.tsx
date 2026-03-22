@@ -24,7 +24,7 @@ import ClientIntakeFormWidget from "@/components/client-intake-form";
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
 import { MacroComplianceWidget } from "@/components/macro-compliance-widget";
-import { useDashboardLayout, PLANNING_WIDGETS, INSIGHTS_WIDGETS } from "@/hooks/use-dashboard-layout";
+import { useDashboardLayout, MOBILE_PLANNING_IDS, MOBILE_INSIGHTS_IDS } from "@/hooks/use-dashboard-layout";
 import type { WidgetId } from "@/hooks/use-dashboard-layout";
 import type { PrefillEntry } from "@/components/food-log";
 import type { Meal } from "@/components/results-display";
@@ -663,9 +663,11 @@ export default function Dashboard() {
 
   const {
     widgetOrder,
+    homeOrder,
     leftOrder,
     rightOrder,
     insightsOrder,
+    setHomeOrder,
     setLeftOrder,
     setRightOrder,
     setInsightsOrder,
@@ -716,6 +718,17 @@ export default function Dashboard() {
   function handleMetricsResult(result: Calculation) {
     setActiveResult(result);
     setShowMetricsPanel(false);
+  }
+
+  function handleHomeDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setHomeOrder(prev => {
+        const oldIdx = prev.indexOf(active.id as WidgetId);
+        const newIdx = prev.indexOf(over.id as WidgetId);
+        return arrayMove(prev, oldIdx, newIdx);
+      });
+    }
   }
 
   function handleLeftDragEnd(event: DragEndEvent) {
@@ -909,9 +922,9 @@ export default function Dashboard() {
   // Mobile: filter by active tab (Favourites / Planning / Tracking / Insights)
   // Favourites tab renders its own content (MyMealsFoodWidget standalone), so show empty widget list
   const visibleMobileOrder = mobileTab === 'favourites' ? [] : allVisibleOrder.filter(id => {
-    if (mobileTab === 'planning') return PLANNING_WIDGETS.has(id);
-    if (mobileTab === 'insights') return INSIGHTS_WIDGETS.has(id);
-    return !PLANNING_WIDGETS.has(id) && !INSIGHTS_WIDGETS.has(id);
+    if (mobileTab === 'planning') return MOBILE_PLANNING_IDS.has(id);
+    if (mobileTab === 'insights') return MOBILE_INSIGHTS_IDS.has(id);
+    return !MOBILE_PLANNING_IDS.has(id) && !MOBILE_INSIGHTS_IDS.has(id);
   });
 
   const headerRef = useRef<HTMLElement | null>(null);
@@ -1885,9 +1898,30 @@ export default function Dashboard() {
               </motion.div>
             </AnimatePresence>
 
-            {/* ── DESKTOP layout: Planning (left), Tracking (centre), Insights (right) ── */}
-            <div className="hidden xl:grid xl:grid-cols-3 gap-6">
-              {/* Left column — Planning widgets */}
+            {/* ── DESKTOP layout: Home, Planning, Tracking, Insights ── */}
+            <div className="hidden xl:grid xl:grid-cols-4 gap-6">
+              {/* Home column */}
+              <div className="flex flex-col gap-6">
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleHomeDragEnd}
+                >
+                  <SortableContext items={homeOrder} strategy={verticalListSortingStrategy}>
+                    {homeOrder.map(id => {
+                      const content = renderWidget(id);
+                      if (!content) return null;
+                      return (
+                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
+                          {content}
+                        </SortableWidget>
+                      );
+                    })}
+                  </SortableContext>
+                </DndContext>
+              </div>
+
+              {/* Planning column */}
               <div className="flex flex-col gap-6">
                 <DndContext
                   sensors={sensors}
@@ -1908,7 +1942,7 @@ export default function Dashboard() {
                 </DndContext>
               </div>
 
-              {/* Centre column — Tracking widgets */}
+              {/* Tracking column */}
               <div className="flex flex-col gap-6">
                 <DndContext
                   sensors={sensors}
@@ -1929,7 +1963,7 @@ export default function Dashboard() {
                 </DndContext>
               </div>
 
-              {/* Right column — Insights widgets */}
+              {/* Insights column */}
               <div className="flex flex-col gap-6">
                 <DndContext
                   sensors={sensors}
