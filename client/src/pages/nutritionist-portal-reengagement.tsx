@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import {
   Loader2, Plus, Check, Edit2, Trash2, Send, Mail, Activity, Ban, Pause, Play, Zap,
-  MoveVertical, Save, CheckCircle2, Clock,
+  MoveVertical, Save, CheckCircle2, Clock, Link as LinkIcon,
 } from "lucide-react";
 
 interface ClientWithUser {
