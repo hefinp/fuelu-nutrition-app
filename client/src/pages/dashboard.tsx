@@ -712,6 +712,17 @@ export default function Dashboard() {
                   </Link>
                 )}
 
+                {user.isManagedClient && (
+                  <Link
+                    href="/my-progress"
+                    className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg text-zinc-600 hover:bg-zinc-100 transition-colors"
+                    data-testid="link-my-progress"
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                    <span className="hidden sm:inline">My Progress</span>
+                  </Link>
+                )}
+
                 {tierStatus && !user.isManagedClient && (tierStatus.tier === "free" || tierStatus.tier === "simple") && (
                   <Link
                     href="/pricing"

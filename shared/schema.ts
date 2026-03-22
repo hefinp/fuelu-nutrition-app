@@ -1022,6 +1022,49 @@ export const insertClientReportSchema = createInsertSchema(clientReports).omit({
 export type InsertClientReport = z.infer<typeof insertClientReportSchema>;
 export type ClientReport = typeof clientReports.$inferSelect;
 
+// ─── Client Metrics (Outcome Tracking) ───────────────────────────────────────
+
+export const metricTypeEnum = [
+  "weight",
+  "body_fat",
+  "waist_circumference",
+  "blood_pressure_systolic",
+  "blood_pressure_diastolic",
+  "blood_glucose",
+  "custom",
+] as const;
+export type MetricType = typeof metricTypeEnum[number];
+
+export const clientMetrics = pgTable("client_metrics", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  metricType: text("metric_type").notNull(),
+  customLabel: text("custom_label"),
+  value: numeric("value").notNull(),
+  unit: text("unit"),
+  notes: text("notes"),
+  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertClientMetricSchema = createInsertSchema(clientMetrics).omit({
+  id: true,
+  createdAt: true,
+  nutritionistId: true,
+  clientId: true,
+}).extend({
+  metricType: z.enum(metricTypeEnum),
+  customLabel: z.string().max(100).optional(),
+  value: z.string().min(1),
+  unit: z.string().max(50).optional(),
+  notes: z.string().max(500).optional(),
+  recordedAt: z.string().optional(),
+});
+
+export type InsertClientMetric = z.infer<typeof insertClientMetricSchema>;
+export type ClientMetric = typeof clientMetrics.$inferSelect;
+
 // ─── Adaptive TDEE Suggestions ───────────────────────────────────────────────
 
 export const adaptiveTdeeSuggestions = pgTable("adaptive_tdee_suggestions", {

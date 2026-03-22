@@ -1656,4 +1656,86 @@ router.delete("/api/nutritionist/clients/:clientId/reports/:reportId", async (re
   res.json({ success: true });
 });
 
+// ─── Client Metrics (Outcome Tracking) ───────────────────────────────────────
+
+router.get("/api/nutritionist/clients/:clientId/metrics", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const metrics = await storage.getClientMetrics(userId, clientId);
+  res.json(metrics);
+});
+
+router.post("/api/nutritionist/clients/:clientId/metrics", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  const schema = z.object({
+    metricType: z.enum(["weight", "body_fat", "waist_circumference", "blood_pressure_systolic", "blood_pressure_diastolic", "blood_glucose", "custom"]),
+    customLabel: z.string().max(100).optional(),
+    value: z.string().min(1),
+    unit: z.string().max(50).optional(),
+    notes: z.string().max(500).optional(),
+    recordedAt: z.string().optional(),
+  });
+
+  try {
+    const data = schema.parse(req.body);
+    const metric = await storage.createClientMetric(userId, clientId, {
+      ...data,
+      recordedAt: data.recordedAt ? new Date(data.recordedAt) : new Date(),
+    });
+    res.status(201).json(metric);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.delete("/api/nutritionist/clients/:clientId/metrics/:metricId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+
+  const clientId = parseInt(req.params.clientId);
+  const metricId = parseInt(req.params.metricId);
+  if (isNaN(clientId) || isNaN(metricId)) return res.status(400).json({ message: "Invalid ID" });
+
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+
+  await storage.deleteClientMetric(metricId, userId, clientId);
+  res.json({ success: true });
+});
+
+// ─── Client-facing Metrics ────────────────────────────────────────────────────
+
+router.get("/api/my-nutritionist/metrics", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+
+  const metrics = await storage.getClientMetricsByClientId(userId);
+  res.json(metrics);
+});
+
 export default router;

@@ -10,8 +10,9 @@ import {
   Activity, BarChart2, Bell, Building2, UserMinus, UserPlus, RefreshCw,
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
   MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2, Download, History,
-  LogOut, User, BookOpen,
+  LogOut, User, BookOpen, LineChart as LineChartIcon,
 } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { AnimatePresence, motion } from "framer-motion";
 import { exportProgressReportToPDF, type ProgressReportData } from "@/components/results-pdf";
 
@@ -1714,6 +1715,385 @@ function IntakeFormPanel({ clientRecord }: { clientRecord: ClientWithUser }) {
   );
 }
 
+interface ClientMetric {
+  id: number;
+  nutritionistId: number;
+  clientId: number;
+  metricType: string;
+  customLabel: string | null;
+  value: string;
+  unit: string | null;
+  notes: string | null;
+  recordedAt: string;
+  createdAt: string;
+}
+
+const METRIC_TYPE_LABELS: Record<string, { label: string; defaultUnit: string }> = {
+  weight: { label: "Weight", defaultUnit: "kg" },
+  body_fat: { label: "Body Fat", defaultUnit: "%" },
+  waist_circumference: { label: "Waist Circumference", defaultUnit: "cm" },
+  blood_pressure_systolic: { label: "Blood Pressure (Systolic)", defaultUnit: "mmHg" },
+  blood_pressure_diastolic: { label: "Blood Pressure (Diastolic)", defaultUnit: "mmHg" },
+  blood_glucose: { label: "Blood Glucose", defaultUnit: "mmol/L" },
+  custom: { label: "Custom", defaultUnit: "" },
+};
+
+function OutcomesPanel({ clientRecord, readonly = false }: { clientRecord: ClientWithUser; readonly?: boolean }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedMetricType, setSelectedMetricType] = useState<string>("weight");
+  const [newEntry, setNewEntry] = useState({
+    value: "",
+    unit: "",
+    customLabel: "",
+    notes: "",
+    recordedAt: new Date().toISOString().split("T")[0],
+  });
+  const [selectedMetricFilter, setSelectedMetricFilter] = useState<string>("all");
+
+  const apiPath = readonly
+    ? "/api/my-nutritionist/metrics"
+    : `/api/nutritionist/clients/${clientRecord.clientId}/metrics`;
+
+  const { data: metrics = [], isLoading } = useQuery<ClientMetric[]>({
+    queryKey: readonly
+      ? ["/api/my-nutritionist/metrics"]
+      : ["/api/nutritionist/clients", clientRecord.clientId, "metrics"],
+    queryFn: () => apiRequest("GET", apiPath).then(r => r.json()),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data: object) =>
+      apiRequest("POST", `/api/nutritionist/clients/${clientRecord.clientId}/metrics`, data).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "metrics"] });
+      toast({ title: "Metric entry logged" });
+      setShowAddForm(false);
+      setNewEntry({ value: "", unit: "", customLabel: "", notes: "", recordedAt: new Date().toISOString().split("T")[0] });
+    },
+    onError: (err: Error) => toast({ title: "Failed to log metric", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiRequest("DELETE", `/api/nutritionist/clients/${clientRecord.clientId}/metrics/${id}`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "metrics"] });
+      toast({ title: "Entry deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete entry", variant: "destructive" }),
+  });
+
+  const handleSubmit = () => {
+    if (!newEntry.value.trim()) return;
+    const info = METRIC_TYPE_LABELS[selectedMetricType];
+    createMutation.mutate({
+      metricType: selectedMetricType,
+      customLabel: selectedMetricType === "custom" ? newEntry.customLabel || null : undefined,
+      value: newEntry.value,
+      unit: newEntry.unit || info?.defaultUnit || null,
+      notes: newEntry.notes || null,
+      recordedAt: newEntry.recordedAt || undefined,
+    });
+  };
+
+  const metricTypes = Array.from(new Set(metrics.map(m => m.metricType)));
+
+  const filteredMetrics = selectedMetricFilter === "all"
+    ? metrics
+    : metrics.filter(m => m.metricType === selectedMetricFilter);
+
+  const chartMetrics = selectedMetricFilter !== "all"
+    ? metrics
+        .filter(m => m.metricType === selectedMetricFilter)
+        .slice()
+        .reverse()
+        .map(m => ({
+          date: new Date(m.recordedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }),
+          value: parseFloat(m.value),
+        }))
+    : [];
+
+  const getMetricLabel = (metric: ClientMetric) => {
+    if (metric.metricType === "custom") return metric.customLabel || "Custom";
+    return METRIC_TYPE_LABELS[metric.metricType]?.label ?? metric.metricType;
+  };
+
+  const beforeAfterByType: Record<string, { first: ClientMetric; last: ClientMetric }> = {};
+  for (const type of metricTypes) {
+    const ofType = metrics.filter(m => m.metricType === type).slice().sort(
+      (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()
+    );
+    if (ofType.length >= 2) {
+      beforeAfterByType[type] = { first: ofType[0], last: ofType[ofType.length - 1] };
+    }
+  }
+
+  return (
+    <div className="space-y-4" data-testid="panel-outcomes">
+      {!readonly && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <LineChartIcon className="w-4 h-4 text-zinc-400" />
+            <h3 className="text-sm font-semibold text-zinc-900">Outcomes</h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAddForm(v => !v)}
+            className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-900 transition-colors"
+            data-testid="button-log-metric"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Log Entry
+          </button>
+        </div>
+      )}
+
+      {readonly && (
+        <div className="flex items-center gap-2 mb-2">
+          <LineChartIcon className="w-4 h-4 text-zinc-400" />
+          <h3 className="text-sm font-semibold text-zinc-900">My Progress</h3>
+        </div>
+      )}
+
+      {!readonly && showAddForm && (
+        <div className="border border-zinc-200 rounded-xl p-4 space-y-3 bg-zinc-50" data-testid="form-log-metric">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-zinc-500 block mb-1">Metric</label>
+              <select
+                value={selectedMetricType}
+                onChange={e => {
+                  setSelectedMetricType(e.target.value);
+                  const info = METRIC_TYPE_LABELS[e.target.value];
+                  setNewEntry(prev => ({ ...prev, unit: info?.defaultUnit || "" }));
+                }}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none bg-white"
+                data-testid="select-metric-type"
+              >
+                {Object.entries(METRIC_TYPE_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+            {selectedMetricType === "custom" && (
+              <div>
+                <label className="text-xs font-medium text-zinc-500 block mb-1">Custom Label</label>
+                <input
+                  type="text"
+                  value={newEntry.customLabel}
+                  onChange={e => setNewEntry(prev => ({ ...prev, customLabel: e.target.value }))}
+                  placeholder="e.g. Resting Heart Rate"
+                  maxLength={100}
+                  className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                  data-testid="input-metric-custom-label"
+                />
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs font-medium text-zinc-500 block mb-1">Value</label>
+              <input
+                type="number"
+                value={newEntry.value}
+                onChange={e => setNewEntry(prev => ({ ...prev, value: e.target.value }))}
+                placeholder="0"
+                step="any"
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-metric-value"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-500 block mb-1">Unit</label>
+              <input
+                type="text"
+                value={newEntry.unit}
+                onChange={e => setNewEntry(prev => ({ ...prev, unit: e.target.value }))}
+                placeholder="kg"
+                maxLength={50}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-metric-unit"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-zinc-500 block mb-1">Date</label>
+              <input
+                type="date"
+                value={newEntry.recordedAt}
+                onChange={e => setNewEntry(prev => ({ ...prev, recordedAt: e.target.value }))}
+                max={new Date().toISOString().split("T")[0]}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-metric-date"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-zinc-500 block mb-1">Notes (optional)</label>
+            <input
+              type="text"
+              value={newEntry.notes}
+              onChange={e => setNewEntry(prev => ({ ...prev, notes: e.target.value }))}
+              placeholder="e.g. Fasted, morning reading"
+              maxLength={500}
+              className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+              data-testid="input-metric-notes"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!newEntry.value.trim() || createMutation.isPending}
+              className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+              data-testid="button-save-metric"
+            >
+              {createMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              Log Entry
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddForm(false)}
+              className="px-4 py-2 border border-zinc-200 text-sm rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+              data-testid="button-cancel-metric"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>
+      ) : metrics.length === 0 ? (
+        <div className="text-center py-10 bg-white rounded-2xl border border-zinc-100">
+          <LineChartIcon className="w-8 h-8 text-zinc-300 mx-auto mb-2" />
+          <p className="text-sm text-zinc-400" data-testid="state-no-metrics">
+            {readonly ? "No metrics recorded yet" : "No metric entries yet — log the first measurement"}
+          </p>
+        </div>
+      ) : (
+        <>
+          {Object.keys(beforeAfterByType).length > 0 && (
+            <div className="bg-white rounded-2xl border border-zinc-100 p-4" data-testid="section-before-after">
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Before / After Summary</h4>
+              <div className="space-y-3">
+                {Object.entries(beforeAfterByType).map(([type, { first, last }]) => {
+                  const delta = parseFloat(last.value) - parseFloat(first.value);
+                  const isPositive = delta > 0;
+                  const label = type === "custom" ? (first.customLabel || "Custom") : (METRIC_TYPE_LABELS[type]?.label ?? type);
+                  const unit = last.unit || "";
+                  return (
+                    <div key={type} className="flex items-center gap-4" data-testid={`before-after-${type}`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-zinc-700">{label}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-zinc-400">
+                            {parseFloat(first.value)}{unit} → {parseFloat(last.value)}{unit}
+                          </span>
+                        </div>
+                      </div>
+                      <div className={`flex items-center gap-1 text-sm font-bold ${delta === 0 ? "text-zinc-400" : isPositive ? "text-rose-600" : "text-emerald-600"}`}>
+                        {delta === 0 ? <Minus className="w-3.5 h-3.5" /> : isPositive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                        {isPositive ? "+" : ""}{delta.toFixed(1)}{unit}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {metricTypes.length > 1 && (
+            <div className="flex gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setSelectedMetricFilter("all")}
+                className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${selectedMetricFilter === "all" ? "bg-zinc-900 text-white" : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
+                data-testid="filter-metric-all"
+              >
+                All
+              </button>
+              {metricTypes.map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setSelectedMetricFilter(type)}
+                  className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${selectedMetricFilter === type ? "bg-zinc-900 text-white" : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
+                  data-testid={`filter-metric-${type}`}
+                >
+                  {type === "custom" ? "Custom" : METRIC_TYPE_LABELS[type]?.label ?? type}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {chartMetrics.length >= 2 && (
+            <div className="bg-white rounded-2xl border border-zinc-100 p-4" data-testid="chart-metric-trend">
+              <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
+                Trend — {selectedMetricFilter !== "all" ? (METRIC_TYPE_LABELS[selectedMetricFilter]?.label ?? selectedMetricFilter) : ""}
+              </h4>
+              <ResponsiveContainer width="100%" height={160}>
+                <LineChart data={chartMetrics}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#a1a1aa" }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "#a1a1aa" }} tickLine={false} axisLine={false} width={40} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e4e4e7" }} />
+                  <Line type="monotone" dataKey="value" stroke="#18181b" strokeWidth={2} dot={{ fill: "#18181b", r: 3 }} activeDot={{ r: 5 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden" data-testid="table-metrics">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-100 bg-zinc-50">
+                    <th className="text-left px-4 py-2.5 font-medium text-zinc-500">Date</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-zinc-500">Metric</th>
+                    <th className="text-right px-3 py-2.5 font-medium text-zinc-500">Value</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-zinc-500 hidden sm:table-cell">Notes</th>
+                    {!readonly && <th className="px-4 py-2.5" />}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMetrics.map((metric, i) => (
+                    <tr key={metric.id} className={`border-b border-zinc-50 ${i % 2 === 0 ? "" : "bg-zinc-50/50"}`} data-testid={`metric-row-${metric.id}`}>
+                      <td className="px-4 py-2.5 text-zinc-600 font-medium whitespace-nowrap">
+                        {new Date(metric.recordedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                      </td>
+                      <td className="px-3 py-2.5 text-zinc-700">{getMetricLabel(metric)}</td>
+                      <td className="px-3 py-2.5 text-right text-zinc-900 font-semibold whitespace-nowrap">
+                        {parseFloat(metric.value)}{metric.unit ? ` ${metric.unit}` : ""}
+                      </td>
+                      <td className="px-3 py-2.5 text-zinc-400 hidden sm:table-cell">{metric.notes || "—"}</td>
+                      {!readonly && (
+                        <td className="px-4 py-2.5 text-right">
+                          <button
+                            type="button"
+                            onClick={() => deleteMutation.mutate(metric.id)}
+                            disabled={deleteMutation.isPending}
+                            className="p-1 text-zinc-300 hover:text-red-600 transition-colors"
+                            data-testid={`button-delete-metric-${metric.id}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function GoalsPanel({ clientRecord }: { clientRecord: ClientWithUser }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -2155,7 +2535,7 @@ function ClientProfile({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [activeSection, setActiveSection] = useState<"profile" | "messages" | "food-diary">("profile");
+  const [activeSection, setActiveSection] = useState<"profile" | "messages" | "food-diary" | "outcomes">("profile");
 
   const { data: profileData, isLoading: profileLoading } = useQuery<ClientProfileData>({
     queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "profile"],
@@ -2392,6 +2772,15 @@ function ClientProfile({
           <MessageSquare className="w-3.5 h-3.5" />
           Messages
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection("outcomes")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeSection === "outcomes" ? "bg-zinc-900 text-white" : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
+          data-testid="tab-client-outcomes"
+        >
+          <LineChartIcon className="w-3.5 h-3.5" />
+          Outcomes
+        </button>
       </div>
 
       {activeSection === "messages" && user && (
@@ -2402,6 +2791,12 @@ function ClientProfile({
 
       {activeSection === "food-diary" && (
         <FoodDiaryTab clientId={clientRecord.clientId} />
+      )}
+
+      {activeSection === "outcomes" && (
+        <div className="bg-white rounded-2xl border border-zinc-100 p-6">
+          <OutcomesPanel clientRecord={clientRecord} />
+        </div>
       )}
 
       {activeSection === "profile" && (
