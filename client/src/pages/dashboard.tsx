@@ -353,14 +353,14 @@ export default function Dashboard() {
   });
 
   const [cycleStopConfirm, setCycleStopConfirm] = useState(false);
-  const [mobileTab, setMobileTabRaw] = useState<'planning' | 'tracking' | 'insights'>(() => {
-    const stored = sessionStorage.getItem('fuelr_dashboard_tab');
-    if (stored === 'planning' || stored === 'tracking' || stored === 'insights') return stored;
-    return 'planning';
+  const [mobileTab, setMobileTabRaw] = useState<'favourites' | 'planning' | 'tracking' | 'insights'>(() => {
+    const stored = sessionStorage.getItem('fuelr_dashboard_tab_v2');
+    if (stored === 'favourites' || stored === 'planning' || stored === 'tracking' || stored === 'insights') return stored;
+    return 'favourites';
   });
-  const setMobileTab = useCallback((tab: 'planning' | 'tracking' | 'insights') => {
+  const setMobileTab = useCallback((tab: 'favourites' | 'planning' | 'tracking' | 'insights') => {
     setMobileTabRaw(tab);
-    sessionStorage.setItem('fuelr_dashboard_tab', tab);
+    sessionStorage.setItem('fuelr_dashboard_tab_v2', tab);
   }, []);
 
   const updatePrefsMutation = useMutation({
@@ -637,8 +637,9 @@ export default function Dashboard() {
 
   // All visible widgets (nulls removed)
   const allVisibleOrder = widgetOrder.filter(id => renderWidget(id) !== null);
-  // Mobile: filter by active tab (Planning / Tracking / Insights)
-  const visibleMobileOrder = allVisibleOrder.filter(id => {
+  // Mobile: filter by active tab (Favourites / Planning / Tracking / Insights)
+  // Favourites tab renders its own content (MyMealsFoodWidget standalone), so show empty widget list
+  const visibleMobileOrder = mobileTab === 'favourites' ? [] : allVisibleOrder.filter(id => {
     if (mobileTab === 'planning') return PLANNING_WIDGETS.has(id);
     if (mobileTab === 'insights') return INSIGHTS_WIDGETS.has(id);
     return !PLANNING_WIDGETS.has(id) && !INSIGHTS_WIDGETS.has(id);
@@ -1320,39 +1321,66 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* ── MOBILE tab toggle: Planning / Tracking / Insights ── */}
+            {/* ── MOBILE tab toggle: Favourites / Planning / Tracking / Insights ── */}
             <div className="xl:hidden mb-4">
-              <div className="relative bg-zinc-100 rounded-xl p-1 flex items-stretch shadow border border-zinc-200" data-testid="dashboard-tab-toggle">
-                <div
-                  className="absolute top-1 bottom-1 rounded-lg bg-white shadow-md transition-all duration-300 ease-out"
-                  style={{
-                    width: 'calc((100% - 8px) / 3)',
-                    left: mobileTab === 'planning'
-                      ? '4px'
-                      : mobileTab === 'tracking'
-                      ? 'calc(4px + (100% - 8px) / 3)'
-                      : 'calc(4px + (100% - 8px) * 2 / 3)',
-                  }}
-                />
-                {([
-                  { key: 'planning' as const, label: 'Planning' },
-                  { key: 'tracking' as const, label: 'Tracking' },
-                  { key: 'insights' as const, label: 'Insights' },
-                ]).map(tab => (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setMobileTab(tab.key)}
-                    className={`relative z-10 flex-1 py-3 rounded-lg text-sm transition-colors duration-200 ${
-                      mobileTab === tab.key ? 'text-zinc-900 font-bold' : 'text-zinc-400 font-medium hover:text-zinc-600'
-                    }`}
-                    data-testid={`tab-dashboard-${tab.key}`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2" data-testid="dashboard-tab-toggle">
+                {(
+                  [
+                    { key: 'favourites' as const, label: 'Favourites', icon: Star },
+                    { key: 'planning' as const, label: 'Planning', icon: CalendarDays },
+                    { key: 'tracking' as const, label: 'Tracking', icon: Activity },
+                    { key: 'insights' as const, label: 'Insights', icon: TrendingUp },
+                  ] as Array<{ key: 'favourites' | 'planning' | 'tracking' | 'insights'; label: string; icon: React.ElementType }>
+                ).map(tab => {
+                  const isActive = mobileTab === tab.key;
+                  const Icon = tab.icon;
+                  return (
+                    <motion.button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setMobileTab(tab.key)}
+                      data-testid={`tab-dashboard-${tab.key}`}
+                      layout
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      className={`relative flex items-center justify-center gap-1.5 h-10 rounded-xl overflow-hidden shrink-0 bg-zinc-900 text-white ${
+                        isActive ? 'px-3.5' : 'w-10'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" strokeWidth={isActive ? 2.5 : 2} />
+                      <AnimatePresence mode="wait">
+                        {isActive && (
+                          <motion.span
+                            key="label"
+                            initial={{ opacity: 0, width: 0 }}
+                            animate={{ opacity: 1, width: 'auto' }}
+                            exit={{ opacity: 0, width: 0 }}
+                            transition={{ duration: 0.18 }}
+                            className="text-xs font-semibold whitespace-nowrap overflow-hidden"
+                          >
+                            {tab.label}
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </motion.button>
+                  );
+                })}
               </div>
             </div>
+
+            {/* ── MOBILE Favourites tab content ── */}
+            {mobileTab === 'favourites' && (
+              <div className="xl:hidden mb-6">
+                {user ? (
+                  <MyMealsFoodWidget />
+                ) : (
+                  <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 text-center" data-testid="favourites-sign-in-prompt">
+                    <Star className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
+                    <p className="text-sm font-medium text-zinc-500 mb-1">Sign in to view your favourites</p>
+                    <p className="text-xs text-zinc-400">Save meals and foods you love for quick access.</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ── MOBILE layout: tab-filtered widgets ── */}
             <div className="flex flex-col gap-6 xl:hidden">
