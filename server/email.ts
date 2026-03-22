@@ -106,18 +106,16 @@ function wrapEmailHtml(body: string, opts: {
               <table cellpadding="0" cellspacing="0" role="presentation">
                 <tr>
                   <td style="vertical-align:middle;padding-right:10px">
-                    <!-- Logomark: stem + circle, mirroring the in-app icon -->
-                    <table cellpadding="0" cellspacing="0" role="presentation" style="display:inline-table">
+                    <!-- Logomark: thin stem above a solid circle (white on dark) -->
+                    <table cellpadding="0" cellspacing="0" role="presentation">
                       <tr>
-                        <td align="center" style="padding-bottom:2px">
-                          <div style="width:3px;height:7px;background:#ffffff;border-radius:2px 2px 0 0;margin:0 auto"></div>
+                        <td align="center" width="28" style="line-height:0;font-size:0;padding-bottom:0">
+                          <div style="width:3px;height:11px;background:#ffffff;border-radius:2px 2px 0 0;margin:0 auto"></div>
                         </td>
                       </tr>
                       <tr>
-                        <td align="center">
-                          <div style="width:22px;height:22px;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center">
-                            <div style="width:10px;height:10px;background:#18181b;border-radius:50%;margin:6px auto"></div>
-                          </div>
+                        <td align="center" width="28" style="line-height:0;font-size:0">
+                          <div style="width:22px;height:22px;background:#ffffff;border-radius:11px;margin:0 auto"></div>
                         </td>
                       </tr>
                     </table>
