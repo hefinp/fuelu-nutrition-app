@@ -14,6 +14,8 @@ import { ActivityWidget } from "@/components/activity-widget";
 const CycleTracker = lazy(() => import("@/components/cycle-tracker").then(m => ({ default: m.CycleTracker })));
 const VitalityTracker = lazy(() => import("@/components/vitality-tracker").then(m => ({ default: m.VitalityTracker })));
 import { MyMealsFoodWidget } from "@/components/my-meals-food-widget";
+import { MyMomentumWidget } from "@/components/my-momentum-widget";
+import { MyDiaryWidget } from "@/components/my-diary-widget";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
@@ -879,6 +881,18 @@ export default function Dashboard() {
             fatGoal={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
           />
         ) : null;
+      case "my-momentum":
+        return user ? (
+          <MyMomentumWidget
+            dailyCalories={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
+            proteinGoal={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
+            carbsGoal={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
+            fatGoal={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
+            hydrationGoalMl={userPrefs?.hydrationGoalMl ?? 2000}
+          />
+        ) : null;
+      case "my-diary":
+        return user ? <MyDiaryWidget onLogMeal={handleLogMeal} /> : null;
       default:
         return null;
     }
@@ -1268,6 +1282,8 @@ export default function Dashboard() {
                   const WIDGET_CONFIG: { id: string; label: string; Icon: React.ElementType }[] = [
                     { id: "food-log",        label: "Food Log",           Icon: ClipboardList },
                     { id: "my-meals-food",   label: "My Meals & Food",    Icon: UtensilsCrossed },
+                    { id: "my-momentum",     label: "My Momentum",        Icon: TrendingUp },
+                    { id: "my-diary",        label: "My Diary",           Icon: BookMarked },
                     { id: "hydration",       label: "Hydration",          Icon: Droplets },
                     { id: "activity",        label: "Activity",           Icon: Activity },
                     { id: "meal-plan",       label: "Meal Planner",       Icon: Salad },
@@ -1745,9 +1761,21 @@ export default function Dashboard() {
               >
                 {/* ── MOBILE Favourites tab content ── */}
                 {mobileTab === 'favourites' && (
-                  <div className="mb-6">
+                  <div className="mb-6 flex flex-col gap-6">
                     {user ? (
-                      <MyMealsFoodWidget />
+                      <>
+                        {!hiddenWidgets.includes("my-momentum") && (
+                          <MyMomentumWidget
+                            dailyCalories={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
+                            proteinGoal={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
+                            carbsGoal={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
+                            fatGoal={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
+                            hydrationGoalMl={userPrefs?.hydrationGoalMl ?? 2000}
+                          />
+                        )}
+                        {!hiddenWidgets.includes("my-diary") && <MyDiaryWidget onLogMeal={handleLogMeal} />}
+                        {!hiddenWidgets.includes("my-meals-food") && <MyMealsFoodWidget />}
+                      </>
                     ) : (
                       <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 text-center" data-testid="favourites-sign-in-prompt">
                         <Home className="w-8 h-8 text-zinc-300 mx-auto mb-3" />

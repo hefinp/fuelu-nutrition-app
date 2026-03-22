@@ -16,10 +16,12 @@ export type WidgetId =
   | "vitality"
   | "weekly-summary"
   | "adaptive-tdee"
-  | "macro-compliance";
+  | "macro-compliance"
+  | "my-momentum"
+  | "my-diary";
 
 // Planning widgets go in the left desktop column and the Planning mobile tab
-export const PLANNING_WIDGETS = new Set<WidgetId>(["meal-plan", "my-meals-food", "nutrition"]);
+export const PLANNING_WIDGETS = new Set<WidgetId>(["meal-plan", "my-meals-food", "nutrition", "my-diary"]);
 
 // Insights widgets go in the right-most desktop column and the Insights mobile tab
 export const INSIGHTS_WIDGETS = new Set<WidgetId>([
@@ -29,6 +31,7 @@ export const INSIGHTS_WIDGETS = new Set<WidgetId>([
   "weekly-summary",
   "adaptive-tdee",
   "macro-compliance",
+  "my-momentum",
 ]);
 
 // Tracking widgets = everything not in PLANNING_WIDGETS and not in INSIGHTS_WIDGETS
@@ -38,10 +41,12 @@ export const INSIGHTS_WIDGETS = new Set<WidgetId>([
 export const DEFAULT_ORDER: WidgetId[] = [
   "meal-plan",
   "my-meals-food",
+  "my-diary",
   "nutrition",
   "food-log",
   "hydration",
   "activity",
+  "my-momentum",
   "weekly-summary",
   "adaptive-tdee",
   "macro-compliance",
