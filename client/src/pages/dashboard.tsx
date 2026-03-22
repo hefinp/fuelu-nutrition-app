@@ -297,6 +297,8 @@ function useIsDesktop() {
   return isDesktop;
 }
 
+const TAB_ORDER: Array<'favourites' | 'planning' | 'tracking' | 'insights'> = ['favourites', 'planning', 'tracking', 'insights'];
+
 export default function Dashboard() {
   const [activeResult, setActiveResult] = useState<Calculation | null>(null);
   const [showSavedPlans, setShowSavedPlans] = useState(false);
@@ -358,8 +360,16 @@ export default function Dashboard() {
     if (stored === 'favourites' || stored === 'planning' || stored === 'tracking' || stored === 'insights') return stored;
     return 'favourites';
   });
-  const setMobileTab = useCallback((tab: 'favourites' | 'planning' | 'tracking' | 'insights') => {
-    setMobileTabRaw(tab);
+  const [tabTransition, setTabTransition] = useState<{ direction: number; source: 'toggle' | 'bottomnav' }>({ direction: 0, source: 'toggle' });
+
+  const setMobileTab = useCallback((tab: 'favourites' | 'planning' | 'tracking' | 'insights', source: 'toggle' | 'bottomnav' = 'toggle') => {
+    setMobileTabRaw(prev => {
+      const prevIdx = TAB_ORDER.indexOf(prev);
+      const nextIdx = TAB_ORDER.indexOf(tab);
+      const direction = nextIdx > prevIdx ? 1 : nextIdx < prevIdx ? -1 : 0;
+      setTabTransition({ direction, source });
+      return tab;
+    });
     sessionStorage.setItem('fuelr_dashboard_tab_v2', tab);
   }, []);
 
@@ -1338,7 +1348,7 @@ export default function Dashboard() {
                     <motion.button
                       key={tab.key}
                       type="button"
-                      onClick={() => setMobileTab(tab.key)}
+                      onClick={() => setMobileTab(tab.key, 'toggle')}
                       data-testid={`tab-dashboard-${tab.key}`}
                       layout
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
@@ -1367,39 +1377,65 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* ── MOBILE Favourites tab content ── */}
-            {mobileTab === 'favourites' && (
-              <div className="xl:hidden mb-6">
-                {user ? (
-                  <MyMealsFoodWidget />
-                ) : (
-                  <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 text-center" data-testid="favourites-sign-in-prompt">
-                    <Star className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-zinc-500 mb-1">Sign in to view your favourites</p>
-                    <p className="text-xs text-zinc-400">Save meals and foods you love for quick access.</p>
+            {/* ── MOBILE animated tab content ── */}
+            <AnimatePresence mode="wait" custom={tabTransition}>
+              <motion.div
+                key={mobileTab}
+                custom={tabTransition}
+                variants={{
+                  enter: ({ direction, source }: { direction: number; source: 'toggle' | 'bottomnav' }) => ({
+                    x: source === 'bottomnav' ? 0 : direction * 60,
+                    y: source === 'bottomnav' ? 40 : 0,
+                    opacity: 0,
+                  }),
+                  center: { x: 0, y: 0, opacity: 1 },
+                  exit: ({ direction, source }: { direction: number; source: 'toggle' | 'bottomnav' }) => ({
+                    x: source === 'bottomnav' ? 0 : direction * -60,
+                    y: source === 'bottomnav' ? -20 : 0,
+                    opacity: 0,
+                  }),
+                }}
+                initial={false}
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="xl:hidden"
+              >
+                {/* ── MOBILE Favourites tab content ── */}
+                {mobileTab === 'favourites' && (
+                  <div className="mb-6">
+                    {user ? (
+                      <MyMealsFoodWidget />
+                    ) : (
+                      <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 text-center" data-testid="favourites-sign-in-prompt">
+                        <Star className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
+                        <p className="text-sm font-medium text-zinc-500 mb-1">Sign in to view your favourites</p>
+                        <p className="text-xs text-zinc-400">Save meals and foods you love for quick access.</p>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* ── MOBILE layout: tab-filtered widgets ── */}
-            <div className="flex flex-col gap-6 xl:hidden">
-              {visibleMobileOrder.map((id, idx) => (
-                <SortableWidget
-                  key={id}
-                  id={id}
-                  isEditing={isEditing}
-                  isMobile={true}
-                  canMoveUp={idx > 0}
-                  canMoveDown={idx < visibleMobileOrder.length - 1}
-                  onMoveUp={() => moveUp(id)}
-                  onMoveDown={() => moveDown(id)}
-                  onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}
-                >
-                  {renderWidget(id)!}
-                </SortableWidget>
-              ))}
-            </div>
+                {/* ── MOBILE layout: tab-filtered widgets ── */}
+                <div className="flex flex-col gap-6">
+                  {visibleMobileOrder.map((id, idx) => (
+                    <SortableWidget
+                      key={id}
+                      id={id}
+                      isEditing={isEditing}
+                      isMobile={true}
+                      canMoveUp={idx > 0}
+                      canMoveDown={idx < visibleMobileOrder.length - 1}
+                      onMoveUp={() => moveUp(id)}
+                      onMoveDown={() => moveDown(id)}
+                      onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}
+                    >
+                      {renderWidget(id)!}
+                    </SortableWidget>
+                  ))}
+                </div>
+              </motion.div>
+            </AnimatePresence>
 
             {/* ── DESKTOP layout: Planning (left), Tracking (centre), Insights (right) ── */}
             <div className="hidden xl:grid xl:grid-cols-3 gap-6">
@@ -1495,7 +1531,7 @@ export default function Dashboard() {
                 action: () => {
                   setShowSavedPlans(false);
                   setShowMetricsPanel(false);
-                  setMobileTab('planning');
+                  setMobileTab('planning', 'bottomnav');
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 },
               },
@@ -1507,7 +1543,7 @@ export default function Dashboard() {
                 action: () => {
                   setShowSavedPlans(false);
                   setShowMetricsPanel(false);
-                  setMobileTab('tracking');
+                  setMobileTab('tracking', 'bottomnav');
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 },
               },
@@ -1530,7 +1566,7 @@ export default function Dashboard() {
                 action: () => {
                   setShowSavedPlans(false);
                   setShowMetricsPanel(false);
-                  setMobileTab('insights');
+                  setMobileTab('insights', 'bottomnav');
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 },
               },
