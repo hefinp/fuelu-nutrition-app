@@ -27,6 +27,7 @@ import { TemplateSuggestions } from "@/components/template-suggestions";
 import { SavedWeeklyView, SavedDailyView, PHASE_STYLES, buildCalcStub } from "@/components/saved-meal-plans";
 import { getMonday, addDays, toDateStr } from "@/components/results-pdf";
 import { AnimatePresence, motion } from "framer-motion";
+import { getActivityIcon } from "@/lib/activityIcons";
 
 interface DiaryProps {
   dailyCaloriesTarget?: number;
@@ -86,10 +87,6 @@ interface DiaryActivityData {
   averageHeartrate: number | null;
 }
 
-const ACTIVITY_ICONS: Record<string, string> = {
-  Run: "🏃", Ride: "🚴", Swim: "🏊", Walk: "🚶", Hike: "🥾",
-  Yoga: "🧘", WeightTraining: "🏋️", Workout: "💪", CrossFit: "💪",
-};
 
 function DiaryActivitySection({ date }: { date: string }) {
   const { data: stravaStatus } = useQuery<{ connected: boolean }>({
@@ -155,7 +152,11 @@ function DiaryActivitySection({ date }: { date: string }) {
       <div className="space-y-1.5">
         {activities.map((a) => (
           <div key={a.id} className="flex items-center gap-2 py-1" data-testid={`diary-activity-${a.id}`}>
-            <span className="text-sm">{ACTIVITY_ICONS[a.type] || "🏃"}</span>
+            {((Icon) => (
+              <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+                <Icon className="w-3.5 h-3.5 text-orange-500" />
+              </div>
+            ))(getActivityIcon(a.type))}
             <span className="text-xs font-medium text-zinc-700 flex-1 truncate">{a.name}</span>
             <div className="flex items-center gap-2 text-[10px] text-zinc-400">
               <span className="flex items-center gap-0.5">

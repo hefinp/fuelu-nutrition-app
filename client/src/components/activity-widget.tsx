@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Activity, Clock, Flame, Heart, MapPin, Loader2, Unplug, RefreshCw, Bike, Waves, Footprints, Mountain, Dumbbell, PersonStanding, type LucideIcon } from "lucide-react";
+import { Activity, Clock, Flame, Heart, MapPin, Loader2, Unplug, RefreshCw } from "lucide-react";
+import { getActivityIcon } from "@/lib/activityIcons";
 
 interface StravaActivity {
   id: number;
@@ -54,20 +55,6 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function activityIcon(type: string): LucideIcon {
-  const map: Record<string, LucideIcon> = {
-    Run: Activity,
-    Ride: Bike,
-    Swim: Waves,
-    Walk: Footprints,
-    Hike: Mountain,
-    Yoga: PersonStanding,
-    WeightTraining: Dumbbell,
-    Workout: Dumbbell,
-    CrossFit: Dumbbell,
-  };
-  return map[type] || Activity;
-}
 
 export function ActivityWidget() {
   const queryClient = useQueryClient();
@@ -229,7 +216,7 @@ export function ActivityWidget() {
                     <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
                       <Icon className="w-3.5 h-3.5 text-orange-500" />
                     </div>
-                  ))(activityIcon(a.type))}
+                  ))(getActivityIcon(a.type))}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2">
                       <p className="text-sm font-medium text-zinc-800 truncate">{a.name}</p>

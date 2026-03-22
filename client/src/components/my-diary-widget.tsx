@@ -7,6 +7,7 @@ import {
   NotebookPen, ChevronLeft, ChevronRight, Loader2, Trash2,
   Plus, Droplets, Activity, Flame, Clock, MapPin, X,
 } from "lucide-react";
+import { getActivityIcon } from "@/lib/activityIcons";
 import {
   MacroGrid, SLOT_ICONS, SLOT_COLORS, SLOT_LABELS,
   todayStr, formatDateLabel, shiftDate,
@@ -31,10 +32,6 @@ interface DiaryActivityData {
   averageHeartrate: number | null;
 }
 
-const ACTIVITY_ICONS: Record<string, string> = {
-  Run: "🏃", Ride: "🚴", Swim: "🏊", Walk: "🚶", Hike: "🥾",
-  Yoga: "🧘", WeightTraining: "🏋️", Workout: "💪", CrossFit: "💪",
-};
 
 const QUICK_WATER_AMOUNTS = [250, 500, 750, 1000];
 
@@ -288,7 +285,11 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget }:
                 <div className="space-y-1.5">
                   {activities.map((a) => (
                     <div key={a.id} className="flex items-center gap-2 py-1" data-testid={`diary-widget-activity-${a.id}`}>
-                      <span className="text-sm">{ACTIVITY_ICONS[a.type] || "🏃"}</span>
+                      {((Icon) => (
+                        <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+                          <Icon className="w-3.5 h-3.5 text-orange-500" />
+                        </div>
+                      ))(getActivityIcon(a.type))}
                       <span className="text-xs font-medium text-zinc-700 flex-1 truncate">{a.name}</span>
                       <div className="flex items-center gap-2 text-[10px] text-zinc-400">
                         <span className="flex items-center gap-0.5">
