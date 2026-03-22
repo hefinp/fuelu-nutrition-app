@@ -2716,8 +2716,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStravaActivitiesByDate(userId: number, date: string): Promise<StravaActivity[]> {
-    const dayStart = new Date(date + "T00:00:00");
-    const dayEnd = new Date(date + "T23:59:59.999");
+    const dayStart = new Date(date + "T00:00:00Z");
+    const dayEnd = new Date(date + "T23:59:59.999Z");
     return db
       .select()
       .from(stravaActivities)

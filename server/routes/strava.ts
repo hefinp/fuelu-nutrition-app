@@ -446,8 +446,8 @@ router.get("/api/strava/activities/range", async (req, res) => {
   }
 
   try {
-    const startDate = new Date(from + "T00:00:00");
-    const endDate = new Date(to + "T23:59:59.999");
+    const startDate = new Date(from + "T00:00:00Z");
+    const endDate = new Date(to + "T23:59:59.999Z");
     const dbActivities = await storage.getStravaActivitiesRange(req.session.userId, startDate, endDate);
 
     const dailyCalories: Record<string, number> = {};

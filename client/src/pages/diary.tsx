@@ -725,6 +725,8 @@ function DiaryContent({
                 </button>
               </div>
 
+              <DiaryActivitySection date={selectedDate} />
+
               <MacroGrid
                 cal={totalCal} prot={totalProt} carbs={totalCarbs} fat={totalFat}
                 fibre={totalFibre} sugar={totalSugar} saturatedFat={totalSaturatedFat}
@@ -733,8 +735,6 @@ function DiaryContent({
                 fibreTarget={dailyFibreTarget} sugarTarget={dailySugarTarget}
                 saturatedFatTarget={dailySaturatedFatTarget}
               />
-
-              <DiaryActivitySection date={selectedDate} />
 
               {plannedDaily.length > 0 && (
                 <p className="text-xs text-zinc-400 mb-3 flex items-center gap-1" data-testid="text-diary-planned-summary">
