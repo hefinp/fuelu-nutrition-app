@@ -15,6 +15,7 @@ const CycleTracker = lazy(() => import("@/components/cycle-tracker").then(m => (
 const VitalityTracker = lazy(() => import("@/components/vitality-tracker").then(m => ({ default: m.VitalityTracker })));
 import { MyMealsFoodWidget } from "@/components/my-meals-food-widget";
 import { MyMomentumWidget } from "@/components/my-momentum-widget";
+import { MyDiaryWidget } from "@/components/my-diary-widget";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { FeedbackWidget } from "@/components/feedback-widget";
@@ -48,7 +49,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import {
-  LogOut, BookOpen, Settings, X, SlidersHorizontal,
+  LogOut, BookOpen, BookMarked, Settings, X, SlidersHorizontal,
   ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
   Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, TrendingUp, Home,
   Sparkles, ScanLine, Heart, ShieldCheck, Zap, User, Crown, Briefcase, MessageSquare,
@@ -679,6 +680,13 @@ export default function Dashboard() {
             fatGoal={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
           />
         ) : null;
+      case "my-diary":
+        return user ? <MyDiaryWidget
+          calTarget={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
+          protTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
+          carbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
+          fatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
+        /> : null;
       case "my-momentum":
         return user ? (
           <MyMomentumWidget
@@ -1135,6 +1143,7 @@ export default function Dashboard() {
                   const WIDGET_CONFIG: { id: string; label: string; Icon: React.ElementType }[] = [
                     { id: "food-log",        label: "Food Log",           Icon: ClipboardList },
                     { id: "my-meals-food",   label: "My Meals & Food",    Icon: UtensilsCrossed },
+                    { id: "my-diary",        label: "My Diary",           Icon: BookMarked },
                     { id: "my-momentum",     label: "My Momentum",        Icon: TrendingUp },
                     { id: "hydration",       label: "Hydration",          Icon: Droplets },
                     { id: "activity",        label: "Activity",           Icon: Activity },
@@ -1625,6 +1634,12 @@ export default function Dashboard() {
                             hydrationGoalMl={userPrefs?.hydrationGoalMl ?? 2000}
                           />
                         )}
+                        {!hiddenWidgets.includes("my-diary") && <MyDiaryWidget
+                          calTarget={effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories ?? undefined}
+                          protTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
+                          carbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
+                          fatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
+                        />}
                         {!hiddenWidgets.includes("my-meals-food") && <MyMealsFoodWidget />}
                       </>
                     ) : (

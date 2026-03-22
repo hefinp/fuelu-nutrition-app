@@ -7,6 +7,7 @@ import type { UserPreferences } from "@shared/schema";
 export type WidgetId =
   | "nutrition"
   | "my-meals-food"
+  | "my-diary"
   | "food-log"
   | "meal-plan"
   | "hydration"
@@ -19,7 +20,7 @@ export type WidgetId =
   | "macro-compliance"
   | "my-momentum";
 
-export const HOME_WIDGETS = new Set<WidgetId>(["my-momentum", "my-meals-food"]);
+export const HOME_WIDGETS = new Set<WidgetId>(["my-momentum", "my-diary", "my-meals-food"]);
 
 export const PLANNING_WIDGETS = new Set<WidgetId>(["meal-plan", "nutrition"]);
 
@@ -34,6 +35,7 @@ export const INSIGHTS_WIDGETS = new Set<WidgetId>([
 
 export const DEFAULT_ORDER: WidgetId[] = [
   "my-momentum",
+  "my-diary",
   "my-meals-food",
   "meal-plan",
   "nutrition",
@@ -54,7 +56,6 @@ const ALL_WIDGET_IDS: WidgetId[] = DEFAULT_ORDER;
 const LEGACY_ID_MAP: Record<string, WidgetId | undefined> = {
   "recipe-library": "my-meals-food",
   "favourites": undefined,
-  "my-diary": undefined,
 };
 
 export function useDashboardLayout(isLoggedIn: boolean) {
