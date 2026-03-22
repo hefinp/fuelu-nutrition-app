@@ -2486,6 +2486,7 @@ router.post("/api/public/waitlist/:nutritionistId", async (req, res) => {
     if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
     throw err;
   }
+});
 
 // ─── Session Logging ─────────────────────────────────────────────────────────
 
