@@ -214,7 +214,7 @@ export function AddFoodModal({ onClose, onSaved, initialTab = "search" }: { onCl
   ];
 
   return (
-    <div className={`fixed inset-x-0 top-0 bottom-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm ${isKeyboardOpen ? 'pb-0' : 'pb-16'} sm:pb-0 max-h-[100dvh]`} style={overlayStyle} onClick={onClose}>
+    <div className={`fixed inset-x-0 top-0 bottom-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm ${isKeyboardOpen ? 'pb-0' : 'pb-16'} sm:pb-0 max-h-[100dvh]`} style={overlayStyle} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md max-h-[90dvh] flex flex-col overflow-hidden" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
           <div>

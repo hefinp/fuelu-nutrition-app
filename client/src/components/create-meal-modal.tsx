@@ -170,7 +170,7 @@ export function CreateMealModal({ onClose, onSaved }: { onClose: () => void; onS
   });
 
   return (
-    <div className="fixed inset-x-0 top-0 bottom-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm max-h-[100dvh]" style={overlayStyle} onClick={onClose} onWheel={stopScrollLeak} onTouchMove={stopScrollLeak}>
+    <div className="fixed inset-x-0 top-0 bottom-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm max-h-[100dvh]" style={overlayStyle} onClick={(e) => e.target === e.currentTarget && onClose()} onWheel={stopScrollLeak} onTouchMove={stopScrollLeak}>
       <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[85vh] flex flex-col overflow-hidden" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-zinc-100 shrink-0">
           <h3 className="text-base font-semibold text-zinc-900" data-testid="text-create-meal-title">Create Meal</h3>
