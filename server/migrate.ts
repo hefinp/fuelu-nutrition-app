@@ -893,6 +893,9 @@ export async function runMigrations(): Promise<void> {
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_waitlist_entries_nutritionist ON waitlist_entries (nutritionist_id)`);
 
+    await client.query(`ALTER TABLE food_log_entries ADD COLUMN IF NOT EXISTS volume_ml INTEGER`);
+    await client.query(`ALTER TABLE food_log_entries ADD COLUMN IF NOT EXISTS hydration_log_id INTEGER`);
+
   } finally {
     client.release();
   }

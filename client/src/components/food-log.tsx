@@ -52,6 +52,7 @@ export function FoodLog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
       queryClient.invalidateQueries({ queryKey: ["/api/food-log-week"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/hydration"] });
       toast({ title: "Entry deleted" });
       setDeletingId(null);
     },

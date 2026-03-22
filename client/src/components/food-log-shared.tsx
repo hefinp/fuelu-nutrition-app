@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Coffee, Salad, Moon, Apple, X, ExternalLink, Pencil, Loader2,
+  Coffee, Salad, Moon, Apple, GlassWater, X, ExternalLink, Pencil, Loader2,
 } from "lucide-react";
 import type { SavedMealPlan, UserMeal } from "@shared/schema";
 
@@ -12,7 +12,7 @@ export interface RecipeDetail {
   ingredients: Array<{ item: string; quantity: string }>;
 }
 
-export type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
+export type MealSlot = "breakfast" | "lunch" | "dinner" | "snack" | "drinks";
 
 export interface FoodResult {
   id: string;
@@ -59,6 +59,8 @@ export interface FoodLogEntry {
   mealSlot: MealSlot | null;
   confirmed: boolean;
   source?: string | null;
+  volumeMl?: number | null;
+  hydrationLogId?: number | null;
   createdAt: string;
 }
 
@@ -85,6 +87,7 @@ export const SLOT_LABELS: Record<MealSlot, string> = {
   lunch: "Lunch",
   dinner: "Dinner",
   snack: "Snack",
+  drinks: "Drinks",
 };
 
 export const SLOT_ICONS: Record<MealSlot, typeof Coffee> = {
@@ -92,6 +95,7 @@ export const SLOT_ICONS: Record<MealSlot, typeof Coffee> = {
   lunch: Salad,
   dinner: Moon,
   snack: Apple,
+  drinks: GlassWater,
 };
 
 export const SLOT_COLORS: Record<MealSlot, string> = {
@@ -99,9 +103,10 @@ export const SLOT_COLORS: Record<MealSlot, string> = {
   lunch: "text-green-600 bg-green-50",
   dinner: "text-indigo-600 bg-indigo-50",
   snack: "text-pink-600 bg-pink-50",
+  drinks: "text-blue-600 bg-blue-50",
 };
 
-export const ALL_SLOTS: MealSlot[] = ["breakfast", "lunch", "dinner", "snack"];
+export const ALL_SLOTS: MealSlot[] = ["breakfast", "lunch", "dinner", "snack", "drinks"];
 export const WEEK_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
 export const WEEK_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export const MEAL_SLOTS_PLAN = ["breakfast", "lunch", "dinner", "snacks"] as const;
@@ -157,6 +162,7 @@ export function normalizeSlot(slot: string): MealSlot | null {
   if (s.includes("lunch")) return "lunch";
   if (s.includes("dinner")) return "dinner";
   if (s.includes("snack")) return "snack";
+  if (s.includes("drink")) return "drinks";
   return null;
 }
 
@@ -264,6 +270,43 @@ export function MacroGrid({
   );
 }
 
+export function SlotPicker({
+  value,
+  onChange,
+  testIdPrefix = "slot",
+}: {
+  value: MealSlot | null;
+  onChange: (slot: MealSlot | null) => void;
+  testIdPrefix?: string;
+}) {
+  return (
+    <div className="grid grid-cols-5 gap-1.5">
+      {ALL_SLOTS.map(slot => {
+        const Icon = SLOT_ICONS[slot];
+        const active = value === slot;
+        return (
+          <button
+            key={slot}
+            type="button"
+            onClick={() => onChange(active ? null : slot)}
+            className={`flex flex-col items-center gap-1 py-1.5 rounded-xl text-[10px] font-medium transition-colors ${
+              active ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
+            }`}
+            data-testid={`button-${testIdPrefix}-${slot}`}
+          >
+            <span className={`w-7 h-7 flex items-center justify-center rounded-xl transition-colors ${
+              active ? "bg-zinc-900 text-white" : "bg-zinc-100"
+            }`}>
+              <Icon className="w-3.5 h-3.5" />
+            </span>
+            {SLOT_LABELS[slot]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function LoggedMealModal({
   entry,
   userRecipes,
@@ -291,6 +334,7 @@ export function LoggedMealModal({
     sugar: entry.sugar ?? 0,
     saturatedFat: entry.saturatedFat ?? 0,
     mealSlot: entry.mealSlot,
+    volumeMl: entry.volumeMl ?? null as number | null,
   });
 
   const queryClient = useQueryClient();
@@ -304,6 +348,7 @@ export function LoggedMealModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
       queryClient.invalidateQueries({ queryKey: ["/api/food-log-week"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/hydration"] });
       toast({ title: "Entry updated" });
       setEditing(false);
       onClose();
@@ -368,19 +413,35 @@ export function LoggedMealModal({
 
         {editing && (
           <div className="mb-4">
-            <label className="text-xs font-medium text-zinc-600 block mb-1">Meal slot</label>
-            <select
-              value={form.mealSlot ?? ""}
-              onChange={e => setField("mealSlot", e.target.value || null)}
+            <label className="text-xs font-medium text-zinc-600 block mb-1.5">Meal slot</label>
+            <SlotPicker
+              value={form.mealSlot}
+              onChange={slot => setForm(prev => ({ ...prev, mealSlot: slot, volumeMl: slot !== "drinks" ? null : prev.volumeMl }))}
+              testIdPrefix="edit-slot"
+            />
+            <p className="text-[10px] text-zinc-400 mt-1">Tap to select or deselect</p>
+          </div>
+        )}
+
+        {editing && form.mealSlot === "drinks" && (
+          <div className="mb-4">
+            <label className="text-xs font-medium text-zinc-600 block mb-1">Volume (ml)</label>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={form.volumeMl ?? ""}
+              onChange={e => setForm(prev => ({ ...prev, volumeMl: parseInt(e.target.value) || null }))}
+              placeholder="e.g. 250"
               className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 text-sm min-h-[44px]"
-              data-testid="select-edit-mealSlot"
-            >
-              <option value="">No slot</option>
-              <option value="breakfast">Breakfast</option>
-              <option value="lunch">Lunch</option>
-              <option value="dinner">Dinner</option>
-              <option value="snack">Snack</option>
-            </select>
+              data-testid="input-edit-volumeMl"
+            />
+          </div>
+        )}
+
+        {!editing && entry.mealSlot === "drinks" && entry.volumeMl && (
+          <div className="bg-blue-50 text-blue-700 rounded-lg px-3 py-2 text-sm mb-4">
+            Volume: {entry.volumeMl} ml
           </div>
         )}
 
@@ -481,6 +542,7 @@ export function LoggedMealModal({
                     sugar: entry.sugar ?? 0,
                     saturatedFat: entry.saturatedFat ?? 0,
                     mealSlot: entry.mealSlot,
+                    volumeMl: entry.volumeMl ?? null,
                   });
                   setEditing(false);
                 }}

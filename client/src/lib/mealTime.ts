@@ -4,6 +4,7 @@ export const SLOT_CUTOFF_HOURS: Record<string, number> = {
   snack: 16,
   snacks: 16,
   dinner: 20,
+  drinks: 24,
 };
 
 export function isSlotPast(dateStr: string, slotKey: string, now?: Date): boolean {

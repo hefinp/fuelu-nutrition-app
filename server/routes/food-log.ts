@@ -757,10 +757,26 @@ router.post("/api/food-log", async (req, res) => {
       fibre: z.number().int().min(0).nullable().optional(),
       sugar: z.number().int().min(0).nullable().optional(),
       saturatedFat: z.number().int().min(0).nullable().optional(),
-      mealSlot: z.enum(["breakfast", "lunch", "dinner", "snack"]).nullable().optional(),
+      mealSlot: z.enum(["breakfast", "lunch", "dinner", "snack", "drinks"]).nullable().optional(),
       source: z.enum(["manual", "search", "scan", "ai", "plan", "meal", "restaurant"]).nullable().optional(),
+      volumeMl: z.number().int().min(1).nullable().optional(),
     }).parse(req.body);
-    const entry = await storage.createFoodLogEntry({ ...body, userId: req.session.userId });
+
+    let hydrationLogId: number | undefined;
+    if (body.mealSlot === "drinks" && body.volumeMl && body.volumeMl > 0) {
+      const hydrationLog = await storage.createHydrationLog({
+        date: body.date,
+        amountMl: body.volumeMl,
+        userId: req.session.userId,
+      });
+      hydrationLogId = hydrationLog.id;
+    }
+
+    const entry = await storage.createFoodLogEntry({
+      ...body,
+      userId: req.session.userId,
+      hydrationLogId: hydrationLogId ?? null,
+    });
     res.status(201).json(entry);
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
@@ -789,9 +805,36 @@ router.patch("/api/food-log/:id", async (req, res) => {
       fibre: z.number().int().min(0).nullable().optional(),
       sugar: z.number().int().min(0).nullable().optional(),
       saturatedFat: z.number().int().min(0).nullable().optional(),
-      mealSlot: z.enum(["breakfast", "lunch", "dinner", "snack"]).nullable().optional(),
+      mealSlot: z.enum(["breakfast", "lunch", "dinner", "snack", "drinks"]).nullable().optional(),
+      volumeMl: z.number().int().min(1).nullable().optional(),
     }).parse(req.body);
-    const updated = await storage.updateFoodLogEntry(id, req.session.userId, body);
+
+    const existing = await storage.getFoodLogEntryById(id, req.session.userId);
+    if (!existing) return res.status(404).json({ message: "Entry not found" });
+
+    const newSlot = "mealSlot" in body ? body.mealSlot : existing.mealSlot;
+    const newVolume = "volumeMl" in body ? body.volumeMl : existing.volumeMl;
+    const isDrinks = newSlot === "drinks" && newVolume && newVolume > 0;
+
+    let hydrationLogId = existing.hydrationLogId;
+
+    if (isDrinks) {
+      if (hydrationLogId) {
+        await storage.updateHydrationLog(hydrationLogId, req.session.userId, newVolume!);
+      } else {
+        const hLog = await storage.createHydrationLog({
+          userId: req.session.userId,
+          date: existing.date,
+          amountMl: newVolume!,
+        });
+        hydrationLogId = hLog.id;
+      }
+    } else if (hydrationLogId) {
+      await storage.deleteHydrationLog(hydrationLogId, req.session.userId);
+      hydrationLogId = null;
+    }
+
+    const updated = await storage.updateFoodLogEntry(id, req.session.userId, { ...body, hydrationLogId });
     if (!updated) return res.status(404).json({ message: "Entry not found" });
     res.json(updated);
   } catch (err) {
@@ -803,6 +846,10 @@ router.patch("/api/food-log/:id", async (req, res) => {
 router.delete("/api/food-log/:id", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const id = parseInt(req.params.id);
+  const entry = await storage.getFoodLogEntryById(id, req.session.userId);
+  if (entry?.hydrationLogId) {
+    await storage.deleteHydrationLog(entry.hydrationLogId, req.session.userId);
+  }
   await storage.deleteFoodLogEntry(id, req.session.userId);
   res.status(204).send();
 });

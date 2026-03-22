@@ -37,9 +37,10 @@ export interface IStorage {
   getFoodLogEntries(userId: number, date: string): Promise<FoodLogEntry[]>;
   getFoodLogEntriesRange(userId: number, from: string, to: string): Promise<FoodLogEntry[]>;
   getRecentFoodEntries(userId: number, limit: number): Promise<FoodLogEntry[]>;
+  getFoodLogEntryById(id: number, userId: number): Promise<FoodLogEntry | undefined>;
   createFoodLogEntry(entry: InsertFoodLogEntry & { userId: number }): Promise<FoodLogEntry>;
   deleteFoodLogEntry(id: number, userId: number): Promise<void>;
-  updateFoodLogEntry(id: number, userId: number, updates: Partial<Pick<FoodLogEntry, 'mealName' | 'calories' | 'protein' | 'carbs' | 'fat' | 'fibre' | 'sugar' | 'saturatedFat' | 'mealSlot'>>): Promise<FoodLogEntry | undefined>;
+  updateFoodLogEntry(id: number, userId: number, updates: Partial<Pick<FoodLogEntry, 'mealName' | 'calories' | 'protein' | 'carbs' | 'fat' | 'fibre' | 'sugar' | 'saturatedFat' | 'mealSlot' | 'volumeMl' | 'hydrationLogId'>>): Promise<FoodLogEntry | undefined>;
 
   // Password reset tokens
   createPasswordResetToken(userId: number, token: string, expiresAt: Date): Promise<void>;
@@ -95,6 +96,7 @@ export interface IStorage {
   // Hydration
   getHydrationLogs(userId: number, date: string): Promise<HydrationLog[]>;
   createHydrationLog(entry: InsertHydrationLog & { userId: number }): Promise<HydrationLog>;
+  updateHydrationLog(id: number, userId: number, amountMl: number): Promise<HydrationLog | undefined>;
   deleteHydrationLog(id: number, userId: number): Promise<void>;
 
   // Feedback
@@ -504,6 +506,12 @@ export class DatabaseStorage implements IStorage {
     return unique;
   }
 
+  async getFoodLogEntryById(id: number, userId: number): Promise<FoodLogEntry | undefined> {
+    const [entry] = await db.select().from(foodLogEntries)
+      .where(and(eq(foodLogEntries.id, id), eq(foodLogEntries.userId, userId)));
+    return entry;
+  }
+
   async createFoodLogEntry(entry: InsertFoodLogEntry & { userId: number }): Promise<FoodLogEntry> {
     const [created] = await db.insert(foodLogEntries).values(entry).returning();
     return created;
@@ -514,7 +522,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(foodLogEntries.id, id), eq(foodLogEntries.userId, userId)));
   }
 
-  async updateFoodLogEntry(id: number, userId: number, updates: Partial<Pick<FoodLogEntry, 'mealName' | 'calories' | 'protein' | 'carbs' | 'fat' | 'fibre' | 'sugar' | 'saturatedFat' | 'mealSlot'>>): Promise<FoodLogEntry | undefined> {
+  async updateFoodLogEntry(id: number, userId: number, updates: Partial<Pick<FoodLogEntry, 'mealName' | 'calories' | 'protein' | 'carbs' | 'fat' | 'fibre' | 'sugar' | 'saturatedFat' | 'mealSlot' | 'volumeMl' | 'hydrationLogId'>>): Promise<FoodLogEntry | undefined> {
     const [updated] = await db.update(foodLogEntries)
       .set(updates)
       .where(and(eq(foodLogEntries.id, id), eq(foodLogEntries.userId, userId)))
@@ -961,6 +969,14 @@ export class DatabaseStorage implements IStorage {
   async createHydrationLog(entry: InsertHydrationLog & { userId: number }): Promise<HydrationLog> {
     const [created] = await db.insert(hydrationLogs).values(entry).returning();
     return created;
+  }
+
+  async updateHydrationLog(id: number, userId: number, amountMl: number): Promise<HydrationLog | undefined> {
+    const [updated] = await db.update(hydrationLogs)
+      .set({ amountMl })
+      .where(and(eq(hydrationLogs.id, id), eq(hydrationLogs.userId, userId)))
+      .returning();
+    return updated;
   }
 
   async deleteHydrationLog(id: number, userId: number): Promise<void> {

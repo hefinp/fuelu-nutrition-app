@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Plus, X, Check, Barcode, BookOpen, UtensilsCrossed,
   Search, Camera, Sparkles, Send, ChevronDown, BadgeCheck,
-  Lock, ArrowRight, Clock, ExternalLink, Store, Mic,
+  Lock, ArrowRight, Clock, ExternalLink, Store, Mic, Droplets,
 } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Link } from "wouter";
@@ -15,8 +15,8 @@ import type { SavedMealPlan } from "@shared/schema";
 import {
   type MealSlot, type FoodResult, type ExtendedFoodResult,
   type FoodLogEntry, type PrefillEntry, type PlanMeal,
-  SLOT_LABELS, SLOT_ICONS, ALL_SLOTS, WEEK_DAYS, WEEK_SHORT,
-  normalizeSlot, extractPlanMeals, todayStr,
+  WEEK_DAYS, WEEK_SHORT,
+  normalizeSlot, extractPlanMeals, todayStr, SlotPicker,
 } from "@/components/food-log-shared";
 
 interface FoodLogDrawerProps {
@@ -48,6 +48,7 @@ export function FoodLogDrawer({
     mealName: "", calories: "", protein: "", carbs: "", fat: "",
     fibre: "", sugar: "", saturatedFat: "",
     mealSlot: null as MealSlot | null,
+    volumeMl: "",
   });
 
   const [expandedPlanId, setExpandedPlanId] = useState<number | null>(null);
@@ -65,6 +66,7 @@ export function FoodLogDrawer({
   const [scannedFood, setScannedFood] = useState<ExtendedFoodResult | null>(null);
   const [scanServingGrams, setScanServingGrams] = useState("100");
   const [scanMealSlot, setScanMealSlot] = useState<MealSlot | null>(null);
+  const [scanVolumeMl, setScanVolumeMl] = useState("");
   const [showScanAnother, setShowScanAnother] = useState(false);
   const [scanKey, setScanKey] = useState(0);
   const scanConfirmModeRef = useRef(false);
@@ -92,6 +94,7 @@ export function FoodLogDrawer({
   const [aiTabLoading, setAiTabLoading] = useState(false);
   const [aiTabServingGrams, setAiTabServingGrams] = useState("100");
   const [aiTabMealSlot, setAiTabMealSlot] = useState<MealSlot | null>(null);
+  const [aiTabVolumeMl, setAiTabVolumeMl] = useState("");
   const aiTabPhotoRef = useRef<HTMLInputElement>(null);
   const [aiTabProductName, setAiTabProductName] = useState("");
   const [aiTabLabelPhotoFile, setAiTabLabelPhotoFile] = useState<File | null>(null);
@@ -215,6 +218,18 @@ export function FoodLogDrawer({
   }, [open, formTab, scanKey, scannedFood, showScanAnother, showPhotoInterstitial, scanMode]);
 
   useEffect(() => {
+    if (scannedFood) {
+      const isMlServing = scannedFood.servingSize?.toLowerCase().endsWith("ml");
+      if (isMlServing) {
+        const grams = parseFloat(scanServingGrams) || scannedFood.servingGrams || 100;
+        setScanVolumeMl(String(Math.round(grams)));
+      } else {
+        setScanVolumeMl("");
+      }
+    }
+  }, [scannedFood]);
+
+  useEffect(() => {
     if (prefill && open) {
       setForm({
         mealName: prefill.mealName,
@@ -226,6 +241,7 @@ export function FoodLogDrawer({
         sugar: "",
         saturatedFat: "",
         mealSlot: prefill.mealSlot ?? null,
+        volumeMl: "",
       });
       setFormTab("manual");
       onPrefillConsumed?.();
@@ -302,11 +318,15 @@ export function FoodLogDrawer({
       fibre?: number | null; sugar?: number | null; saturatedFat?: number | null;
       mealSlot?: MealSlot | null;
       source?: string | null;
+      volumeMl?: number | null;
     }) => apiRequest("POST", "/api/food-log", entry).then(r => r.json()),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
       queryClient.invalidateQueries({ queryKey: ["/api/food-log-week"] });
       queryClient.invalidateQueries({ queryKey: ["/api/food-log/recent"] });
+      if (variables.mealSlot === "drinks" && variables.volumeMl) {
+        queryClient.invalidateQueries({ queryKey: ["/api/hydration"] });
+      }
       toast({ title: "Meal logged" });
       if (scanConfirmModeRef.current) {
         scanConfirmModeRef.current = false;
@@ -320,13 +340,14 @@ export function FoodLogDrawer({
   });
 
   function resetFormAndClose() {
-    setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", fibre: "", sugar: "", saturatedFat: "", mealSlot: null });
+    setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", fibre: "", sugar: "", saturatedFat: "", mealSlot: null, volumeMl: "" });
     setFormTab("search");
     setFormSource(null);
     setScanResult(null);
     
     setScannedFood(null);
     setScanMealSlot(null);
+    setScanVolumeMl("");
     setShowScanAnother(false);
     setScanKey(0);
     setScanFoundFlash(false);
@@ -343,6 +364,7 @@ export function FoodLogDrawer({
     setAiTabPhotoFile(null);
     setAiTabLabelPhotoFile(null);
     setAiTabProductName("");
+    setAiTabVolumeMl("");
     setShowPhotoInterstitial(false);
     onClose();
   }
@@ -377,6 +399,7 @@ export function FoodLogDrawer({
       saturatedFat: form.saturatedFat !== "" ? (parseInt(form.saturatedFat) || 0) : null,
       mealSlot: form.mealSlot,
       source: formSource ?? "manual",
+      volumeMl: form.mealSlot === "drinks" && form.volumeMl !== "" ? (parseInt(form.volumeMl) || null) : null,
     });
   }
 
@@ -391,6 +414,7 @@ export function FoodLogDrawer({
       sugar: "",
       saturatedFat: "",
       mealSlot: normalizeSlot(m.slot),
+      volumeMl: "",
     });
     setFormSource("plan");
     setFormTab("manual");
@@ -437,6 +461,8 @@ export function FoodLogDrawer({
     if (!selectedFood) return;
     const grams = parseFloat(servingGrams) || 100;
     const factor = grams / 100;
+    const isMlUnit = selectedFood.servingSize?.toLowerCase().endsWith("ml");
+    const prefillVolume = isMlUnit ? String(Math.round(grams)) : "";
     setForm(f => ({
       ...f,
       mealName: selectedFood.name,
@@ -444,6 +470,7 @@ export function FoodLogDrawer({
       protein: String(Math.round(selectedFood.protein100g * factor)),
       carbs: String(Math.round(selectedFood.carbs100g * factor)),
       fat: String(Math.round(selectedFood.fat100g * factor)),
+      volumeMl: prefillVolume,
     }));
     clearSearch();
     setFormSource("search");
@@ -495,6 +522,7 @@ export function FoodLogDrawer({
       saturatedFat: scannedFood.saturatedFat100g != null ? Math.round(scannedFood.saturatedFat100g * f) : null,
       mealSlot: scanMealSlot,
       source: "scan",
+      volumeMl: scanMealSlot === "drinks" && scanVolumeMl !== "" ? (parseInt(scanVolumeMl) || null) : null,
     });
   }
 
@@ -661,6 +689,7 @@ export function FoodLogDrawer({
       saturatedFat: aiTabResult.saturatedFat100g != null ? Math.round(aiTabResult.saturatedFat100g * f) : null,
       mealSlot: aiTabMealSlot,
       source: "ai",
+      volumeMl: aiTabMealSlot === "drinks" && aiTabVolumeMl !== "" ? (parseInt(aiTabVolumeMl) || null) : null,
     });
   }
 
@@ -767,25 +796,32 @@ export function FoodLogDrawer({
 
                 <div>
                   <p className="text-[10px] text-zinc-500 font-medium mb-1.5">Meal type</p>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {ALL_SLOTS.map(slot => {
-                      const Icon = SLOT_ICONS[slot];
-                      const active = form.mealSlot === slot;
-                      return (
-                        <button
-                          key={slot}
-                          type="button"
-                          onClick={() => setForm(f => ({ ...f, mealSlot: active ? null : slot }))}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${active ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`}
-                          data-testid={`button-slot-${slot}`}
-                        >
-                          <Icon className="w-3 h-3" />
-                          {SLOT_LABELS[slot]}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <SlotPicker
+                    value={form.mealSlot}
+                    onChange={slot => setForm(f => ({ ...f, mealSlot: slot }))}
+                    testIdPrefix="slot"
+                  />
                 </div>
+
+                {form.mealSlot === "drinks" && (
+                  <div>
+                    <label className="text-[10px] text-zinc-500 font-medium block mb-1">Volume (ml)</label>
+                    <div className="flex items-center gap-2">
+                      <Droplets className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <input
+                        type="number"
+                        min={1}
+                        placeholder="e.g. 250"
+                        value={form.volumeMl}
+                        onChange={e => setForm(f => ({ ...f, volumeMl: e.target.value }))}
+                        className="w-full px-3 py-2 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50"
+                        data-testid="input-log-volume-ml"
+                      />
+                      <span className="text-xs text-zinc-400 shrink-0">ml</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400 mt-1">Auto-synced to your hydration tracker</p>
+                  </div>
+                )}
 
                 {!form.mealName && recentFoods.length > 0 && (
                   <div>
@@ -1017,24 +1053,29 @@ export function FoodLogDrawer({
                     })()}
                     <div className="mb-2.5">
                       <p className="text-[10px] text-zinc-500 font-medium mb-1.5">Meal type</p>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {ALL_SLOTS.map(slot => {
-                          const Icon = SLOT_ICONS[slot];
-                          const active = form.mealSlot === slot;
-                          return (
-                            <button
-                              key={slot}
-                              type="button"
-                              onClick={() => setForm(f => ({ ...f, mealSlot: active ? null : slot }))}
-                              className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-medium transition-colors ${active ? "bg-zinc-900 text-white" : "bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-400"}`}
-                              data-testid={`button-search-slot-${slot}`}
-                            >
-                              <Icon className="w-3.5 h-3.5" />
-                              {SLOT_LABELS[slot]}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <SlotPicker
+                        value={form.mealSlot}
+                        onChange={slot => setForm(f => ({ ...f, mealSlot: slot }))}
+                        testIdPrefix="search-slot"
+                      />
+                      {form.mealSlot === "drinks" && selectedFood && (
+                        <div className="mt-2">
+                          <div className="flex items-center gap-2">
+                            <Droplets className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                            <input
+                              type="number"
+                              min={1}
+                              placeholder="Volume (ml)"
+                              value={form.volumeMl}
+                              onChange={e => setForm(f => ({ ...f, volumeMl: e.target.value }))}
+                              className="flex-1 px-3 py-1.5 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50"
+                              data-testid="input-search-volume-ml"
+                            />
+                            <span className="text-xs text-zinc-400 shrink-0">ml</span>
+                          </div>
+                          <p className="text-[10px] text-zinc-400 mt-1">Auto-synced to your hydration tracker</p>
+                        </div>
+                      )}
                     </div>
                     {dailyTotals && dailyTargets && (() => {
                       const fac = (parseFloat(servingGrams) || 0) / 100;
@@ -1312,24 +1353,11 @@ export function FoodLogDrawer({
                     })()}
                     <div className="mb-2.5">
                       <p className="text-[10px] text-zinc-500 font-medium mb-1.5">Meal type</p>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {ALL_SLOTS.map(slot => {
-                          const Icon = SLOT_ICONS[slot];
-                          const active = restMealSlot === slot;
-                          return (
-                            <button
-                              key={slot}
-                              type="button"
-                              onClick={() => setRestMealSlot(active ? null : slot)}
-                              className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-medium transition-colors ${active ? "bg-zinc-900 text-white" : "bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-400"}`}
-                              data-testid={`button-rest-slot-${slot}`}
-                            >
-                              <Icon className="w-3.5 h-3.5" />
-                              {SLOT_LABELS[slot]}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <SlotPicker
+                        value={restMealSlot}
+                        onChange={setRestMealSlot}
+                        testIdPrefix="rest-slot"
+                      />
                       {!restMealSlot && (
                         <p className="text-[9px] text-zinc-400 mt-1 text-center">
                           Auto: {inferMealSlot().charAt(0).toUpperCase() + inferMealSlot().slice(1)}
@@ -1533,18 +1561,26 @@ export function FoodLogDrawer({
                         </div>
                         <div>
                           <p className="text-[10px] text-zinc-500 font-medium mb-1.5">Meal</p>
-                          <div className="grid grid-cols-4 gap-1.5">
-                            {ALL_SLOTS.map((slot) => {
-                              const Icon = SLOT_ICONS[slot];
-                              const active = scanMealSlot === slot;
-                              return (
-                                <button key={slot} type="button" onClick={() => setScanMealSlot(active ? null : slot)} className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-medium transition-colors ${active ? "bg-zinc-900 text-white" : "bg-zinc-50 text-zinc-500 hover:bg-zinc-100"}`} data-testid={`button-scan-slot-${slot}`}>
-                                  <Icon className="w-3.5 h-3.5" />
-                                  {SLOT_LABELS[slot]}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          <SlotPicker
+                            value={scanMealSlot}
+                            onChange={setScanMealSlot}
+                            testIdPrefix="scan-slot"
+                          />
+                          {scanMealSlot === "drinks" && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <Droplets className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                              <input
+                                type="number"
+                                min={1}
+                                placeholder="Volume (ml)"
+                                value={scanVolumeMl}
+                                onChange={e => setScanVolumeMl(e.target.value)}
+                                className="flex-1 px-3 py-1.5 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50"
+                                data-testid="input-scan-volume-ml"
+                              />
+                              <span className="text-xs text-zinc-400 shrink-0">ml</span>
+                            </div>
+                          )}
                         </div>
                         {dailyTotals && dailyTargets && (() => {
                           const g = parseFloat(scanServingGrams) || 100;
@@ -1880,18 +1916,26 @@ export function FoodLogDrawer({
                             </div>
                           ))}
                         </div>
-                        <div className="grid grid-cols-4 gap-1.5">
-                          {ALL_SLOTS.map((slot) => {
-                            const Icon = SLOT_ICONS[slot];
-                            const active = aiTabMealSlot === slot;
-                            return (
-                              <button key={slot} type="button" onClick={() => setAiTabMealSlot(active ? null : slot)} className={`flex flex-col items-center gap-1 py-2 rounded-xl text-[10px] font-medium border transition-colors ${active ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"}`} data-testid={`button-ai-tab-slot-${slot}`}>
-                                <Icon className="w-3.5 h-3.5" />
-                                {SLOT_LABELS[slot]}
-                              </button>
-                            );
-                          })}
-                        </div>
+                        <SlotPicker
+                          value={aiTabMealSlot}
+                          onChange={setAiTabMealSlot}
+                          testIdPrefix="ai-tab-slot"
+                        />
+                        {aiTabMealSlot === "drinks" && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <Droplets className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                            <input
+                              type="number"
+                              min={1}
+                              placeholder="Volume (ml)"
+                              value={aiTabVolumeMl}
+                              onChange={e => setAiTabVolumeMl(e.target.value)}
+                              className="flex-1 px-3 py-1.5 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50"
+                              data-testid="input-ai-tab-volume-ml"
+                            />
+                            <span className="text-xs text-zinc-400 shrink-0">ml</span>
+                          </div>
+                        )}
                         <button type="button" onClick={logAiTabFood} disabled={addMutation.isPending} className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50" data-testid="button-ai-tab-log">
                           {addMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                           Log this meal
