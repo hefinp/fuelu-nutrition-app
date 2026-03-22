@@ -1549,3 +1549,15 @@ export const insertClientPackageSchema = createInsertSchema(clientPackages).omit
 
 export type InsertClientPackage = z.infer<typeof insertClientPackageSchema>;
 export type ClientPackage = typeof clientPackages.$inferSelect;
+
+export const mealPlanGenerations = pgTable("meal_plan_generations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  monthKey: text("month_key").notNull(),
+  dailyCount: integer("daily_count").notNull().default(0),
+  weeklyCount: integer("weekly_count").notNull().default(0),
+}, (table) => [
+  uniqueIndex("mpg_user_month_uniq").on(table.userId, table.monthKey),
+]);
+
+export type MealPlanGeneration = typeof mealPlanGenerations.$inferSelect;

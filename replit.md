@@ -24,7 +24,7 @@ PostgreSQL is the primary database, managed with Drizzle ORM. It stores user dat
 A dedicated portal at `/nutritionist/portal` allows nutritionists and dietitians to manage clients. Features include client management, AI plan generation with a prompt-to-plan workflow, plan verification and delivery, plan scheduling, template libraries, and meal annotations. Nutritionists can override client macro targets and generate customizable progress reports. Client satisfaction surveys can be created and sent manually or automatically.
 
 ### Custom Meal Plan Builder
-The Meal Planning widget offers a "Generator / Custom" toggle. Custom mode allows users to manually place saved meals, drag and drop meals, use AI autofill for remaining slots, and save/export custom plans.
+The Meal Planning widget opens directly into the custom planner (no generator/custom toggle). Users can manually place saved meals, drag and drop meals, use AI autofill for remaining slots, random-replace individual meals via a RefreshCw button, and save/export custom plans. Per-tier monthly generation limits are enforced on the autofill endpoint (Free: 1 weekly/3 daily, Simple: 2 weekly/6 daily, Advanced: unlimited), tracked in the `meal_plan_generations` table with atomic upsert counting. Remaining generation counts are displayed above the autofill button with upgrade prompts when limits are reached.
 
 ### Strava Integration
 Users can connect their Strava account via OAuth to import fitness activity data into the dashboard. Activity data is stored locally in `strava_activities` and synced via webhooks. This data is used in the activity widget, food diary, and for adaptive TDEE calculations.

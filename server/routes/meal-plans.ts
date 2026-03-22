@@ -17,6 +17,41 @@ import {
 
 const router = Router();
 
+const GENERATION_LIMITS: Record<string, { daily: number; weekly: number }> = {
+  free: { daily: 3, weekly: 1 },
+  simple: { daily: 6, weekly: 2 },
+  advanced: { daily: Infinity, weekly: Infinity },
+  payg: { daily: 3, weekly: 1 },
+};
+
+function getCurrentMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+router.get("/api/meal-plans/generation-limits", async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Login required" });
+  }
+  const user = await storage.getUserById(req.session.userId);
+  if (!user) return res.status(401).json({ message: "User not found" });
+
+  const tier = (user.betaUser || user.tier === 'advanced') ? 'advanced' : (user.tier || 'free');
+  const limits = GENERATION_LIMITS[tier] || GENERATION_LIMITS.free;
+  const monthKey = getCurrentMonthKey();
+  const counts = await storage.getMealPlanGenerationCounts(req.session.userId, monthKey);
+
+  res.json({
+    tier,
+    limits: { daily: limits.daily === Infinity ? null : limits.daily, weekly: limits.weekly === Infinity ? null : limits.weekly },
+    used: { daily: counts.dailyCount, weekly: counts.weeklyCount },
+    remaining: {
+      daily: limits.daily === Infinity ? null : Math.max(0, limits.daily - counts.dailyCount),
+      weekly: limits.weekly === Infinity ? null : Math.max(0, limits.weekly - counts.weeklyCount),
+    },
+  });
+});
+
 router.post(api.mealPlans.generate.path, async (req, res) => {
   try {
     const input = mealPlanSchema.parse(req.body);
@@ -231,6 +266,7 @@ const autofillSchema = z.object({
   weekStartDate: z.string().optional(),
   clientToday: z.string().optional(),
   excludeSlots: z.array(z.string()).optional(),
+  ignoreCycle: z.boolean().optional().default(false),
 });
 
 function enrichMealsWithIngredients(meals: any[]): any[] {
@@ -271,6 +307,22 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
 
     const input = autofillSchema.parse(req.body);
 
+    if (user) {
+      const tier = (user.betaUser || user.tier === 'advanced') ? 'advanced' : (user.tier || 'free');
+      const limits = GENERATION_LIMITS[tier] || GENERATION_LIMITS.free;
+      const monthKey = getCurrentMonthKey();
+      const counts = await storage.getMealPlanGenerationCounts(req.session.userId, monthKey);
+      const genType = input.planType === 'weekly' ? 'weekly' : 'daily';
+      const limit = genType === 'weekly' ? limits.weekly : limits.daily;
+      const used = genType === 'weekly' ? counts.weeklyCount : counts.dailyCount;
+      if (limit !== Infinity && used >= limit) {
+        return res.status(429).json({
+          message: `You've reached your ${genType} generation limit for this month. Upgrade for more.`,
+          remaining: { daily: Math.max(0, limits.daily === Infinity ? 999 : limits.daily - counts.dailyCount), weekly: Math.max(0, limits.weekly === Infinity ? 999 : limits.weekly - counts.weeklyCount) },
+        });
+      }
+    }
+
     let baseDb: MealDb = input.mealStyle === 'gourmet' ? GOURMET_MEAL_DATABASE : input.mealStyle === 'fancy' ? FANCY_MEAL_DATABASE : MEAL_DATABASE;
 
     let prefs: UserPreferences | null = null;
@@ -282,7 +334,7 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
       baseDb = filterMealDbByPreferences(baseDb, prefs);
     }
 
-    const hasCycle = !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate);
+    const hasCycle = !input.ignoreCycle && !!(prefs?.cycleTrackingEnabled && prefs?.lastPeriodDate);
     const slotKeys = ['breakfast', 'lunch', 'dinner', 'snacks'] as const;
     const normalizedExclude = (input.excludeSlots ?? []).map(s => s === 'snacks' ? 'snack' : s);
     const excludeSet = new Set([...(input.excludeSlots ?? []), ...normalizedExclude]);
@@ -342,6 +394,11 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
       }
 
       if (input.weekStartDate) (result as any).weekStartDate = input.weekStartDate;
+
+      if (req.session.userId) {
+        await storage.incrementMealPlanGeneration(req.session.userId, getCurrentMonthKey(), 'weekly');
+      }
+
       res.status(200).json({
         planType: 'weekly',
         ...result,
@@ -366,6 +423,11 @@ router.post("/api/meal-plans/autofill", async (req, res) => {
       dayPlan.dayTotalFat = allMeals.reduce((sum: number, m: any) => sum + m.fat, 0);
       dayPlan.planType = 'daily';
       if (input.targetDate) dayPlan.targetDate = input.targetDate;
+
+      if (req.session.userId) {
+        await storage.incrementMealPlanGeneration(req.session.userId, getCurrentMonthKey(), 'daily');
+      }
+
       res.status(200).json(enrichDayPlan(dayPlan));
     }
   } catch (err) {

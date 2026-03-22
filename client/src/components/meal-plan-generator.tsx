@@ -1,9 +1,8 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ThumbsDown, ClipboardList, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Salad, ChefHat, Star, Circle, CalendarDays, AlertTriangle, AlertCircle, Zap, Lock, ArrowRight, Trash2, Plus, Search, GripVertical, Copy, Move, Replace, Wand2, Coffee, Cookie, ArrowLeftRight, Timer, Moon, Shield, BookOpen, MoreHorizontal, Undo2 } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ClipboardList, ChevronDown, ChevronUp, CalendarDays, AlertTriangle, AlertCircle, Zap, Lock, ArrowRight, Trash2, Plus, GripVertical, Wand2, Timer, Moon, Shield, BookOpen, MoreHorizontal, Undo2, ArrowLeftRight } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ToastAction } from "@/components/ui/toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UserPreferences, SavedMealPlan } from "@shared/schema";
@@ -21,18 +20,22 @@ import type { PrefillEntry } from "@/components/food-log-shared";
 import { isSlotPast, isDayPast } from "@/lib/mealTime";
 
 import { DateRangePicker } from "./meal-plan/date-range-picker";
-import { DailyMealView } from "./meal-plan/daily-meal-view";
-import { WeeklyMealView } from "./meal-plan/weekly-meal-view";
 import { PlanTypeToggle, MealStyleSelector, SlotToggles } from "./meal-plan/shared-controls";
 import { ReplacePicker } from "./meal-plan/replace-picker";
 import { AddMealPopover } from "./meal-plan/add-meal-popover";
 import { CopyMovePopover } from "./meal-plan/copy-move-popover";
 import { NutritionSummaryCard } from "./meal-plan/nutrition-summary-card";
 import type { MealPlan, ReplacePickerState, AddMealPopoverState, CopyMovePopoverState, DragSourceState, DropTargetState } from "./meal-plan/types";
-import { recalcDayTotals, recalcWeekTotals } from "./meal-plan/types";
 
 export type { Meal } from "./meal-plan/types";
 import type { Meal } from "./meal-plan/types";
+
+interface GenerationLimits {
+  tier: string;
+  limits: { daily: number | null; weekly: number | null };
+  used: { daily: number; weekly: number };
+  remaining: { daily: number | null; weekly: number | null };
+}
 
 function isSlotLockedForDates(slot: string, dates: string[]): boolean {
   if (dates.length === 0) return false;
@@ -46,37 +49,26 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const effectiveFat = overrideTargets?.fatGoal ?? data.fatGoal;
   const { user } = useAuth();
   const isMealPremium = !!(user?.betaUser || (user?.tier && user.tier !== "free"));
-  const [widgetMode, setWidgetMode] = useState<'generator' | 'custom'>(() => {
-    const saved = localStorage.getItem('fuelr-widget-mode');
-    return saved === 'custom' ? 'custom' : 'generator';
-  });
-  const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [planMode, setPlanMode] = useState<'daily' | 'weekly'>('daily');
   const [mealStyle, setMealStyle] = useState<'simple' | 'fancy' | 'gourmet'>('simple');
-  const [shoppingDaysOpen, setShoppingDaysOpen] = useState(false);
-  const [shoppingDaysInput, setShoppingDaysInput] = useState("7");
-  const [planSaved, setPlanSaved] = useState(false);
   const [selectedDates, setSelectedDates] = useState<string[]>([toDateStr(new Date())]);
   const [weekStart, setWeekStart] = useState<string>(getMonday(toDateStr(new Date())));
   const [ignoreCycle, setIgnoreCycle] = useState(false);
   const [customSlots, setCustomSlots] = useState<Record<string, Record<string, Meal[]>>>({});
   const [customPlanReady, setCustomPlanReady] = useState<MealPlan | null>(null);
   const [customPlanSaved, setCustomPlanSaved] = useState(false);
-  const [generatorModalOpen, setGeneratorModalOpen] = useState(false);
   const [customModalOpen, setCustomModalOpen] = useState(false);
   const [addMealPopover, setAddMealPopover] = useState<AddMealPopoverState | null>(null);
-  const [baseSlots, setBaseSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snack']));
-  const [replacePicker, setReplacePicker] = useState<ReplacePickerState | null>(null);
   const [baseCustomSlots, setBaseCustomSlots] = useState<Set<string>>(new Set(['breakfast', 'lunch', 'dinner', 'snacks']));
   const [bannerCollapsed, setBannerCollapsed] = useState(false);
   const [showSavedPlansInline, setShowSavedPlansInline] = useState(false);
-  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [customDiscardConfirmOpen, setCustomDiscardConfirmOpen] = useState(false);
   const [dragSource, setDragSource] = useState<DragSourceState | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTargetState | null>(null);
   const [copyMovePopover, setCopyMovePopover] = useState<CopyMovePopoverState | null>(null);
   const [touchDragging, setTouchDragging] = useState<{ dayKey: string; slotKey: string; mealIdx: number; mealName: string } | null>(null);
   const [touchGhost, setTouchGhost] = useState<{ x: number; y: number } | null>(null);
+  const [replacePicker, setReplacePicker] = useState<ReplacePickerState | null>(null);
   const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const slotRefsMap = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -102,21 +94,26 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
   const { data: mealPlanPrefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
 
+  const { data: generationLimits, refetch: refetchLimits } = useQuery<GenerationLimits>({
+    queryKey: ["/api/meal-plans/generation-limits"],
+    enabled: !!user,
+  });
+
   const SLOT_HOURS: Record<string, number> = { breakfast: 8, lunch: 12, dinner: 19, snack: 15 };
   const fastingEnabled = !!(mealPlanPrefs?.fastingEnabled && mealPlanPrefs?.fastingProtocol);
   const fastingProtocol = mealPlanPrefs?.fastingProtocol;
 
   useEffect(() => {
     if (!mealPlanPrefs) return;
-    const allSlots = new Set(['breakfast', 'lunch', 'dinner', 'snack']);
+    const allSlots = new Set(['breakfast', 'lunch', 'dinner', 'snacks']);
     if (!mealPlanPrefs.fastingEnabled || !mealPlanPrefs.fastingProtocol) {
-      setBaseSlots(allSlots);
+      setBaseCustomSlots(allSlots);
       return;
     }
     const protocol = mealPlanPrefs.fastingProtocol;
     if (protocol === 'omad') {
       allSlots.delete('breakfast');
-      allSlots.delete('snack');
+      allSlots.delete('snacks');
     } else if (protocol === '5:2') {
       if (planMode === 'daily' && selectedDates.length > 0) {
         const fastDays = mealPlanPrefs.fastingDays ?? ['monday', 'thursday'];
@@ -129,27 +126,20 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         if (allFastingDays) {
           allSlots.delete('breakfast');
           allSlots.delete('dinner');
-          allSlots.delete('snack');
+          allSlots.delete('snacks');
         }
       }
     } else {
       const wStart = mealPlanPrefs.eatingWindowStart ?? 12;
       const wEnd = mealPlanPrefs.eatingWindowEnd ?? 20;
       for (const [slot, hour] of Object.entries(SLOT_HOURS)) {
+        const mappedSlot = slot === 'snack' ? 'snacks' : slot;
         const inWindow = wStart < wEnd ? (hour >= wStart && hour < wEnd) : (hour >= wStart || hour < wEnd);
-        if (!inWindow) allSlots.delete(slot);
+        if (!inWindow) allSlots.delete(mappedSlot);
       }
     }
-    setBaseSlots(allSlots);
+    setBaseCustomSlots(allSlots);
   }, [mealPlanPrefs, selectedDates, planMode]);
-
-  const toggleSlot = useCallback((slot: string) => {
-    setBaseSlots(prev => {
-      const next = new Set(prev);
-      if (next.has(slot)) next.delete(slot); else next.add(slot);
-      return next;
-    });
-  }, []);
 
   const toggleCustomSlot = useCallback((slot: string) => {
     setBaseCustomSlots(prev => {
@@ -158,15 +148,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       return next;
     });
   }, []);
-
-  const enabledSlots = useMemo(() => {
-    if (planMode !== 'daily') return new Set(baseSlots);
-    const next = new Set<string>();
-    for (const slot of baseSlots) {
-      if (!isSlotLockedForDates(slot, selectedDates)) next.add(slot);
-    }
-    return next;
-  }, [baseSlots, selectedDates, planMode]);
 
   const customEnabledSlots = useMemo(() => {
     if (planMode !== 'daily') return new Set(baseCustomSlots);
@@ -177,55 +158,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     return next;
   }, [baseCustomSlots, selectedDates, planMode]);
 
-  const excludeSlotsArray = ['breakfast', 'lunch', 'dinner', 'snack'].filter(s => !enabledSlots.has(s));
-
-  const generateMealPlan = useMutation({
-    mutationFn: async (planType: 'daily' | 'weekly') => {
-      const today = toDateStr(new Date());
-      const validDates = selectedDates.filter(d => d >= today);
-      if (planType === 'daily' && validDates.length === 0) {
-        throw new Error("No future dates selected");
-      }
-      const res = await apiRequest('POST', '/api/meal-plans', {
-        dailyCalories: effectiveCals,
-        weeklyCalories: data.weeklyCalories,
-        proteinGoal: effectiveProtein,
-        carbsGoal: effectiveCarbs,
-        fatGoal: effectiveFat,
-        planType,
-        mealStyle,
-        calculationId: data.id,
-        clientToday: today,
-        ...(planType === 'daily' ? { targetDates: validDates } : { weekStartDate: weekStart }),
-        ...(excludeSlotsArray.length > 0 ? { excludeSlots: excludeSlotsArray } : {}),
-      });
-      return await res.json();
-    },
-    onSuccess: (planData) => {
-      setMealPlan(planData);
-      setPlanSaved(false);
-      setGeneratorModalOpen(true);
-      setBannerCollapsed(true);
-    },
-    onError: (error: Error) => {
-      let title = "Failed to generate meal plan";
-      let description = "Something went wrong. Please try again.";
-      try {
-        const match = error.message.match(/^(\d+):\s*(.*)/s);
-        if (match) {
-          const status = parseInt(match[1], 10);
-          const body = JSON.parse(match[2]);
-          if (status === 403 && body.message) {
-            title = "Plan upgrade required";
-            description = body.message;
-          } else if (body.message) {
-            description = body.message;
-          }
-        }
-      } catch {}
-      toast({ title, description, variant: "destructive" });
-    },
-  });
   const hasCycleData = !!(mealPlanPrefs?.cycleTrackingEnabled && mealPlanPrefs?.lastPeriodDate && data.gender === "female");
   const cycleEnabledButMissing = !!(mealPlanPrefs?.cycleTrackingEnabled && !mealPlanPrefs?.lastPeriodDate && data.gender === "female");
   const hasVitalityBoost = !!(mealPlanPrefs?.vitalityInsightsEnabled && mealPlanPrefs?.vitalityMeals && data.gender === "male");
@@ -238,17 +170,13 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     : null;
 
   useEffect(() => {
-    const isActive = generateMealPlan.isPending || mealPlan !== null || customModalOpen;
+    const isActive = customModalOpen;
     setFlowActive("meal-plan", isActive);
     return () => setFlowActive("meal-plan", false);
-  }, [generateMealPlan.isPending, mealPlan, customModalOpen, setFlowActive]);
+  }, [customModalOpen, setFlowActive]);
 
   useEffect(() => {
-    localStorage.setItem('fuelr-widget-mode', widgetMode);
-  }, [widgetMode]);
-
-  useEffect(() => {
-    if (generatorModalOpen || customModalOpen) {
+    if (customModalOpen) {
       document.body.style.overflow = 'hidden';
       document.documentElement.style.overflow = 'hidden';
       const today = toDateStr(new Date());
@@ -264,9 +192,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
     };
-  }, [generatorModalOpen, customModalOpen]);
-
-
+  }, [customModalOpen]);
 
   const { data: savedPlans = [] } = useQuery<SavedMealPlan[]>({
     queryKey: ["/api/saved-meal-plans"],
@@ -545,6 +471,12 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     return { calories, protein, carbs, fat };
   }, [customSlots]);
 
+  const isLimitReached = useMemo(() => {
+    if (!generationLimits) return false;
+    const rem = planMode === 'weekly' ? generationLimits.remaining.weekly : generationLimits.remaining.daily;
+    return rem !== null && rem <= 0;
+  }, [generationLimits, planMode]);
+
   const autofillMutation = useMutation({
     mutationFn: async () => {
       const dayKeys = getCustomDayKeys();
@@ -584,6 +516,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         clientToday: toDateStr(new Date()),
         ...(planMode === 'daily' ? { targetDate: dayKeys[0] } : { weekStartDate: weekStart }),
         ...(userExcludeSlots.length > 0 ? { excludeSlots: userExcludeSlots } : {}),
+        ...(ignoreCycle ? { ignoreCycle: true } : {}),
       });
       return await res.json();
     },
@@ -634,10 +567,30 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
       });
       setCustomPlanSaved(false);
       setBannerCollapsed(true);
+      refetchLimits();
       toast({ title: "Slots filled", description: "Empty slots have been filled. You can still edit before saving." });
     },
-    onError: () => {
-      toast({ title: "Autofill failed", description: "Something went wrong. Please try again.", variant: "destructive" });
+    onError: (error: Error) => {
+      let title = "Autofill failed";
+      let description = "Something went wrong. Please try again.";
+      try {
+        const match = error.message.match(/^(\d+):\s*(.*)/s);
+        if (match) {
+          const status = parseInt(match[1], 10);
+          const body = JSON.parse(match[2]);
+          if (status === 429 && body.message) {
+            title = "Generation limit reached";
+            description = body.message;
+            refetchLimits();
+          } else if (status === 403 && body.message) {
+            title = "Plan upgrade required";
+            description = body.message;
+          } else if (body.message) {
+            description = body.message;
+          }
+        }
+      } catch {}
+      toast({ title, description, variant: "destructive" });
     },
   });
 
@@ -715,39 +668,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
   const customHasAnyMeals = Object.values(customSlots).some(day => Object.values(day).some(arr => arr.length > 0));
 
-  const savePlanMutation = useMutation({
-    mutationFn: async () => {
-      if (!mealPlan) throw new Error("No plan to save");
-      const planTypeLabel = (mealPlan as any).planType === 'weekly' ? 'Weekly' : 'Daily';
-      const dateLabel = (mealPlan as any).planType === 'weekly'
-        ? ` (${formatShort(weekStart)} – ${formatShort(addDays(weekStart, 6))})`
-        : selectedDates.length === 1
-          ? ` (${formatShort(selectedDates[0])})`
-          : ` (${formatShort(selectedDates[0])} +${selectedDates.length - 1})`;
-      const savePlanData: Record<string, any> = { ...mealPlan };
-      if (mealPlanPrefs?.cycleTrackingEnabled && data.gender === "female") {
-        savePlanData.cycleOptimised = hasCycleData && !ignoreCycle;
-      }
-      const res = await apiRequest('POST', '/api/saved-meal-plans', {
-        planData: savePlanData,
-        planType: (mealPlan as any).planType === 'multi-daily' ? 'daily' : (mealPlan as any).planType,
-        mealStyle,
-        calculationId: data.id,
-        name: `${planTypeLabel} Plan${dateLabel}`,
-      });
-      return await res.json();
-    },
-    onSuccess: () => {
-      setPlanSaved(true);
-      queryClient.invalidateQueries({ queryKey: ["/api/saved-meal-plans"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/food-log"] });
-      toast({ title: "Plan saved", description: "Meals added to your food log as planned entries." });
-    },
-    onError: () => {
-      toast({ title: "Failed to save", description: "Please try again.", variant: "destructive" });
-    },
-  });
-
   const replaceMealMutation = useMutation({
     mutationFn: async ({ slot, currentMealName, targetDate }: { slot: string; currentMealName: string; targetDate?: string }) => {
       const res = await apiRequest('POST', '/api/meal-plans/replace-meal', {
@@ -767,47 +687,49 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
     },
   });
 
+  const handleRandomReplace = useCallback((dayKey: string, slotKey: string, mealIdx: number, mealName: string) => {
+    const apiSlot = slotKey === 'snacks' ? 'snack' : slotKey;
+    const dayKeys = getCustomDayKeys();
+    const dayDateStr = planMode === 'weekly' ? addDays(weekStart, dayKeys.indexOf(dayKey)) : dayKey;
+    replaceMealMutation.mutate({ slot: apiSlot, currentMealName: mealName, targetDate: dayDateStr }, {
+      onSuccess: ({ meal: newMeal }) => {
+        if (!newMeal || newMeal.meal === null) {
+          toast({ title: "No alternative found", description: "No replacement matches your dietary restrictions.", variant: "destructive" });
+          return;
+        }
+        setCustomSlots(prev => {
+          const day = { ...(prev[dayKey] || {}) };
+          const arr = [...(day[slotKey] || [])];
+          if (mealIdx < arr.length) {
+            arr[mealIdx] = { meal: newMeal.meal, calories: newMeal.calories, protein: newMeal.protein, carbs: newMeal.carbs, fat: newMeal.fat };
+          }
+          day[slotKey] = arr;
+          return { ...prev, [dayKey]: day };
+        });
+        setCustomPlanReady(null);
+        setCustomPlanSaved(false);
+        toast({ title: "Meal replaced", description: `Swapped with ${newMeal.meal}` });
+      },
+    });
+  }, [replaceMealMutation, getCustomDayKeys, planMode, weekStart, toast]);
+
   const handleLibraryReplace = useCallback((item: { name: string; calories: number; protein: number; carbs: number; fat: number }) => {
     if (!replacePicker) return;
-    const { dayKey, slotKey, mealIdx, context } = replacePicker;
+    const { dayKey, slotKey, mealIdx } = replacePicker;
     const newMeal: Meal = { meal: item.name, calories: item.calories, protein: item.protein, carbs: item.carbs, fat: item.fat };
-    if (context === 'generator') {
-      if (!mealPlan) return;
-      setMealPlan((prev: any) => {
-        if (!prev) return prev;
-        const plan = JSON.parse(JSON.stringify(prev));
-        const backendSlotKey = slotKey === 'snack' ? 'snacks' : slotKey;
-        if (plan.planType === 'weekly') {
-          const dayPlan = plan[dayKey];
-          if (dayPlan?.[backendSlotKey]) { dayPlan[backendSlotKey][mealIdx] = newMeal; recalcDayTotals(dayPlan); recalcWeekTotals(plan); }
-        } else if (plan.planType === 'multi-daily') {
-          const dayPlan = plan.days?.[dayKey];
-          if (dayPlan?.[backendSlotKey]) { dayPlan[backendSlotKey][mealIdx] = newMeal; recalcDayTotals(dayPlan); }
-        } else {
-          if (plan[backendSlotKey]) { plan[backendSlotKey][mealIdx] = newMeal; recalcDayTotals(plan); }
-        }
-        return plan;
-      });
-      setPlanSaved(false);
-    } else if (context === 'custom') {
-      const customSlotKey = slotKey === 'snack' ? 'snacks' : slotKey;
-      setCustomSlots(prev => {
-        const day = { ...(prev[dayKey] || {}) };
-        const arr = [...(day[customSlotKey] || [])];
-        if (mealIdx < arr.length) { arr[mealIdx] = newMeal; }
-        day[customSlotKey] = arr;
-        return { ...prev, [dayKey]: day };
-      });
-      setCustomPlanReady(null);
-      setCustomPlanSaved(false);
-    }
+    const customSlotKey = slotKey === 'snack' ? 'snacks' : slotKey;
+    setCustomSlots(prev => {
+      const day = { ...(prev[dayKey] || {}) };
+      const arr = [...(day[customSlotKey] || [])];
+      if (mealIdx < arr.length) { arr[mealIdx] = newMeal; }
+      day[customSlotKey] = arr;
+      return { ...prev, [dayKey]: day };
+    });
+    setCustomPlanReady(null);
+    setCustomPlanSaved(false);
     setReplacePicker(null);
     toast({ title: "Meal replaced", description: `Swapped with ${item.name}` });
-  }, [replacePicker, mealPlan, toast]);
-
-  const generatorPlanTitle = mealPlan
-    ? `${(mealPlan as any).planType === 'multi-daily' ? 'Multi-Day' : (mealPlan as any).planType === 'weekly' ? 'Weekly' : 'Daily'} Meal Plan`
-    : '';
+  }, [replacePicker, toast]);
 
   const handleDateToggle = useCallback((dateStr: string) => {
     setSelectedDates(prev => {
@@ -818,13 +740,19 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
   const handlePlanModeChange = useCallback((mode: 'daily' | 'weekly') => {
     setPlanMode(mode);
-    setMealPlan(null);
   }, []);
 
   const handleMealStyleChange = useCallback((style: 'simple' | 'fancy' | 'gourmet') => {
     setMealStyle(style);
-    setMealPlan(null);
   }, []);
+
+  const remainingLabel = useMemo(() => {
+    if (!generationLimits) return null;
+    const rem = planMode === 'weekly' ? generationLimits.remaining.weekly : generationLimits.remaining.daily;
+    if (rem === null) return null;
+    const type = planMode === 'weekly' ? 'weekly' : 'daily';
+    return `${rem} ${type} generate${rem !== 1 ? 's' : ''} left`;
+  }, [generationLimits, planMode]);
 
   return (
     <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
@@ -835,33 +763,12 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         <h3 className="text-sm font-display font-bold text-zinc-900">Meal Planning</h3>
       </div>
 
-      <div className="flex bg-zinc-100 rounded-xl p-1 mb-6">
-        <button
-          onClick={() => { setWidgetMode("generator"); }}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${widgetMode === "generator" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-          data-testid="button-tab-generator"
-        >
-          Generator
-        </button>
-        <button
-          onClick={() => { setWidgetMode("custom"); }}
-          className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${widgetMode === "custom" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-          data-testid="button-tab-custom"
-        >
-          Custom
-        </button>
-      </div>
-
       <button
-        onClick={() => { setBannerCollapsed(false); widgetMode === "generator" ? setGeneratorModalOpen(true) : setCustomModalOpen(true); }}
+        onClick={() => { setBannerCollapsed(false); setCustomModalOpen(true); }}
         className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-semibold text-sm transition-colors"
         data-testid="button-launch-planner"
       >
-        {widgetMode === "generator" ? (
-          <><UtensilsCrossed className="w-4 h-4" /> Generate Plan</>
-        ) : (
-          <><ClipboardList className="w-4 h-4" /> Create Plan</>
-        )}
+        <ClipboardList className="w-4 h-4" /> Create Plan
       </button>
 
       {savedPlans.length > 0 && (
@@ -942,10 +849,10 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
         </AnimatePresence>
       </div>
 
-      {/* Generator Modal */}
+      {/* Custom Planner Modal */}
       <AnimatePresence>
-        {generatorModalOpen && (
-          <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setGeneratorModalOpen(false)}>
+        {customModalOpen && (
+          <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setCustomModalOpen(false)}>
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
@@ -957,33 +864,14 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
               <div className="sticky top-0 z-10 bg-white border-b border-zinc-100 px-4 sm:px-6 py-4 flex items-center justify-between shrink-0">
                 <div>
                   <h3 className="text-lg font-display font-bold text-zinc-900 capitalize" data-testid="text-modal-plan-title">
-                    {mealPlan ? generatorPlanTitle : `${planMode === 'weekly' ? 'Weekly' : 'Daily'} Meal Plan`}
+                    {planMode === 'weekly' ? 'Weekly' : 'Daily'} Meal Plan
                   </h3>
-                  {mealPlan ? (
-                    <>
-                      {(mealPlan as any).planType === 'weekly' && (mealPlan as any).weekStartDate && (
-                        <p className="text-xs text-zinc-400 mt-0.5">
-                          <CalendarDays className="w-3 h-3 inline mr-1" />
-                          {formatShort((mealPlan as any).weekStartDate)} – {formatShort(addDays((mealPlan as any).weekStartDate, 6))}
-                        </p>
-                      )}
-                      {((mealPlan as any).planType === 'daily' || (mealPlan as any).planType === 'multi-daily') && selectedDates.length > 0 && (
-                        <p className="text-xs text-zinc-400 mt-0.5">
-                          <CalendarDays className="w-3 h-3 inline mr-1" />
-                          {selectedDates.length === 1
-                            ? formatShort(selectedDates[0])
-                            : `${formatShort(selectedDates[0])} + ${selectedDates.length - 1} more`}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-xs text-zinc-400 mt-0.5">Pick your schedule, then generate</p>
-                  )}
+                  <p className="text-xs text-zinc-400 mt-0.5">Build your plan, then generate or save</p>
                 </div>
                 <button
-                  onClick={() => setGeneratorModalOpen(false)}
+                  onClick={() => setCustomModalOpen(false)}
                   className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
-                  data-testid="button-close-generator-modal"
+                  data-testid="button-close-custom-modal"
                 >
                   <X className="w-5 h-5 text-zinc-400" />
                 </button>
@@ -1001,28 +889,27 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                       onToggleDate={handleDateToggle}
                     />
                     <SlotToggles
-                      enabledSlots={enabledSlots}
-                      onToggleSlot={toggleSlot}
+                      enabledSlots={customEnabledSlots}
+                      onToggleSlot={toggleCustomSlot}
                       planMode={planMode}
                       selectedDates={selectedDates}
                     />
+                    <div className="mt-2">
+                      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Meal Style</p>
+                      <MealStyleSelector mealStyle={mealStyle} onChangeMealStyle={handleMealStyleChange} />
+                    </div>
                   </div>
                 </div>
                 <button
                   onClick={() => setBannerCollapsed(prev => !prev)}
                   className="w-full flex items-center justify-center py-1 sm:hidden"
-                  data-testid="button-toggle-generator-banner"
+                  data-testid="button-toggle-custom-banner"
                 >
                   {bannerCollapsed ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronUp className="w-4 h-4 text-zinc-400" />}
                 </button>
               </div>
 
               <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4">
-                <div className="mb-4">
-                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Meal Style</p>
-                  <MealStyleSelector mealStyle={mealStyle} onChangeMealStyle={handleMealStyleChange} />
-                </div>
-
                 {cycleEnabledButMissing && !ignoreCycle && (
                   <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-xl border border-amber-200 bg-amber-50 mb-2" data-testid="callout-cycle-missing">
                     <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -1058,7 +945,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
 
                 {planMode === 'daily' && cycleInfo && (
                   <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border mb-2 ${cycleInfo.bgClass} ${cycleInfo.borderClass}`}>
-                    <Circle className={`w-3.5 h-3.5 flex-shrink-0 ${cycleInfo.colorClass}`} />
+                    <Moon className={`w-3.5 h-3.5 flex-shrink-0 ${cycleInfo.colorClass}`} />
                     <p className={`text-xs font-medium ${cycleInfo.textClass}`}>
                       {cycleInfo.name} phase · Day {cycleInfo.day} · {cycleInfo.shortTip}
                     </p>
@@ -1066,65 +953,27 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 )}
                 {planMode === 'weekly' && weekCycleInfo && (
                   <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border mb-2 ${weekCycleInfo.bgClass} ${weekCycleInfo.borderClass}`}>
-                    <Circle className={`w-3 h-3 flex-shrink-0 ${weekCycleInfo.colorClass}`} />
+                    <Moon className={`w-3 h-3 flex-shrink-0 ${weekCycleInfo.colorClass}`} />
                     <p className={`text-xs ${weekCycleInfo.textClass}`}>
                       {weekCycleInfo.name} phase from {formatShort(weekStart)} · {weekCycleInfo.shortTip}
                     </p>
                   </div>
                 )}
 
-                {mealPlanPrefs?.vitalityInsightsEnabled && data.gender === "male" && (
-                  isMealPremium ? (
-                    <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl border border-amber-200 bg-amber-50 mb-2" data-testid="vitality-nutrient-dense-toggle">
-                      <div className="flex items-center gap-2">
-                        <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-                        <div>
-                          <p className="text-xs font-medium text-amber-800">Nutrient-dense meals</p>
-                          <p className="text-[10px] text-amber-600">Prioritise zinc, magnesium, vitamin D-rich foods</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          await apiRequest("PUT", "/api/user/preferences", {
-                            ...mealPlanPrefs,
-                            vitalityMeals: !mealPlanPrefs?.vitalityMeals,
-                          });
-                          queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
-                        }}
-                        className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${mealPlanPrefs?.vitalityMeals ? "bg-amber-500" : "bg-zinc-200"}`}
-                        data-testid="button-toggle-vitality-meals"
-                      >
-                        <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${mealPlanPrefs?.vitalityMeals ? "translate-x-5" : "translate-x-1"}`} />
-                      </button>
-                    </div>
-                  ) : (
-                    <Link href="/pricing">
-                      <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl border border-zinc-200 bg-zinc-50 mb-2 cursor-pointer hover:bg-zinc-100 transition-colors" data-testid="vitality-nutrient-dense-locked">
-                        <div className="flex items-center gap-2">
-                          <Lock className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-                          <div>
-                            <p className="text-xs font-medium text-zinc-600">Nutrient-dense meals</p>
-                            <p className="text-[10px] text-zinc-400">Available on Simple and above</p>
-                          </div>
-                        </div>
-                        <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
-                      </div>
-                    </Link>
-                  )
-                )}
-
-                {!mealPlan ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                {!customHasAnyMeals && (
+                  <div className="flex flex-col items-center justify-center py-8 text-center" data-testid="custom-builder-empty-state">
                     <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mb-4">
-                      <UtensilsCrossed className="w-7 h-7 text-zinc-400" />
+                      <ClipboardList className="w-7 h-7 text-zinc-400" />
                     </div>
-                    <p className="text-sm text-zinc-500 mb-5 max-w-xs">
-                      Choose your week, days, and meals above, then hit generate.
+                    <p className="text-sm text-zinc-500 mb-1 max-w-xs">
+                      Your plan is empty.
+                    </p>
+                    <p className="text-xs text-zinc-400 max-w-xs">
+                      Tap "Add" on any meal slot to build your plan, or use the button below to auto-generate.
                     </p>
 
                     {(fastingEnabled || hasCycleData || hasVitalityBoost) && (
-                      <div className="flex flex-wrap justify-center gap-2 mb-5">
+                      <div className="flex flex-wrap justify-center gap-2 mt-5">
                         {fastingEnabled && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-[10px] font-medium border border-amber-100" data-testid="badge-fasting">
                             <Timer className="w-3 h-3" />
@@ -1145,369 +994,6 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                         )}
                       </div>
                     )}
-
-                    <button
-                      onClick={() => generateMealPlan.mutate(planMode)}
-                      disabled={generateMealPlan.isPending || enabledSlots.size === 0}
-                      className="flex items-center justify-center gap-2 px-8 py-3 bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold text-sm transition-colors"
-                      data-testid="button-generate-plan"
-                    >
-                      {generateMealPlan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UtensilsCrossed className="w-4 h-4" />}
-                      {generateMealPlan.isPending ? 'Generating…' : 'Generate Plan'}
-                    </button>
-                  </div>
-                ) : (mealPlan as any).planType === 'multi-daily' ? (
-                  <div className="space-y-6">
-                    {(mealPlan as any).targetDates?.map((dateStr: string) => {
-                      const dayPlan = (mealPlan as any).days?.[dateStr];
-                      if (!dayPlan) return null;
-                      const [y, m, d] = dateStr.split("-").map(Number);
-                      const dateLabel = new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-                      return (
-                        <div key={dateStr}>
-                          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                            <CalendarDays className="w-3.5 h-3.5" />
-                            {dateLabel}
-                          </p>
-                          <DailyMealView
-                            plan={{ ...dayPlan, planType: 'daily' }}
-                            onLogMeal={onLogMeal}
-                            onReplaceFromLibrary={(slot, idx) => setReplacePicker({ dayKey: dateStr, slotKey: slot === 'snacks' ? 'snack' : slot, mealIdx: idx, context: 'generator' })}
-                            onReplace={(slot, mealName, idx) => {
-                              replaceMealMutation.mutate({ slot, currentMealName: mealName, targetDate: dateStr }, {
-                                onSuccess: ({ slot: s, meal: newMeal }) => {
-                                  setMealPlan((prev: any) => {
-                                    if (!prev) return prev;
-                                    const key = s === 'snack' ? 'snacks' : s;
-                                    const updatedDay = { ...prev.days[dateStr] };
-                                    const arr = [...(updatedDay[key] || [])];
-                                    arr[idx] = newMeal;
-                                    updatedDay[key] = arr;
-                                    const allMeals = [...updatedDay.breakfast, ...updatedDay.lunch, ...updatedDay.dinner, ...updatedDay.snacks];
-                                    updatedDay.dayTotalCalories = allMeals.reduce((sum: number, m: any) => sum + m.calories, 0);
-                                    return { ...prev, days: { ...prev.days, [dateStr]: updatedDay } };
-                                  });
-                                  setPlanSaved(false);
-                                },
-                              });
-                            }}
-                            replacingSlot={replaceMealMutation.isPending ? replaceMealMutation.variables?.slot : undefined}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (mealPlan as any).planType === 'daily' ? (
-                  <DailyMealView
-                    plan={mealPlan}
-                    onLogMeal={onLogMeal}
-                    onReplaceFromLibrary={(slot, idx) => setReplacePicker({ dayKey: '__daily__', slotKey: slot === 'snacks' ? 'snack' : slot, mealIdx: idx, context: 'generator' })}
-                    onReplace={(slot, mealName, idx) => {
-                      const dailyTargetDate = (mealPlan as any).targetDate;
-                      replaceMealMutation.mutate({ slot, currentMealName: mealName, ...(dailyTargetDate ? { targetDate: dailyTargetDate } : {}) }, {
-                        onSuccess: ({ slot: s, meal: newMeal }) => {
-                          setMealPlan((prev: any) => {
-                            if (!prev) return prev;
-                            const key = s === 'snack' ? 'snacks' : s;
-                            const updated = { ...prev };
-                            const arr = [...(updated[key] || [])];
-                            arr[idx] = newMeal;
-                            updated[key] = arr;
-                            const allMeals = [...updated.breakfast, ...updated.lunch, ...updated.dinner, ...updated.snacks];
-                            updated.dayTotalCalories = allMeals.reduce((sum: number, m: any) => sum + m.calories, 0);
-                            updated.dayTotalProtein = allMeals.reduce((sum: number, m: any) => sum + m.protein, 0);
-                            updated.dayTotalCarbs = allMeals.reduce((sum: number, m: any) => sum + m.carbs, 0);
-                            updated.dayTotalFat = allMeals.reduce((sum: number, m: any) => sum + m.fat, 0);
-                            return updated;
-                          });
-                          setPlanSaved(false);
-                        },
-                      });
-                    }}
-                    replacingSlot={replaceMealMutation.isPending ? replaceMealMutation.variables?.slot : undefined}
-                  />
-                ) : (
-                  <WeeklyMealView
-                    plan={mealPlan}
-                    onLogMeal={onLogMeal}
-                    onReplaceFromLibrary={(day, slot, idx) => setReplacePicker({ dayKey: day, slotKey: slot === 'snacks' ? 'snack' : slot, mealIdx: idx, context: 'generator' })}
-                    onReplace={(day, slot, mealName, idx) => {
-                      const dayOffsets: Record<string, number> = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6 };
-                      const ws = (mealPlan as any).weekStartDate as string | undefined;
-                      const targetDate = ws ? addDays(ws, dayOffsets[day] ?? 0) : undefined;
-                      replaceMealMutation.mutate({ slot, currentMealName: mealName, targetDate }, {
-                        onSuccess: ({ slot: s, meal: newMeal }) => {
-                          setMealPlan((prev: any) => {
-                            if (!prev) return prev;
-                            const updated = { ...prev };
-                            const dayPlan = { ...updated[day] };
-                            const key = s === 'snack' ? 'snacks' : s;
-                            const arr = [...(dayPlan[key] || [])];
-                            arr[idx] = newMeal;
-                            dayPlan[key] = arr;
-                            const allDayMeals = [...dayPlan.breakfast, ...dayPlan.lunch, ...dayPlan.dinner, ...dayPlan.snacks];
-                            dayPlan.dayTotalCalories = allDayMeals.reduce((sum: number, m: any) => sum + m.calories, 0);
-                            dayPlan.dayTotalProtein = allDayMeals.reduce((sum: number, m: any) => sum + m.protein, 0);
-                            dayPlan.dayTotalCarbs = allDayMeals.reduce((sum: number, m: any) => sum + m.carbs, 0);
-                            dayPlan.dayTotalFat = allDayMeals.reduce((sum: number, m: any) => sum + m.fat, 0);
-                            updated[day] = dayPlan;
-                            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-                            updated.weekTotalCalories = days.reduce((sum: number, d: string) => sum + (updated[d]?.dayTotalCalories || 0), 0);
-                            updated.weekTotalProtein = days.reduce((sum: number, d: string) => sum + (updated[d]?.dayTotalProtein || 0), 0);
-                            updated.weekTotalCarbs = days.reduce((sum: number, d: string) => sum + (updated[d]?.dayTotalCarbs || 0), 0);
-                            updated.weekTotalFat = days.reduce((sum: number, d: string) => sum + (updated[d]?.dayTotalFat || 0), 0);
-                            return updated;
-                          });
-                          setPlanSaved(false);
-                        },
-                      });
-                    }}
-                    replacingSlot={replaceMealMutation.isPending ? replaceMealMutation.variables?.slot : undefined}
-                  />
-                )}
-              </div>
-
-              {mealPlan && (
-                <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 pt-3 shrink-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}>
-                  <div className="flex items-start gap-1.5 mb-2" data-testid="banner-health-disclaimer">
-                    <AlertCircle className="w-3 h-3 text-zinc-300 shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-zinc-400 leading-snug">
-                      This is not medical advice. Consult a healthcare professional before making dietary changes.
-                    </p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      {!planSaved && (
-                        <button
-                          onClick={() => setDiscardConfirmOpen(true)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors bg-zinc-100 text-zinc-600 hover:bg-zinc-200 border border-zinc-200 min-h-[36px]"
-                          data-testid="button-discard-plan"
-                        >
-                          <X className="w-3.5 h-3.5" /> Discard
-                        </button>
-                      )}
-                      <button
-                        onClick={() => savePlanMutation.mutate()}
-                        disabled={savePlanMutation.isPending || planSaved}
-                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl font-medium text-xs transition-colors min-h-[36px] ${
-                          planSaved
-                            ? "bg-zinc-100 text-zinc-600 border border-zinc-200 cursor-default"
-                            : "bg-zinc-900 hover:bg-zinc-700 text-white"
-                        }`}
-                        data-testid="button-save-plan"
-                      >
-                        {savePlanMutation.isPending ? (
-                          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</>
-                        ) : planSaved ? (
-                          <><Check className="w-3.5 h-3.5" /> Saved</>
-                        ) : (
-                          <><Save className="w-3.5 h-3.5" /> Save Plan</>
-                        )}
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          if ((mealPlan as any).planType === 'daily') {
-                            setShoppingDaysOpen(true);
-                          } else {
-                            exportShoppingListToPDF(mealPlan, data);
-                          }
-                        }}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors min-h-[36px]"
-                        data-testid="button-export-shopping-list"
-                      >
-                        <ShoppingCart className="w-3.5 h-3.5" />
-                        Shopping List
-                      </button>
-                      <button
-                        onClick={() => exportMealPlanToPDF(mealPlan, data)}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3 py-1.5 border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-xl font-medium text-xs transition-colors min-h-[36px]"
-                        data-testid="button-export-pdf"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        PDF
-                      </button>
-                      <button
-                        onClick={() => { setMealPlan(null); setPlanSaved(false); generateMealPlan.mutate(planMode); }}
-                        disabled={generateMealPlan.isPending}
-                        className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium text-xs transition-colors min-h-[36px]"
-                        data-testid="button-regenerate"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" /> Regenerate
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <AlertDialog open={shoppingDaysOpen} onOpenChange={setShoppingDaysOpen}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Shopping List</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      How many days should the quantities cover?
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <input
-                    type="number"
-                    min="1"
-                    max="30"
-                    value={shoppingDaysInput}
-                    onChange={(e) => setShoppingDaysInput(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        const d = Math.max(1, parseInt(shoppingDaysInput) || 1);
-                        setShoppingDaysOpen(false);
-                        exportShoppingListToPDF(mealPlan!, data, d);
-                      }
-                    }}
-                    className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-base focus:outline-none focus:ring-2 focus:ring-zinc-400 focus:border-transparent"
-                    data-testid="input-shopping-days"
-                    autoFocus
-                  />
-                  <AlertDialogFooter>
-                    <AlertDialogCancel data-testid="button-shopping-days-cancel">Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => {
-                        const d = Math.max(1, parseInt(shoppingDaysInput) || 1);
-                        exportShoppingListToPDF(mealPlan!, data, d);
-                      }}
-                      data-testid="button-shopping-days-confirm"
-                    >
-                      Generate PDF
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-
-              <AlertDialog open={discardConfirmOpen} onOpenChange={setDiscardConfirmOpen}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Discard this plan?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will remove the current meal plan. Any unsaved changes will be lost.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel data-testid="button-discard-cancel">Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => {
-                        const prevPlan = mealPlan;
-                        setMealPlan(null);
-                        setPlanSaved(false);
-                        setBannerCollapsed(false);
-                        setDiscardConfirmOpen(false);
-                        toast({
-                          title: "Plan discarded",
-                          description: "Tap Undo to restore it.",
-                          action: (
-                            <ToastAction
-                              altText="Undo discard"
-                              onClick={() => {
-                                setMealPlan(prevPlan);
-                                setBannerCollapsed(true);
-                                setGeneratorModalOpen(true);
-                              }}
-                              data-testid="button-undo-discard"
-                            >
-                              <Undo2 className="w-3 h-3 mr-1" /> Undo
-                            </ToastAction>
-                          ),
-                        });
-                      }}
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                      data-testid="button-discard-confirm"
-                    >
-                      Discard
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Custom Modal */}
-      <AnimatePresence>
-        {customModalOpen && (
-          <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setCustomModalOpen(false)}>
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 40 }}
-              transition={{ duration: 0.25 }}
-              className="bg-white sm:rounded-2xl shadow-2xl w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:mx-4 flex flex-col overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="sticky top-0 z-10 bg-white border-b border-zinc-100 px-4 sm:px-6 py-4 flex items-center justify-between shrink-0">
-                <div>
-                  <h3 className="text-lg font-display font-bold text-zinc-900" data-testid="text-custom-modal-title">
-                    Custom Meal Plan
-                  </h3>
-                  <p className="text-xs text-zinc-400 mt-0.5">Build your own plan from your meal library</p>
-                </div>
-                <button
-                  onClick={() => setCustomModalOpen(false)}
-                  className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
-                  data-testid="button-close-custom-modal"
-                >
-                  <X className="w-5 h-5 text-zinc-400" />
-                </button>
-              </div>
-
-              <div className="bg-zinc-50 border-b border-zinc-100 shrink-0">
-                <div className={`transition-all duration-300 ease-in-out overflow-hidden sm:!max-h-none ${bannerCollapsed ? 'max-h-0' : 'max-h-[500px]'}`}>
-                  <div className="px-4 sm:px-6 py-3">
-                    <PlanTypeToggle planMode={planMode} onChangePlanMode={handlePlanModeChange} testIdPrefix="custom" />
-                    <DateRangePicker
-                      weekStart={weekStart}
-                      onWeekChange={(dir) => setWeekStart(prev => addDays(prev, dir))}
-                      planMode={planMode}
-                      selectedDates={selectedDates}
-                      onToggleDate={handleDateToggle}
-                      testIdPrefix="custom"
-                    />
-                    <div className="mt-3">
-                      <MealStyleSelector mealStyle={mealStyle} onChangeMealStyle={handleMealStyleChange} showDescription={false} testIdPrefix="custom-" />
-                    </div>
-                    <SlotToggles
-                      enabledSlots={customEnabledSlots}
-                      onToggleSlot={toggleCustomSlot}
-                      planMode={planMode}
-                      selectedDates={selectedDates}
-                      slotKeys={[
-                        { key: 'breakfast', label: 'Breakfast' },
-                        { key: 'lunch', label: 'Lunch' },
-                        { key: 'dinner', label: 'Dinner' },
-                        { key: 'snacks', label: 'Snacks' },
-                      ]}
-                      testIdPrefix="custom"
-                    />
-                  </div>
-                </div>
-                <button
-                  onClick={() => setBannerCollapsed(prev => !prev)}
-                  className="w-full flex items-center justify-center py-1 sm:hidden"
-                  data-testid="button-toggle-custom-banner"
-                >
-                  {bannerCollapsed ? <ChevronDown className="w-4 h-4 text-zinc-400" /> : <ChevronUp className="w-4 h-4 text-zinc-400" />}
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4">
-                {!customHasAnyMeals && (
-                  <div className="flex flex-col items-center justify-center py-8 text-center" data-testid="custom-builder-empty-state">
-                    <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mb-4">
-                      <ClipboardList className="w-7 h-7 text-zinc-400" />
-                    </div>
-                    <p className="text-sm text-zinc-500 mb-1 max-w-xs">
-                      Your custom plan is empty.
-                    </p>
-                    <p className="text-xs text-zinc-400 max-w-xs">
-                      Tap "Add" on any meal slot to build your plan, or use the button below to auto-generate.
-                    </p>
                   </div>
                 )}
                 <div className="space-y-4 mb-4">
@@ -1562,7 +1048,15 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                                 {meals.length === 0 && (
                                   <p className="text-[10px] text-zinc-300 py-1">{slotReadOnly ? 'Past slot' : 'Drop a meal here or click Add'}</p>
                                 )}
-                                {meals.map((meal, idx) => (
+                                {meals.map((meal, idx) => {
+                                  const replacingTarget = replaceMealMutation.variables;
+                                  const dayKeys = getCustomDayKeys();
+                                  const replacingDateStr = planMode === 'weekly' ? addDays(weekStart, dayKeys.indexOf(dayKey)) : dayKey;
+                                  const isBeingReplaced = replaceMealMutation.isPending &&
+                                    replacingTarget?.slot === (slotKey === 'snacks' ? 'snack' : slotKey) &&
+                                    replacingTarget?.currentMealName === meal.meal &&
+                                    replacingTarget?.targetDate === replacingDateStr;
+                                  return (
                                   <div
                                     key={idx}
                                     draggable={!slotReadOnly}
@@ -1585,6 +1079,17 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                                       <p className="text-[10px] text-zinc-400">{meal.calories} kcal · P:{meal.protein}g C:{meal.carbs}g F:{meal.fat}g</p>
                                     </div>
                                     {!slotReadOnly && (
+                                      <button
+                                        onClick={() => handleRandomReplace(dayKey, slotKey, idx, meal.meal)}
+                                        disabled={isBeingReplaced}
+                                        className="p-1 text-zinc-300 hover:text-emerald-500 transition-colors shrink-0"
+                                        title="Random replace"
+                                        data-testid={`button-random-replace-${dayKey}-${slotKey}-${idx}`}
+                                      >
+                                        {isBeingReplaced ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                                      </button>
+                                    )}
+                                    {!slotReadOnly && (
                                     <button
                                       onClick={() => setReplacePicker({ dayKey, slotKey: slotKey === 'snacks' ? 'snack' : slotKey, mealIdx: idx, context: 'custom' })}
                                       className="p-1 text-zinc-300 hover:text-blue-500 transition-colors shrink-0"
@@ -1604,7 +1109,8 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                                     </button>
                                     )}
                                   </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             );
                           })}
@@ -1651,10 +1157,25 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                   )
                 )}
 
+                {remainingLabel && (
+                  <p className="text-[10px] text-zinc-400 text-center mb-1" data-testid="text-generation-remaining">
+                    {remainingLabel}
+                  </p>
+                )}
+                {isLimitReached && (
+                  <div className="flex items-center justify-center gap-2 mb-1.5 px-2 py-1 rounded-lg bg-amber-50 border border-amber-200" data-testid="banner-generation-limit">
+                    <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                    <p className="text-[10px] text-amber-700">
+                      Generation limit reached.{' '}
+                      <Link href="/pricing" className="underline font-medium" data-testid="link-upgrade-limit">Upgrade</Link> for more.
+                    </p>
+                  </div>
+                )}
+
                 <div className="flex gap-2 mb-2">
                   <button
                     onClick={() => autofillMutation.mutate()}
-                    disabled={autofillMutation.isPending || customEnabledSlots.size === 0}
+                    disabled={autofillMutation.isPending || customEnabledSlots.size === 0 || isLimitReached}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold text-sm transition-colors"
                     data-testid="button-autofill-plan"
                   >
@@ -1725,7 +1246,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                 <AlertDialog open={customDiscardConfirmOpen} onOpenChange={setCustomDiscardConfirmOpen}>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Discard custom plan?</AlertDialogTitle>
+                      <AlertDialogTitle>Discard plan?</AlertDialogTitle>
                       <AlertDialogDescription>
                         This will clear all meals you've added. Any unsaved changes will be lost.
                       </AlertDialogDescription>
@@ -1741,7 +1262,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
                           setCustomPlanSaved(false);
                           setCustomDiscardConfirmOpen(false);
                           toast({
-                            title: "Custom plan discarded",
+                            title: "Plan discarded",
                             description: "Tap Undo to restore it.",
                             action: (
                               <ToastAction

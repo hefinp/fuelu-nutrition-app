@@ -68,7 +68,7 @@ export interface ReplacePickerState {
   dayKey: string;
   slotKey: string;
   mealIdx: number;
-  context: 'generator' | 'custom';
+  context: 'custom';
 }
 
 export interface AddMealPopoverState {
