@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -320,6 +320,12 @@ export default function Dashboard() {
   const [activeResult, setActiveResult] = useState<Calculation | null>(null);
   const [showSavedPlans, setShowSavedPlans] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(() =>
+    sessionStorage.getItem("welcomeWidgetDismissed") === "1"
+  );
+  const [welcomeExiting, setWelcomeExiting] = useState(false);
+  const welcomeWidgetRef = useRef<HTMLDivElement | null>(null);
+  const isCoarsePointer = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const [showMetricsPanel, setShowMetricsPanel] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [prefsOpen, setPrefsOpen] = useState(false);
@@ -479,6 +485,7 @@ export default function Dashboard() {
 
   async function handleLogout() {
     setShowUserMenu(false);
+    sessionStorage.removeItem("welcomeWidgetDismissed");
     await logout();
     setLocation("/");
   }
@@ -676,6 +683,35 @@ export default function Dashboard() {
     document.documentElement.classList.add("dashboard-snap");
     return () => document.documentElement.classList.remove("dashboard-snap");
   }, []);
+
+  useEffect(() => {
+    if (welcomeDismissed) return;
+    const isMobile = window.matchMedia("(pointer: coarse)").matches;
+    if (!isMobile) return;
+    const el = welcomeWidgetRef.current;
+    if (!el) return;
+    let exitTriggered = false;
+    let exitTimer: ReturnType<typeof setTimeout> | null = null;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.intersectionRatio === 0 && !exitTriggered) {
+          exitTriggered = true;
+          setWelcomeExiting(true);
+          exitTimer = setTimeout(() => {
+            sessionStorage.setItem("welcomeWidgetDismissed", "1");
+            setWelcomeDismissed(true);
+            setWelcomeExiting(false);
+          }, 300);
+        }
+      },
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      if (exitTimer !== null) clearTimeout(exitTimer);
+    };
+  }, [welcomeDismissed]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1370,8 +1406,19 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
-            {/* Dashboard welcome widget — permanent, non-dismissable, non-sortable */}
-            <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5 mb-6 snap-start" data-testid="widget-welcome">
+            {/* Dashboard welcome widget — session-dismissable on mobile via scroll; always visible on desktop */}
+            {(!isCoarsePointer || !welcomeDismissed || welcomeExiting) && (
+            <div
+              ref={welcomeWidgetRef}
+              data-testid="widget-welcome"
+              className="mb-6"
+              style={isCoarsePointer ? {
+                transition: "opacity 0.3s ease, transform 0.3s ease",
+                opacity: welcomeExiting ? 0 : 1,
+                transform: welcomeExiting ? "translateY(-8px)" : "translateY(0)",
+              } : undefined}
+            >
+            <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5" data-testid="widget-welcome-inner">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-display font-bold text-zinc-900 tracking-tight">
@@ -1408,6 +1455,8 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+            </div>
+            )}
 
             {/* ── MOBILE tab toggle: Favourites / Planning / Tracking / Insights ── */}
             <div className="xl:hidden mb-4">
