@@ -4,7 +4,7 @@ import { z } from "zod";
 import crypto from "crypto";
 import { storage } from "../storage";
 import { pool } from "../db";
-import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier, goalTypeEnum, pipelineStageEnum, insertReengagementSequenceSchema } from "@shared/schema";
+import { insertNutritionistProfileSchema, insertNutritionistNoteSchema, nutritionistTierLimits, type NutritionistTier, goalTypeEnum, pipelineStageEnum, insertReengagementSequenceSchema, insertNutritionistSessionSchema, insertSessionTemplateSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -2373,10 +2373,8 @@ router.get("/api/client/documents/:docId/download", async (req, res) => {
 router.get("/api/nutritionist/waitlist", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
-
   const profile = await storage.getNutritionistProfile(userId);
   if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
-
   const entries = await storage.getWaitlistEntries(userId);
   res.json(entries);
 });
@@ -2384,16 +2382,13 @@ router.get("/api/nutritionist/waitlist", async (req, res) => {
 router.post("/api/nutritionist/waitlist", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
-
   const profile = await storage.getNutritionistProfile(userId);
   if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
-
   const schema = z.object({
     name: z.string().min(1).max(200),
     email: z.string().email(),
     notes: z.string().max(2000).optional(),
   });
-
   try {
     const data = schema.parse(req.body);
     const entry = await storage.addWaitlistEntry(userId, data);
@@ -2407,10 +2402,8 @@ router.post("/api/nutritionist/waitlist", async (req, res) => {
 router.put("/api/nutritionist/waitlist/reorder", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
-
   const profile = await storage.getNutritionistProfile(userId);
   if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
-
   const schema = z.object({ orderedIds: z.array(z.number().int()) });
   try {
     const { orderedIds } = schema.parse(req.body);
@@ -2425,27 +2418,20 @@ router.put("/api/nutritionist/waitlist/reorder", async (req, res) => {
 router.post("/api/nutritionist/waitlist/:id/invite", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
-
   const profile = await storage.getNutritionistProfile(userId);
   if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
-
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
-
   const entry = await storage.getWaitlistEntryById(id, userId);
   if (!entry) return res.status(404).json({ message: "Waitlist entry not found." });
   if (entry.status !== "waiting") return res.status(400).json({ message: "This prospect has already been invited or converted." });
-
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const invitation = await storage.createNutritionistInvitation(userId, entry.email, token, expiresAt);
   const inviteUrl = `${req.protocol}://${req.get("host")}/auth?tab=register&nutritionist_invite=${token}`;
-
   await storage.updateWaitlistEntry(id, userId, { status: "invited", invitedAt: new Date() });
-
   const nutritionistUser = await storage.getUserById(userId);
   const nutritionistName = nutritionistUser?.name ?? "Your nutritionist";
-
   try {
     await sendEmail({
       to: entry.email,
@@ -2459,20 +2445,16 @@ router.post("/api/nutritionist/waitlist/:id/invite", async (req, res) => {
   } catch (emailErr) {
     console.error("[waitlist] Email send failed:", emailErr);
   }
-
   res.json({ ...invitation, inviteUrl });
 });
 
 router.delete("/api/nutritionist/waitlist/:id", async (req, res) => {
   const userId = requireAuth(req, res);
   if (!userId) return;
-
   const profile = await storage.getNutritionistProfile(userId);
   if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
-
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
-
   await storage.removeWaitlistEntry(id, userId);
   res.json({ success: true });
 });
@@ -2481,26 +2463,21 @@ router.delete("/api/nutritionist/waitlist/:id", async (req, res) => {
 router.get("/api/public/waitlist/:nutritionistId", async (req, res) => {
   const nutritionistId = parseInt(req.params.nutritionistId);
   if (isNaN(nutritionistId)) return res.status(400).json({ message: "Invalid nutritionist ID" });
-
   const nutritionist = await storage.getNutritionistByIdPublic(nutritionistId);
   if (!nutritionist) return res.status(404).json({ message: "Nutritionist not found." });
-
   res.json({ id: nutritionist.id, name: nutritionist.name });
 });
 
 router.post("/api/public/waitlist/:nutritionistId", async (req, res) => {
   const nutritionistId = parseInt(req.params.nutritionistId);
   if (isNaN(nutritionistId)) return res.status(400).json({ message: "Invalid nutritionist ID" });
-
   const nutritionist = await storage.getNutritionistByIdPublic(nutritionistId);
   if (!nutritionist) return res.status(404).json({ message: "Nutritionist not found." });
-
   const schema = z.object({
     name: z.string().min(1).max(200),
     email: z.string().email(),
     notes: z.string().max(2000).optional(),
   });
-
   try {
     const data = schema.parse(req.body);
     const entry = await storage.addWaitlistEntry(nutritionistId, data);
@@ -2509,5 +2486,113 @@ router.post("/api/public/waitlist/:nutritionistId", async (req, res) => {
     if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
     throw err;
   }
+
+// ─── Session Logging ─────────────────────────────────────────────────────────
+
+router.get("/api/nutritionist/clients/:clientId/sessions", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+  const sessions = await storage.getNutritionistSessions(userId, clientId);
+  res.json(sessions);
+});
+
+router.post("/api/nutritionist/clients/:clientId/sessions", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+  try {
+    const data = insertNutritionistSessionSchema.parse(req.body);
+    const session = await storage.createNutritionistSession(userId, clientId, data);
+    res.status(201).json(session);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.put("/api/nutritionist/clients/:clientId/sessions/:sessionId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  const sessionId = parseInt(req.params.sessionId);
+  if (isNaN(clientId) || isNaN(sessionId)) return res.status(400).json({ message: "Invalid ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+  try {
+    const data = insertNutritionistSessionSchema.partial().parse(req.body);
+    const updated = await storage.updateNutritionistSession(sessionId, userId, data);
+    if (!updated) return res.status(404).json({ message: "Session not found" });
+    res.json(updated);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.delete("/api/nutritionist/clients/:clientId/sessions/:sessionId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const clientId = parseInt(req.params.clientId);
+  const sessionId = parseInt(req.params.sessionId);
+  if (isNaN(clientId) || isNaN(sessionId)) return res.status(400).json({ message: "Invalid ID" });
+  const relationship = await storage.getNutritionistClientByClientId(userId, clientId);
+  if (!relationship) return res.status(403).json({ message: "This client is not linked to your practice." });
+  const existing = await storage.getNutritionistSessionById(sessionId, userId);
+  if (!existing || existing.clientId !== clientId) return res.status(404).json({ message: "Session not found" });
+  await storage.deleteNutritionistSession(sessionId, userId);
+  res.json({ success: true });
+});
+
+// ─── Session Templates ────────────────────────────────────────────────────────
+
+router.get("/api/nutritionist/session-templates", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const templates = await storage.getSessionTemplates(userId);
+  res.json(templates);
+});
+
+router.post("/api/nutritionist/session-templates", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  try {
+    const data = insertSessionTemplateSchema.parse(req.body);
+    const template = await storage.createSessionTemplate(userId, data);
+    res.status(201).json(template);
+  } catch (err) {
+    if (isZodError(err)) return res.status(400).json({ message: "Invalid input", errors: err.errors });
+    throw err;
+  }
+});
+
+router.delete("/api/nutritionist/session-templates/:templateId", async (req, res) => {
+  const userId = requireAuth(req, res);
+  if (!userId) return;
+  const profile = await storage.getNutritionistProfile(userId);
+  if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
+  const templateId = parseInt(req.params.templateId);
+  if (isNaN(templateId)) return res.status(400).json({ message: "Invalid template ID" });
+  await storage.deleteSessionTemplate(templateId, userId);
+  res.json({ success: true });
+});
 
 export default router;

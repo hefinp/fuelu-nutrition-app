@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, clientDocuments, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, stravaActivities, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, clientDocuments, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, nutritionistSessions, sessionTemplates, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, stravaActivities, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob , type NutritionistSession , type InsertNutritionistSession , type SessionTemplate , type InsertSessionTemplate } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -384,6 +384,19 @@ export interface IStorage {
   setClientTags(nutritionistId: number, clientId: number, tagIds: number[]): Promise<void>;
   createBulkActionLog(nutritionistId: number, actionType: string, clientIds: number[], tagId?: number | null, payload?: object | null): Promise<BulkActionLog>;
   getBulkActionLogs(nutritionistId: number, limit?: number): Promise<BulkActionLog[]>;
+
+  // Nutritionist sessions
+  getNutritionistSessions(nutritionistId: number, clientId: number): Promise<NutritionistSession[]>;
+  getNutritionistSessionById(id: number, nutritionistId: number): Promise<NutritionistSession | undefined>;
+  createNutritionistSession(nutritionistId: number, clientId: number, data: InsertNutritionistSession): Promise<NutritionistSession>;
+  updateNutritionistSession(id: number, nutritionistId: number, updates: Partial<InsertNutritionistSession>): Promise<NutritionistSession | undefined>;
+  deleteNutritionistSession(id: number, nutritionistId: number): Promise<void>;
+
+  // Session templates
+  getSessionTemplates(nutritionistId: number): Promise<SessionTemplate[]>;
+  createSessionTemplate(nutritionistId: number, data: InsertSessionTemplate): Promise<SessionTemplate>;
+  updateSessionTemplate(id: number, nutritionistId: number, updates: Partial<InsertSessionTemplate>): Promise<SessionTemplate | undefined>;
+  deleteSessionTemplate(id: number, nutritionistId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3277,6 +3290,98 @@ export class DatabaseStorage implements IStorage {
         eq(clientDocuments.sharedWithClient, true),
       ))
       .orderBy(desc(clientDocuments.createdAt));
+  }
+
+  async getNutritionistSessions(nutritionistId: number, clientId: number): Promise<NutritionistSession[]> {
+    return db
+      .select()
+      .from(nutritionistSessions)
+      .where(and(eq(nutritionistSessions.nutritionistId, nutritionistId), eq(nutritionistSessions.clientId, clientId)))
+      .orderBy(desc(nutritionistSessions.sessionDate));
+  }
+
+  async getNutritionistSessionById(id: number, nutritionistId: number): Promise<NutritionistSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(nutritionistSessions)
+      .where(and(eq(nutritionistSessions.id, id), eq(nutritionistSessions.nutritionistId, nutritionistId)));
+    return session;
+  }
+
+  async createNutritionistSession(nutritionistId: number, clientId: number, data: InsertNutritionistSession): Promise<NutritionistSession> {
+    const [session] = await db
+      .insert(nutritionistSessions)
+      .values({
+        nutritionistId,
+        clientId,
+        sessionDate: new Date(data.sessionDate),
+        durationMinutes: data.durationMinutes ?? 60,
+        sessionType: data.sessionType ?? "follow_up",
+        topics: data.topics ?? [],
+        notes: data.notes ?? null,
+        followUpActions: data.followUpActions ?? null,
+        templateId: data.templateId ?? null,
+      })
+      .returning();
+    return session;
+  }
+
+  async updateNutritionistSession(id: number, nutritionistId: number, updates: Partial<InsertNutritionistSession>): Promise<NutritionistSession | undefined> {
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    if (updates.sessionDate !== undefined) updateData.sessionDate = new Date(updates.sessionDate);
+    if (updates.durationMinutes !== undefined) updateData.durationMinutes = updates.durationMinutes;
+    if (updates.sessionType !== undefined) updateData.sessionType = updates.sessionType;
+    if (updates.topics !== undefined) updateData.topics = updates.topics;
+    if (updates.notes !== undefined) updateData.notes = updates.notes;
+    if (updates.followUpActions !== undefined) updateData.followUpActions = updates.followUpActions;
+    if (updates.templateId !== undefined) updateData.templateId = updates.templateId;
+    const [session] = await db
+      .update(nutritionistSessions)
+      .set(updateData)
+      .where(and(eq(nutritionistSessions.id, id), eq(nutritionistSessions.nutritionistId, nutritionistId)))
+      .returning();
+    return session;
+  }
+
+  async deleteNutritionistSession(id: number, nutritionistId: number): Promise<void> {
+    await db.delete(nutritionistSessions).where(and(eq(nutritionistSessions.id, id), eq(nutritionistSessions.nutritionistId, nutritionistId)));
+  }
+
+  async getSessionTemplates(nutritionistId: number): Promise<SessionTemplate[]> {
+    return db
+      .select()
+      .from(sessionTemplates)
+      .where(or(eq(sessionTemplates.nutritionistId, nutritionistId), eq(sessionTemplates.isDefault, true)))
+      .orderBy(desc(sessionTemplates.isDefault), sessionTemplates.name);
+  }
+
+  async createSessionTemplate(nutritionistId: number, data: InsertSessionTemplate): Promise<SessionTemplate> {
+    const [template] = await db
+      .insert(sessionTemplates)
+      .values({
+        nutritionistId,
+        name: data.name,
+        sessionType: data.sessionType ?? "follow_up",
+        topics: data.topics ?? [],
+        notes: data.notes ?? null,
+        followUpActions: data.followUpActions ?? null,
+        isDefault: false,
+      })
+      .returning();
+    return template;
+  }
+
+  async updateSessionTemplate(id: number, nutritionistId: number, updates: Partial<InsertSessionTemplate>): Promise<SessionTemplate | undefined> {
+    const [template] = await db
+      .update(sessionTemplates)
+      .set(updates)
+      .where(and(eq(sessionTemplates.id, id), eq(sessionTemplates.nutritionistId, nutritionistId)))
+      .returning();
+    return template;
+  }
+
+  async deleteSessionTemplate(id: number, nutritionistId: number): Promise<void> {
+    await db.delete(sessionTemplates).where(and(eq(sessionTemplates.id, id), eq(sessionTemplates.nutritionistId, nutritionistId)));
   }
 }
 

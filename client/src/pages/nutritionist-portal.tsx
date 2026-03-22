@@ -11,7 +11,7 @@ import {
   TrendingDown, TrendingUp, Minus, ChevronDown, ChevronUp, Settings,
   MessageSquare, Send, Target, RotateCcw, Heart, Pill, Utensils, Leaf, StickyNote, CheckCircle2, Download, History,
   LogOut, User, BookOpen, LineChart as LineChartIcon, KanbanSquare, Zap, Pause, Play, Ban, FolderOpen, Upload, Eye, EyeOff,
-  Clock, MoveVertical, Link as LinkIcon, Tag, Tags,
+  Clock, MoveVertical, Link as LinkIcon, Tag, Tags, ListChecks, Save,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { AnimatePresence, motion } from "framer-motion";
@@ -3557,6 +3557,453 @@ function DocumentVaultPanel({ clientRecord }: { clientRecord: ClientWithUser }) 
   );
 }
 
+// ─── Session Types & Helpers ──────────────────────────────────────────────────
+
+interface NutritionistSession {
+  id: number;
+  nutritionistId: number;
+  clientId: number;
+  sessionDate: string;
+  durationMinutes: number;
+  sessionType: string;
+  topics: string[];
+  notes: string | null;
+  followUpActions: string | null;
+  templateId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface SessionTemplate {
+  id: number;
+  nutritionistId: number | null;
+  name: string;
+  sessionType: string;
+  topics: string[];
+  notes: string | null;
+  followUpActions: string | null;
+  isDefault: boolean;
+  createdAt: string;
+}
+
+const SESSION_TYPE_LABELS: Record<string, string> = {
+  initial_assessment: "Initial Assessment",
+  follow_up: "Follow-up",
+  quarterly_review: "Quarterly Review",
+  goal_reset: "Goal Reset",
+  check_in: "Check-in",
+  other: "Other",
+};
+
+const DEFAULT_SESSION_TEMPLATES: Omit<SessionTemplate, "id" | "nutritionistId" | "createdAt">[] = [
+  {
+    name: "Initial Assessment",
+    sessionType: "initial_assessment",
+    topics: ["Health history review", "Dietary habits", "Goals & motivation", "Lifestyle factors"],
+    notes: "Comprehensive first-meeting assessment covering client background, health goals, and dietary patterns.",
+    followUpActions: "Send onboarding welcome email\nSchedule follow-up in 2 weeks",
+    isDefault: true,
+  },
+  {
+    name: "Quarterly Review",
+    sessionType: "quarterly_review",
+    topics: ["Progress review", "Goal adjustment", "Meal plan update", "Challenges & wins"],
+    notes: "Comprehensive quarterly progress check covering goal achievement, habit formation, and plan adjustments.",
+    followUpActions: "Update meal plan if needed\nRevise targets based on progress",
+    isDefault: true,
+  },
+  {
+    name: "Goal Reset",
+    sessionType: "goal_reset",
+    topics: ["Previous goal review", "New goal setting", "Barrier analysis", "Action planning"],
+    notes: "Session focused on re-evaluating and resetting client goals based on current circumstances.",
+    followUpActions: "Update goals in client profile\nSchedule next check-in",
+    isDefault: true,
+  },
+  {
+    name: "Regular Check-in",
+    sessionType: "check_in",
+    topics: ["Adherence review", "Challenges this week", "Wins & successes"],
+    notes: "Brief regular check-in to review adherence and address any obstacles.",
+    followUpActions: "Adjust plan if needed",
+    isDefault: true,
+  },
+];
+
+function SessionLogDialog({
+  clientId,
+  session,
+  onClose,
+  onSaved,
+}: {
+  clientId: number;
+  session: NutritionistSession | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [sessionDate, setSessionDate] = useState(
+    session ? session.sessionDate.split("T")[0] : new Date().toISOString().split("T")[0]
+  );
+  const [durationMinutes, setDurationMinutes] = useState(session?.durationMinutes ?? 60);
+  const [sessionType, setSessionType] = useState(session?.sessionType ?? "follow_up");
+  const [topicsInput, setTopicsInput] = useState(session?.topics?.join(", ") ?? "");
+  const [notes, setNotes] = useState(session?.notes ?? "");
+  const [followUpActions, setFollowUpActions] = useState(session?.followUpActions ?? "");
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+
+  const { data: templates = [] } = useQuery<SessionTemplate[]>({
+    queryKey: ["/api/nutritionist/session-templates"],
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const topics = topicsInput.split(",").map(t => t.trim()).filter(Boolean);
+      const payload = { sessionDate, durationMinutes, sessionType, topics, notes: notes || undefined, followUpActions: followUpActions || undefined };
+      if (session) {
+        return apiRequest("PUT", `/api/nutritionist/clients/${clientId}/sessions/${session.id}`, payload).then(r => r.json());
+      } else {
+        return apiRequest("POST", `/api/nutritionist/clients/${clientId}/sessions`, payload).then(r => r.json());
+      }
+    },
+    onSuccess: async () => {
+      if (saveAsTemplate && templateName.trim()) {
+        const topics = topicsInput.split(",").map(t => t.trim()).filter(Boolean);
+        await apiRequest("POST", "/api/nutritionist/session-templates", {
+          name: templateName.trim(),
+          sessionType,
+          topics,
+          notes: notes || undefined,
+          followUpActions: followUpActions || undefined,
+        }).catch(() => {});
+        queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/session-templates"] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientId, "sessions"] });
+      toast({ title: session ? "Session updated" : "Session logged" });
+      onSaved();
+    },
+    onError: () => toast({ title: "Failed to save session", variant: "destructive" }),
+  });
+
+  function applyTemplate(tmpl: SessionTemplate | (typeof DEFAULT_SESSION_TEMPLATES)[0]) {
+    setSessionType(tmpl.sessionType);
+    setTopicsInput(tmpl.topics.join(", "));
+    setNotes(tmpl.notes ?? "");
+    setFollowUpActions(tmpl.followUpActions ?? "");
+    setShowTemplatePicker(false);
+  }
+
+  const allTemplates = [
+    ...DEFAULT_SESSION_TEMPLATES.filter(dt => !templates.some(t => t.isDefault && t.name === dt.name)),
+    ...templates,
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" data-testid="session-log-dialog">
+        <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-zinc-900">{session ? "Edit Session" : "Log Session"}</h2>
+          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-700 transition-colors" data-testid="button-close-session-dialog">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="flex gap-2 mb-2">
+            <button
+              type="button"
+              onClick={() => setShowTemplatePicker(!showTemplatePicker)}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-zinc-200 rounded-lg text-xs text-zinc-600 hover:bg-zinc-50 transition-colors"
+              data-testid="button-pick-template"
+            >
+              <Tag className="w-3.5 h-3.5" />
+              Use Template
+            </button>
+          </div>
+
+          {showTemplatePicker && (
+            <div className="bg-zinc-50 rounded-xl p-3 space-y-1.5 mb-2 border border-zinc-200" data-testid="template-picker">
+              <p className="text-xs font-medium text-zinc-500 mb-2">Select a template to pre-fill fields:</p>
+              {allTemplates.map((tmpl, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => applyTemplate(tmpl)}
+                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-white border border-transparent hover:border-zinc-200 transition-colors"
+                  data-testid={`template-option-${idx}`}
+                >
+                  <p className="text-sm font-medium text-zinc-800">{tmpl.name}</p>
+                  <p className="text-xs text-zinc-400">{SESSION_TYPE_LABELS[tmpl.sessionType] ?? tmpl.sessionType}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-500 mb-1">Date</label>
+              <input
+                type="date"
+                value={sessionDate}
+                onChange={e => setSessionDate(e.target.value)}
+                className="w-full px-2.5 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-session-date"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-500 mb-1">Duration (min)</label>
+              <input
+                type="number"
+                value={durationMinutes}
+                min={1}
+                max={480}
+                onChange={e => setDurationMinutes(parseInt(e.target.value) || 60)}
+                className="w-full px-2.5 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                data-testid="input-session-duration"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 mb-1">Session Type</label>
+            <select
+              value={sessionType}
+              onChange={e => setSessionType(e.target.value)}
+              className="w-full px-2.5 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+              data-testid="select-session-type"
+            >
+              {Object.entries(SESSION_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 mb-1">Topics Covered (comma-separated)</label>
+            <input
+              type="text"
+              value={topicsInput}
+              onChange={e => setTopicsInput(e.target.value)}
+              placeholder="e.g. Weight review, Meal planning, Exercise habits"
+              className="w-full px-2.5 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+              data-testid="input-session-topics"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 mb-1">Session Notes</label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={4}
+              placeholder="Clinical observations, key discussion points, client feedback..."
+              className="w-full px-2.5 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 resize-none"
+              data-testid="textarea-session-notes"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 mb-1">Follow-up Actions</label>
+            <textarea
+              value={followUpActions}
+              onChange={e => setFollowUpActions(e.target.value)}
+              rows={3}
+              placeholder="Action items for next session..."
+              className="w-full px-2.5 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20 resize-none"
+              data-testid="textarea-follow-up-actions"
+            />
+          </div>
+
+          {!session && (
+            <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-200">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={saveAsTemplate}
+                  onChange={e => setSaveAsTemplate(e.target.checked)}
+                  className="rounded"
+                  data-testid="checkbox-save-as-template"
+                />
+                <span className="text-xs font-medium text-zinc-600">Save as reusable template</span>
+              </label>
+              {saveAsTemplate && (
+                <input
+                  type="text"
+                  value={templateName}
+                  onChange={e => setTemplateName(e.target.value)}
+                  placeholder="Template name (e.g. Monthly Review)"
+                  className="mt-2 w-full px-2.5 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                  data-testid="input-template-name"
+                />
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending || !sessionDate}
+              className="flex items-center gap-1.5 px-4 py-2 bg-zinc-900 text-white text-sm rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+              data-testid="button-save-session"
+            >
+              {saveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              {session ? "Save Changes" : "Log Session"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-zinc-200 text-sm rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
+              data-testid="button-cancel-session"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SessionsTab({ clientId, nutritionistId }: { clientId: number; nutritionistId: number }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [showLogDialog, setShowLogDialog] = useState(false);
+  const [editingSession, setEditingSession] = useState<NutritionistSession | null>(null);
+
+  const { data: sessions = [], isLoading } = useQuery<NutritionistSession[]>({
+    queryKey: ["/api/nutritionist/clients", clientId, "sessions"],
+    queryFn: () => apiRequest("GET", `/api/nutritionist/clients/${clientId}/sessions`).then(r => r.json()),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (sessionId: number) =>
+      apiRequest("DELETE", `/api/nutritionist/clients/${clientId}/sessions/${sessionId}`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/nutritionist/clients", clientId, "sessions"] });
+      toast({ title: "Session deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete session", variant: "destructive" }),
+  });
+
+  return (
+    <div>
+      <div className="bg-white rounded-2xl border border-zinc-100 p-6 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-zinc-400" />
+            <h3 className="text-sm font-semibold text-zinc-900">Session History</h3>
+            {sessions.length > 0 && (
+              <span className="text-xs font-medium bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">
+                {sessions.length} session{sessions.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => { setEditingSession(null); setShowLogDialog(true); }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-zinc-900 text-white text-sm rounded-xl hover:bg-zinc-800 transition-colors"
+            data-testid="button-log-session"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Log Session
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+          </div>
+        ) : sessions.length === 0 ? (
+          <div className="text-center py-8 text-zinc-400" data-testid="text-no-sessions">
+            <Clock className="w-8 h-8 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">No sessions logged yet.</p>
+            <p className="text-xs mt-1">Click "Log Session" to record your first consultation.</p>
+          </div>
+        ) : (
+          <div className="space-y-3" data-testid="sessions-list">
+            {sessions.map((session, idx) => (
+              <div
+                key={session.id}
+                className="relative border border-zinc-100 rounded-xl p-4 hover:border-zinc-200 transition-colors"
+                data-testid={`session-card-${session.id}`}
+              >
+                {idx < sessions.length - 1 && (
+                  <div className="absolute left-7 top-full h-3 w-px bg-zinc-200" />
+                )}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-sm font-semibold text-zinc-900">
+                        {new Date(session.sessionDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                      <span className="text-xs font-medium bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">
+                        {SESSION_TYPE_LABELS[session.sessionType] ?? session.sessionType}
+                      </span>
+                      <span className="text-xs text-zinc-400 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {session.durationMinutes} min
+                      </span>
+                    </div>
+                    {session.topics && session.topics.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {session.topics.map((topic, ti) => (
+                          <span key={ti} className="text-xs bg-zinc-50 border border-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">
+                            {topic}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {session.notes && (
+                      <p className="text-xs text-zinc-600 mb-1 line-clamp-2" data-testid={`session-notes-${session.id}`}>{session.notes}</p>
+                    )}
+                    {session.followUpActions && (
+                      <div className="flex items-start gap-1.5 mt-1">
+                        <ListChecks className="w-3 h-3 text-zinc-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-zinc-500 line-clamp-2">{session.followUpActions}</p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => { setEditingSession(session); setShowLogDialog(true); }}
+                      className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-50 rounded-lg transition-colors"
+                      data-testid={`button-edit-session-${session.id}`}
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteMutation.mutate(session.id)}
+                      disabled={deleteMutation.isPending}
+                      className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      data-testid={`button-delete-session-${session.id}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {showLogDialog && (
+        <SessionLogDialog
+          clientId={clientId}
+          session={editingSession}
+          onClose={() => { setShowLogDialog(false); setEditingSession(null); }}
+          onSaved={() => { setShowLogDialog(false); setEditingSession(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
 function ClientProfile({
   clientRecord,
   onBack,
@@ -3569,7 +4016,7 @@ function ClientProfile({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [activeSection, setActiveSection] = useState<"profile" | "messages" | "food-diary" | "outcomes" | "documents">("profile");
+  const [activeSection, setActiveSection] = useState<"profile" | "messages" | "food-diary" | "outcomes" | "documents" | "sessions">("profile");
 
   const { data: profileData, isLoading: profileLoading } = useQuery<ClientProfileData>({
     queryKey: ["/api/nutritionist/clients", clientRecord.clientId, "profile"],
@@ -3854,6 +4301,15 @@ function ClientProfile({
         </button>
         <button
           type="button"
+          onClick={() => setActiveSection("sessions")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeSection === "sessions" ? "bg-zinc-900 text-white" : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
+          data-testid="tab-client-sessions"
+        >
+          <Clock className="w-3.5 h-3.5" />
+          Sessions
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveSection("messages")}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${activeSection === "messages" ? "bg-zinc-900 text-white" : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}
           data-testid="tab-client-messages"
@@ -3883,6 +4339,10 @@ function ClientProfile({
 
       {activeSection === "documents" && (
         <DocumentVaultPanel clientRecord={clientRecord} />
+      )}
+
+      {activeSection === "sessions" && (
+        <SessionsTab clientId={clientRecord.clientId} nutritionistId={clientRecord.nutritionistId} />
       )}
 
       {activeSection === "messages" && user && (

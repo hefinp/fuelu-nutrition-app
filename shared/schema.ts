@@ -1261,6 +1261,26 @@ export const activeReengagementJobs = pgTable("active_reengagement_jobs", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// ─── Nutritionist Sessions ──────────────────────────────────────────────────
+
+export const sessionTypeEnum = ["initial_assessment", "follow_up", "quarterly_review", "goal_reset", "check_in", "other"] as const;
+export type SessionType = typeof sessionTypeEnum[number];
+
+export const nutritionistSessions = pgTable("nutritionist_sessions", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").notNull().references(() => users.id),
+  clientId: integer("client_id").notNull().references(() => users.id),
+  sessionDate: timestamp("session_date").notNull(),
+  durationMinutes: integer("duration_minutes").notNull().default(60),
+  sessionType: text("session_type").notNull().default("follow_up"),
+  topics: text("topics").array().notNull().default([]),
+  notes: text("notes"),
+  followUpActions: text("follow_up_actions"),
+  templateId: integer("template_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertActiveReengagementJobSchema = createInsertSchema(activeReengagementJobs).omit({
   id: true,
   createdAt: true,
@@ -1330,3 +1350,50 @@ export const insertClientDocumentSchema = createInsertSchema(clientDocuments).om
 
 export type InsertClientDocument = z.infer<typeof insertClientDocumentSchema>;
 export type ClientDocument = typeof clientDocuments.$inferSelect;
+
+export const insertNutritionistSessionSchema = createInsertSchema(nutritionistSessions).omit({
+  id: true,
+  nutritionistId: true,
+  clientId: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  sessionDate: z.string().min(1, "Session date is required"),
+  durationMinutes: z.number().int().min(1).max(480).default(60),
+  sessionType: z.enum(sessionTypeEnum).default("follow_up"),
+  topics: z.array(z.string()).default([]),
+  notes: z.string().max(10000).optional(),
+  followUpActions: z.string().max(5000).optional(),
+  templateId: z.number().int().optional(),
+});
+
+export type InsertNutritionistSession = z.infer<typeof insertNutritionistSessionSchema>;
+export type NutritionistSession = typeof nutritionistSessions.$inferSelect;
+
+export const sessionTemplates = pgTable("session_templates", {
+  id: serial("id").primaryKey(),
+  nutritionistId: integer("nutritionist_id").references(() => users.id),
+  name: text("name").notNull(),
+  sessionType: text("session_type").notNull().default("follow_up"),
+  topics: text("topics").array().notNull().default([]),
+  notes: text("notes"),
+  followUpActions: text("follow_up_actions"),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSessionTemplateSchema = createInsertSchema(sessionTemplates).omit({
+  id: true,
+  nutritionistId: true,
+  createdAt: true,
+}).extend({
+  name: z.string().min(1).max(200),
+  sessionType: z.enum(sessionTypeEnum).default("follow_up"),
+  topics: z.array(z.string()).default([]),
+  notes: z.string().max(10000).optional(),
+  followUpActions: z.string().max(5000).optional(),
+  isDefault: z.boolean().default(false),
+});
+
+export type InsertSessionTemplate = z.infer<typeof insertSessionTemplateSchema>;
+export type SessionTemplate = typeof sessionTemplates.$inferSelect;
