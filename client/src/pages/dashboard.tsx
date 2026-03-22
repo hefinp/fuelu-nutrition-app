@@ -730,35 +730,72 @@ export default function Dashboard() {
                 </button>
 
                 {!isEditing ? (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    aria-label="Edit Layout"
-                    className="hidden sm:flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 transition-colors"
-                    data-testid="button-edit-layout-header"
-                  >
-                    <LayoutDashboard className="w-4 h-4" />
-                    <span className="text-[10px] font-medium leading-none">Layout</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      aria-label="Edit Layout"
+                      className="hidden sm:flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+                      data-testid="button-edit-layout-header"
+                    >
+                      <LayoutDashboard className="w-4 h-4" />
+                      <span className="text-[10px] font-medium leading-none">Layout</span>
+                    </button>
+                    <button
+                      onClick={handleOpenMetrics}
+                      aria-label="Settings"
+                      className="sm:hidden flex items-center justify-center p-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+                      data-testid="button-settings-header-mobile"
+                    >
+                      <Settings className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      aria-label="Edit Layout"
+                      className="sm:hidden flex items-center justify-center p-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 transition-colors"
+                      data-testid="button-edit-layout-header-mobile"
+                    >
+                      <LayoutDashboard className="w-4 h-4" />
+                    </button>
+                  </>
                 ) : (
-                  <div className="hidden sm:flex items-center gap-2">
+                  <>
+                    <div className="hidden sm:flex items-center gap-2">
+                      <button
+                        onClick={cancelEdit}
+                        className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 border border-zinc-200 rounded-lg text-zinc-500 hover:bg-zinc-50 transition-colors"
+                        data-testid="button-cancel-layout"
+                      >
+                        <X className="w-4 h-4" />
+                        Cancel
+                      </button>
+                      <button
+                        onClick={saveLayout}
+                        disabled={isSaving}
+                        className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                        data-testid="button-save-layout"
+                      >
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        Done
+                      </button>
+                    </div>
                     <button
                       onClick={cancelEdit}
-                      className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 border border-zinc-200 rounded-lg text-zinc-500 hover:bg-zinc-50 transition-colors"
-                      data-testid="button-cancel-layout"
+                      aria-label="Cancel"
+                      className="sm:hidden flex items-center justify-center p-2 border border-zinc-200 rounded-lg text-zinc-500 hover:bg-zinc-50 transition-colors"
+                      data-testid="button-cancel-layout-mobile"
                     >
                       <X className="w-4 h-4" />
-                      Cancel
                     </button>
                     <button
                       onClick={saveLayout}
                       disabled={isSaving}
-                      className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 disabled:opacity-50 transition-colors"
-                      data-testid="button-save-layout"
+                      aria-label="Done"
+                      className="sm:hidden flex items-center justify-center p-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                      data-testid="button-save-layout-mobile"
                     >
                       {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                      Done
                     </button>
-                  </div>
+                  </>
                 )}
 
                 {user.isManagedClient && (
@@ -1346,51 +1383,6 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {user && !isEditing && (
-                    <div className="sm:hidden flex items-center gap-2">
-                      <button
-                        onClick={handleOpenMetrics}
-                        aria-label="Settings"
-                        className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
-                        data-testid="button-edit-metrics"
-                      >
-                        <Settings className="w-4 h-4" />
-                        Settings
-                      </button>
-                      <button
-                        onClick={() => setIsEditing(true)}
-                        aria-label="Edit Layout"
-                        className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors"
-                        data-testid="button-edit-layout"
-                      >
-                        <LayoutDashboard className="w-4 h-4" />
-                        Edit Layout
-                      </button>
-                    </div>
-                  )}
-
-                  {isEditing && (
-                    <div className="sm:hidden flex items-center gap-2">
-                      <button
-                        onClick={cancelEdit}
-                        className="flex items-center gap-1.5 text-sm font-medium px-3 py-2 border border-zinc-200 rounded-xl text-zinc-500 hover:bg-zinc-50 transition-colors"
-                        data-testid="button-cancel-layout-mobile"
-                      >
-                        <X className="w-4 h-4" />
-                        Cancel
-                      </button>
-                      <button
-                        onClick={saveLayout}
-                        disabled={isSaving}
-                        className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 bg-zinc-900 text-white rounded-xl hover:bg-zinc-700 disabled:opacity-50 transition-colors"
-                        data-testid="button-save-layout-mobile"
-                      >
-                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                        Done
-                      </button>
-                    </div>
-                  )}
-
                   {!user && (
                     <button
                       onClick={handleOpenMetrics}
