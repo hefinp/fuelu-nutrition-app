@@ -262,7 +262,7 @@ export function CycleTracker() {
 
   if (!isPremium) {
     return (
-      <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-3xl border border-zinc-100 shadow-md overflow-hidden">
         <div className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4 border-b border-zinc-50">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
@@ -292,7 +292,7 @@ export function CycleTracker() {
   }
 
   return (
-    <div id="cycle-tracker-widget" className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
+    <div id="cycle-tracker-widget" className="bg-white rounded-3xl border border-zinc-100 shadow-md overflow-hidden">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4 border-b border-zinc-50">
         <div className="flex items-center gap-2.5">

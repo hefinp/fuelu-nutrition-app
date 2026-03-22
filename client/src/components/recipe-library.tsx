@@ -101,7 +101,7 @@ export function RecipeLibrary() {
   const savedSites: string[] = prefs?.recipeWebsites ?? [];
 
   return (
-    <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
+    <div className="bg-white rounded-3xl border border-zinc-100 shadow-md p-4 sm:p-6">
       <div className="flex items-center gap-2 mb-2">
         <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
           <BookOpen className="w-5 h-5" />

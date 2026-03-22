@@ -106,7 +106,7 @@ export function ActivityWidget() {
 
   if (statusLoading) {
     return (
-      <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6" data-testid="widget-activity">
+      <div className="bg-white rounded-2xl border border-zinc-100 shadow-md p-6" data-testid="widget-activity">
         <div className="flex items-center gap-2.5 mb-4">
           <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center">
             <Activity className="w-4 h-4 text-orange-500" />
@@ -151,7 +151,7 @@ export function ActivityWidget() {
   const stats = activitiesData?.weeklyStats;
 
   return (
-    <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm" data-testid="widget-activity">
+    <div className="bg-white rounded-2xl border border-zinc-100 shadow-md" data-testid="widget-activity">
       <div className="flex items-center justify-between p-5 pb-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center">
