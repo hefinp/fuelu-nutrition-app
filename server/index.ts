@@ -39,42 +39,47 @@ if (!process.env.SESSION_SECRET) {
   console.warn("[security] SESSION_SECRET env var is not set — using insecure fallback. Set this before deploying.");
 }
 
-// Security headers — permissive CSP in dev so Vite HMR and Google Fonts work
+const isDev = process.env.NODE_ENV !== "production";
+
+// Security headers — in dev, relax frame/CORS headers so Replit preview can embed the app
 app.use(
   helmet({
-    contentSecurityPolicy:
-      process.env.NODE_ENV === "production"
-        ? {
-            directives: {
-              defaultSrc: ["'self'"],
-              scriptSrc: [
-                "'self'",
-                "'unsafe-inline'",
-                "https://pagead2.googlesyndication.com",
-                "https://tpc.googlesyndication.com",
-                "https://www.googletagservices.com",
-                "https://adservice.google.com",
-                "https://www.google.com",
-                "https://www.gstatic.com",
-              ],
-              styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-              fontSrc: ["'self'", "https://fonts.gstatic.com"],
-              imgSrc: ["'self'", "data:", "https:"],
-              connectSrc: [
-                "'self'",
-                "https://pagead2.googlesyndication.com",
-                "https://adservice.google.com",
-                "https://www.google.com",
-              ],
-              frameSrc: [
-                "'self'",
-                "https://googleads.g.doubleclick.net",
-                "https://tpc.googlesyndication.com",
-              ],
-            },
-          }
-        : false,
+    contentSecurityPolicy: isDev
+      ? false
+      : {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: [
+              "'self'",
+              "'unsafe-inline'",
+              "https://pagead2.googlesyndication.com",
+              "https://tpc.googlesyndication.com",
+              "https://www.googletagservices.com",
+              "https://adservice.google.com",
+              "https://www.google.com",
+              "https://www.gstatic.com",
+            ],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: [
+              "'self'",
+              "https://pagead2.googlesyndication.com",
+              "https://adservice.google.com",
+              "https://www.google.com",
+            ],
+            frameSrc: [
+              "'self'",
+              "https://googleads.g.doubleclick.net",
+              "https://tpc.googlesyndication.com",
+            ],
+          },
+        },
     crossOriginEmbedderPolicy: false,
+    // In dev: allow Replit's canvas/preview iframe to embed the app from a different origin
+    frameguard: isDev ? false : { action: "sameorigin" },
+    crossOriginResourcePolicy: isDev ? false : { policy: "same-origin" },
+    crossOriginOpenerPolicy: isDev ? false : { policy: "same-origin" },
   })
 );
 
