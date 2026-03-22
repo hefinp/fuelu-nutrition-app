@@ -175,10 +175,10 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget }:
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 mb-4 relative">
+        <div className="grid grid-cols-3 gap-1.5 mb-4 relative">
           <button
             onClick={() => setDrawerOpen(true)}
-            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors"
+            className="flex items-center justify-center gap-1 text-xs font-medium px-2.5 py-1.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors"
             data-testid="button-diary-widget-log-meal"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -186,7 +186,7 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget }:
           </button>
           <button
             onClick={() => setWaterPopupOpen(prev => !prev)}
-            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
+            className="flex items-center justify-center gap-1 text-xs font-medium px-2.5 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
             data-testid="button-diary-widget-log-water"
           >
             <Droplets className="w-3.5 h-3.5" />
@@ -194,7 +194,7 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget }:
           </button>
           <button
             onClick={() => setWeightPopupOpen(prev => !prev)}
-            className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors"
+            className="flex items-center justify-center gap-1 text-xs font-medium px-2.5 py-1.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors"
             data-testid="button-diary-widget-log-weight"
           >
             <Scale className="w-3.5 h-3.5" />
