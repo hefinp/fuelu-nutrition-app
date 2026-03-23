@@ -481,11 +481,23 @@ export default function Dashboard() {
 
   const handlePrefillConsumed = useCallback(() => setLogPrefill(null), []);
 
+  const openedFromDiaryRef = useRef(false);
+
   const handleCreatePlan = useCallback(() => {
     if (!isDesktop) {
+      openedFromDiaryRef.current = true;
       setMobileTab('planning', 'toggle');
     }
     setPlannerPendingOpen(true);
+  }, [isDesktop, setMobileTab]);
+
+  const handlePlannerModalClose = useCallback(() => {
+    if (openedFromDiaryRef.current) {
+      openedFromDiaryRef.current = false;
+      if (!isDesktop) {
+        setMobileTab('favourites', 'toggle');
+      }
+    }
   }, [isDesktop, setMobileTab]);
 
   const handlePlannerOpenHandled = useCallback(() => {
@@ -594,7 +606,7 @@ export default function Dashboard() {
         ) : null;
       case "meal-plan": {
         const shouldReceivePending = layout !== undefined && (isDesktop ? layout === 'desktop' : layout === 'mobile');
-        return <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} overrideTargets={effectiveTargets ? { dailyCalories: effectiveTargets.dailyCalories, proteinGoal: effectiveTargets.proteinGoal, carbsGoal: effectiveTargets.carbsGoal, fatGoal: effectiveTargets.fatGoal } : null} pendingOpen={shouldReceivePending ? plannerPendingOpen : false} onOpenHandled={shouldReceivePending ? handlePlannerOpenHandled : undefined} />;
+        return <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} overrideTargets={effectiveTargets ? { dailyCalories: effectiveTargets.dailyCalories, proteinGoal: effectiveTargets.proteinGoal, carbsGoal: effectiveTargets.carbsGoal, fatGoal: effectiveTargets.fatGoal } : null} pendingOpen={shouldReceivePending ? plannerPendingOpen : false} onOpenHandled={shouldReceivePending ? handlePlannerOpenHandled : undefined} onModalClose={shouldReceivePending ? handlePlannerModalClose : undefined} />;
       }
       case "hydration":
         return user ? <HydrationTracker /> : null;

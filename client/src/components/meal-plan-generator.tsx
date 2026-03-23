@@ -42,7 +42,7 @@ function isSlotLockedForDates(slot: string, dates: string[]): boolean {
   return dates.every(d => isSlotPast(d, slot));
 }
 
-export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpen, onOpenHandled }: { data: Calculation; onLogMeal?: (meal: Meal | PrefillEntry) => void; overrideTargets?: { dailyCalories?: number; proteinGoal?: number; carbsGoal?: number; fatGoal?: number } | null; pendingOpen?: boolean; onOpenHandled?: () => void }) {
+export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpen, onOpenHandled, onModalClose }: { data: Calculation; onLogMeal?: (meal: Meal | PrefillEntry) => void; overrideTargets?: { dailyCalories?: number; proteinGoal?: number; carbsGoal?: number; fatGoal?: number } | null; pendingOpen?: boolean; onOpenHandled?: () => void; onModalClose?: () => void }) {
   const effectiveCals = overrideTargets?.dailyCalories ?? data.dailyCalories;
   const effectiveProtein = overrideTargets?.proteinGoal ?? data.proteinGoal;
   const effectiveCarbs = overrideTargets?.carbsGoal ?? data.carbsGoal;
@@ -185,6 +185,14 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpe
     setFlowActive("meal-plan", isActive);
     return () => setFlowActive("meal-plan", false);
   }, [customModalOpen, setFlowActive]);
+
+  const prevModalOpenRef = useRef(customModalOpen);
+  useEffect(() => {
+    if (prevModalOpenRef.current && !customModalOpen) {
+      onModalClose?.();
+    }
+    prevModalOpenRef.current = customModalOpen;
+  }, [customModalOpen, onModalClose]);
 
   const scrollLockRef = useRef<number | null>(null);
 
