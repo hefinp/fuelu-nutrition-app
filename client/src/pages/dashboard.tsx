@@ -878,7 +878,7 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-100 pb-36 sm:pb-20">
+    <div className="min-h-screen bg-zinc-200 pb-36 sm:pb-20">
       {/* Header */}
       <header ref={headerCallbackRef} className="bg-white border-b border-zinc-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
@@ -1599,7 +1599,7 @@ export default function Dashboard() {
             )}
 
             {/* ── MOBILE tab toggle: Favourites / Planning / Tracking / Insights ── */}
-            <div ref={tabToggleCallbackRef} className="xl:hidden sticky z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-2 bg-zinc-100" style={{ top: 'var(--dashboard-header-h)' }}>
+            <div ref={tabToggleCallbackRef} className="xl:hidden sticky z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-2 bg-zinc-200" style={{ top: 'var(--dashboard-header-h)' }}>
               <div className="flex items-center gap-2" data-testid="dashboard-tab-toggle">
                 {(
                   [
