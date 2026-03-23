@@ -727,23 +727,14 @@ export default function Dashboard() {
   const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useLayoutEffect(() => {
-    try {
-      if (window.history && 'scrollRestoration' in window.history) {
-        window.history.scrollRestoration = 'manual';
-      }
-    } catch (_) {}
-    window.scrollTo(0, 0);
+    document.documentElement.classList.remove("dashboard-snap");
+    snapTimerRef.current = setTimeout(() => {
+      document.documentElement.classList.add("dashboard-snap");
+    }, 1000);
+    return () => {
+      if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
+    };
   }, []);
-
-  useLayoutEffect(() => {
-    if (user) {
-      window.scrollTo(0, 0);
-      document.documentElement.classList.remove("dashboard-snap");
-      snapTimerRef.current = setTimeout(() => {
-        document.documentElement.classList.add("dashboard-snap");
-      }, 800);
-    }
-  }, [user]);
 
   useEffect(() => {
     document.documentElement.classList.add("dashboard-active");
@@ -759,12 +750,6 @@ export default function Dashboard() {
       document.documentElement.classList.remove("dashboard-active", "dashboard-snap");
       ro.disconnect();
       roRef.current = null;
-      if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
-      try {
-        if (window.history && 'scrollRestoration' in window.history) {
-          window.history.scrollRestoration = 'auto';
-        }
-      } catch (_) {}
       document.documentElement.style.removeProperty('--dashboard-header-h');
       document.documentElement.style.removeProperty('--dashboard-snap-top');
     };
