@@ -64,10 +64,6 @@ function ScrollToTop() {
   const [location] = useLocation();
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
-    const t1 = setTimeout(() => window.scrollTo(0, 0), 50);
-    const t2 = setTimeout(() => window.scrollTo(0, 0), 200);
-    const t3 = setTimeout(() => window.scrollTo(0, 0), 500);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [location]);
   return null;
 }

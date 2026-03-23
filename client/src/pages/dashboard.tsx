@@ -1869,7 +1869,7 @@ export default function Dashboard() {
         </nav>
       )}
 
-      <FeedbackWidget />
+      {user && <FeedbackWidget />}
 
       <AnimatePresence>
         {showOnboarding && (
