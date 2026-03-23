@@ -758,7 +758,7 @@ router.post("/api/food-log", async (req, res) => {
       sugar: z.number().int().min(0).nullable().optional(),
       saturatedFat: z.number().int().min(0).nullable().optional(),
       mealSlot: z.enum(["breakfast", "lunch", "dinner", "snack", "drinks"]).nullable().optional(),
-      source: z.enum(["manual", "search", "scan", "ai", "plan", "meal", "restaurant"]).nullable().optional(),
+      source: z.enum(["manual", "search", "scan", "ai", "plan", "meal", "my-meal", "restaurant"]).nullable().optional(),
       volumeMl: z.number().int().min(1).nullable().optional(),
     }).parse(req.body);
 
