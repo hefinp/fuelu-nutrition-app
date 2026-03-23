@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -725,24 +725,25 @@ export default function Dashboard() {
   }, []);
 
   const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasScrolledForUser = useRef(false);
 
-  useEffect(() => {
-    if (user && !hasScrolledForUser.current) {
-      hasScrolledForUser.current = true;
+  useLayoutEffect(() => {
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (user) {
+      window.scrollTo(0, 0);
       document.documentElement.classList.remove("dashboard-snap");
-      window.scrollTo({ top: 0, behavior: "auto" });
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: 0, behavior: "auto" });
-        snapTimerRef.current = setTimeout(() => {
-          document.documentElement.classList.add("dashboard-snap");
-        }, 600);
-      });
+      snapTimerRef.current = setTimeout(() => {
+        document.documentElement.classList.add("dashboard-snap");
+      }, 800);
     }
   }, [user]);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
     document.documentElement.classList.add("dashboard-active");
     if (!user) {
       document.documentElement.classList.add("dashboard-snap");
@@ -757,6 +758,9 @@ export default function Dashboard() {
       ro.disconnect();
       roRef.current = null;
       if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
+      if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'auto';
+      }
       document.documentElement.style.removeProperty('--dashboard-header-h');
       document.documentElement.style.removeProperty('--dashboard-snap-top');
     };
