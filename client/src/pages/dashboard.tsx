@@ -24,7 +24,7 @@ import ClientIntakeFormWidget from "@/components/client-intake-form";
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
 import { MacroComplianceWidget } from "@/components/macro-compliance-widget";
-import { useDashboardLayout, MOBILE_PLANNING_IDS, MOBILE_INSIGHTS_IDS } from "@/hooks/use-dashboard-layout";
+import { useDashboardLayout, MOBILE_PLANNING_IDS, MOBILE_INSIGHTS_IDS, HOME_WIDGETS } from "@/hooks/use-dashboard-layout";
 import type { WidgetId } from "@/hooks/use-dashboard-layout";
 import type { PrefillEntry } from "@/components/food-log";
 import type { Meal } from "@/components/results-display";
@@ -736,7 +736,7 @@ export default function Dashboard() {
   const visibleMobileOrder = mobileTab === 'favourites' ? [] : allVisibleOrder.filter(id => {
     if (mobileTab === 'planning') return MOBILE_PLANNING_IDS.has(id);
     if (mobileTab === 'insights') return MOBILE_INSIGHTS_IDS.has(id);
-    return !MOBILE_PLANNING_IDS.has(id) && !MOBILE_INSIGHTS_IDS.has(id);
+    return !MOBILE_PLANNING_IDS.has(id) && !MOBILE_INSIGHTS_IDS.has(id) && !HOME_WIDGETS.has(id);
   });
 
   const headerRef = useRef<HTMLElement | null>(null);
