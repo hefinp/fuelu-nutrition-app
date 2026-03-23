@@ -54,7 +54,7 @@ import {
   ChevronDown, Salad, LayoutDashboard, Check, Loader2, ShieldAlert,
   Link2, Mail, Droplets, ClipboardList, UtensilsCrossed, Scale, TrendingUp, Home,
   Sparkles, ScanLine, Heart, ShieldCheck, Zap, User, Crown, Briefcase, MessageSquare,
-  CalendarDays, Activity, PenLine, Target, RefreshCw,
+  CalendarDays, Activity, PenLine, Target, RefreshCw, HelpCircle,
 } from "lucide-react";
 import type { AdaptiveTdeeSuggestion } from "@shared/schema";
 import { SiGoogle, SiApple, SiStrava } from "react-icons/si";
@@ -1408,6 +1408,19 @@ export default function Dashboard() {
                                     )}
                                   </div>
                                 ))}
+                                {stravaStatus?.connected && (
+                                  <div className="pt-2 border-t border-zinc-100 mt-1">
+                                    <Link
+                                      href="/support"
+                                      className="inline-flex items-center gap-1.5 text-xs font-medium hover:underline"
+                                      style={{ color: "#FC5200" }}
+                                      data-testid="link-strava-support"
+                                    >
+                                      <HelpCircle className="w-3.5 h-3.5" />
+                                      Strava Support
+                                    </Link>
+                                  </div>
+                                )}
                               </div>
                             </motion.div>
                           )}

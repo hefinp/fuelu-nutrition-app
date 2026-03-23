@@ -251,11 +251,13 @@ export function ActivityWidget() {
                     href={`https://www.strava.com/activities/${a.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="shrink-0 text-zinc-300 hover:text-orange-500 transition-colors"
+                    className="shrink-0 inline-flex items-center gap-1 text-xs font-medium transition-colors"
+                    style={{ color: "#FC5200" }}
                     data-testid={`activity-strava-link-${a.id}`}
-                    title="Open on Strava"
-                    aria-label="Open on Strava"
+                    title="View on Strava"
+                    aria-label="View on Strava"
                   >
+                    View on Strava
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
