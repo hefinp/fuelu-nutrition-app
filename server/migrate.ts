@@ -982,6 +982,24 @@ export async function runMigrations(): Promise<void> {
 
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth TIMESTAMP`);
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS content_reports (
+        id              SERIAL PRIMARY KEY,
+        reporter_id     INTEGER NOT NULL REFERENCES users(id),
+        content_type    TEXT NOT NULL,
+        content_id      INTEGER NOT NULL,
+        reason          TEXT NOT NULL,
+        note            TEXT,
+        status          TEXT NOT NULL DEFAULT 'pending',
+        resolved_at     TIMESTAMP,
+        resolved_by_id  INTEGER REFERENCES users(id),
+        created_at      TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_content_reports_status ON content_reports (status)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_content_reports_content ON content_reports (content_type, content_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_content_reports_reporter ON content_reports (reporter_id)`);
+
   } finally {
     client.release();
   }

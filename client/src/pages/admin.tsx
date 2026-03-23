@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
-import { CheckCircle2, Circle, Plus, ShieldAlert, RefreshCw, Sparkles, Settings, Users, Loader2 } from "lucide-react";
+import { CheckCircle2, Circle, Plus, ShieldAlert, RefreshCw, Sparkles, Settings, Users, Loader2, Flag, Trash2, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface CommunityMealBucket {
@@ -55,6 +55,20 @@ interface AdminUser {
   betaTierLocked: boolean;
 }
 
+interface ContentReportItem {
+  id: number;
+  reporterId: number;
+  contentType: string;
+  contentId: number;
+  reason: string;
+  note: string | null;
+  status: string;
+  reporterName: string;
+  contentPreview: string;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
 const ADMIN_EMAIL = "hefin.price@gmail.com";
 const TIER_OPTIONS = ["free", "simple", "advanced"];
 
@@ -63,7 +77,7 @@ export default function AdminPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [newCodes, setNewCodes] = useState("");
-  const [activeTab, setActiveTab] = useState<"codes" | "pricing" | "features" | "users">("codes");
+  const [activeTab, setActiveTab] = useState<"codes" | "pricing" | "features" | "users" | "moderation">("codes");
 
   const isAdmin = !!user && user.email === ADMIN_EMAIL;
 
@@ -89,6 +103,11 @@ export default function AdminPage() {
 
   const { data: adminUsers = [], refetch: refetchUsers } = useQuery<AdminUser[]>({
     queryKey: ["/api/admin/users"],
+    enabled: isAdmin,
+  });
+
+  const { data: contentReports = [], refetch: refetchReports } = useQuery<ContentReportItem[]>({
+    queryKey: ["/api/admin/content-reports"],
     enabled: isAdmin,
   });
 
@@ -158,6 +177,24 @@ export default function AdminPage() {
     },
   });
 
+  const dismissReportMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/admin/content-reports/${id}/dismiss`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/content-reports"] });
+      toast({ title: "Report dismissed" });
+    },
+    onError: () => toast({ title: "Failed to dismiss report", variant: "destructive" }),
+  });
+
+  const removeContentMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/admin/content-reports/${id}/remove`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/content-reports"] });
+      toast({ title: "Content removed" });
+    },
+    onError: () => toast({ title: "Failed to remove content", variant: "destructive" }),
+  });
+
   const syncStripeMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/admin/sync-stripe-prices", {}),
     onSuccess: async (data: any) => {
@@ -216,12 +253,13 @@ export default function AdminPage() {
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Tabs */}
         <div className="flex gap-1 bg-zinc-100 rounded-xl p-1">
-          {[
-            { key: "codes" as const, label: "Codes", icon: CheckCircle2 },
-            { key: "pricing" as const, label: "Pricing", icon: Settings },
-            { key: "features" as const, label: "Features", icon: Settings },
-            { key: "users" as const, label: "Users", icon: Users },
-          ].map(tab => (
+          {([
+            { key: "codes" as const, label: "Codes", icon: CheckCircle2, badge: 0 },
+            { key: "pricing" as const, label: "Pricing", icon: Settings, badge: 0 },
+            { key: "features" as const, label: "Features", icon: Settings, badge: 0 },
+            { key: "users" as const, label: "Users", icon: Users, badge: 0 },
+            { key: "moderation" as const, label: "Moderation", icon: Flag, badge: contentReports.filter(r => r.status === "pending").length },
+          ] satisfies { key: typeof activeTab; label: string; icon: typeof CheckCircle2; badge: number }[]).map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
@@ -232,6 +270,11 @@ export default function AdminPage() {
             >
               <tab.icon className="w-3.5 h-3.5" />
               {tab.label}
+              {tab.badge > 0 && (
+                <span className="ml-0.5 px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full leading-none">
+                  {tab.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -419,6 +462,16 @@ export default function AdminPage() {
           <UsersTab
             users={adminUsers}
             onUpdateTier={(data) => userTierMutation.mutate(data)}
+          />
+        )}
+
+        {activeTab === "moderation" && (
+          <ModerationTab
+            reports={contentReports}
+            onDismiss={(id) => dismissReportMutation.mutate(id)}
+            onRemove={(id) => removeContentMutation.mutate(id)}
+            isDismissing={dismissReportMutation.isPending}
+            isRemoving={removeContentMutation.isPending}
           />
         )}
       </main>
@@ -719,6 +772,123 @@ function UsersTab({ users, onUpdateTier }: { users: AdminUser[]; onUpdateTier: (
                     <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
                   ))}
                 </select>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const REASON_LABELS: Record<string, string> = {
+  inappropriate: "Inappropriate",
+  offensive: "Offensive",
+  spam: "Spam",
+  inaccurate_nutrition: "Inaccurate nutrition",
+  other: "Other",
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-700",
+  dismissed: "bg-zinc-100 text-zinc-500",
+  removed: "bg-red-100 text-red-700",
+};
+
+function ModerationTab({ reports, onDismiss, onRemove, isDismissing, isRemoving }: {
+  reports: ContentReportItem[];
+  onDismiss: (id: number) => void;
+  onRemove: (id: number) => void;
+  isDismissing: boolean;
+  isRemoving: boolean;
+}) {
+  const [filter, setFilter] = useState<"all" | "pending" | "dismissed" | "removed">("pending");
+
+  const filtered = filter === "all" ? reports : reports.filter(r => r.status === filter);
+  const pendingCount = reports.filter(r => r.status === "pending").length;
+
+  return (
+    <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+      <div className="px-5 py-4 border-b border-zinc-100">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-900">Content Reports</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">{pendingCount} pending · {reports.length} total</p>
+          </div>
+          <div className="flex gap-1">
+            {(["pending", "all", "dismissed", "removed"] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-2.5 py-1 text-[11px] font-medium rounded-lg transition-colors ${
+                  filter === f ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
+                }`}
+                data-testid={`filter-reports-${f}`}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-12" data-testid="text-no-reports">
+          <Flag className="w-8 h-8 text-zinc-200 mx-auto mb-2" />
+          <p className="text-sm text-zinc-400">No {filter === "all" ? "" : filter} reports</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-zinc-50">
+          {filtered.map(report => (
+            <div key={report.id} className="px-5 py-4" data-testid={`report-row-${report.id}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_STYLES[report.status] ?? "bg-zinc-100 text-zinc-500"}`}>
+                      {report.status}
+                    </span>
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-100 text-zinc-600">
+                      {report.contentType === "community_meal" ? "Meal" : "Comment"}
+                    </span>
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-50 text-orange-600 border border-orange-100">
+                      {REASON_LABELS[report.reason] ?? report.reason}
+                    </span>
+                  </div>
+                  <p className="text-sm font-medium text-zinc-900 mt-1.5 line-clamp-2" data-testid={`report-preview-${report.id}`}>
+                    {report.contentPreview}
+                  </p>
+                  {report.note && (
+                    <p className="text-xs text-zinc-500 mt-1 italic">"{report.note}"</p>
+                  )}
+                  <p className="text-[11px] text-zinc-400 mt-1">
+                    Reported by {report.reporterName} · {new Date(report.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+
+                {report.status === "pending" && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => onDismiss(report.id)}
+                      disabled={isDismissing}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-zinc-600 bg-zinc-100 rounded-lg hover:bg-zinc-200 transition-colors disabled:opacity-40"
+                      data-testid={`button-dismiss-report-${report.id}`}
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Dismiss
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRemove(report.id)}
+                      disabled={isRemoving}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-40"
+                      data-testid={`button-remove-content-${report.id}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Remove
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

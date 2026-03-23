@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { MessageCircle, Send, Trash2, Loader2 } from "lucide-react";
 import type { MealComment } from "@shared/schema";
+import { ReportButton } from "@/components/report-content-dialog";
 
 type CommentWithUser = MealComment & { userName: string };
 
@@ -106,16 +107,21 @@ export function MealCommentsSection({ communityMealId }: { communityMealId: numb
                     </div>
                     <p className="text-xs text-zinc-600 mt-0.5 break-words">{comment.text}</p>
                   </div>
-                  {user && user.id === comment.userId && (
-                    <button
-                      type="button"
-                      onClick={() => deleteMutation.mutate(comment.id)}
-                      className="p-1 text-zinc-400 hover:text-red-500 transition-colors shrink-0"
-                      data-testid={`button-delete-comment-${comment.id}`}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {user && user.id !== comment.userId && (
+                      <ReportButton contentType="comment" contentId={comment.id} />
+                    )}
+                    {user && user.id === comment.userId && (
+                      <button
+                        type="button"
+                        onClick={() => deleteMutation.mutate(comment.id)}
+                        className="p-1 text-zinc-400 hover:text-red-500 transition-colors"
+                        data-testid={`button-delete-comment-${comment.id}`}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

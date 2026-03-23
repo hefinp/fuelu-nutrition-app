@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
 import { MealCommentsSection } from "@/components/meal-comments";
 import { AllergenDisclaimer } from "@/components/allergen-disclaimer";
+import { ReportButton } from "@/components/report-content-dialog";
 import { useTierStatus } from "@/hooks/use-tier";
 import { useMobileViewport } from "@/hooks/use-mobile-viewport";
 import { useAuth } from "@/hooks/use-auth";
@@ -535,7 +536,12 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                           </button>
                         )}
 
-                        <MealCommentsSection communityMealId={meal.id} />
+                        <div className="flex items-center justify-between mt-2">
+                          <MealCommentsSection communityMealId={meal.id} />
+                          <div className="shrink-0">
+                            <ReportButton contentType="community_meal" contentId={meal.id} />
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

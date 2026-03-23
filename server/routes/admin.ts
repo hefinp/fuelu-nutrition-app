@@ -383,6 +383,59 @@ router.post("/api/admin/sync-stripe-prices", async (req, res) => {
   }
 });
 
+// Content moderation
+router.get("/api/admin/content-reports", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  try {
+    const status = req.query.status as string | undefined;
+    const reports = await storage.getContentReports(status);
+    res.json(reports);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch reports" });
+  }
+});
+
+router.post("/api/admin/content-reports/:id/dismiss", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  try {
+    const id = parseInt(req.params.id);
+    const report = await storage.updateContentReportStatus(id, "dismissed", req.session.userId!);
+    if (!report) return res.status(404).json({ message: "Report not found" });
+    res.json(report);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to dismiss report" });
+  }
+});
+
+router.post("/api/admin/content-reports/:id/remove", async (req, res) => {
+  if (!await requireAdmin(req, res)) return;
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid report ID" });
+    const reports = await storage.getContentReports();
+    const report = reports.find(r => r.id === id);
+    if (!report) return res.status(404).json({ message: "Report not found" });
+    if (report.status !== "pending") return res.status(400).json({ message: "Report already resolved" });
+
+    if (report.contentType === "community_meal") {
+      await storage.removeCommunityMealByAdmin(report.contentId);
+    } else if (report.contentType === "comment") {
+      await storage.removeMealCommentByAdmin(report.contentId);
+    }
+
+    const updated = await storage.updateContentReportStatus(id, "removed", req.session.userId!);
+
+    const otherPending = reports.filter(r => r.id !== id && r.status === "pending" && r.contentType === report.contentType && r.contentId === report.contentId);
+    for (const other of otherPending) {
+      await storage.updateContentReportStatus(other.id, "removed", req.session.userId!);
+    }
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to remove content" });
+  }
+});
+
 setTimeout(() => {
   checkAndRefillCommunityMealBalance(true).then(r => {
     if (r.mealsGenerated > 0) {

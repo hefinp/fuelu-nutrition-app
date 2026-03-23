@@ -1183,6 +1183,42 @@ export const insertMealCommentSchema = createInsertSchema(mealComments).omit({
 export type InsertMealComment = z.infer<typeof insertMealCommentSchema>;
 export type MealComment = typeof mealComments.$inferSelect;
 
+// ─── Content Reports & Moderation ───────────────────────────────────────────
+
+export const reportReasonEnum = ["inappropriate", "offensive", "spam", "inaccurate_nutrition", "other"] as const;
+export type ReportReason = typeof reportReasonEnum[number];
+
+export const reportStatusEnum = ["pending", "dismissed", "removed"] as const;
+export type ReportStatus = typeof reportStatusEnum[number];
+
+export const contentReports = pgTable("content_reports", {
+  id: serial("id").primaryKey(),
+  reporterId: integer("reporter_id").notNull().references(() => users.id),
+  contentType: text("content_type").notNull(),
+  contentId: integer("content_id").notNull(),
+  reason: text("reason").notNull(),
+  note: text("note"),
+  status: text("status").notNull().default("pending"),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedById: integer("resolved_by_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertContentReportSchema = createInsertSchema(contentReports).omit({
+  id: true,
+  createdAt: true,
+  resolvedAt: true,
+  resolvedById: true,
+  status: true,
+}).extend({
+  contentType: z.enum(["community_meal", "comment"]),
+  reason: z.enum(reportReasonEnum),
+  note: z.string().max(500).optional(),
+});
+
+export type InsertContentReport = z.infer<typeof insertContentReportSchema>;
+export type ContentReport = typeof contentReports.$inferSelect;
+
 // ─── Client Tags & Segmentation ─────────────────────────────────────────────
 
 export const clientTags = pgTable("client_tags", {

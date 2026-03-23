@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, clientDocuments, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, nutritionistSessions, sessionTemplates, surveyTemplates, surveyDeliveries, surveyResponses, stravaActivities, servicePackages, clientPackages, mealPlanGenerations, userRecipes, favouriteMeals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob, type ClientDocument, type NutritionistSession, type InsertNutritionistSession, type SessionTemplate, type InsertSessionTemplate, type SurveyTemplate, type InsertSurveyTemplate, type SurveyDelivery, type SurveyResponse, type ServicePackage, type InsertServicePackage, type ClientPackage, type InsertClientPackage } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, clientDocuments, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, nutritionistSessions, sessionTemplates, surveyTemplates, surveyDeliveries, surveyResponses, stravaActivities, servicePackages, clientPackages, mealPlanGenerations, contentReports, userRecipes, favouriteMeals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type ContentReport, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob, type ClientDocument, type NutritionistSession, type InsertNutritionistSession, type SessionTemplate, type InsertSessionTemplate, type SurveyTemplate, type InsertSurveyTemplate, type SurveyDelivery, type SurveyResponse, type ServicePackage, type InsertServicePackage, type ClientPackage, type InsertClientPackage } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray, isNull } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -449,6 +449,13 @@ export interface IStorage {
 
   getMealPlanGenerationCounts(userId: number, monthKey: string): Promise<{ dailyCount: number; weeklyCount: number }>;
   incrementMealPlanGeneration(userId: number, monthKey: string, type: 'daily' | 'weekly'): Promise<{ dailyCount: number; weeklyCount: number }>;
+
+  // Content reports & moderation
+  createContentReport(data: { reporterId: number; contentType: string; contentId: number; reason: string; note?: string }): Promise<ContentReport>;
+  getContentReports(status?: string): Promise<(ContentReport & { reporterName: string; contentPreview: string })[]>;
+  updateContentReportStatus(id: number, status: string, resolvedById: number): Promise<ContentReport | undefined>;
+  removeCommunityMealByAdmin(mealId: number): Promise<void>;
+  removeMealCommentByAdmin(commentId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3931,6 +3938,63 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return { dailyCount: row.dailyCount, weeklyCount: row.weeklyCount };
+  }
+
+  async createContentReport(data: { reporterId: number; contentType: string; contentId: number; reason: string; note?: string }): Promise<ContentReport> {
+    const [report] = await db.insert(contentReports).values(data).returning();
+    return report;
+  }
+
+  async getContentReports(status?: string): Promise<(ContentReport & { reporterName: string; contentPreview: string })[]> {
+    const conditions = status ? [eq(contentReports.status, status)] : [];
+    const rows = await db
+      .select({
+        id: contentReports.id,
+        reporterId: contentReports.reporterId,
+        contentType: contentReports.contentType,
+        contentId: contentReports.contentId,
+        reason: contentReports.reason,
+        note: contentReports.note,
+        status: contentReports.status,
+        resolvedAt: contentReports.resolvedAt,
+        resolvedById: contentReports.resolvedById,
+        createdAt: contentReports.createdAt,
+        reporterName: sql<string>`COALESCE(${users.username}, ${users.name}, 'Unknown')`.as("reporter_name"),
+      })
+      .from(contentReports)
+      .innerJoin(users, eq(contentReports.reporterId, users.id))
+      .where(conditions.length > 0 ? conditions[0] : undefined)
+      .orderBy(desc(contentReports.createdAt));
+
+    const results: (ContentReport & { reporterName: string; contentPreview: string })[] = [];
+    for (const row of rows) {
+      let contentPreview = "";
+      if (row.contentType === "community_meal") {
+        const [meal] = await db.select({ name: communityMeals.name }).from(communityMeals).where(eq(communityMeals.id, row.contentId));
+        contentPreview = meal?.name ?? "[Deleted meal]";
+      } else if (row.contentType === "comment") {
+        const [comment] = await db.select({ text: mealComments.text }).from(mealComments).where(eq(mealComments.id, row.contentId));
+        contentPreview = comment?.text ? (comment.text.length > 100 ? comment.text.slice(0, 100) + "…" : comment.text) : "[Deleted comment]";
+      }
+      results.push({ ...row, contentPreview });
+    }
+    return results;
+  }
+
+  async updateContentReportStatus(id: number, status: string, resolvedById: number): Promise<ContentReport | undefined> {
+    const [updated] = await db.update(contentReports)
+      .set({ status, resolvedAt: new Date(), resolvedById })
+      .where(eq(contentReports.id, id))
+      .returning();
+    return updated;
+  }
+
+  async removeCommunityMealByAdmin(mealId: number): Promise<void> {
+    await db.update(communityMeals).set({ active: false }).where(eq(communityMeals.id, mealId));
+  }
+
+  async removeMealCommentByAdmin(commentId: number): Promise<void> {
+    await db.delete(mealComments).where(eq(mealComments.id, commentId));
   }
 }
 

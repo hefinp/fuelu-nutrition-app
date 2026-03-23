@@ -2,7 +2,10 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import OpenAI from "openai";
 import { storage } from "../storage";
+import { db } from "../db";
+import { eq } from "drizzle-orm";
 import { parseIngredientsFromArray, type IngredientResult } from "../lib/ingredient-parser";
+import { insertContentReportSchema, mealComments } from "@shared/schema";
 
 const router = Router();
 
@@ -206,6 +209,32 @@ router.post("/api/community-meals/:id/comments", async (req, res) => {
     res.status(201).json(comment);
   } catch (err) {
     res.status(500).json({ message: "Failed to post comment" });
+  }
+});
+
+router.post("/api/community/report", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const parsed = insertContentReportSchema.safeParse({ ...req.body, reporterId: req.session.userId });
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+    const { contentType, contentId, reason, note } = parsed.data;
+    if (contentType === "community_meal") {
+      const meal = await storage.getCommunityMealById(contentId);
+      if (!meal || !meal.active) return res.status(404).json({ message: "Content not found" });
+    } else if (contentType === "comment") {
+      const allComments = await db.select({ id: mealComments.id }).from(mealComments).where(eq(mealComments.id, contentId));
+      if (allComments.length === 0) return res.status(404).json({ message: "Content not found" });
+    }
+    const report = await storage.createContentReport({
+      reporterId: req.session.userId,
+      contentType,
+      contentId,
+      reason,
+      note: note || undefined,
+    });
+    res.status(201).json({ message: "Report submitted. Thank you for helping keep the community safe." });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to submit report" });
   }
 });
 
