@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   NotebookPen, ChevronLeft, ChevronRight, Loader2, Trash2,
   Plus, Droplets, Activity, Flame, Clock, MapPin, X, Scale,
-  ClipboardList,
+  ClipboardList, ExternalLink,
 } from "lucide-react";
 import { getActivityIcon } from "@/lib/activityIcons";
 import {
@@ -415,6 +415,17 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, f
                           <span className="font-medium text-orange-500">{Math.round(a.calories)} cal</span>
                         )}
                       </div>
+                      <a
+                        href={`https://www.strava.com/activities/${a.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 text-zinc-300 hover:text-orange-500 transition-colors"
+                        data-testid={`diary-widget-activity-strava-link-${a.id}`}
+                        title="Open on Strava"
+                        aria-label="Open on Strava"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
                     </div>
                   ))}
                 </div>

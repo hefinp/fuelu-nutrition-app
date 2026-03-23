@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Activity, Clock, Flame, Heart, MapPin, Loader2, Unplug, RefreshCw } from "lucide-react";
+import { Activity, Clock, Flame, Heart, MapPin, Loader2, Unplug, RefreshCw, ExternalLink } from "lucide-react";
 import { getActivityIcon } from "@/lib/activityIcons";
 
 interface StravaActivity {
@@ -247,6 +247,17 @@ export function ActivityWidget() {
                       )}
                     </div>
                   </div>
+                  <a
+                    href={`https://www.strava.com/activities/${a.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 text-zinc-300 hover:text-orange-500 transition-colors"
+                    data-testid={`activity-strava-link-${a.id}`}
+                    title="Open on Strava"
+                    aria-label="Open on Strava"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
               ))}
             </div>

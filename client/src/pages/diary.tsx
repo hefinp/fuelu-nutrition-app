@@ -10,7 +10,7 @@ import {
   Loader2, Plus, Trash2, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Check, Star,
   Sparkles, X, ArrowLeft, Lock, Shield, Activity, Flame, Clock, MapPin,
-  Calendar, CalendarPlus, ChefHat, Circle, Download, ShoppingCart, Mail, Pencil, AlertTriangle,
+  Calendar, CalendarPlus, ChefHat, Circle, Download, ShoppingCart, Mail, Pencil, AlertTriangle, ExternalLink,
 } from "lucide-react";
 import { useTierStatus } from "@/hooks/use-tier";
 import type { UserMeal, Calculation, SavedMealPlan, UserPreferences } from "@shared/schema";
@@ -175,6 +175,17 @@ function DiaryActivitySection({ date }: { date: string }) {
                 <span className="font-medium text-orange-500">{Math.round(a.calories)} cal</span>
               )}
             </div>
+            <a
+              href={`https://www.strava.com/activities/${a.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 text-zinc-300 hover:text-orange-500 transition-colors"
+              data-testid={`diary-activity-strava-link-${a.id}`}
+              title="Open on Strava"
+              aria-label="Open on Strava"
+            >
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
         ))}
       </div>
