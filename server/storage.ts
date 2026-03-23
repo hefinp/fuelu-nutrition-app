@@ -13,6 +13,9 @@ export interface IStorage {
   updateUserPassword(userId: number, passwordHash: string): Promise<void>;
   getUserByUsername(username: string): Promise<User | undefined>;
   updateUserProfile(userId: number, updates: { name?: string; email?: string; username?: string }): Promise<User>;
+  setEmailVerificationToken(userId: number, token: string, expiresAt: Date): Promise<void>;
+  getUserByVerificationToken(token: string): Promise<User | undefined>;
+  markEmailVerified(userId: number): Promise<void>;
 
   // Calculations
   createCalculation(calc: InsertCalculation & { userId?: number; dailyCalories: number; weeklyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number }): Promise<Calculation>;
@@ -483,14 +486,14 @@ export class DatabaseStorage implements IStorage {
     const [byEmail] = await db.select().from(users).where(eq(users.email, email));
     if (byEmail) {
       const [updated] = await db.update(users)
-        .set({ provider, providerId })
+        .set({ provider, providerId, emailVerified: true })
         .where(eq(users.id, byEmail.id))
         .returning();
       return updated;
     }
 
     const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
-    const [created] = await db.insert(users).values({ email, name, provider, providerId, preferences: initialPrefs }).returning();
+    const [created] = await db.insert(users).values({ email, name, provider, providerId, preferences: initialPrefs, emailVerified: true }).returning();
     return created;
   }
 
@@ -506,6 +509,19 @@ export class DatabaseStorage implements IStorage {
   async updateUserProfile(userId: number, updates: { name?: string; email?: string; username?: string }): Promise<User> {
     const [updated] = await db.update(users).set(updates).where(eq(users.id, userId)).returning();
     return updated;
+  }
+
+  async setEmailVerificationToken(userId: number, token: string, expiresAt: Date): Promise<void> {
+    await db.update(users).set({ emailVerificationToken: token, emailVerificationExpiry: expiresAt }).where(eq(users.id, userId));
+  }
+
+  async getUserByVerificationToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.emailVerificationToken, token));
+    return user;
+  }
+
+  async markEmailVerified(userId: number): Promise<void> {
+    await db.update(users).set({ emailVerified: true, emailVerificationToken: null, emailVerificationExpiry: null }).where(eq(users.id, userId));
   }
 
   async createCalculation(calc: InsertCalculation & { userId?: number; dailyCalories: number; weeklyCalories: number; proteinGoal: number; carbsGoal: number; fatGoal: number }): Promise<Calculation> {

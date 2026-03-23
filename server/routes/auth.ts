@@ -8,11 +8,11 @@ import { storage } from "../storage";
 import { registerSchema, loginSchema, usernameSchema, type UserPreferences, type User, nutritionistTierLimits, type NutritionistTier, calculateAge, MINIMUM_AGE_EU } from "@shared/schema";
 import { computeTrialInfo } from "@shared/trial";
 import { authRateLimiter } from "../constants";
-import { sendEmail, buildPasswordResetEmailHtml, verifyUnsubscribeToken } from "../email";
+import { sendEmail, buildPasswordResetEmailHtml, buildVerificationEmailHtml, verifyUnsubscribeToken } from "../email";
 import { emailPreferencesSchema } from "@shared/schema";
 
 function toPublicUser(user: User) {
-  const { passwordHash: _, stripeCustomerId: _s, stripeSubscriptionId: _si, paymentFailedAt: _p, ...pub } = user;
+  const { passwordHash: _, stripeCustomerId: _s, stripeSubscriptionId: _si, paymentFailedAt: _p, emailVerificationToken: _evt, emailVerificationExpiry: _eve, ...pub } = user;
   return pub;
 }
 
@@ -125,6 +125,18 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
     const trialInfo = computeTrialInfo(
       publicUser.trialStatus, publicUser.trialStartDate, publicUser.trialStepDownSeen, publicUser.trialExpiredSeen, publicUser.betaUser, publicUser.tier
     );
+
+    const verifyToken = crypto.randomBytes(32).toString("hex");
+    const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await storage.setEmailVerificationToken(user.id, verifyToken, verifyExpiry);
+    const appUrl = process.env.APP_URL || `http://localhost:5000`;
+    const verifyUrl = `${appUrl}/api/auth/verify-email?token=${verifyToken}`;
+    sendEmail({
+      to: user.email,
+      subject: "Verify your FuelU email",
+      html: buildVerificationEmailHtml(verifyUrl, user.name),
+    }).catch((err) => console.error("[auth] Failed to send verification email:", err));
+
     req.session.save(() => res.status(201).json({ ...publicUser, trialInfo }));
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -320,6 +332,47 @@ router.post("/api/auth/apple/callback",
     req.session.save(() => res.redirect("/dashboard"));
   }
 );
+
+router.post("/api/auth/send-verification", authRateLimiter, async (req, res) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  const user = await storage.getUserById(req.session.userId);
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+  if (user.emailVerified) {
+    return res.json({ message: "Email is already verified" });
+  }
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await storage.setEmailVerificationToken(user.id, token, expiresAt);
+  const appUrl = process.env.APP_URL || `http://localhost:5000`;
+  const verifyUrl = `${appUrl}/api/auth/verify-email?token=${token}`;
+  await sendEmail({
+    to: user.email,
+    subject: "Verify your FuelU email",
+    html: buildVerificationEmailHtml(verifyUrl, user.name),
+  });
+  res.json({ message: "Verification email sent" });
+});
+
+router.get("/api/auth/verify-email", async (req, res) => {
+  const token = req.query.token as string;
+  if (!token) {
+    return res.redirect("/verify-email?error=missing_token");
+  }
+  const user = await storage.getUserByVerificationToken(token);
+  if (!user) {
+    return res.redirect("/verify-email?error=invalid_token");
+  }
+  if (user.emailVerificationExpiry && user.emailVerificationExpiry < new Date()) {
+    return res.redirect("/verify-email?error=expired_token");
+  }
+  await storage.markEmailVerified(user.id);
+  req.session.userId = user.id;
+  req.session.save(() => res.redirect("/dashboard"));
+});
 
 router.post("/api/auth/forgot-password", async (req, res) => {
   try {

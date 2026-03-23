@@ -132,7 +132,7 @@ export default function AuthPage() {
         agreedToTerms: agreedToTerms as true,
         dateOfBirth: regDateOfBirth,
       });
-      setLocation("/dashboard");
+      setLocation("/verify-email");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Registration failed";
       if (msg.toLowerCase().includes("invite code")) {

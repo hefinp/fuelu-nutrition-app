@@ -311,6 +311,17 @@ export function buildWaitlistInviteEmailHtml(opts: {
   return wrapEmailHtml(body, { title: "You're invited to join FuelU", unsubscribeUrl: opts.unsubscribeUrl });
 }
 
+export function buildVerificationEmailHtml(verifyUrl: string, name: string): string {
+  const body = `
+    <h2 style="font-size:22px;font-weight:700;margin:0 0 12px">Verify your email</h2>
+    <p style="color:#52525b;font-size:15px;line-height:1.6;margin:0 0 24px">Hi ${esc(name)}, thanks for signing up for FuelU! Please verify your email address by clicking the button below. This link expires in 24 hours.</p>
+    <a href="${verifyUrl}" style="display:inline-block;padding:13px 28px;background:#18181b;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px">Verify Email</a>
+    <p style="margin:24px 0 0;color:#a1a1aa;font-size:13px;line-height:1.5">If you didn't create an account on FuelU, you can safely ignore this email.</p>
+    <p style="margin:8px 0 0;color:#a1a1aa;font-size:12px">Or copy this link:<br><a href="${verifyUrl}" style="color:#71717a;word-break:break-all">${verifyUrl}</a></p>
+  `;
+  return wrapEmailHtml(body, { title: "Verify your FuelU email" });
+}
+
 export function buildFeedbackEmailHtml(opts: {
   userName: string;
   userEmail: string;

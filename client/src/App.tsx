@@ -21,6 +21,7 @@ import NutritionistRegisterPage from "@/pages/nutritionist-register";
 import NutritionistPortalPage from "@/pages/nutritionist-portal";
 import WaitlistSignupPage from "@/pages/waitlist-signup";
 import EmailPreferencesPage from "@/pages/email-preferences";
+import VerifyEmailPage from "@/pages/verify-email";
 import { useAuth } from "@/hooks/use-auth";
 import { TrialModal } from "@/components/trial-modal";
 import { UsernamePrompt } from "@/components/username-prompt";
@@ -61,6 +62,20 @@ function TrialModalWrapper() {
   return <TrialModal trialInfo={trialInfo} showOnLogin={true} />;
 }
 
+function EmailVerificationGate() {
+  const { user } = useAuth();
+  const [location, setLocation] = useLocation();
+  const publicPaths = ["/", "/auth", "/privacy", "/terms", "/data-sources", "/forgot-password", "/reset-password", "/pricing", "/verify-email", "/email-preferences", "/waitlist"];
+  const isPublic = publicPaths.some(p => location === p || location.startsWith(p + "/"));
+  const shouldRedirect = user && !user.emailVerified && !isPublic;
+  useLayoutEffect(() => {
+    if (shouldRedirect) {
+      setLocation("/verify-email");
+    }
+  }, [shouldRedirect, setLocation]);
+  return null;
+}
+
 function ScrollToTop() {
   const [location] = useLocation();
   useLayoutEffect(() => {
@@ -88,6 +103,7 @@ function Router() {
       <Route path="/nutritionist/portal" component={NutritionistPortalPage} />
       <Route path="/waitlist/:nutritionistId" component={WaitlistSignupPage} />
       <Route path="/email-preferences" component={EmailPreferencesPage} />
+      <Route path="/verify-email" component={VerifyEmailPage} />
       <Route path="/insights">{() => <Suspense fallback={<LazyFallback />}><InsightsPage /></Suspense>}</Route>
       <Route path="/diary">{() => <Suspense fallback={<LazyFallback />}><DiaryPage /></Suspense>}</Route>
       <Route path="/my-library">{() => <Suspense fallback={<LazyFallback />}><MyLibraryPage /></Suspense>}</Route>
@@ -109,6 +125,7 @@ function App() {
           <Toaster />
           <TrialModalWrapper />
           <UsernamePrompt />
+          <EmailVerificationGate />
           <ScrollToTop />
           <Router />
           <AdBanner />

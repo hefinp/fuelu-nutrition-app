@@ -46,6 +46,9 @@ export const users = pgTable("users", {
   isManagedClient: boolean("is_managed_client").notNull().default(false),
   managedByNutritionistId: integer("managed_by_nutritionist_id"),
   dateOfBirth: timestamp("date_of_birth"),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  emailVerificationToken: text("email_verification_token"),
+  emailVerificationExpiry: timestamp("email_verification_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -121,7 +124,7 @@ export const loginSchema = z.object({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
-export type PublicUser = Omit<User, "passwordHash" | "stripeCustomerId" | "stripeSubscriptionId" | "paymentFailedAt">;
+export type PublicUser = Omit<User, "passwordHash" | "stripeCustomerId" | "stripeSubscriptionId" | "paymentFailedAt" | "emailVerificationToken" | "emailVerificationExpiry">;
 
 export const userPreferencesSchema = z.object({
   diet: z.enum(["vegetarian", "vegan", "pescatarian", "halal", "kosher"]).nullable().optional(),

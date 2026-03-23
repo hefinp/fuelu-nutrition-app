@@ -1000,6 +1000,17 @@ export async function runMigrations(): Promise<void> {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_content_reports_content ON content_reports (content_type, content_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_content_reports_reporter ON content_reports (reporter_id)`);
 
+    const evCol = await client.query(`SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'email_verified'`);
+    const isNewColumn = !evCol.rowCount || evCol.rowCount === 0;
+
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token TEXT`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_expiry TIMESTAMP`);
+
+    if (isNewColumn) {
+      await client.query(`UPDATE users SET email_verified = TRUE WHERE email_verified = FALSE`);
+    }
+
   } finally {
     client.release();
   }
