@@ -724,17 +724,28 @@ export default function Dashboard() {
     root.style.setProperty('--dashboard-snap-top', `${hH + tH}px`);
   }, []);
 
+  const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasScrolledForUser = useRef(false);
+
   useEffect(() => {
     if (user && !hasScrolledForUser.current) {
       hasScrolledForUser.current = true;
-      requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+      document.documentElement.classList.remove("dashboard-snap");
+      window.scrollTo({ top: 0, behavior: "auto" });
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "auto" });
+        snapTimerRef.current = setTimeout(() => {
+          document.documentElement.classList.add("dashboard-snap");
+        }, 600);
+      });
     }
   }, [user]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
-    document.documentElement.classList.add("dashboard-snap");
+    if (!user) {
+      document.documentElement.classList.add("dashboard-snap");
+    }
     const ro = new ResizeObserver(updateSnapVars);
     roRef.current = ro;
     if (headerRef.current) ro.observe(headerRef.current);
@@ -744,6 +755,7 @@ export default function Dashboard() {
       document.documentElement.classList.remove("dashboard-snap");
       ro.disconnect();
       roRef.current = null;
+      if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
       document.documentElement.style.removeProperty('--dashboard-header-h');
       document.documentElement.style.removeProperty('--dashboard-snap-top');
     };
