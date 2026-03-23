@@ -322,6 +322,43 @@ export function buildVerificationEmailHtml(verifyUrl: string, name: string): str
   return wrapEmailHtml(body, { title: "Verify your FuelU email" });
 }
 
+export function buildWelcomeEmailHtml(name: string, unsubscribeUrl: string): string {
+  const appUrl = process.env.APP_URL || "http://localhost:5000";
+  const dashboardUrl = `${appUrl}/`;
+  const body = `
+    <h2 style="font-size:22px;font-weight:700;margin:0 0 12px">Welcome to FuelU!</h2>
+    <p style="color:#52525b;font-size:15px;line-height:1.6;margin:0 0 20px">Hi ${esc(name)}, your account is all set. We're excited to have you on board.</p>
+    <p style="color:#52525b;font-size:15px;line-height:1.6;margin:0 0 8px;font-weight:600">Here's what you can do:</p>
+    <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 24px">
+      <tr>
+        <td style="padding:6px 0;color:#52525b;font-size:15px;line-height:1.6">&#127860;&nbsp; <strong>Meal Planning</strong> — Get personalized meal plans tailored to your goals and preferences.</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#52525b;font-size:15px;line-height:1.6">&#128221;&nbsp; <strong>Food Logging</strong> — Track what you eat with quick, easy food logging.</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#52525b;font-size:15px;line-height:1.6">&#128200;&nbsp; <strong>Progress Tracking</strong> — Monitor your nutrition and see how you're doing over time.</td>
+      </tr>
+    </table>
+    <a href="${dashboardUrl}" style="display:inline-block;padding:13px 28px;background:#18181b;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px">Get Started</a>
+    <p style="margin:24px 0 0;color:#a1a1aa;font-size:13px;line-height:1.5">If you have any questions, just reply to this email — we're happy to help.</p>
+  `;
+  return wrapEmailHtml(body, { title: "Welcome to FuelU", unsubscribeUrl });
+}
+
+export async function sendWelcomeEmail(userId: number, email: string, name: string): Promise<void> {
+  try {
+    const { storage } = await import("./storage");
+    const prefs = await storage.getEmailPreferences(userId);
+    if (!prefs.marketing) return;
+    const unsubscribeUrl = buildUnsubscribeUrl(userId);
+    const html = buildWelcomeEmailHtml(name, unsubscribeUrl);
+    await sendEmail({ to: email, subject: "Welcome to FuelU!", html });
+  } catch (err) {
+    console.error("[email] Failed to send welcome email:", err);
+  }
+}
+
 export function buildFeedbackEmailHtml(opts: {
   userName: string;
   userEmail: string;

@@ -8,7 +8,7 @@ import { storage } from "../storage";
 import { registerSchema, loginSchema, usernameSchema, type UserPreferences, type User, nutritionistTierLimits, type NutritionistTier, calculateAge, MINIMUM_AGE_EU } from "@shared/schema";
 import { computeTrialInfo } from "@shared/trial";
 import { authRateLimiter } from "../constants";
-import { sendEmail, buildPasswordResetEmailHtml, buildVerificationEmailHtml, verifyUnsubscribeToken } from "../email";
+import { sendEmail, buildPasswordResetEmailHtml, buildVerificationEmailHtml, verifyUnsubscribeToken, sendWelcomeEmail } from "../email";
 import { emailPreferencesSchema } from "@shared/schema";
 
 function toPublicUser(user: User) {
@@ -118,6 +118,8 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
       await storage.markInviteCodeUsed(platformInviteCode, input.email);
       await storage.updateUserTier(user.id, { betaUser: true, tier: "advanced" });
     }
+
+    sendWelcomeEmail(user.id, user.email, user.name);
 
     req.session.userId = user.id;
     const updatedUser = await storage.getUserById(user.id);
@@ -266,6 +268,10 @@ router.get("/api/auth/google/callback",
       );
     }
 
+    if (user.createdAt && (Date.now() - new Date(user.createdAt).getTime()) < 30_000) {
+      sendWelcomeEmail(user.id, user.email, user.name);
+    }
+
     req.session.userId = user.id;
     req.session.save(() => res.redirect("/dashboard"));
   }
@@ -306,6 +312,7 @@ router.post("/api/auth/oauth-invite", authRateLimiter, async (req, res) => {
     }
     await storage.markInviteCodeUsed(submittedOAuth, pending.email);
     await storage.updateUserTier(user.id, { betaUser: true, tier: "advanced" });
+    sendWelcomeEmail(user.id, pending.email, pending.name);
     delete req.session.pendingOAuth;
     req.session.userId = user.id;
     req.session.save(() => res.json({ ok: true }));
@@ -328,6 +335,9 @@ router.post("/api/auth/apple/callback",
   (req: Request, res: Response) => {
     const user = req.user as any;
     if (!user) return res.redirect("/auth?error=apple_failed");
+    if (user.createdAt && (Date.now() - new Date(user.createdAt).getTime()) < 30_000) {
+      sendWelcomeEmail(user.id, user.email, user.name);
+    }
     req.session.userId = user.id;
     req.session.save(() => res.redirect("/dashboard"));
   }
