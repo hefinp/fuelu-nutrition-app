@@ -11,7 +11,7 @@ import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { Link } from "wouter";
 import { GoalPreview } from "@/components/goal-preview";
 import { useMobileViewport } from "@/hooks/use-mobile-viewport";
-import type { SavedMealPlan } from "@shared/schema";
+import type { SavedMealPlan, UserMeal } from "@shared/schema";
 import {
   type MealSlot, type FoodResult, type ExtendedFoodResult,
   type FoodLogEntry, type PrefillEntry, type PlanMeal,
@@ -41,6 +41,10 @@ export function FoodLogDrawer({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { overlayStyle, panelMaxHeight } = useMobileViewport(1.0);
+
+  const [topTab, setTopTab] = useState<"input" | "mymeals">("input");
+  const [myMealsSearch, setMyMealsSearch] = useState("");
+  const [debouncedMyMealsSearch, setDebouncedMyMealsSearch] = useState("");
 
   const [formTab, setFormTab] = useState<"manual" | "plan" | "search" | "scan" | "ai" | "restaurants">("search");
   const [formSource, setFormSource] = useState<string | null>(null);
@@ -137,6 +141,25 @@ export function FoodLogDrawer({
   });
 
   useEffect(() => {
+    const t = setTimeout(() => setDebouncedMyMealsSearch(myMealsSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [myMealsSearch]);
+
+  const { data: myMealsList = [], isLoading: myMealsLoading } = useQuery<UserMeal[]>({
+    queryKey: ["/api/user-meals", "drawer", debouncedMyMealsSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: "50" });
+      if (debouncedMyMealsSearch) params.set("search", debouncedMyMealsSearch);
+      const res = await fetch(`/api/user-meals?${params}`, { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : (data.items ?? []);
+    },
+    enabled: open && topTab === "mymeals",
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 400);
     return () => clearTimeout(t);
   }, [searchQuery]);
@@ -150,7 +173,7 @@ export function FoodLogDrawer({
   }, [open]);
 
   useEffect(() => {
-    if (!open || formTab !== "scan" || scannedFood || showScanAnother || showPhotoInterstitial || scanMode === "ai") {
+    if (!open || topTab !== "input" || formTab !== "scan" || scannedFood || showScanAnother || showPhotoInterstitial || scanMode === "ai") {
       scanControlsRef.current?.stop();
       scanControlsRef.current = null;
       return;
@@ -215,7 +238,7 @@ export function FoodLogDrawer({
       scanControlsRef.current?.stop();
       scanControlsRef.current = null;
     };
-  }, [open, formTab, scanKey, scannedFood, showScanAnother, showPhotoInterstitial, scanMode]);
+  }, [open, topTab, formTab, scanKey, scannedFood, showScanAnother, showPhotoInterstitial, scanMode]);
 
   useEffect(() => {
     if (scannedFood) {
@@ -250,6 +273,8 @@ export function FoodLogDrawer({
 
   useEffect(() => {
     if (open) {
+      setTopTab("input");
+      setMyMealsSearch("");
       const scrollY = window.scrollY;
       document.body.style.position = "fixed";
       document.body.style.top = `-${scrollY}px`;
@@ -339,10 +364,30 @@ export function FoodLogDrawer({
     onError: () => toast({ title: "Failed to log meal", variant: "destructive" }),
   });
 
+  function prefillFromMyMeal(meal: UserMeal) {
+    setForm({
+      mealName: meal.name,
+      calories: String(meal.caloriesPerServing),
+      protein: String(Math.round(meal.proteinPerServing)),
+      carbs: String(Math.round(meal.carbsPerServing)),
+      fat: String(Math.round(meal.fatPerServing)),
+      fibre: "",
+      sugar: "",
+      saturatedFat: "",
+      mealSlot: (meal.mealSlot as MealSlot) ?? null,
+      volumeMl: "",
+    });
+    setFormSource("my-meal");
+    setFormTab("manual");
+    setTopTab("input");
+  }
+
   function resetFormAndClose() {
     setForm({ mealName: "", calories: "", protein: "", carbs: "", fat: "", fibre: "", sugar: "", saturatedFat: "", mealSlot: null, volumeMl: "" });
     setFormTab("search");
     setFormSource(null);
+    setTopTab("input");
+    setMyMealsSearch("");
     setScanResult(null);
     
     setScannedFood(null);
@@ -713,65 +758,157 @@ export function FoodLogDrawer({
           </button>
         </div>
 
-        <div className="flex bg-zinc-100 p-1 mx-4 my-3 rounded-xl shrink-0">
+        <div className="flex bg-zinc-100 p-1 mx-4 mt-3 mb-1 rounded-xl shrink-0">
           <button
             type="button"
-            onClick={() => setFormTab("search")}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "search" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-            data-testid="button-form-tab-search"
+            onClick={() => setTopTab("input")}
+            className={`flex-1 py-2 text-xs font-semibold transition-colors rounded-lg ${topTab === "input" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-top-tab-input"
           >
-            <Search className="w-3.5 h-3.5" />
-            Search
+            Input Meal
           </button>
           <button
             type="button"
-            onClick={() => { setScanResult(null);  setScannerError(false); setFormTab("scan"); }}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "scan" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-            data-testid="button-form-tab-scan"
+            onClick={() => setTopTab("mymeals")}
+            className={`flex-1 py-2 text-xs font-semibold transition-colors rounded-lg ${topTab === "mymeals" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+            data-testid="button-top-tab-mymeals"
           >
-            <Barcode className="w-3.5 h-3.5" />
-            Scan
-          </button>
-          <button
-            type="button"
-            onClick={() => { setAiTabResult(null); setAiTabDescription(""); setAiTabPhotoFile(null); setAiTabMode("describe"); setAiTabProductName(""); setAiTabLabelPhotoFile(null); setFormTab("ai"); }}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "ai" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-            data-testid="button-form-tab-ai"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            AI
-          </button>
-          <button
-            type="button"
-            onClick={() => setFormTab("restaurants")}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "restaurants" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-            data-testid="button-form-tab-restaurants"
-          >
-            <Store className="w-3.5 h-3.5" />
-            Eat Out
-          </button>
-          <button
-            type="button"
-            onClick={() => setFormTab("plan")}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "plan" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-            data-testid="button-form-tab-plan"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            Plan
-          </button>
-          <button
-            type="button"
-            onClick={() => setFormTab("manual")}
-            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "manual" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-            data-testid="button-form-tab-manual"
-          >
-            <UtensilsCrossed className="w-3.5 h-3.5" />
-            Manual
+            My Meals
           </button>
         </div>
 
+        {topTab === "input" && (
+          <div className="flex bg-zinc-100 p-1 mx-4 mb-3 rounded-xl shrink-0">
+            <button
+              type="button"
+              onClick={() => setFormTab("search")}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "search" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+              data-testid="button-form-tab-search"
+            >
+              <Search className="w-3.5 h-3.5" />
+              Search
+            </button>
+            <button
+              type="button"
+              onClick={() => { setScanResult(null);  setScannerError(false); setFormTab("scan"); }}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "scan" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+              data-testid="button-form-tab-scan"
+            >
+              <Barcode className="w-3.5 h-3.5" />
+              Scan
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAiTabResult(null); setAiTabDescription(""); setAiTabPhotoFile(null); setAiTabMode("describe"); setAiTabProductName(""); setAiTabLabelPhotoFile(null); setFormTab("ai"); }}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "ai" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+              data-testid="button-form-tab-ai"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              AI
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormTab("restaurants")}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "restaurants" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+              data-testid="button-form-tab-restaurants"
+            >
+              <Store className="w-3.5 h-3.5" />
+              Eat Out
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormTab("plan")}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "plan" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+              data-testid="button-form-tab-plan"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              Plan
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormTab("manual")}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "manual" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+              data-testid="button-form-tab-manual"
+            >
+              <UtensilsCrossed className="w-3.5 h-3.5" />
+              Manual
+            </button>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto overscroll-contain">
           <div>
+
+          {topTab === "mymeals" && (
+            <div className="px-4 py-3">
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                <input
+                  type="text"
+                  placeholder="Search your meals…"
+                  value={myMealsSearch}
+                  onChange={e => setMyMealsSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2.5 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
+                  data-testid="input-my-meals-search"
+                />
+                {myMealsSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setMyMealsSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                    data-testid="button-clear-my-meals-search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {myMealsLoading && (
+                <div className="flex items-center justify-center py-12" data-testid="my-meals-loading">
+                  <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+                </div>
+              )}
+
+              {!myMealsLoading && myMealsList.length === 0 && (
+                <div className="text-center py-12" data-testid="my-meals-empty">
+                  <UtensilsCrossed className="w-8 h-8 text-zinc-300 mx-auto mb-2" />
+                  <p className="text-sm text-zinc-500 font-medium">
+                    {myMealsSearch ? "No meals match your search" : "No saved meals yet"}
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    {myMealsSearch ? "Try a different search term" : "Save meals from My Library to see them here"}
+                  </p>
+                </div>
+              )}
+
+              {!myMealsLoading && myMealsList.length > 0 && (
+                <div className="space-y-1.5" data-testid="my-meals-list">
+                  {myMealsList.map(meal => (
+                    <button
+                      key={meal.id}
+                      type="button"
+                      onClick={() => prefillFromMyMeal(meal)}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl border border-zinc-100 hover:bg-zinc-50 transition-colors text-left"
+                      data-testid={`button-my-meal-${meal.id}`}
+                    >
+                      <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0">
+                        <UtensilsCrossed className="w-3.5 h-3.5 text-emerald-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-zinc-900 truncate" data-testid={`text-my-meal-name-${meal.id}`}>{meal.name}</p>
+                        <p className="text-xs text-zinc-400 mt-0.5" data-testid={`text-my-meal-macros-${meal.id}`}>
+                          {meal.caloriesPerServing} kcal · P:{Math.round(meal.proteinPerServing)}g · C:{Math.round(meal.carbsPerServing)}g · F:{Math.round(meal.fatPerServing)}g
+                        </p>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-zinc-300 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {topTab === "input" && (<>
 
             {formTab === "manual" && (
               <form id="manual-log-form" onSubmit={handleSubmit} className="p-4 pb-2 space-y-3">
@@ -1949,9 +2086,11 @@ export function FoodLogDrawer({
                 </button>
               </div>
             )}
+
+          </>)}
           </div>
         </div>
-        {formTab === "manual" && (
+        {topTab === "input" && formTab === "manual" && (
           <div className="shrink-0 border-t border-zinc-100 bg-white px-4 pt-3 pb-[max(env(safe-area-inset-bottom),12px)] space-y-2">
             {dailyTotals && dailyTargets && (parseInt(form.calories) > 0 || parseInt(form.protein) > 0 || parseInt(form.carbs) > 0 || parseInt(form.fat) > 0) && (
               <GoalPreview
