@@ -5,6 +5,7 @@ import { z } from "zod";
 import { storage } from "../storage";
 import { getUserTierStatus, getTierRank } from "../tier";
 import { tierEnum } from "@shared/schema";
+import { getAppUrl } from "../lib/app-url";
 
 const router = Router();
 
@@ -72,8 +73,7 @@ router.post("/api/stripe/create-checkout", async (req, res) => {
       await storage.updateUserTier(user.id, { stripeCustomerId: customerId });
     }
 
-    const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
-    const appUrl = process.env.APP_URL || (replitDomain ? `https://${replitDomain}` : "http://localhost:5000");
+    const appUrl = getAppUrl();
 
     if (creditPackId) {
       return res.status(410).json({ message: "Credit packs are no longer available." });
@@ -221,8 +221,7 @@ router.post("/api/stripe/create-portal", async (req, res) => {
   }
 
   try {
-    const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
-    const appUrl = process.env.APP_URL || (replitDomain ? `https://${replitDomain}` : "http://localhost:5000");
+    const appUrl = getAppUrl();
     const session = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
       return_url: `${appUrl}/billing`,

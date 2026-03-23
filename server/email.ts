@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import crypto from "crypto";
+import { getAppUrl } from "./lib/app-url";
 
 const UNSUBSCRIBE_SECRET = process.env.UNSUBSCRIBE_SECRET || crypto.randomBytes(32).toString("hex");
 if (!process.env.UNSUBSCRIBE_SECRET) {
@@ -109,13 +110,13 @@ export function verifyUnsubscribeToken(token: string): { userId: number } | { em
 
 export function buildUnsubscribeUrl(userId: number): string {
   const token = generateUnsubscribeToken(userId);
-  const appUrl = process.env.APP_URL || "http://localhost:5000";
+  const appUrl = getAppUrl();
   return `${appUrl}/email-preferences?token=${token}`;
 }
 
 export function buildEmailUnsubscribeUrl(email: string): string {
   const token = generateEmailUnsubscribeToken(email);
-  const appUrl = process.env.APP_URL || "http://localhost:5000";
+  const appUrl = getAppUrl();
   return `${appUrl}/email-preferences?token=${token}`;
 }
 
@@ -323,7 +324,7 @@ export function buildVerificationEmailHtml(verifyUrl: string, name: string): str
 }
 
 export function buildWelcomeEmailHtml(name: string, unsubscribeUrl: string): string {
-  const appUrl = process.env.APP_URL || "http://localhost:5000";
+  const appUrl = getAppUrl();
   const dashboardUrl = `${appUrl}/`;
   const body = `
     <h2 style="font-size:22px;font-weight:700;margin:0 0 12px">Welcome to FuelU!</h2>

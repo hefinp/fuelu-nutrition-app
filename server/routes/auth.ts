@@ -8,6 +8,7 @@ import { storage } from "../storage";
 import { registerSchema, loginSchema, usernameSchema, type UserPreferences, type User, nutritionistTierLimits, type NutritionistTier, calculateAge, MINIMUM_AGE_EU } from "@shared/schema";
 import { computeTrialInfo } from "@shared/trial";
 import { authRateLimiter } from "../constants";
+import { getAppUrl } from "../lib/app-url";
 import { sendEmail, buildPasswordResetEmailHtml, buildVerificationEmailHtml, verifyUnsubscribeToken, sendWelcomeEmail } from "../email";
 import { emailPreferencesSchema } from "@shared/schema";
 
@@ -131,7 +132,7 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
     const verifyToken = crypto.randomBytes(32).toString("hex");
     const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await storage.setEmailVerificationToken(user.id, verifyToken, verifyExpiry);
-    const appUrl = process.env.APP_URL || `http://localhost:5000`;
+    const appUrl = getAppUrl();
     const verifyUrl = `${appUrl}/api/auth/verify-email?token=${verifyToken}`;
     sendEmail({
       to: user.email,
@@ -357,7 +358,7 @@ router.post("/api/auth/send-verification", authRateLimiter, async (req, res) => 
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await storage.setEmailVerificationToken(user.id, token, expiresAt);
-  const appUrl = process.env.APP_URL || `http://localhost:5000`;
+  const appUrl = getAppUrl();
   const verifyUrl = `${appUrl}/api/auth/verify-email?token=${token}`;
   await sendEmail({
     to: user.email,
@@ -394,7 +395,7 @@ router.post("/api/auth/forgot-password", async (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
     await storage.createPasswordResetToken(user.id, token, expiresAt);
-    const appUrl = process.env.APP_URL || `http://localhost:5000`;
+    const appUrl = getAppUrl();
     const resetUrl = `${appUrl}/reset-password?token=${token}`;
     await sendEmail({
       to: user.email,
