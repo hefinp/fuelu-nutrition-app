@@ -15,6 +15,7 @@ import {
 } from "@/components/food-log-shared";
 import type { FoodLogEntry, MealSlot } from "@/components/food-log-shared";
 import { FoodLogDrawer } from "@/components/food-log-drawer";
+import { Link } from "wouter";
 
 interface MyDiaryWidgetProps {
   calTarget?: number;
@@ -174,6 +175,10 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, o
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-display font-bold text-zinc-900">My Diary</h3>
             <p className="text-xs text-zinc-400">Your daily food log</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/my-library" className="text-xs font-medium text-zinc-400 hover:text-zinc-600 transition-colors" data-testid="link-saved-meals">Saved Meals</Link>
+            <Link href="/diary" className="text-xs font-medium text-zinc-400 hover:text-zinc-600 transition-colors" data-testid="link-full-diary">Full Diary</Link>
           </div>
         </div>
 
