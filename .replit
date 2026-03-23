@@ -62,6 +62,9 @@ outputType = "console"
 [userenv.shared]
 STRAVA_REDIRECT_URL = "https://www.fuelumealplan.com"
 
+[userenv.production]
+APP_URL = "https://fuelu.app"
+
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
