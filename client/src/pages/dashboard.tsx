@@ -337,6 +337,7 @@ export default function Dashboard() {
   const [allergiesOpen, setAllergiesOpen] = useState(false);
   const [logPrefill, setLogPrefill] = useState<PrefillEntry | null>(null);
   const [showLogDrawer, setShowLogDrawer] = useState(false);
+  const [plannerPendingOpen, setPlannerPendingOpen] = useState(false);
   const { data: history, isLoading: historyLoading, isFetched: historyFetched } = useCalculations();
   const { user, logout, isLoggingOut, isLoading: authLoading } = useAuth();
   const { data: tierStatus } = useTierStatus();
@@ -480,6 +481,17 @@ export default function Dashboard() {
 
   const handlePrefillConsumed = useCallback(() => setLogPrefill(null), []);
 
+  const handleCreatePlan = useCallback(() => {
+    if (!isDesktop) {
+      setMobileTab('planning', 'toggle');
+    }
+    setPlannerPendingOpen(true);
+  }, [isDesktop, setMobileTab]);
+
+  const handlePlannerOpenHandled = useCallback(() => {
+    setPlannerPendingOpen(false);
+  }, []);
+
   const lastCalculation: Partial<Calculation> | undefined = history?.[0];
 
   useEffect(() => {
@@ -581,7 +593,7 @@ export default function Dashboard() {
           </div>
         ) : null;
       case "meal-plan":
-        return <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} overrideTargets={effectiveTargets ? { dailyCalories: effectiveTargets.dailyCalories, proteinGoal: effectiveTargets.proteinGoal, carbsGoal: effectiveTargets.carbsGoal, fatGoal: effectiveTargets.fatGoal } : null} />;
+        return <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} overrideTargets={effectiveTargets ? { dailyCalories: effectiveTargets.dailyCalories, proteinGoal: effectiveTargets.proteinGoal, carbsGoal: effectiveTargets.carbsGoal, fatGoal: effectiveTargets.fatGoal } : null} pendingOpen={plannerPendingOpen} onOpenHandled={handlePlannerOpenHandled} />;
       case "hydration":
         return user ? <HydrationTracker /> : null;
       case "activity":
@@ -686,6 +698,7 @@ export default function Dashboard() {
           protTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
           carbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
           fatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
+          onCreatePlan={activeResult ? handleCreatePlan : undefined}
         /> : null;
       case "my-momentum":
         return user ? (
@@ -1658,6 +1671,7 @@ export default function Dashboard() {
                           protTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
                           carbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
                           fatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
+                          onCreatePlan={activeResult ? handleCreatePlan : undefined}
                         />}
                         {!hiddenWidgets.includes("my-meals-food") && <MyMealsFoodWidget />}
                       </>

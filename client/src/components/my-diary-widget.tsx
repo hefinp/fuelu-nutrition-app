@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   NotebookPen, ChevronLeft, ChevronRight, Loader2, Trash2,
   Plus, Droplets, Activity, Flame, Clock, MapPin, X, Scale,
+  ClipboardList,
 } from "lucide-react";
 import { getActivityIcon } from "@/lib/activityIcons";
 import {
@@ -20,6 +21,7 @@ interface MyDiaryWidgetProps {
   protTarget?: number;
   carbsTarget?: number;
   fatTarget?: number;
+  onCreatePlan?: () => void;
 }
 
 interface DiaryActivityData {
@@ -35,7 +37,7 @@ interface DiaryActivityData {
 
 const QUICK_WATER_AMOUNTS = [250, 500, 750, 1000];
 
-export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget }: MyDiaryWidgetProps) {
+export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, onCreatePlan }: MyDiaryWidgetProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -299,6 +301,16 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget }:
             </div>
           )}
         </div>
+
+        {onCreatePlan && (
+          <button
+            onClick={onCreatePlan}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-semibold text-sm transition-colors mb-4"
+            data-testid="button-diary-create-plan"
+          >
+            <ClipboardList className="w-4 h-4" /> Create Plan
+          </button>
+        )}
 
         <div className="flex items-center justify-between bg-zinc-50 rounded-xl px-2 py-1.5 mb-4">
           <button

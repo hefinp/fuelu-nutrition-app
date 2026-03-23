@@ -42,7 +42,7 @@ function isSlotLockedForDates(slot: string, dates: string[]): boolean {
   return dates.every(d => isSlotPast(d, slot));
 }
 
-export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: Calculation; onLogMeal?: (meal: Meal | PrefillEntry) => void; overrideTargets?: { dailyCalories?: number; proteinGoal?: number; carbsGoal?: number; fatGoal?: number } | null }) {
+export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpen, onOpenHandled }: { data: Calculation; onLogMeal?: (meal: Meal | PrefillEntry) => void; overrideTargets?: { dailyCalories?: number; proteinGoal?: number; carbsGoal?: number; fatGoal?: number } | null; pendingOpen?: boolean; onOpenHandled?: () => void }) {
   const effectiveCals = overrideTargets?.dailyCalories ?? data.dailyCalories;
   const effectiveProtein = overrideTargets?.proteinGoal ?? data.proteinGoal;
   const effectiveCarbs = overrideTargets?.carbsGoal ?? data.carbsGoal;
@@ -75,6 +75,14 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets }: { data: 
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { setFlowActive } = useActiveFlow();
+
+  useEffect(() => {
+    if (pendingOpen) {
+      setBannerCollapsed(false);
+      setCustomModalOpen(true);
+      onOpenHandled?.();
+    }
+  }, [pendingOpen, onOpenHandled]);
 
   const prevWeekRef = useRef(weekStart);
   useEffect(() => {
