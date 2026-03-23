@@ -8,6 +8,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { RecipeModal } from "./recipe-modal";
 import type { Meal, MealPlan } from "./types";
+import { AllergenDisclaimer, AllergenTags } from "@/components/allergen-disclaimer";
 
 interface DailyMealViewProps {
   plan: MealPlan;
@@ -149,6 +150,9 @@ export function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal, onRep
                         {meal.vitalityRationale}
                       </p>
                     )}
+                    {Array.isArray(meal.ingredientsJson) && meal.ingredientsJson.length > 0 && (
+                      <AllergenTags ingredientNames={meal.ingredientsJson.map(i => i.name)} />
+                    )}
                   </div>
                 </button>
                 <DropdownMenu>
@@ -216,6 +220,8 @@ export function DailyMealView({ plan, onReplace, replacingSlot, onLogMeal, onRep
           </div>
         );
       })}
+
+      <AllergenDisclaimer className="mt-2 mb-4" />
 
       {selectedMeal && (
         <RecipeModal meal={selectedMeal} onClose={() => setSelectedMeal(null)} />

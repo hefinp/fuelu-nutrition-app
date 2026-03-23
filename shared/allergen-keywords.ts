@@ -1,0 +1,16 @@
+export const ALLERGEN_KEYWORDS: Record<string, string[]> = {
+  gluten: ['toast', 'bread', 'pasta', 'spaghetti', 'noodle', 'tortilla', 'bagel', 'muffin', 'cracker', 'sourdough', 'rye', 'bulgur', 'couscous', 'crouton', 'flatbread', 'crepe', 'pancake', 'brioche', 'crostini', 'crispbread', 'wrap', 'pita', 'blini', 'linguine', 'polenta', 'oat', 'oats', 'oatmeal', 'granola', 'muesli', 'barley', 'spelt', 'wheat', 'pumpernickel', 'porridge', 'flour'],
+  crustaceans: ['prawn', 'shrimp', 'lobster', 'crab', 'crayfish', 'langoustine'],
+  eggs: ['egg', 'omelette', 'frittata', 'shakshuka', 'huevos', 'benedict', 'french toast', 'quiche', 'mayo', 'mayonnaise', 'meringue', 'custard', 'hollandaise'],
+  fish: ['salmon', 'tuna', 'cod', 'haddock', 'sea bass', 'trout', 'mackerel', 'anchovy', 'sardine', 'tilapia', 'halibut', 'sole', 'smoked fish', 'white fish'],
+  peanuts: ['peanut', 'satay', 'groundnut'],
+  soy: ['soy', 'edamame', 'tofu', 'miso', 'tempeh'],
+  milk: ['cheese', 'butter', 'cream', 'milk', 'yogurt', 'yoghurt', 'ricotta', 'feta', 'mozzarella', 'parmesan', 'brie', 'gruyere', 'gruyère', 'mascarpone', 'hollandaise', 'creme fraiche', 'crème fraîche', 'burrata', 'manchego', 'ghee', 'whey', 'kefir', 'labneh', 'gelato', 'quark'],
+  nuts: ['almond', 'walnut', 'hazelnut', 'pistachio', 'pecan', 'cashew', 'pine nut', 'nut butter', 'marcona', 'praline', 'marzipan', 'nougat', 'pesto', 'romesco', 'chestnut'],
+  celery: ['celery', 'celeriac'],
+  mustard: ['mustard'],
+  sesame: ['sesame', 'tahini', 'hummus', 'halva', 'gomashio'],
+  sulphites: ['sulphite', 'sulfite', 'dried fruit', 'wine vinegar'],
+  lupin: ['lupin'],
+  molluscs: ['scallop', 'mussel', 'clam', 'oyster', 'squid', 'calamari', 'octopus', 'snail'],
+};

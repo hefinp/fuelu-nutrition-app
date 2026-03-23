@@ -8,6 +8,7 @@ import { Calendar, Trash2, Pencil, Check, X, UtensilsCrossed, ChefHat, Loader2, 
 import { RECIPES, exportMealPlanToPDF, exportShoppingListToPDF, buildShoppingList, CATEGORY_ORDER, type Meal } from "./results-display";
 import type { Calculation } from "@shared/schema";
 import type { PrefillEntry } from "./food-log";
+import { AllergenDisclaimer, AllergenTags } from "@/components/allergen-disclaimer";
 
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -1101,6 +1102,14 @@ export function SavedRecipeModal({ meal, onClose }: { meal: Meal; onClose: () =>
         ) : (
           <p className="text-zinc-500 text-sm mb-4">Recipe not available for this meal.</p>
         )}
+
+        <AllergenTags ingredientNames={
+          Array.isArray(meal.ingredientsJson) && meal.ingredientsJson.length > 0
+            ? (meal.ingredientsJson as Array<{ name: string }>).map(i => i.name)
+            : recipe ? recipe.ingredients.map(i => i.item) : []
+        } />
+
+        <AllergenDisclaimer className="mb-4" />
 
         <button
           onClick={onClose}

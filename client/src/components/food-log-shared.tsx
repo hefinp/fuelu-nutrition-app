@@ -6,6 +6,7 @@ import {
   Coffee, Salad, Moon, Apple, GlassWater, X, ExternalLink, Pencil, Loader2,
 } from "lucide-react";
 import type { SavedMealPlan, UserMeal } from "@shared/schema";
+import { AllergenDisclaimer, AllergenTags } from "@/components/allergen-disclaimer";
 
 export interface RecipeDetail {
   instructions: string;
@@ -627,6 +628,16 @@ export function LoggedMealModal({
                 </a>
               </div>
             )}
+
+            <AllergenTags ingredientNames={
+              webRecipe && Array.isArray((webRecipe as any).ingredientsJson) && ((webRecipe as any).ingredientsJson as Array<{ name: string }>).length > 0
+                ? ((webRecipe as any).ingredientsJson as Array<{ name: string }>).map(i => i.name)
+                : recipe ? recipe.ingredients.map(i => i.item)
+                : webRecipe && (webRecipe as any).ingredients ? String((webRecipe as any).ingredients).split("\n").filter(Boolean)
+                : []
+            } />
+
+            <AllergenDisclaimer className="mb-4" />
           </>
         )}
 

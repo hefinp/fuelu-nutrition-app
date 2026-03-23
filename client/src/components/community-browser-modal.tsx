@@ -10,6 +10,7 @@ import {
 import { motion } from "framer-motion";
 import { DuplicateWarningBanner } from "@/components/duplicate-warning-banner";
 import { MealCommentsSection } from "@/components/meal-comments";
+import { AllergenDisclaimer } from "@/components/allergen-disclaimer";
 import { useTierStatus } from "@/hooks/use-tier";
 import { useMobileViewport } from "@/hooks/use-mobile-viewport";
 import { useAuth } from "@/hooks/use-auth";
@@ -462,6 +463,8 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
                             )}
                           </div>
                         ) : null}
+
+                        <AllergenDisclaimer className="mt-3" />
 
                         {isAllergyWarningOpen && allergyWarning && (
                           <div className="mt-3 rounded-xl bg-red-50 border border-red-200 p-3" data-testid={`allergy-warning-${meal.id}`}>

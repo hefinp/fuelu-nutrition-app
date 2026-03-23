@@ -8,6 +8,7 @@ import {
 import type { UserMeal, UserSavedFood, CommunityMeal } from "@shared/schema";
 import { type MealSlot, SLOT_COLOURS, MacroBar, MacroChips, SlotPicker, slotForTimeOfDay } from "@/components/meals-food-shared";
 import { MealCommentsSection } from "@/components/meal-comments";
+import { AllergenDisclaimer, AllergenTags } from "@/components/allergen-disclaimer";
 
 export function getMealKey(meal: UserMeal) {
   return `meal-${meal.id}`;
@@ -278,6 +279,14 @@ export function MealCard({ meal, isOpen, onToggle, onLog, onEdit, onDelete, onTe
               </button>
             )}
           </div>
+
+          <AllergenTags ingredientNames={
+            Array.isArray(meal.ingredientsJson) && meal.ingredientsJson.length > 0
+              ? (meal.ingredientsJson as Array<{ name: string }>).map(i => i.name)
+              : meal.ingredients ? meal.ingredients.split("\n").filter(Boolean) : []
+          } />
+
+          <AllergenDisclaimer className="mt-3" />
 
           {sharedMeal && <MealCommentsSection communityMealId={sharedMeal.id} />}
         </div>

@@ -460,6 +460,18 @@ export async function exportMealPlanToPDF(mealPlan: any, data: Calculation) {
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "italic");
   doc.setTextColor(140, 140, 140);
+
+  const allergenDisclaimerLines = doc.splitTextToSize(
+    "Allergen Notice: Always check ingredient labels. AI-generated meals may not capture all allergens.",
+    pageW - 28
+  );
+  allergenDisclaimerLines.forEach((line: string) => {
+    checkPage(5);
+    doc.text(line, 14, y);
+    y += 4;
+  });
+  y += 2;
+
   const disclaimerLines = doc.splitTextToSize(
     "Disclaimer: All calorie targets, macronutrient breakdowns, and meal plans are estimates based on the Mifflin-St Jeor equation. They should not be treated as medical advice. Consult a qualified healthcare professional before making significant dietary changes.",
     pageW - 28

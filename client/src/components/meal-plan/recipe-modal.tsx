@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { X, UtensilsCrossed } from "lucide-react";
 import { RECIPES } from "@shared/recipes";
 import type { Meal } from "./types";
+import { AllergenDisclaimer, AllergenTags } from "@/components/allergen-disclaimer";
 
 interface RecipeModalProps {
   meal: Meal;
@@ -64,6 +65,8 @@ export function RecipeModal({ meal, onClose }: RecipeModalProps) {
           <div className="mb-4">
             <MacroTiles meal={meal} />
           </div>
+
+          <AllergenDisclaimer className="mb-4" />
 
           <button
             onClick={onClose}
@@ -133,6 +136,14 @@ export function RecipeModal({ meal, onClose }: RecipeModalProps) {
             <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">{recipe.instructions}</p>
           </div>
         )}
+
+        <AllergenTags ingredientNames={
+          Array.isArray(meal.ingredientsJson) && meal.ingredientsJson.length > 0
+            ? meal.ingredientsJson.map(i => i.name)
+            : recipe ? recipe.ingredients.map(i => i.item) : []
+        } />
+
+        <AllergenDisclaimer className="mb-4" />
 
         <button
           onClick={onClose}
