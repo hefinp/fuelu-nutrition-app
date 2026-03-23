@@ -739,7 +739,8 @@ router.get("/api/food-log", async (req, res) => {
     const entries = await storage.getFoodLogEntriesRange(req.session.userId, from, to);
     return res.json(entries);
   }
-  const singleDate = date || new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const singleDate = date || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const entries = await storage.getFoodLogEntries(req.session.userId, singleDate);
   res.json(entries);
 });

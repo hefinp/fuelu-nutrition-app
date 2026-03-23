@@ -80,7 +80,8 @@ router.delete("/api/meal-templates/:id", async (req, res) => {
 router.get("/api/meal-templates/suggestions", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
 
-  const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
+  const dd = new Date();
+  const date = (req.query.date as string) || `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, "0")}-${String(dd.getDate()).padStart(2, "0")}`;
   const jsDay = new Date(date + "T12:00:00").getDay();
   const dayName = dayMap[jsDay];
 

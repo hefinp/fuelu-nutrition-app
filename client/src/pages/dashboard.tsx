@@ -9,6 +9,7 @@ import { WeightTracker } from "@/components/weight-tracker";
 import { PreferencesForm, AllergiesForm } from "@/components/preferences-form";
 import { FoodLog } from "@/components/food-log";
 import { FoodLogDrawer } from "@/components/food-log-drawer";
+import { todayStr } from "@/components/food-log-shared";
 import { HydrationTracker } from "@/components/hydration-tracker";
 import { ActivityWidget } from "@/components/activity-widget";
 const CycleTracker = lazy(() => import("@/components/cycle-tracker").then(m => ({ default: m.CycleTracker })));
@@ -2041,7 +2042,7 @@ export default function Dashboard() {
         <FoodLogDrawer
           open={showLogDrawer}
           onClose={() => setShowLogDrawer(false)}
-          selectedDate={new Date().toISOString().split("T")[0]}
+          selectedDate={todayStr()}
           dailyTargets={{
             calories: effectiveTargets?.dailyCalories ?? activeResult?.dailyCalories,
             protein: effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal,
