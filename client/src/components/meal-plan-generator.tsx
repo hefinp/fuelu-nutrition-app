@@ -186,23 +186,54 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpe
     return () => setFlowActive("meal-plan", false);
   }, [customModalOpen, setFlowActive]);
 
+  const scrollLockRef = useRef<number | null>(null);
+
+  const lockScroll = useCallback(() => {
+    if (scrollLockRef.current !== null) return;
+    const scrollY = window.scrollY;
+    scrollLockRef.current = scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+  }, []);
+
+  const unlockScroll = useCallback(() => {
+    if (scrollLockRef.current === null) return;
+    const scrollY = scrollLockRef.current;
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+    window.scrollTo(0, scrollY);
+    scrollLockRef.current = null;
+  }, []);
+
+  const anyOverlayOpen = customModalOpen || !!replacePicker || !!addMealPopover || !!copyMovePopover;
+
+  useEffect(() => {
+    if (anyOverlayOpen) {
+      lockScroll();
+    } else {
+      unlockScroll();
+    }
+    return () => {
+      unlockScroll();
+    };
+  }, [anyOverlayOpen, lockScroll, unlockScroll]);
+
   useEffect(() => {
     if (customModalOpen) {
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
       const today = toDateStr(new Date());
       setSelectedDates(prev => {
         const valid = prev.filter(d => d >= today);
         return valid.length > 0 ? valid : [today];
       });
-    } else {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
     }
-    return () => {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    };
   }, [customModalOpen]);
 
   const { data: savedPlans = [] } = useQuery<SavedMealPlan[]>({

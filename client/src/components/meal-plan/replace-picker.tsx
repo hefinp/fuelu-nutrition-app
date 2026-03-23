@@ -68,12 +68,12 @@ export function ReplacePicker({ replacePicker, onClose, onReplace }: ReplacePick
   const slotLabel = SLOT_LABELS[replacePicker.slotKey] ?? replacePicker.slotKey;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 40 }}
-        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl p-5 max-h-[80vh] overflow-y-auto"
+        className="bg-white rounded-2xl w-[calc(100%-2rem)] sm:max-w-md shadow-2xl p-5 max-h-[70dvh] overflow-y-auto mx-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-3">
@@ -94,7 +94,6 @@ export function ReplacePicker({ replacePicker, onClose, onReplace }: ReplacePick
             value={replaceSearchQuery}
             onChange={e => setReplaceSearchQuery(e.target.value)}
             className="w-full pl-8 pr-3 py-2 border border-zinc-200 rounded-xl text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-400"
-            autoFocus
             data-testid="input-search-replace"
           />
         </div>
