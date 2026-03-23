@@ -743,6 +743,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
+    document.documentElement.classList.add("dashboard-active");
     if (!user) {
       document.documentElement.classList.add("dashboard-snap");
     }
@@ -752,7 +753,7 @@ export default function Dashboard() {
     if (tabToggleRef.current) ro.observe(tabToggleRef.current);
     updateSnapVars();
     return () => {
-      document.documentElement.classList.remove("dashboard-snap");
+      document.documentElement.classList.remove("dashboard-active", "dashboard-snap");
       ro.disconnect();
       roRef.current = null;
       if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
