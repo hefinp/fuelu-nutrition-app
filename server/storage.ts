@@ -1,4 +1,4 @@
-import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, clientDocuments, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, nutritionistSessions, sessionTemplates, surveyTemplates, surveyDeliveries, surveyResponses, stravaActivities, servicePackages, clientPackages, mealPlanGenerations, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob, type ClientDocument, type NutritionistSession, type InsertNutritionistSession, type SessionTemplate, type InsertSessionTemplate, type SurveyTemplate, type InsertSurveyTemplate, type SurveyDelivery, type SurveyResponse, type ServicePackage, type InsertServicePackage, type ClientPackage, type InsertClientPackage } from "@shared/schema";
+import { calculations, users, savedMealPlans, weightEntries, foodLogEntries, passwordResetTokens, customFoods, hydrationLogs, feedbackEntries, inviteCodes, cycleSymptoms, cyclePeriodLogs, aiInsightsCache, communityMeals, userSavedFoods, userMeals, mealTemplates, featureGates, creditTransactions, tierPricing, creditPacks, vitalitySymptoms, canonicalFoods, userFoodBookmarks, mealIngredients, communityMealIngredients, recipeIngredients, nutritionistProfiles, nutritionistClients, nutritionistInvitations, nutritionistNotes, nutritionistPlans, planAnnotations, planTemplates, practiceAccounts, practiceMembers, nutritionistMessages, clientTargetOverrides, clientIntakeForms, clientGoals, clientReports, adaptiveTdeeSuggestions, mealComments, stravaConnections, clientMetrics, clientDocuments, reengagementSequences, activeReengagementJobs, waitlistEntries, clientTags, clientTagAssignments, bulkActionLogs, nutritionistSessions, sessionTemplates, surveyTemplates, surveyDeliveries, surveyResponses, stravaActivities, servicePackages, clientPackages, mealPlanGenerations, userRecipes, favouriteMeals, type InsertCalculation, type Calculation, type InsertUser, type User, type SavedMealPlan, type InsertSavedMealPlan, type WeightEntry, type UserPreferences, type FoodLogEntry, type InsertFoodLogEntry, type CustomFood, type InsertCustomFood, type HydrationLog, type InsertHydrationLog, type FeedbackEntry, type InviteCode, type CycleSymptom, type CyclePeriodLog, type AiInsightsCache, type CommunityMeal, type UserSavedFood, type UserMeal, type InsertUserMeal, type MealTemplate, type FeatureGate, type CreditTransaction, type TierPricing, type CreditPack, type VitalitySymptom, type CanonicalFood, type InsertCanonicalFood, type UserFoodBookmark, type MealIngredient, type CommunityMealIngredient, type RecipeIngredient, type NutritionistProfile, type InsertNutritionistProfile, type NutritionistClient, type InsertNutritionistClient, type NutritionistInvitation, type NutritionistNote, type NutritionistPlan, type InsertNutritionistPlan, type PlanAnnotation, type InsertPlanAnnotation, type PlanTemplate, type InsertPlanTemplate, type PracticeAccount, type InsertPracticeAccount, type PracticeMember, type NutritionistMessage, type ClientTargetOverride, type InsertClientTargetOverride, type ClientIntakeForm, type InsertClientIntakeForm, type ClientMetric, type ClientGoal, type InsertClientGoal, type ClientReport, type AdaptiveTdeeSuggestion, type ClientTag, type ClientTagAssignment, type BulkActionLog, type MealComment, type StravaConnection, type InsertStravaActivity, type StravaActivity, type WaitlistEntry, type ReengagementSequence, type InsertReengagementSequence, type ActiveReengagementJob, type ClientDocument, type NutritionistSession, type InsertNutritionistSession, type SessionTemplate, type InsertSessionTemplate, type SurveyTemplate, type InsertSurveyTemplate, type SurveyDelivery, type SurveyResponse, type ServicePackage, type InsertServicePackage, type ClientPackage, type InsertClientPackage } from "@shared/schema";
 import { db } from "./db";
 import { desc, eq, and, gte, lte, lt, ilike, sql, or, inArray, isNull } from "drizzle-orm";
 import type { IngredientResult } from "./lib/ingredient-parser";
@@ -368,6 +368,7 @@ export interface IStorage {
   getNutritionistByIdPublic(nutritionistId: number): Promise<{ id: number; name: string } | undefined>;
 
   deleteUser(userId: number): Promise<void>;
+  exportUserData(userId: number): Promise<Record<string, unknown>>;
 
   // Re-engagement sequences
   getReengagementSequences(nutritionistId: number): Promise<ReengagementSequence[]>;
@@ -2917,6 +2918,109 @@ export class DatabaseStorage implements IStorage {
       await tx.execute(sql`UPDATE users SET is_managed_client = false, managed_by_nutritionist_id = NULL WHERE managed_by_nutritionist_id = ${userId}`);
       await tx.execute(sql`DELETE FROM users WHERE id = ${userId}`);
     });
+  }
+
+  async exportUserData(userId: number): Promise<Record<string, unknown>> {
+    const user = await db.select().from(users).where(eq(users.id, userId)).then(r => r[0]);
+    if (!user) throw new Error("User not found");
+
+    const { passwordHash: _, stripeCustomerId: _s, stripeSubscriptionId: _si, paymentFailedAt: _p, ...profile } = user;
+
+    const [
+      calcRows,
+      weightRows,
+      foodLogRows,
+      savedPlans,
+      hydrationRows,
+      cyclePeriods,
+      cycleSymptomsRows,
+      vitalityRows,
+      recipesRows,
+      mealsRows,
+      templateRows,
+      favouriteRows,
+      bookmarkRows,
+      savedFoodsRows,
+      commentsRows,
+      stravaRows,
+      feedbackRows,
+      customFoodRows,
+      communityMealRows,
+      stravaConnectionRows,
+      creditRows,
+    ] = await Promise.all([
+      db.select().from(calculations).where(eq(calculations.userId, userId)),
+      db.select().from(weightEntries).where(eq(weightEntries.userId, userId)),
+      db.select().from(foodLogEntries).where(eq(foodLogEntries.userId, userId)),
+      db.select().from(savedMealPlans).where(eq(savedMealPlans.userId, userId)),
+      db.select().from(hydrationLogs).where(eq(hydrationLogs.userId, userId)),
+      db.select().from(cyclePeriodLogs).where(eq(cyclePeriodLogs.userId, userId)),
+      db.select().from(cycleSymptoms).where(eq(cycleSymptoms.userId, userId)),
+      db.select().from(vitalitySymptoms).where(eq(vitalitySymptoms.userId, userId)),
+      db.select().from(userRecipes).where(eq(userRecipes.userId, userId)),
+      db.select().from(userMeals).where(eq(userMeals.userId, userId)),
+      db.select().from(mealTemplates).where(eq(mealTemplates.userId, userId)),
+      db.select().from(favouriteMeals).where(eq(favouriteMeals.userId, userId)),
+      db.select().from(userFoodBookmarks).where(eq(userFoodBookmarks.userId, userId)),
+      db.select().from(userSavedFoods).where(eq(userSavedFoods.userId, userId)),
+      db.select().from(mealComments).where(eq(mealComments.userId, userId)),
+      db.select().from(stravaActivities).where(eq(stravaActivities.userId, userId)),
+      db.select().from(feedbackEntries).where(eq(feedbackEntries.userId, userId)),
+      db.select().from(customFoods).where(eq(customFoods.contributedByUserId, userId)),
+      db.select().from(communityMeals).where(eq(communityMeals.sourceUserId, userId)),
+      db.select({
+        id: stravaConnections.id,
+        userId: stravaConnections.userId,
+        athleteId: stravaConnections.athleteId,
+        createdAt: stravaConnections.createdAt,
+      }).from(stravaConnections).where(eq(stravaConnections.userId, userId)),
+      db.select().from(creditTransactions).where(eq(creditTransactions.userId, userId)),
+    ]);
+
+    const recipeIds = recipesRows.map(r => r.id);
+    const mealIds = mealsRows.map(m => m.id);
+    const communityMealIds = communityMealRows.map(c => c.id);
+    const [recipeIngredientRows, mealIngredientRows, communityMealIngredientRows] = await Promise.all([
+      recipeIds.length > 0
+        ? db.select().from(recipeIngredients).where(inArray(recipeIngredients.userRecipeId, recipeIds))
+        : Promise.resolve([]),
+      mealIds.length > 0
+        ? db.select().from(mealIngredients).where(inArray(mealIngredients.userMealId, mealIds))
+        : Promise.resolve([]),
+      communityMealIds.length > 0
+        ? db.select().from(communityMealIngredients).where(inArray(communityMealIngredients.communityMealId, communityMealIds))
+        : Promise.resolve([]),
+    ]);
+
+    return {
+      exportDate: new Date().toISOString(),
+      profile,
+      preferences: user.preferences,
+      calculations: calcRows,
+      weightHistory: weightRows,
+      foodLogs: foodLogRows,
+      savedMealPlans: savedPlans,
+      hydrationLogs: hydrationRows,
+      cyclePeriodLogs: cyclePeriods,
+      cycleSymptoms: cycleSymptomsRows,
+      vitalitySymptoms: vitalityRows,
+      savedRecipes: recipesRows,
+      recipeIngredients: recipeIngredientRows,
+      savedMeals: mealsRows,
+      mealIngredients: mealIngredientRows,
+      mealTemplates: templateRows,
+      favouriteMeals: favouriteRows,
+      foodBookmarks: bookmarkRows,
+      savedFoods: savedFoodsRows,
+      customFoods: customFoodRows,
+      communityMeals: communityMealRows,
+      communityMealIngredients: communityMealIngredientRows,
+      communityComments: commentsRows,
+      stravaActivities: stravaRows,
+      stravaConnections: stravaConnectionRows,
+      creditTransactions: creditRows,
+      feedback: feedbackRows,
+    };
   }
 
   async getMealComments(communityMealId: number): Promise<(MealComment & { userName: string })[]> {

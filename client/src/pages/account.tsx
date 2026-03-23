@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { PublicUser, UserPreferences } from "@shared/schema";
 import {
   Crown, CreditCard, AlertTriangle, ArrowRight, Loader2, CheckCircle2,
-  ArrowUpRight, User, Lock, ChevronRight, Globe, Database, ExternalLink, Trash2, Mail,
+  ArrowUpRight, User, Lock, ChevronRight, Globe, Database, ExternalLink, Trash2, Mail, Download,
 } from "lucide-react";
 import { ConfirmDialog, useConfirmDialog } from "@/components/confirm-dialog";
 
@@ -200,6 +200,33 @@ export default function AccountPage() {
       setDeleteError(err.message);
     },
   });
+
+  const [exportLoading, setExportLoading] = useState(false);
+  const handleExportData = async () => {
+    setExportLoading(true);
+    try {
+      const res = await fetch("/api/auth/export-data", { credentials: "include" });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `my-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: "Export complete", description: "Your data has been downloaded." });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong.";
+      toast({ title: "Export failed", description: message, variant: "destructive" });
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const portalMutation = useMutation({
     mutationFn: async () => {
@@ -565,6 +592,26 @@ export default function AccountPage() {
                 </>
               )}
             </form>
+
+            <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4" data-testid="card-export-data">
+              <div className="flex items-center gap-2 mb-2">
+                <Download className="w-4 h-4 text-zinc-500" />
+                <h2 className="text-sm font-semibold text-zinc-900">Download My Data</h2>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Export all your personal data in a machine-readable JSON format. This includes your profile, preferences, food logs, meal plans, saved meals and recipes, weight history, cycle data, vitality data, and community contributions.
+              </p>
+              <button
+                type="button"
+                onClick={handleExportData}
+                disabled={exportLoading}
+                className="flex items-center gap-1.5 px-4 py-2 border border-zinc-200 text-zinc-700 text-sm font-medium rounded-xl hover:bg-zinc-50 transition-colors disabled:opacity-50"
+                data-testid="button-export-data"
+              >
+                {exportLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                {exportLoading ? "Preparing export…" : "Download My Data"}
+              </button>
+            </div>
 
             <div className="bg-white rounded-2xl border border-red-100 p-6 space-y-4" data-testid="card-delete-account">
               <div className="flex items-center gap-2 mb-2">

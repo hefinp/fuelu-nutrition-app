@@ -415,6 +415,18 @@ router.put("/api/auth/password", async (req, res) => {
   }
 });
 
+router.get("/api/auth/export-data", async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const data = await storage.exportUserData(req.session.userId);
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename="my-data-export-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.json(data);
+  } catch (err) {
+    return res.status(500).json({ message: "Failed to export data" });
+  }
+});
+
 router.delete("/api/auth/account", async (req, res) => {
   if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
   try {
