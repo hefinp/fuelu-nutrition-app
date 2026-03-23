@@ -45,6 +45,7 @@ export const users = pgTable("users", {
   emailPreferences: jsonb("email_preferences"),
   isManagedClient: boolean("is_managed_client").notNull().default(false),
   managedByNutritionistId: integer("managed_by_nutritionist_id"),
+  dateOfBirth: timestamp("date_of_birth"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -80,11 +81,13 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   name: true,
   passwordHash: true,
+  dateOfBirth: true,
 }).extend({
   passwordHash: z.string().optional(),
   provider: z.string().optional(),
   providerId: z.string().optional(),
   username: usernameSchema.optional(),
+  dateOfBirth: z.date().optional(),
 });
 
 export const registerSchema = z.object({
@@ -95,8 +98,21 @@ export const registerSchema = z.object({
   inviteCode: z.string().optional(),
   nutritionistInviteToken: z.string().optional(),
   agreedToTerms: z.literal(true, { errorMap: () => ({ message: "You must agree to the Terms of Service and Privacy Policy" }) }),
-  confirmedAge: z.literal(true, { errorMap: () => ({ message: "You must confirm you meet the minimum age requirement" }) }),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
 });
+
+export function calculateAge(dateOfBirth: Date): number {
+  const today = new Date();
+  let age = today.getFullYear() - dateOfBirth.getFullYear();
+  const monthDiff = today.getMonth() - dateOfBirth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dateOfBirth.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+export const MINIMUM_AGE_EU = 16;
+export const MINIMUM_AGE_DEFAULT = 13;
 
 export const loginSchema = z.object({
   identifier: z.string().min(1, "Email or username is required"),

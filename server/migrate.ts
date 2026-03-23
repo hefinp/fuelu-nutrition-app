@@ -980,6 +980,8 @@ export async function runMigrations(): Promise<void> {
       )
     `);
 
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth TIMESTAMP`);
+
   } finally {
     client.release();
   }

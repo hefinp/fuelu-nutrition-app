@@ -46,7 +46,7 @@ export default function AuthPage() {
   const [inviteCodeError, setInviteCodeError] = useState("");
   const [showRegPw, setShowRegPw] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [confirmedAge, setConfirmedAge] = useState(false);
+  const [regDateOfBirth, setRegDateOfBirth] = useState("");
   const [usernameStatus, setUsernameStatus] = useState<{ checking: boolean; available?: boolean; message?: string }>({ checking: false });
 
   // OAuth invite form state
@@ -130,7 +130,7 @@ export default function AuthPage() {
         inviteCode: nutritionistInviteToken ? undefined : (regInviteCode || undefined),
         nutritionistInviteToken: nutritionistInviteToken || undefined,
         agreedToTerms: agreedToTerms as true,
-        confirmedAge: confirmedAge as true,
+        dateOfBirth: regDateOfBirth,
       });
       setLocation("/dashboard");
     } catch (err: unknown) {
@@ -535,6 +535,20 @@ export default function AuthPage() {
                 </div>
               )}
 
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Date of Birth</label>
+                <input
+                  type="date"
+                  required
+                  value={regDateOfBirth}
+                  onChange={e => setRegDateOfBirth(e.target.value)}
+                  max={new Date().toISOString().split("T")[0]}
+                  className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                  data-testid="input-register-dob"
+                />
+                <p className="mt-1 text-xs text-zinc-400">You must be at least 16 years old (EU/UK) or 13 years old (other regions)</p>
+              </div>
+
               <div className="space-y-3 pt-1">
                 <label className="flex items-start gap-2.5 cursor-pointer group">
                   <input
@@ -551,23 +565,11 @@ export default function AuthPage() {
                     <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-zinc-900 font-medium underline hover:text-zinc-700">Privacy Policy</a>
                   </span>
                 </label>
-                <label className="flex items-start gap-2.5 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={confirmedAge}
-                    onChange={e => setConfirmedAge(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 shrink-0"
-                    data-testid="checkbox-confirm-age"
-                  />
-                  <span className="text-xs text-zinc-600 leading-relaxed">
-                    I confirm I am at least 16 years old
-                  </span>
-                </label>
               </div>
 
               <button
                 type="submit"
-                disabled={isRegistering || !agreedToTerms || !confirmedAge}
+                disabled={isRegistering || !agreedToTerms || !regDateOfBirth}
                 className="w-full py-2.5 bg-zinc-900 text-white rounded-xl font-medium text-sm hover:bg-zinc-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 data-testid="button-register-submit"
               >

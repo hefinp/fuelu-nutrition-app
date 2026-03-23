@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import passport from "passport";
 import { storage } from "../storage";
-import { registerSchema, loginSchema, usernameSchema, type UserPreferences, type User, nutritionistTierLimits, type NutritionistTier } from "@shared/schema";
+import { registerSchema, loginSchema, usernameSchema, type UserPreferences, type User, nutritionistTierLimits, type NutritionistTier, calculateAge, MINIMUM_AGE_EU } from "@shared/schema";
 import { computeTrialInfo } from "@shared/trial";
 import { authRateLimiter } from "../constants";
 import { sendEmail, buildPasswordResetEmailHtml, verifyUnsubscribeToken } from "../email";
@@ -76,6 +76,22 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
       platformInviteCode = submitted;
     }
 
+    const dobMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.dateOfBirth);
+    if (!dobMatch) {
+      return res.status(400).json({ message: "Please enter a valid date of birth." });
+    }
+    const dobYear = parseInt(dobMatch[1]);
+    const dobMonth = parseInt(dobMatch[2]) - 1;
+    const dobDay = parseInt(dobMatch[3]);
+    const dob = new Date(dobYear, dobMonth, dobDay);
+    if (isNaN(dob.getTime()) || dob.getFullYear() !== dobYear || dob.getMonth() !== dobMonth || dob.getDate() !== dobDay) {
+      return res.status(400).json({ message: "Please enter a valid date of birth." });
+    }
+    const age = calculateAge(dob);
+    if (age < MINIMUM_AGE_EU) {
+      return res.status(403).json({ message: `You must be at least ${MINIMUM_AGE_EU} years old to create an account. Users in the EU/UK must be at least 16, and users in other regions must be at least 13.` });
+    }
+
     const existing = await storage.getUserByEmail(input.email);
     if (existing) {
       return res.status(409).json({ message: "An account with this email already exists" });
@@ -85,7 +101,7 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
       return res.status(409).json({ message: "This username is already taken" });
     }
     const passwordHash = await bcrypt.hash(input.password, 12);
-    const user = await storage.createUser({ email: input.email, name: input.name, username: input.username, passwordHash });
+    const user = await storage.createUser({ email: input.email, name: input.name, username: input.username, passwordHash, dateOfBirth: dob });
     const initialPrefs: UserPreferences = { diet: null, allergies: [], excludedFoods: [], preferredFoods: [], micronutrientOptimize: false, onboardingComplete: false };
     await storage.updateUserPreferences(user.id, initialPrefs);
     if (!user.betaUser) {
