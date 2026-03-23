@@ -20,7 +20,7 @@ import {
   SLOT_LABELS, SLOT_ICONS, SLOT_COLORS, ALL_SLOTS,
   todayStr, formatDateLabel, shiftDate,
   getWeekRange, formatWeekLabel,
-  MacroGrid, LoggedMealModal,
+  LoggedMealModal, DarkMacroCard,
 } from "@/components/food-log-shared";
 import { FoodLogDrawer } from "@/components/food-log-drawer";
 import { TemplateSuggestions } from "@/components/template-suggestions";
@@ -728,7 +728,7 @@ function DiaryContent({
 
               <DiaryActivitySection date={selectedDate} />
 
-              <MacroGrid
+              <DarkMacroCard
                 cal={totalCal} prot={totalProt} carbs={totalCarbs} fat={totalFat}
                 fibre={totalFibre} sugar={totalSugar} saturatedFat={totalSaturatedFat}
                 calTarget={dailyCaloriesTarget} protTarget={dailyProteinTarget}
@@ -842,7 +842,7 @@ function DiaryContent({
                 </button>
               </div>
 
-              <MacroGrid
+              <DarkMacroCard
                 cal={weekTotalCal} prot={weekTotalProt} carbs={weekTotalCarbs} fat={weekTotalFat}
                 fibre={weekTotalFibre} sugar={weekTotalSugar} saturatedFat={weekTotalSaturatedFat}
                 calTarget={dailyCaloriesTarget ? dailyCaloriesTarget * 7 : undefined}
