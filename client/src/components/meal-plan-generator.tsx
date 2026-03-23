@@ -76,12 +76,23 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpe
   const { toast } = useToast();
   const { setFlowActive } = useActiveFlow();
 
+  const pendingOpenHandled = useRef(false);
   useEffect(() => {
-    if (pendingOpen) {
-      setBannerCollapsed(false);
-      setCustomModalOpen(true);
-      onOpenHandled?.();
+    let rafId: number | undefined;
+    if (pendingOpen && !pendingOpenHandled.current) {
+      pendingOpenHandled.current = true;
+      rafId = requestAnimationFrame(() => {
+        setBannerCollapsed(false);
+        setCustomModalOpen(true);
+        onOpenHandled?.();
+      });
     }
+    if (!pendingOpen) {
+      pendingOpenHandled.current = false;
+    }
+    return () => {
+      if (rafId !== undefined) cancelAnimationFrame(rafId);
+    };
   }, [pendingOpen, onOpenHandled]);
 
   const prevWeekRef = useRef(weekStart);
