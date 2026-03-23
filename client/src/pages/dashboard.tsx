@@ -572,7 +572,7 @@ export default function Dashboard() {
     : undefined;
 
   // Single render function for all widgets — used by both mobile and desktop paths
-  function renderWidget(id: WidgetId): JSX.Element | null {
+  function renderWidget(id: WidgetId, layout?: 'mobile' | 'desktop'): JSX.Element | null {
     if (hiddenWidgets.includes(id)) return null;
     switch (id) {
       case "nutrition":
@@ -592,8 +592,10 @@ export default function Dashboard() {
             />
           </div>
         ) : null;
-      case "meal-plan":
-        return <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} overrideTargets={effectiveTargets ? { dailyCalories: effectiveTargets.dailyCalories, proteinGoal: effectiveTargets.proteinGoal, carbsGoal: effectiveTargets.carbsGoal, fatGoal: effectiveTargets.fatGoal } : null} pendingOpen={plannerPendingOpen} onOpenHandled={handlePlannerOpenHandled} />;
+      case "meal-plan": {
+        const shouldReceivePending = layout !== undefined && (isDesktop ? layout === 'desktop' : layout === 'mobile');
+        return <MealPlanGenerator data={activeResult!} onLogMeal={handleLogMeal} overrideTargets={effectiveTargets ? { dailyCalories: effectiveTargets.dailyCalories, proteinGoal: effectiveTargets.proteinGoal, carbsGoal: effectiveTargets.carbsGoal, fatGoal: effectiveTargets.fatGoal } : null} pendingOpen={shouldReceivePending ? plannerPendingOpen : false} onOpenHandled={shouldReceivePending ? handlePlannerOpenHandled : undefined} />;
+      }
       case "hydration":
         return user ? <HydrationTracker /> : null;
       case "activity":
@@ -1699,7 +1701,7 @@ export default function Dashboard() {
                       onMoveDown={() => moveDown(id)}
                       onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}
                     >
-                      {renderWidget(id)!}
+                      {renderWidget(id, 'mobile')!}
                     </SortableWidget>
                   ))}
                 </div>
@@ -1717,7 +1719,7 @@ export default function Dashboard() {
                 >
                   <SortableContext items={homeOrder} strategy={verticalListSortingStrategy}>
                     {homeOrder.map(id => {
-                      const content = renderWidget(id);
+                      const content = renderWidget(id, 'desktop');
                       if (!content) return null;
                       return (
                         <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
@@ -1738,7 +1740,7 @@ export default function Dashboard() {
                 >
                   <SortableContext items={leftOrder} strategy={verticalListSortingStrategy}>
                     {leftOrder.map(id => {
-                      const content = renderWidget(id);
+                      const content = renderWidget(id, 'desktop');
                       if (!content) return null;
                       return (
                         <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
@@ -1759,7 +1761,7 @@ export default function Dashboard() {
                 >
                   <SortableContext items={rightOrder} strategy={verticalListSortingStrategy}>
                     {rightOrder.map(id => {
-                      const content = renderWidget(id);
+                      const content = renderWidget(id, 'desktop');
                       if (!content) return null;
                       return (
                         <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
@@ -1780,7 +1782,7 @@ export default function Dashboard() {
                 >
                   <SortableContext items={insightsOrder} strategy={verticalListSortingStrategy}>
                     {insightsOrder.map(id => {
-                      const content = renderWidget(id);
+                      const content = renderWidget(id, 'desktop');
                       if (!content) return null;
                       return (
                         <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
