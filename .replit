@@ -63,7 +63,7 @@ outputType = "console"
 STRAVA_REDIRECT_URL = "https://www.fuelumealplan.com"
 
 [userenv.production]
-APP_URL = "https://fuelu.app"
+APP_URL = "https://fuelr-meals.replit.app"
 
 [postMerge]
 path = "scripts/post-merge.sh"
