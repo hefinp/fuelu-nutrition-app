@@ -45,7 +45,7 @@ export function HistoryList({ onSelect }: { onSelect: (id: number) => void }) {
             transition={{ delay: i * 0.05 }}
             key={item.id}
             onClick={() => onSelect(item.id)}
-            className="group cursor-pointer bg-white p-5 rounded-3xl border border-zinc-100 shadow-sm hover:border-zinc-300"
+            className="group cursor-pointer bg-white p-5 rounded-3xl border border-zinc-100 shadow-lg hover:border-zinc-300"
           >
             <div className="flex justify-between items-start mb-4">
               <div className="bg-zinc-50 px-3 py-1 rounded-lg text-xs font-medium text-zinc-500">

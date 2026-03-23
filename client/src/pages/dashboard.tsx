@@ -683,7 +683,7 @@ export default function Dashboard() {
             isAdvanced={!!(tierStatus?.betaUser || tierStatus?.tier === "advanced")}
           />
         ) : (
-          <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 flex flex-col items-center text-center justify-center">
+          <div className="bg-white rounded-3xl border border-zinc-100 shadow-lg p-8 flex flex-col items-center text-center justify-center">
             <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center mb-4">
               <SlidersHorizontal className="w-5 h-5 text-zinc-400" />
             </div>
@@ -1481,7 +1481,7 @@ export default function Dashboard() {
               exit={{ opacity: 0 }}
               className="flex flex-col items-center justify-center min-h-[500px] text-center"
             >
-              <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 sm:p-12 max-w-md w-full">
+              <div className="bg-white rounded-3xl border border-zinc-100 shadow-lg p-8 sm:p-12 max-w-md w-full">
                 <div className="w-16 h-16 bg-zinc-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
                   <SlidersHorizontal className="w-7 h-7 text-zinc-400" />
                 </div>
@@ -1699,7 +1699,7 @@ export default function Dashboard() {
                         {!hiddenWidgets.includes("my-meals-food") && <MyMealsFoodWidget />}
                       </>
                     ) : (
-                      <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-8 text-center" data-testid="favourites-sign-in-prompt">
+                      <div className="bg-white rounded-3xl border border-zinc-100 shadow-lg p-8 text-center" data-testid="favourites-sign-in-prompt">
                         <Home className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
                         <p className="text-sm font-medium text-zinc-500 mb-1">Sign in to view your home</p>
                         <p className="text-xs text-zinc-400">Save meals and foods you love for quick access.</p>

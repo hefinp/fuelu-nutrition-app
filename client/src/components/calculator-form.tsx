@@ -599,7 +599,7 @@ export function CalculatorForm({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="bg-white p-8 rounded-3xl shadow-sm border border-zinc-100"
+      className="bg-white p-8 rounded-3xl shadow-lg border border-zinc-100"
     >
       <div className="mb-8">
         <h2 className="text-2xl font-display font-bold tracking-tight text-zinc-900">Enter Metrics</h2>

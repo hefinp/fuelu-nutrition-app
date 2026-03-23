@@ -122,7 +122,7 @@ export function MacroComplianceWidget({
   ).length;
 
   return (
-    <div className="bg-white rounded-3xl border border-zinc-100 shadow-md p-4 sm:p-6" data-testid="widget-macro-compliance">
+    <div className="bg-white rounded-3xl border border-zinc-100 shadow-lg p-4 sm:p-6" data-testid="widget-macro-compliance">
       <div className="flex items-center gap-2.5 mb-4">
         <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
           <Target className="w-5 h-5" />

@@ -682,7 +682,7 @@ function DiaryContent({
       )}
 
       <main className="max-w-2xl mx-auto px-4 py-6">
-        <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-4 sm:p-6">
+        <div className="bg-white rounded-3xl border border-zinc-100 shadow-lg p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center bg-zinc-100 rounded-xl p-0.5" data-testid="toggle-diary-view">
               <button
@@ -1380,7 +1380,7 @@ function DiaryContent({
 
         {!isAdvanced && (
           <div
-            className="bg-white rounded-3xl border border-zinc-100 shadow-sm p-6 mt-4 text-center"
+            className="bg-white rounded-3xl border border-zinc-100 shadow-lg p-6 mt-4 text-center"
             data-testid="card-export-data-locked"
           >
             <div className="w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-4">

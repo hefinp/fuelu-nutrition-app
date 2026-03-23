@@ -233,7 +233,7 @@ export function MyMealsFoodWidget() {
   }
 
   return (
-    <div className="bg-white rounded-3xl border border-zinc-100 shadow-md overflow-hidden">
+    <div className="bg-white rounded-3xl border border-zinc-100 shadow-lg overflow-hidden">
       <div className="px-6 pt-6 pb-0">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">

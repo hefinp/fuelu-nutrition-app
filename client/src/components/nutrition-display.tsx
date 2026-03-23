@@ -149,7 +149,7 @@ export function NutritionDisplay({ data, overrideTargets }: { data: Calculation;
             transition={{ duration: 0.25, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-3xl border border-zinc-100 shadow-lg overflow-hidden">
               <div className="flex items-center gap-2 px-6 pt-5 pb-4">
                 <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg">
                   <Pill className="w-5 h-5" />

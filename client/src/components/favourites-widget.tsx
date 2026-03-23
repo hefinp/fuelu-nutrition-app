@@ -63,7 +63,7 @@ export function FavouritesWidget() {
   }
 
   return (
-    <div className="bg-white rounded-3xl border border-zinc-100 shadow-md overflow-hidden">
+    <div className="bg-white rounded-3xl border border-zinc-100 shadow-lg overflow-hidden">
       <div className="px-6 pt-6 pb-4 flex items-center gap-3">
         <div className="p-2 bg-zinc-100 text-zinc-600 rounded-lg shrink-0">
           <Star className="w-5 h-5" />

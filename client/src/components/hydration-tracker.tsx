@@ -122,7 +122,7 @@ export function HydrationTracker() {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-zinc-100 shadow-md p-4 sm:p-6">
+    <div className="bg-white rounded-3xl border border-zinc-100 shadow-lg p-4 sm:p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
