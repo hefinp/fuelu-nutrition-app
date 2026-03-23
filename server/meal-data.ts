@@ -295,9 +295,49 @@ export function filterMealPoolSoft(pool: MealEntry[], excludeKeywords: string[])
   return filtered.length > 0 ? filtered : pool;
 }
 
-export function containsExcludedKeyword(name: string, excludeKeywords: string[]): boolean {
+function collectStrings(value: unknown, out: string[]): void {
+  if (typeof value === 'string') {
+    if (value) out.push(value.toLowerCase());
+  } else if (Array.isArray(value)) {
+    for (const item of value) collectStrings(item, out);
+  } else if (value && typeof value === 'object') {
+    for (const v of Object.values(value as Record<string, unknown>)) {
+      collectStrings(v, out);
+    }
+  }
+}
+
+export function containsExcludedKeyword(
+  name: string,
+  excludeKeywords: string[],
+  ingredientData?: { ingredients?: string | string[] | null; ingredientsJson?: unknown },
+): boolean {
+  if (!excludeKeywords.length) return false;
   const lower = name.toLowerCase();
-  return excludeKeywords.some(kw => lower.includes(kw.toLowerCase()));
+  if (excludeKeywords.some(kw => lower.includes(kw.toLowerCase()))) return true;
+
+  if (ingredientData) {
+    const textsToCheck: string[] = [];
+
+    if (typeof ingredientData.ingredients === 'string' && ingredientData.ingredients) {
+      textsToCheck.push(ingredientData.ingredients.toLowerCase());
+    } else if (Array.isArray(ingredientData.ingredients)) {
+      for (const item of ingredientData.ingredients) {
+        if (typeof item === 'string' && item) textsToCheck.push(item.toLowerCase());
+      }
+    }
+
+    if (ingredientData.ingredientsJson != null) {
+      collectStrings(ingredientData.ingredientsJson, textsToCheck);
+    }
+
+    if (textsToCheck.length > 0) {
+      const combined = textsToCheck.join(' ');
+      if (excludeKeywords.some(kw => combined.includes(kw.toLowerCase()))) return true;
+    }
+  }
+
+  return false;
 }
 
 export function buildSafetyKeywords(preferences: UserPreferences | null): string[] {

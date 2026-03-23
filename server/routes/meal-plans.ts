@@ -87,7 +87,7 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
           r.caloriesPerServing > 0 && r.proteinPerServing > 0 && r.carbsPerServing > 0 && r.fatPerServing > 0 &&
           r.mealStyle === style &&
           r.mealSlot && enabledSlots.includes(r.mealSlot) &&
-          !containsExcludedKeyword(r.name, excludeKws) &&
+          !containsExcludedKeyword(r.name, excludeKws, { ingredients: r.ingredients, ingredientsJson: r.ingredientsJson }) &&
           !dislikedSet.has(r.name.toLowerCase())
         );
         const capped = [...eligible].sort(() => Math.random() - 0.5).slice(0, limit);
@@ -107,7 +107,7 @@ router.post(api.mealPlans.generate.path, async (req, res) => {
         const communityList = await storage.getCommunityMeals({ style: input.mealStyle ?? 'simple' });
         for (const cm of communityList) {
           const slot = cm.slot as keyof MealDb;
-          if (baseDb[slot] && !containsExcludedKeyword(cm.name, excludeKws) && !dislikedSet.has(cm.name.toLowerCase())) {
+          if (baseDb[slot] && !containsExcludedKeyword(cm.name, excludeKws, { ingredients: cm.ingredients, ingredientsJson: cm.ingredientsJson }) && !dislikedSet.has(cm.name.toLowerCase())) {
             baseDb[slot].push({ meal: cm.name, calories: cm.caloriesPerServing, protein: cm.proteinPerServing, carbs: cm.carbsPerServing, fat: cm.fatPerServing, microScore: cm.microScore });
           }
         }
@@ -475,7 +475,7 @@ router.post("/api/meal-plans/replace-meal", async (req, res) => {
           r.caloriesPerServing > 0 && r.proteinPerServing > 0 && r.carbsPerServing > 0 && r.fatPerServing > 0 &&
           r.mealStyle === style &&
           r.mealSlot && enabledSlots.includes(r.mealSlot) &&
-          !containsExcludedKeyword(r.name, excludeKws) &&
+          !containsExcludedKeyword(r.name, excludeKws, { ingredients: r.ingredients, ingredientsJson: r.ingredientsJson }) &&
           !dislikedSet.has(r.name.toLowerCase())
         );
         const capped = [...eligible].sort(() => Math.random() - 0.5).slice(0, limit);
@@ -495,7 +495,7 @@ router.post("/api/meal-plans/replace-meal", async (req, res) => {
         const communityList = await storage.getCommunityMeals({ style: input.mealStyle ?? 'simple' });
         for (const cm of communityList) {
           const slot = cm.slot as keyof MealDb;
-          if (baseDb[slot] && !containsExcludedKeyword(cm.name, excludeKws) && !dislikedSet.has(cm.name.toLowerCase())) {
+          if (baseDb[slot] && !containsExcludedKeyword(cm.name, excludeKws, { ingredients: cm.ingredients, ingredientsJson: cm.ingredientsJson }) && !dislikedSet.has(cm.name.toLowerCase())) {
             baseDb[slot].push({ meal: cm.name, calories: cm.caloriesPerServing, protein: cm.proteinPerServing, carbs: cm.carbsPerServing, fat: cm.fatPerServing, microScore: cm.microScore });
           }
         }
