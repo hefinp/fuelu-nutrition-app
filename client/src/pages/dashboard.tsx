@@ -727,9 +727,11 @@ export default function Dashboard() {
   const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useLayoutEffect(() => {
-    if ('scrollRestoration' in history) {
-      history.scrollRestoration = 'manual';
-    }
+    try {
+      if (window.history && 'scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+      }
+    } catch (_) {}
     window.scrollTo(0, 0);
   }, []);
 
@@ -758,9 +760,11 @@ export default function Dashboard() {
       ro.disconnect();
       roRef.current = null;
       if (snapTimerRef.current) clearTimeout(snapTimerRef.current);
-      if ('scrollRestoration' in history) {
-        history.scrollRestoration = 'auto';
-      }
+      try {
+        if (window.history && 'scrollRestoration' in window.history) {
+          window.history.scrollRestoration = 'auto';
+        }
+      } catch (_) {}
       document.documentElement.style.removeProperty('--dashboard-header-h');
       document.documentElement.style.removeProperty('--dashboard-snap-top');
     };
