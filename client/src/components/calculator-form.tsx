@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -239,13 +239,37 @@ export function CalculatorForm({
     updatePrefsMutation.mutate({ stravaActivityLevelEnabled: enabled });
   }
 
-  const onSubmit = (data: FormValues) => {
+  const [autoSaving, setAutoSaving] = useState(false);
+  const lastSavedValuesRef = useRef<string>("");
+
+  const canonicalizeFormValues = useCallback((vals: Record<string, unknown>) => {
+    return JSON.stringify({
+      weight: String(vals.weight ?? ""),
+      height: String(vals.height ?? ""),
+      age: Number(vals.age) || 0,
+      gender: String(vals.gender ?? ""),
+      activityLevel: String(vals.activityLevel ?? ""),
+      goal: String(vals.goal ?? ""),
+      targetType: String(vals.targetType ?? ""),
+      targetAmount: String(vals.targetAmount ?? ""),
+    });
+  }, []);
+
+  const onSubmit = (data: FormValues, isAutoSubmit = false) => {
+    if (isAutoSubmit) setAutoSaving(true);
     createCalc.mutate(data, {
       onSuccess: (result) => {
-        toast({ title: "Calculation Complete", description: "Your personalized macro goals are ready." });
+        lastSavedValuesRef.current = canonicalizeFormValues(data);
+        if (isAutoSubmit) {
+          setAutoSaving(false);
+          toast({ title: "Targets updated", duration: 2000 });
+        } else {
+          toast({ title: "Calculation Complete", description: "Your personalized macro goals are ready." });
+        }
         onResult(result);
       },
       onError: (err) => {
+        if (isAutoSubmit) setAutoSaving(false);
         toast({ title: "Error", description: err.message, variant: "destructive" });
       },
     });
@@ -267,6 +291,33 @@ export function CalculatorForm({
     }
   }, [watched.gender, vitalityInsightsEnabled, prefilled]);
 
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialPrefillDoneRef = useRef(false);
+
+  useEffect(() => {
+    if (!compact || !prefilled) return;
+
+    const currentValues = canonicalizeFormValues(watched);
+
+    if (!initialPrefillDoneRef.current) {
+      initialPrefillDoneRef.current = true;
+      lastSavedValuesRef.current = currentValues;
+      return;
+    }
+
+    if (currentValues === lastSavedValuesRef.current) return;
+    if (createCalc.isPending) return;
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      form.handleSubmit((data) => onSubmit(data, true))();
+    }, 800);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [compact, prefilled, watched.weight, watched.height, watched.age, watched.gender, watched.activityLevel, watched.goal, watched.targetType, watched.targetAmount, createCalc.isPending]);
+
   if (compact) {
     const metricsSummary = [
       watched.weight && `${watched.weight} kg`,
@@ -281,7 +332,7 @@ export function CalculatorForm({
 
     return (
       <>
-      <form id="calculator-form" onSubmit={form.handleSubmit(onSubmit)}>
+      <form id="calculator-form" onSubmit={form.handleSubmit((data) => onSubmit(data, false))}>
         {/* ── Section 1: Metrics ── */}
         <AccordionSection
           title="Metrics"
@@ -548,6 +599,25 @@ export function CalculatorForm({
             )}
           </div>
         </AccordionSection>
+
+        <AnimatePresence>
+          {autoSaving && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center justify-center gap-2 px-6 py-2.5 text-xs text-zinc-500"
+              data-testid="text-auto-saving"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                className="w-3.5 h-3.5 border-2 border-zinc-300 border-t-zinc-600 rounded-full"
+              />
+              Updating targets…
+            </motion.div>
+          )}
+        </AnimatePresence>
       </form>
 
       {cycleReenableDialog && (
@@ -605,7 +675,7 @@ export function CalculatorForm({
         <h2 className="text-2xl font-display font-bold tracking-tight text-zinc-900">Enter Metrics</h2>
         <p className="text-zinc-500 mt-2 text-sm">Provide your accurate body metrics for precise calculation.</p>
       </div>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit((data) => onSubmit(data, false))} className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
