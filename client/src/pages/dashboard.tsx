@@ -599,6 +599,9 @@ export default function Dashboard() {
               dailyProteinTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
               dailyCarbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
               dailyFatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
+              dailyFibreTarget={effectiveTargets?.fibreGoal ?? activeResult?.fibreGoal ?? undefined}
+              dailySugarTarget={activeResult?.sugarGoal ?? undefined}
+              dailySaturatedFatTarget={activeResult?.saturatedFatGoal ?? undefined}
               prefill={logPrefill}
               onPrefillConsumed={handlePrefillConsumed}
             />
@@ -712,6 +715,9 @@ export default function Dashboard() {
           protTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
           carbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
           fatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
+          fibreTarget={effectiveTargets?.fibreGoal ?? activeResult?.fibreGoal ?? undefined}
+          sugarTarget={activeResult?.sugarGoal ?? undefined}
+          saturatedFatTarget={activeResult?.saturatedFatGoal ?? undefined}
           onCreatePlan={activeResult ? handleCreatePlan : undefined}
         /> : null;
       case "my-momentum":
@@ -1685,6 +1691,9 @@ export default function Dashboard() {
                           protTarget={effectiveTargets?.proteinGoal ?? activeResult?.proteinGoal ?? undefined}
                           carbsTarget={effectiveTargets?.carbsGoal ?? activeResult?.carbsGoal ?? undefined}
                           fatTarget={effectiveTargets?.fatGoal ?? activeResult?.fatGoal ?? undefined}
+                          fibreTarget={effectiveTargets?.fibreGoal ?? activeResult?.fibreGoal ?? undefined}
+                          sugarTarget={activeResult?.sugarGoal ?? undefined}
+                          saturatedFatTarget={activeResult?.saturatedFatGoal ?? undefined}
                           onCreatePlan={activeResult ? handleCreatePlan : undefined}
                         />}
                         {!hiddenWidgets.includes("my-meals-food") && <MyMealsFoodWidget />}

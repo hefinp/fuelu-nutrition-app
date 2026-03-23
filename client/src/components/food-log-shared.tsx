@@ -270,6 +270,109 @@ export function MacroGrid({
   );
 }
 
+export interface DarkMacroCardProps {
+  cal: number;
+  prot: number;
+  carbs: number;
+  fat: number;
+  fibre?: number;
+  sugar?: number;
+  saturatedFat?: number;
+  calTarget?: number;
+  protTarget?: number;
+  carbsTarget?: number;
+  fatTarget?: number;
+  fibreTarget?: number;
+  sugarTarget?: number;
+  saturatedFatTarget?: number;
+}
+
+export function DarkMacroCard({
+  cal, prot, carbs, fat, fibre, sugar, saturatedFat,
+  calTarget, protTarget, carbsTarget, fatTarget, fibreTarget, sugarTarget, saturatedFatTarget,
+}: DarkMacroCardProps) {
+  const calPct = calTarget && calTarget > 0 ? Math.min(100, Math.round((cal / calTarget) * 100)) : 0;
+  const calOver = calTarget != null && calTarget > 0 && cal > calTarget;
+
+  const primaryMacros = [
+    { label: "Protein", value: prot, target: protTarget, color: "hsl(var(--chart-1))" },
+    { label: "Carbs", value: carbs, target: carbsTarget, color: "hsl(var(--chart-2))" },
+    { label: "Fat", value: fat, target: fatTarget, color: "hsl(var(--chart-3))" },
+  ];
+
+  const subMacros = [
+    { label: "Fibre", value: fibre ?? 0, target: fibreTarget, color: "#10b981" },
+    { label: "Sugar", value: sugar ?? 0, target: sugarTarget, color: "#f472b6" },
+    { label: "Sat. Fat", value: saturatedFat ?? 0, target: saturatedFatTarget, color: "#fb923c" },
+  ];
+
+  const hasSubMacros = fibre != null || sugar != null || saturatedFat != null ||
+    fibreTarget != null || sugarTarget != null || saturatedFatTarget != null;
+
+  return (
+    <div className="bg-zinc-900 text-white rounded-3xl shadow-2xl relative overflow-hidden p-4 mb-4" data-testid="dark-macro-card">
+      <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+      <div className="relative z-10">
+      <div className="flex items-baseline justify-between mb-2">
+        <p className="text-2xl font-bold leading-none" data-testid="dark-macro-cal-consumed">{cal}</p>
+        <p className="text-sm text-zinc-400">
+          / <span className="text-white font-semibold">{calTarget ?? "–"}</span> kcal
+        </p>
+      </div>
+
+      <div className="w-full bg-white/10 rounded-full h-2 mb-3 overflow-hidden" data-testid="dark-macro-cal-bar">
+        <div
+          className={`h-full rounded-full transition-all ${calOver ? "bg-red-500" : "bg-amber-400"}`}
+          style={{ width: `${calPct}%` }}
+        />
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        {primaryMacros.map((item) => {
+          const testId = `dark-macro-${item.label.toLowerCase()}`;
+          return (
+            <div key={item.label} className="bg-white/10 rounded-xl p-3" data-testid={testId}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                <span className="text-xs text-zinc-400 font-medium">{item.label}</span>
+              </div>
+              <p className="text-lg font-bold leading-none" data-testid={`${testId}-value`}>
+                {item.value}
+                <span className="text-xs font-normal text-zinc-500 ml-0.5">
+                  / {item.target ?? "–"}g
+                </span>
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {hasSubMacros && (
+        <div className="grid grid-cols-3 gap-2 mt-2">
+          {subMacros.map((item) => {
+            const testId = `dark-macro-${item.label.toLowerCase().replace(/[.\s]+/g, "-")}`;
+            return (
+              <div key={item.label} className="bg-white/5 rounded-xl p-2.5" data-testid={testId}>
+                <div className="flex items-center gap-1 mb-0.5">
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                  <span className="text-[10px] text-zinc-500 font-medium">{item.label}</span>
+                </div>
+                <p className="text-base font-bold leading-none" data-testid={`${testId}-value`}>
+                  {item.value}
+                  <span className="text-[10px] font-normal text-zinc-500 ml-0.5">
+                    / {item.target ?? "–"}g
+                  </span>
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      </div>
+    </div>
+  );
+}
+
 export function SlotPicker({
   value,
   onChange,

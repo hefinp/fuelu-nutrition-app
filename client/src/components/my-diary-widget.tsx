@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { getActivityIcon } from "@/lib/activityIcons";
 import {
-  MacroGrid, SLOT_ICONS, SLOT_COLORS, SLOT_LABELS,
+  DarkMacroCard, SLOT_ICONS, SLOT_COLORS, SLOT_LABELS,
   todayStr, formatDateLabel, shiftDate,
 } from "@/components/food-log-shared";
 import type { FoodLogEntry, MealSlot } from "@/components/food-log-shared";
@@ -22,6 +22,9 @@ interface MyDiaryWidgetProps {
   protTarget?: number;
   carbsTarget?: number;
   fatTarget?: number;
+  fibreTarget?: number;
+  sugarTarget?: number;
+  saturatedFatTarget?: number;
   onCreatePlan?: () => void;
 }
 
@@ -38,7 +41,7 @@ interface DiaryActivityData {
 
 const QUICK_WATER_AMOUNTS = [250, 500, 750, 1000];
 
-export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, onCreatePlan }: MyDiaryWidgetProps) {
+export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, fibreTarget, sugarTarget, saturatedFatTarget, onCreatePlan }: MyDiaryWidgetProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -146,6 +149,10 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, o
   const totalProt = confirmedEntries.reduce((s, e) => s + e.protein, 0);
   const totalCarbs = confirmedEntries.reduce((s, e) => s + e.carbs, 0);
   const totalFat = confirmedEntries.reduce((s, e) => s + e.fat, 0);
+  const totalFibre = confirmedEntries.reduce((s, e) => s + (e.fibre ?? 0), 0);
+  const totalSugar = confirmedEntries.reduce((s, e) => s + (e.sugar ?? 0), 0);
+  const totalSatFat = confirmedEntries.reduce((s, e) => s + (e.saturatedFat ?? 0), 0);
+  const hasExtendedMacros = confirmedEntries.some(e => e.fibre != null || e.sugar != null || e.saturatedFat != null) || fibreTarget != null || sugarTarget != null || saturatedFatTarget != null;
 
   const slotOrder: (MealSlot | null)[] = ["breakfast", "lunch", "dinner", "snack", "drinks", null];
   const grouped: Record<string, FoodLogEntry[]> = {};
@@ -416,10 +423,15 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, o
           </>
         )}
 
-        <MacroGrid
+        <DarkMacroCard
           cal={totalCal} prot={totalProt} carbs={totalCarbs} fat={totalFat}
+          fibre={hasExtendedMacros ? totalFibre : undefined}
+          sugar={hasExtendedMacros ? totalSugar : undefined}
+          saturatedFat={hasExtendedMacros ? totalSatFat : undefined}
           calTarget={calTarget} protTarget={protTarget}
           carbsTarget={carbsTarget} fatTarget={fatTarget}
+          fibreTarget={fibreTarget} sugarTarget={sugarTarget}
+          saturatedFatTarget={saturatedFatTarget}
         />
 
         {isLoading ? (

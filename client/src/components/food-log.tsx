@@ -11,7 +11,7 @@ import {
   type MealSlot, type FoodLogEntry,
   SLOT_LABELS, SLOT_ICONS, SLOT_COLORS, ALL_SLOTS,
   todayStr,
-  MacroGrid,
+  DarkMacroCard,
   LoggedMealModal,
 } from "@/components/food-log-shared";
 import { FoodLogDrawer } from "@/components/food-log-drawer";
@@ -26,12 +26,16 @@ interface FoodLogProps {
   dailyProteinTarget?: number;
   dailyCarbsTarget?: number;
   dailyFatTarget?: number;
+  dailyFibreTarget?: number;
+  dailySugarTarget?: number;
+  dailySaturatedFatTarget?: number;
   prefill?: import("@/components/food-log-shared").PrefillEntry | null;
   onPrefillConsumed?: () => void;
 }
 
 export function FoodLog({
   dailyCaloriesTarget, dailyProteinTarget, dailyCarbsTarget, dailyFatTarget,
+  dailyFibreTarget, dailySugarTarget, dailySaturatedFatTarget,
   prefill, onPrefillConsumed,
 }: FoodLogProps) {
   const today = todayStr();
@@ -86,6 +90,10 @@ export function FoodLog({
   const totalProt = confirmedDaily.reduce((s, e) => s + e.protein, 0);
   const totalCarbs = confirmedDaily.reduce((s, e) => s + e.carbs, 0);
   const totalFat = confirmedDaily.reduce((s, e) => s + e.fat, 0);
+  const totalFibre = confirmedDaily.reduce((s, e) => s + (e.fibre ?? 0), 0);
+  const totalSugar = confirmedDaily.reduce((s, e) => s + (e.sugar ?? 0), 0);
+  const totalSatFat = confirmedDaily.reduce((s, e) => s + (e.saturatedFat ?? 0), 0);
+  const hasExtendedMacros = confirmedDaily.some(e => e.fibre != null || e.sugar != null || e.saturatedFat != null) || dailyFibreTarget != null || dailySugarTarget != null || dailySaturatedFatTarget != null;
 
   const plannedDaily = dailyEntries.filter(e => e.confirmed === false);
   const plannedCal = plannedDaily.reduce((s, e) => s + e.calories, 0);
@@ -139,10 +147,15 @@ export function FoodLog({
         </button>
       </div>
 
-      <MacroGrid
+      <DarkMacroCard
         cal={totalCal} prot={totalProt} carbs={totalCarbs} fat={totalFat}
+        fibre={hasExtendedMacros ? totalFibre : undefined}
+        sugar={hasExtendedMacros ? totalSugar : undefined}
+        saturatedFat={hasExtendedMacros ? totalSatFat : undefined}
         calTarget={dailyCaloriesTarget} protTarget={dailyProteinTarget}
         carbsTarget={dailyCarbsTarget} fatTarget={dailyFatTarget}
+        fibreTarget={dailyFibreTarget} sugarTarget={dailySugarTarget}
+        saturatedFatTarget={dailySaturatedFatTarget}
       />
 
       {plannedDaily.length > 0 && (
