@@ -338,7 +338,7 @@ export default function Dashboard() {
   const [logPrefill, setLogPrefill] = useState<PrefillEntry | null>(null);
   const [showLogDrawer, setShowLogDrawer] = useState(false);
   const { data: history, isLoading: historyLoading, isFetched: historyFetched } = useCalculations();
-  const { user, logout, isLoggingOut } = useAuth();
+  const { user, logout, isLoggingOut, isLoading: authLoading } = useAuth();
   const { data: tierStatus } = useTierStatus();
   const [, setLocation] = useLocation();
   const isDesktop = useIsDesktop();
@@ -1638,7 +1638,11 @@ export default function Dashboard() {
                 {/* ── MOBILE Favourites tab content ── */}
                 {mobileTab === 'favourites' && (
                   <div className="mb-6 flex flex-col gap-6">
-                    {user ? (
+                    {authLoading ? (
+                      <div className="flex justify-center py-16">
+                        <Loader2 className="w-6 h-6 animate-spin text-zinc-300" />
+                      </div>
+                    ) : user ? (
                       <>
                         {!hiddenWidgets.includes("my-momentum") && (
                           <MyMomentumWidget
@@ -1788,7 +1792,7 @@ export default function Dashboard() {
         </div>
       </footer>
 
-      <InstallPrompt />
+      {!authLoading && <InstallPrompt />}
 
       {/* ── Mobile bottom navigation bar ─────────────────────────────────── */}
       {user && (
@@ -2010,9 +2014,11 @@ export default function Dashboard() {
         />
       )}
 
-      <footer className="mt-8 pb-4 text-center">
-        <p className="text-xs text-zinc-400" data-testid="text-dashboard-copyright">&copy; 2026 FuelU. All rights reserved.</p>
-      </footer>
+      {!authLoading && (
+        <footer className="mt-8 pb-4 text-center">
+          <p className="text-xs text-zinc-400" data-testid="text-dashboard-copyright">&copy; 2026 FuelU. All rights reserved.</p>
+        </footer>
+      )}
 
     </div>
   );
