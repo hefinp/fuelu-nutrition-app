@@ -86,6 +86,13 @@ async function processReengagementJobs(): Promise<void> {
 
       const message = messages[stepIndex];
 
+      const clientEmailPrefs = await storage.getEmailPreferences(job.clientId);
+      if (!clientEmailPrefs.reengagement) {
+        await storage.updateActiveReengagementJob(job.id, { status: "completed" });
+        console.log(`[reengagement] job ${job.id} skipped — client ${job.clientId} has opted out of re-engagement emails`);
+        continue;
+      }
+
       await storage.createMessage(job.nutritionistId, job.clientId, job.nutritionistId, message.body);
       console.log(`[reengagement] sent step ${stepIndex + 1}/${messages.length} for job ${job.id} (client ${job.clientId})`);
 

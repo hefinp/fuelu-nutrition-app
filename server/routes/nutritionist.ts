@@ -46,7 +46,7 @@ const upload = multer({
     }
   },
 });
-import { sendEmail, buildWaitlistInviteEmailHtml } from "../email";
+import { sendEmail, buildWaitlistInviteEmailHtml, buildUnsubscribeUrl, buildEmailUnsubscribeUrl } from "../email";
 
 import OpenAI from "openai";
 import { generateMealPlan } from "../meal-data";
@@ -2425,13 +2425,28 @@ router.post("/api/nutritionist/waitlist/:id/invite", async (req, res) => {
   const entry = await storage.getWaitlistEntryById(id, userId);
   if (!entry) return res.status(404).json({ message: "Waitlist entry not found." });
   if (entry.status !== "waiting") return res.status(400).json({ message: "This prospect has already been invited or converted." });
+  const nutritionistUser = await storage.getUserById(userId);
+  const nutritionistName = nutritionistUser?.name ?? "Your nutritionist";
+  const prospectUser = await storage.getUserByEmail(entry.email);
+  let unsubscribeUrl: string;
+  if (prospectUser) {
+    const emailPrefs = await storage.getEmailPreferences(prospectUser.id);
+    if (!emailPrefs.marketing) {
+      return res.status(403).json({ message: "This prospect has opted out of marketing emails." });
+    }
+    unsubscribeUrl = buildUnsubscribeUrl(prospectUser.id);
+  } else {
+    const emailPrefs = await storage.getEmailOptoutPreferences(entry.email);
+    if (!emailPrefs.marketing) {
+      return res.status(403).json({ message: "This prospect has opted out of marketing emails." });
+    }
+    unsubscribeUrl = buildEmailUnsubscribeUrl(entry.email);
+  }
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const invitation = await storage.createNutritionistInvitation(userId, entry.email, token, expiresAt);
   const inviteUrl = `${req.protocol}://${req.get("host")}/auth?tab=register&nutritionist_invite=${token}`;
   await storage.updateWaitlistEntry(id, userId, { status: "invited", invitedAt: new Date() });
-  const nutritionistUser = await storage.getUserById(userId);
-  const nutritionistName = nutritionistUser?.name ?? "Your nutritionist";
   try {
     await sendEmail({
       to: entry.email,
@@ -2440,6 +2455,7 @@ router.post("/api/nutritionist/waitlist/:id/invite", async (req, res) => {
         prospectName: entry.name,
         nutritionistName,
         inviteUrl,
+        unsubscribeUrl,
       }),
     });
   } catch (emailErr) {

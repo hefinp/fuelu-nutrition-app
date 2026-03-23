@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { PublicUser, UserPreferences } from "@shared/schema";
 import {
   Crown, CreditCard, AlertTriangle, ArrowRight, Loader2, CheckCircle2,
-  ArrowUpRight, User, Lock, ChevronRight, Globe, Database, ExternalLink, Trash2,
+  ArrowUpRight, User, Lock, ChevronRight, Globe, Database, ExternalLink, Trash2, Mail,
 } from "lucide-react";
 import { ConfirmDialog, useConfirmDialog } from "@/components/confirm-dialog";
 
@@ -61,6 +61,12 @@ export default function AccountPage() {
 
   const { data: userPreferences } = useQuery<UserPreferences>({
     queryKey: ["/api/user/preferences"],
+    enabled: !!user,
+  });
+
+  type EmailPrefs = { mealPlans: boolean; reengagement: boolean; marketing: boolean };
+  const { data: emailPrefs } = useQuery<EmailPrefs>({
+    queryKey: ["/api/user/email-preferences"],
     enabled: !!user,
   });
 
@@ -136,6 +142,21 @@ export default function AccountPage() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to save country.", variant: "destructive" });
+    },
+  });
+
+  const emailPrefsMutation = useMutation({
+    mutationFn: async (prefs: EmailPrefs) => {
+      const res = await apiRequest("PUT", "/api/user/email-preferences", prefs);
+      if (!res.ok) { const err = await res.json(); throw new Error(err.message); }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/email-preferences"] });
+      toast({ title: "Email preferences saved", description: "Your email notification settings have been updated." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
 
@@ -450,6 +471,41 @@ export default function AccountPage() {
                   </div>
                 </li>
               </ul>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-zinc-100 p-6 space-y-4" data-testid="card-email-preferences">
+              <div className="flex items-center gap-2 mb-2">
+                <Mail className="w-4 h-4 text-zinc-400" />
+                <h2 className="text-sm font-semibold text-zinc-900">Email Preferences</h2>
+              </div>
+              <p className="text-xs text-zinc-500">
+                Choose which types of emails you'd like to receive. Transactional emails like password resets are always sent.
+              </p>
+              {emailPrefs && (
+                <div className="space-y-3">
+                  {[
+                    { key: "mealPlans" as const, label: "Meal Plan Emails", desc: "Receive your generated meal plans via email" },
+                    { key: "reengagement" as const, label: "Re-engagement Reminders", desc: "Receive reminders when you haven't logged in a while" },
+                    { key: "marketing" as const, label: "Promotional & Waitlist Emails", desc: "Receive invitations and promotional updates" },
+                  ].map(({ key, label, desc }) => (
+                    <label key={key} className="flex items-start gap-3 p-3 rounded-xl border border-zinc-100 hover:bg-zinc-50 transition-colors cursor-pointer" data-testid={`toggle-email-${key}`}>
+                      <input
+                        type="checkbox"
+                        checked={emailPrefs[key]}
+                        onChange={(e) => {
+                          emailPrefsMutation.mutate({ ...emailPrefs, [key]: e.target.checked });
+                        }}
+                        className="mt-0.5 w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                        data-testid={`checkbox-email-${key}`}
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-zinc-900">{label}</p>
+                        <p className="text-xs text-zinc-500">{desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
 
             <form onSubmit={handlePasswordSave} className="bg-white rounded-2xl border border-zinc-100 p-6 space-y-4" data-testid="form-password">

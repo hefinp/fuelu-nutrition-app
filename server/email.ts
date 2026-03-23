@@ -1,7 +1,10 @@
 import { Resend } from "resend";
+import crypto from "crypto";
 
-// Replit Resend connector — fetches API key and from_email from the Replit connections API.
-// WARNING: Never cache the client. Tokens expire, so credentials must be fetched fresh each call.
+const UNSUBSCRIBE_SECRET = process.env.UNSUBSCRIBE_SECRET || crypto.randomBytes(32).toString("hex");
+if (!process.env.UNSUBSCRIBE_SECRET) {
+  console.warn("[email] UNSUBSCRIBE_SECRET not set — using ephemeral random key. Unsubscribe links will break on restart. Set UNSUBSCRIBE_SECRET in production.");
+}
 
 interface ResendCredentials {
   apiKey: string;
@@ -53,7 +56,6 @@ async function getResendCredentials(): Promise<ResendCredentials | null> {
     }
   }
 
-  // Fallback to bare environment variable (non-Replit environments)
   if (process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL) {
     return {
       apiKey: process.env.RESEND_API_KEY,
@@ -72,12 +74,56 @@ function formatFromAddress(fromEmail: string, displayName = "FuelU"): string {
   return fromEmail.includes("<") ? fromEmail : `${displayName} <${fromEmail}>`;
 }
 
-// ─── Shared branded email wrapper ────────────────────────────────────────────
+export function generateUnsubscribeToken(userId: number): string {
+  const payload = `${userId}`;
+  const hmac = crypto.createHmac("sha256", UNSUBSCRIBE_SECRET).update(payload).digest("hex");
+  return Buffer.from(`${payload}:${hmac}`).toString("base64url");
+}
+
+export function generateEmailUnsubscribeToken(email: string): string {
+  const payload = `email:${email}`;
+  const hmac = crypto.createHmac("sha256", UNSUBSCRIBE_SECRET).update(payload).digest("hex");
+  return Buffer.from(`${payload}:${hmac}`).toString("base64url");
+}
+
+export function verifyUnsubscribeToken(token: string): { userId: number } | { email: string } | null {
+  try {
+    const decoded = Buffer.from(token, "base64url").toString("utf-8");
+    const colonIdx = decoded.lastIndexOf(":");
+    if (colonIdx === -1) return null;
+    const payload = decoded.substring(0, colonIdx);
+    const hmac = decoded.substring(colonIdx + 1);
+    const expected = crypto.createHmac("sha256", UNSUBSCRIBE_SECRET).update(payload).digest("hex");
+    if (hmac.length !== expected.length) return null;
+    if (!crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(expected))) return null;
+    if (payload.startsWith("email:")) {
+      const email = payload.substring(6);
+      return email ? { email } : null;
+    }
+    const userId = parseInt(payload, 10);
+    return isNaN(userId) ? null : { userId };
+  } catch {
+    return null;
+  }
+}
+
+export function buildUnsubscribeUrl(userId: number): string {
+  const token = generateUnsubscribeToken(userId);
+  const appUrl = process.env.APP_URL || "http://localhost:5000";
+  return `${appUrl}/email-preferences?token=${token}`;
+}
+
+export function buildEmailUnsubscribeUrl(email: string): string {
+  const token = generateEmailUnsubscribeToken(email);
+  const appUrl = process.env.APP_URL || "http://localhost:5000";
+  return `${appUrl}/email-preferences?token=${token}`;
+}
 
 function wrapEmailHtml(body: string, opts: {
   title: string;
   accentText?: string;
   disclaimer?: string;
+  unsubscribeUrl?: string;
 }): string {
   const year = new Date().getFullYear();
   const accentHtml = opts.accentText
@@ -85,6 +131,9 @@ function wrapEmailHtml(body: string, opts: {
     : "";
   const disclaimerHtml = opts.disclaimer
     ? `<p style="margin:12px 0 0;font-size:11px;color:#a1a1aa;line-height:1.5">${esc(opts.disclaimer)}</p>`
+    : "";
+  const unsubscribeHtml = opts.unsubscribeUrl
+    ? `<p style="margin:8px 0 0;font-size:11px;color:#a1a1aa;line-height:1.5"><a href="${opts.unsubscribeUrl}" style="color:#71717a;text-decoration:underline">Manage email preferences or unsubscribe</a></p>`
     : "";
 
   return `<!DOCTYPE html>
@@ -138,6 +187,7 @@ function wrapEmailHtml(body: string, opts: {
             <td style="background:#f9f9f9;border-top:1px solid #e4e4e7;border-radius:0 0 14px 14px;padding:16px 24px">
               <p style="margin:0;font-size:12px;color:#71717a;line-height:1.5">&copy; ${year} FuelU. All rights reserved.</p>
               ${disclaimerHtml}
+              ${unsubscribeHtml}
             </td>
           </tr>
 
@@ -148,8 +198,6 @@ function wrapEmailHtml(body: string, opts: {
 </body>
 </html>`;
 }
-
-// ─── Send ─────────────────────────────────────────────────────────────────────
 
 export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }): Promise<void> {
   const credentials = await getResendCredentials();
@@ -170,8 +218,6 @@ export async function sendEmail({ to, subject, html }: { to: string; subject: st
   }
 }
 
-// ─── Templates ────────────────────────────────────────────────────────────────
-
 export function buildPasswordResetEmailHtml(resetUrl: string, name: string): string {
   const body = `
     <h2 style="font-size:22px;font-weight:700;margin:0 0 12px">Reset your password</h2>
@@ -183,7 +229,7 @@ export function buildPasswordResetEmailHtml(resetUrl: string, name: string): str
   return wrapEmailHtml(body, { title: "Reset your FuelU password" });
 }
 
-export function buildMealPlanEmailHtml(planName: string, userName: string, planData: any, planType: string, shoppingList?: Record<string, Array<{ item: string; quantity: string }>>): string {
+export function buildMealPlanEmailHtml(planName: string, userName: string, planData: any, planType: string, shoppingList?: Record<string, Array<{ item: string; quantity: string }>>, unsubscribeUrl?: string): string {
   const slots = ["breakfast", "lunch", "dinner", "snacks"] as const;
   const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
@@ -244,6 +290,7 @@ export function buildMealPlanEmailHtml(planName: string, userName: string, planD
     title: planName,
     accentText: "Meal Plan",
     disclaimer: "Results are estimates. Consult a qualified healthcare professional before making dietary changes.",
+    unsubscribeUrl,
   });
 }
 
@@ -251,6 +298,7 @@ export function buildWaitlistInviteEmailHtml(opts: {
   prospectName: string;
   nutritionistName: string;
   inviteUrl: string;
+  unsubscribeUrl?: string;
 }): string {
   const body = `
     <h2 style="font-size:22px;font-weight:700;margin:0 0 12px">You've been invited!</h2>
@@ -260,7 +308,7 @@ export function buildWaitlistInviteEmailHtml(opts: {
     <p style="margin:24px 0 0;color:#a1a1aa;font-size:13px;line-height:1.5">If you weren't expecting this, you can safely ignore this email.</p>
     <p style="margin:8px 0 0;color:#a1a1aa;font-size:12px">Or copy this link:<br><a href="${opts.inviteUrl}" style="color:#71717a;word-break:break-all">${opts.inviteUrl}</a></p>
   `;
-  return wrapEmailHtml(body, { title: "You're invited to join FuelU" });
+  return wrapEmailHtml(body, { title: "You're invited to join FuelU", unsubscribeUrl: opts.unsubscribeUrl });
 }
 
 export function buildFeedbackEmailHtml(opts: {

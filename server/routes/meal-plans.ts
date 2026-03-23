@@ -4,7 +4,7 @@ import { storage } from "../storage";
 import { api, mealPlanSchema } from "@shared/routes";
 import type { UserPreferences } from "@shared/schema";
 import { RECIPES } from "@shared/recipes";
-import { sendEmail, buildMealPlanEmailHtml } from "../email";
+import { sendEmail, buildMealPlanEmailHtml, buildUnsubscribeUrl } from "../email";
 import { hasTierAccess, deductCredits } from "../tier";
 import {
   type MealEntry, type MealDb,
@@ -907,7 +907,12 @@ router.post("/api/saved-meal-plans/:id/email", async (req, res) => {
     }
     if (Object.keys(validated).length > 0) shoppingList = validated;
   }
-  const html = buildMealPlanEmailHtml(plan.name, user.name, plan.planData as any, plan.planType, shoppingList);
+  const emailPrefs = await storage.getEmailPreferences(req.session.userId);
+  if (!emailPrefs.mealPlans) {
+    return res.status(403).json({ message: "You have opted out of meal plan emails. Update your email preferences in Account Settings to re-enable." });
+  }
+  const unsubscribeUrl = buildUnsubscribeUrl(req.session.userId);
+  const html = buildMealPlanEmailHtml(plan.name, user.name, plan.planData as any, plan.planType, shoppingList, unsubscribeUrl);
   await sendEmail({ to: user.email, subject: `Your FuelU plan: ${plan.name}`, html });
   res.json({ message: "Plan sent to your email." });
 });

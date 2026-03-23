@@ -42,9 +42,32 @@ export const users = pgTable("users", {
   trialStatus: text("trial_status").notNull().default("none"),
   trialStepDownSeen: boolean("trial_step_down_seen").notNull().default(false),
   trialExpiredSeen: boolean("trial_expired_seen").notNull().default(false),
+  emailPreferences: jsonb("email_preferences"),
   isManagedClient: boolean("is_managed_client").notNull().default(false),
   managedByNutritionistId: integer("managed_by_nutritionist_id"),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const emailPreferencesSchema = z.object({
+  mealPlans: z.boolean().default(true),
+  reengagement: z.boolean().default(true),
+  marketing: z.boolean().default(true),
+});
+
+export type EmailPreferences = z.infer<typeof emailPreferencesSchema>;
+
+export const DEFAULT_EMAIL_PREFERENCES: EmailPreferences = {
+  mealPlans: true,
+  reengagement: true,
+  marketing: true,
+};
+
+export const emailOptouts = pgTable("email_optouts", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  preferences: jsonb("preferences").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const usernameSchema = z

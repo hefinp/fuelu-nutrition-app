@@ -967,6 +967,19 @@ export async function runMigrations(): Promise<void> {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_survey_responses_delivery ON survey_responses (survey_delivery_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_survey_responses_client ON survey_responses (client_id)`);
 
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email_preferences JSONB DEFAULT '{"mealPlans":true,"reengagement":true,"marketing":true}'::jsonb`);
+    await client.query(`UPDATE users SET email_preferences = '{"mealPlans":true,"reengagement":true,"marketing":true}'::jsonb WHERE email_preferences IS NULL`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS email_optouts (
+        id          SERIAL PRIMARY KEY,
+        email       TEXT NOT NULL UNIQUE,
+        preferences JSONB NOT NULL DEFAULT '{"mealPlans":true,"reengagement":true,"marketing":true}'::jsonb,
+        created_at  TIMESTAMP DEFAULT NOW(),
+        updated_at  TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
   } finally {
     client.release();
   }

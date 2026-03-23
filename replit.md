@@ -43,6 +43,6 @@ Users can connect their Strava account via OAuth to import fitness activity data
 -   **Wouter**: Client-side routing.
 -   **express-session + connect-pg-simple**: Session management.
 -   **bcryptjs**: Password hashing.
--   **Resend**: Transactional email service.
+-   **Resend**: Transactional email service (non-transactional emails include unsubscribe links via signed tokens).
 -   **Vite + @vitejs/plugin-react**: Frontend build tool and dev server.
 -   **esbuild**: Backend bundler.

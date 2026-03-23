@@ -8,7 +8,8 @@ import { storage } from "../storage";
 import { registerSchema, loginSchema, usernameSchema, type UserPreferences, type User, nutritionistTierLimits, type NutritionistTier } from "@shared/schema";
 import { computeTrialInfo } from "@shared/trial";
 import { authRateLimiter } from "../constants";
-import { sendEmail, buildPasswordResetEmailHtml } from "../email";
+import { sendEmail, buildPasswordResetEmailHtml, verifyUnsubscribeToken } from "../email";
+import { emailPreferencesSchema } from "@shared/schema";
 
 function toPublicUser(user: User) {
   const { passwordHash: _, stripeCustomerId: _s, stripeSubscriptionId: _si, paymentFailedAt: _p, ...pub } = user;
@@ -416,6 +417,63 @@ router.delete("/api/auth/account", async (req, res) => {
   } catch (err) {
     if (err instanceof z.ZodError) return res.status(400).json({ message: "Password is required to delete your account" });
     throw err;
+  }
+});
+
+router.get("/api/email-preferences", async (req, res) => {
+  const token = req.query.token as string;
+  if (!token) return res.status(400).json({ message: "Missing token" });
+
+  const result = verifyUnsubscribeToken(token);
+  if (!result) return res.status(400).json({ message: "Invalid or expired unsubscribe link." });
+
+  if ("userId" in result) {
+    const user = await storage.getUserById(result.userId);
+    if (!user) return res.status(404).json({ message: "User not found." });
+    const preferences = await storage.getEmailPreferences(result.userId);
+    return res.json({ preferences, name: user.name });
+  }
+
+  const preferences = await storage.getEmailOptoutPreferences(result.email);
+  res.json({ preferences, name: result.email });
+});
+
+router.put("/api/email-preferences", async (req, res) => {
+  const { token, preferences } = req.body;
+  if (!token) return res.status(400).json({ message: "Missing token" });
+
+  const result = verifyUnsubscribeToken(token);
+  if (!result) return res.status(400).json({ message: "Invalid or expired unsubscribe link." });
+
+  try {
+    const parsed = emailPreferencesSchema.parse(preferences);
+    if ("userId" in result) {
+      const user = await storage.getUserById(result.userId);
+      if (!user) return res.status(404).json({ message: "User not found." });
+      await storage.updateEmailPreferences(result.userId, parsed);
+    } else {
+      await storage.updateEmailOptoutPreferences(result.email, parsed);
+    }
+    res.json({ message: "Preferences updated", preferences: parsed });
+  } catch (err) {
+    return res.status(400).json({ message: "Invalid preferences" });
+  }
+});
+
+router.get("/api/user/email-preferences", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  const preferences = await storage.getEmailPreferences(req.session.userId);
+  res.json(preferences);
+});
+
+router.put("/api/user/email-preferences", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+  try {
+    const parsed = emailPreferencesSchema.parse(req.body);
+    await storage.updateEmailPreferences(req.session.userId, parsed);
+    res.json({ message: "Preferences updated", preferences: parsed });
+  } catch (err) {
+    return res.status(400).json({ message: "Invalid preferences" });
   }
 });
 

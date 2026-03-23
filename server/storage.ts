@@ -25,6 +25,10 @@ export interface IStorage {
 
   // Preferences
   updateUserPreferences(userId: number, preferences: UserPreferences): Promise<void>;
+  updateEmailPreferences(userId: number, emailPreferences: import("@shared/schema").EmailPreferences): Promise<void>;
+  getEmailPreferences(userId: number): Promise<import("@shared/schema").EmailPreferences>;
+  getEmailOptoutPreferences(email: string): Promise<import("@shared/schema").EmailPreferences>;
+  updateEmailOptoutPreferences(email: string, preferences: import("@shared/schema").EmailPreferences): Promise<void>;
 
   // Saved meal plans
   saveMealPlan(plan: InsertSavedMealPlan): Promise<SavedMealPlan>;
@@ -530,6 +534,35 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserPreferences(userId: number, preferences: UserPreferences): Promise<void> {
     await db.update(users).set({ preferences }).where(eq(users.id, userId));
+  }
+
+  async updateEmailPreferences(userId: number, emailPreferences: import("@shared/schema").EmailPreferences): Promise<void> {
+    await db.update(users).set({ emailPreferences }).where(eq(users.id, userId));
+  }
+
+  async getEmailPreferences(userId: number): Promise<import("@shared/schema").EmailPreferences> {
+    const { DEFAULT_EMAIL_PREFERENCES } = await import("@shared/schema");
+    const [user] = await db.select({ emailPreferences: users.emailPreferences }).from(users).where(eq(users.id, userId));
+    if (!user?.emailPreferences) return { ...DEFAULT_EMAIL_PREFERENCES };
+    return { ...DEFAULT_EMAIL_PREFERENCES, ...(user.emailPreferences as Record<string, boolean>) };
+  }
+
+  async getEmailOptoutPreferences(email: string): Promise<import("@shared/schema").EmailPreferences> {
+    const { DEFAULT_EMAIL_PREFERENCES, emailOptouts } = await import("@shared/schema");
+    const [row] = await db.select({ preferences: emailOptouts.preferences }).from(emailOptouts).where(eq(emailOptouts.email, email.toLowerCase()));
+    if (!row?.preferences) return { ...DEFAULT_EMAIL_PREFERENCES };
+    return { ...DEFAULT_EMAIL_PREFERENCES, ...(row.preferences as Record<string, boolean>) };
+  }
+
+  async updateEmailOptoutPreferences(email: string, preferences: import("@shared/schema").EmailPreferences): Promise<void> {
+    const { emailOptouts } = await import("@shared/schema");
+    const normalizedEmail = email.toLowerCase();
+    const [existing] = await db.select({ id: emailOptouts.id }).from(emailOptouts).where(eq(emailOptouts.email, normalizedEmail));
+    if (existing) {
+      await db.update(emailOptouts).set({ preferences, updatedAt: new Date() }).where(eq(emailOptouts.id, existing.id));
+    } else {
+      await db.insert(emailOptouts).values({ email: normalizedEmail, preferences });
+    }
   }
 
   async saveMealPlan(plan: InsertSavedMealPlan): Promise<SavedMealPlan> {
