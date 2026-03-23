@@ -483,19 +483,143 @@ function categoriseIngredient(item: string): string {
   return "Other";
 }
 
+interface NaturalUnit {
+  unitGrams: number;
+  displayUnit?: string;
+  displayUnitPlural?: string;
+}
+
+const NATURAL_UNITS: Record<string, NaturalUnit> = {
+  tomato: { unitGrams: 150 },
+  "cherry tomato": { unitGrams: 15 },
+  onion: { unitGrams: 150 },
+  "red onion": { unitGrams: 150 },
+  "spring onion": { unitGrams: 15 },
+  garlic: { unitGrams: 5, displayUnit: "clove", displayUnitPlural: "cloves" },
+  potato: { unitGrams: 170 },
+  "sweet potato": { unitGrams: 200 },
+  avocado: { unitGrams: 170 },
+  banana: { unitGrams: 120 },
+  apple: { unitGrams: 180 },
+  orange: { unitGrams: 180 },
+  lemon: { unitGrams: 80 },
+  lime: { unitGrams: 50 },
+  mango: { unitGrams: 300 },
+  pear: { unitGrams: 170 },
+  peach: { unitGrams: 150 },
+  cucumber: { unitGrams: 300 },
+  carrot: { unitGrams: 80 },
+  courgette: { unitGrams: 200 },
+  zucchini: { unitGrams: 200 },
+  "bell pepper": { unitGrams: 160 },
+  "yellow pepper": { unitGrams: 160 },
+  "red pepper": { unitGrams: 160 },
+  "green pepper": { unitGrams: 160 },
+  capsicum: { unitGrams: 160 },
+  broccoli: { unitGrams: 350, displayUnit: "head", displayUnitPlural: "heads" },
+  cauliflower: { unitGrams: 600, displayUnit: "head", displayUnitPlural: "heads" },
+  egg: { unitGrams: 55 },
+  "boiled egg": { unitGrams: 55 },
+  corn: { unitGrams: 250, displayUnit: "ear", displayUnitPlural: "ears" },
+  "corn on the cob": { unitGrams: 250 },
+  beetroot: { unitGrams: 120 },
+  celery: { unitGrams: 40, displayUnit: "stalk", displayUnitPlural: "stalks" },
+  kiwi: { unitGrams: 75 },
+  plum: { unitGrams: 70 },
+  apricot: { unitGrams: 40 },
+  fig: { unitGrams: 50 },
+  grapefruit: { unitGrams: 300 },
+  pomegranate: { unitGrams: 250 },
+  aubergine: { unitGrams: 300 },
+  eggplant: { unitGrams: 300 },
+  mushroom: { unitGrams: 15 },
+  asparagus: { unitGrams: 16, displayUnit: "spear", displayUnitPlural: "spears" },
+  bread: { unitGrams: 35, displayUnit: "slice", displayUnitPlural: "slices" },
+  "bread slice": { unitGrams: 35, displayUnit: "slice", displayUnitPlural: "slices" },
+  tortilla: { unitGrams: 50 },
+  pita: { unitGrams: 60 },
+  bagel: { unitGrams: 100 },
+  ginger: { unitGrams: 15, displayUnit: "thumb", displayUnitPlural: "thumbs" },
+  nectarine: { unitGrams: 140 },
+  clementine: { unitGrams: 75 },
+  mandarin: { unitGrams: 75 },
+  radish: { unitGrams: 10 },
+  shallot: { unitGrams: 30 },
+};
+
+const WEIGHT_SOLD_PATTERNS = /flakes|powder|ground|dried|crushed|minced|paste|sauce|juice|oil|extract|seasoning|spice|peppercorn/;
+
+function findNaturalUnit(ingredientName: string): NaturalUnit | null {
+  const lower = ingredientName.toLowerCase().trim();
+  if (WEIGHT_SOLD_PATTERNS.test(lower)) return null;
+  if (NATURAL_UNITS[lower]) return NATURAL_UNITS[lower];
+  for (const [key, unit] of Object.entries(NATURAL_UNITS)) {
+    const re = new RegExp(`(?:^|\\s|-)${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:s|es)?(?:\\s|$|-|,)`, 'i');
+    if (re.test(lower) || re.test(lower + ' ')) return unit;
+  }
+  return null;
+}
+
+function convertToNaturalUnits(ingredientName: string, gramStr: string): string {
+  const parsed = tryParseQty(gramStr);
+  if (!parsed || parsed.unit !== 'g') return gramStr;
+  const grams = parsed.num;
+  const unit = findNaturalUnit(ingredientName);
+  if (!unit) return gramStr;
+  const count = Math.ceil(grams / unit.unitGrams);
+  if (count <= 0) return gramStr;
+  if (unit.displayUnit) {
+    const label = count === 1 ? unit.displayUnit : (unit.displayUnitPlural || unit.displayUnit + 's');
+    return `${count} ${label}`;
+  }
+  const lower = ingredientName.toLowerCase().trim();
+  const name = count === 1 ? ingredientName : simplePlural(lower, ingredientName);
+  return `${count} ${name}`;
+}
+
+const IRREGULAR_PLURALS: Record<string, string> = {
+  tomato: 'Tomatoes', mango: 'Mangoes', potato: 'Potatoes',
+  'sweet potato': 'Sweet Potatoes', 'cherry tomato': 'Cherry Tomatoes',
+};
+
+function simplePlural(lower: string, original: string): string {
+  if (IRREGULAR_PLURALS[lower]) return IRREGULAR_PLURALS[lower];
+  if (lower.endsWith('y') && !/[aeiou]y$/.test(lower)) return original.slice(0, -1) + 'ies';
+  if (lower.endsWith('s') || lower.endsWith('sh') || lower.endsWith('ch') || lower.endsWith('x') || lower.endsWith('z')) return original + 'es';
+  return original + 's';
+}
+
 function tryParseQty(q: string): { num: number; unit: string } | null {
-  const m = q.match(/^(\d+)(?:\/(\d+))?\s*(.*)$/);
+  const m = q.match(/^(\d+(?:\.\d+)?)(?:\/(\d+))?\s*(.*)$/);
   if (!m) return null;
-  const num = m[2] ? parseInt(m[1]) / parseInt(m[2]) : parseFloat(m[1]);
+  const num = m[2] ? parseFloat(m[1]) / parseInt(m[2]) : parseFloat(m[1]);
   return { num, unit: m[3].trim().toLowerCase() };
 }
+
+function unitsMatch(u1: string, u2: string): boolean {
+  if (u1 === u2) return true;
+  if (u1.endsWith('s') && u1.slice(0, -1) === u2) return true;
+  if (u2.endsWith('s') && u2.slice(0, -1) === u1) return true;
+  if (u1.endsWith('es') && u1.slice(0, -2) === u2) return true;
+  if (u2.endsWith('es') && u2.slice(0, -2) === u1) return true;
+  return false;
+}
+
+const FIXED_UNITS = new Set(['g', 'kg', 'ml', 'l', 'oz', 'lb', 'tsp', 'tbsp', 'cup', 'cups']);
 
 function combineQuantities(existing: string, incoming: string): string {
   const a = tryParseQty(existing);
   const b = tryParseQty(incoming);
-  if (a && b && a.unit === b.unit) {
+  if (a && b && unitsMatch(a.unit, b.unit)) {
     const total = Math.round((a.num + b.num) * 10) / 10;
-    return `${total}${a.unit ? ' ' + a.unit : ''}`.trim();
+    const baseUnit = a.unit.length >= b.unit.length ? a.unit : b.unit;
+    if (FIXED_UNITS.has(baseUnit) || !baseUnit) {
+      return `${total}${baseUnit ? ' ' + baseUnit : ''}`.trim();
+    }
+    const finalUnit = total === 1
+      ? (baseUnit.endsWith('s') ? baseUnit.slice(0, -1) : baseUnit)
+      : (baseUnit.endsWith('s') ? baseUnit : baseUnit + 's');
+    return `${total} ${finalUnit}`.trim();
   }
   return existing;
 }
@@ -505,7 +629,15 @@ function scaleQuantity(quantity: string, multiplier: number): string {
   const parsed = tryParseQty(quantity);
   if (!parsed) return quantity;
   const scaled = Math.round(parsed.num * multiplier * 10) / 10;
-  return `${scaled}${parsed.unit ? ' ' + parsed.unit : ''}`.trim();
+  if (!parsed.unit) return `${scaled}`;
+  if (FIXED_UNITS.has(parsed.unit)) return `${scaled} ${parsed.unit}`;
+  let unit = parsed.unit;
+  if (scaled === 1 && unit.endsWith('s')) {
+    unit = unit.slice(0, -1);
+  } else if (scaled !== 1 && !unit.endsWith('s')) {
+    unit = unit + 's';
+  }
+  return `${scaled} ${unit}`.trim();
 }
 
 export function buildShoppingList(mealPlan: any, multiplier = 1): Record<string, Array<{ item: string; quantity: string }>> {
@@ -575,6 +707,10 @@ export function buildShoppingList(mealPlan: any, multiplier = 1): Record<string,
       entry.quantity = scaleQuantity(entry.quantity, multiplier);
     });
   }
+
+  map.forEach(entry => {
+    entry.quantity = convertToNaturalUnits(entry.item, entry.quantity);
+  });
 
   const grouped: Record<string, Array<{ item: string; quantity: string }>> = {};
   map.forEach(({ category, item, quantity }) => {
