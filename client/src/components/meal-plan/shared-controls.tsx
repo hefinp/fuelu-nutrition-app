@@ -104,7 +104,7 @@ export function SlotToggles({ enabledSlots, onToggleSlot, planMode, selectedDate
     { key: 'breakfast', label: 'Breakfast', icon: Coffee },
     { key: 'lunch', label: 'Lunch', icon: UtensilsCrossed },
     { key: 'dinner', label: 'Dinner', icon: ChefHat },
-    { key: 'snack', label: 'Snacks', icon: Cookie },
+    { key: 'snacks', label: 'Snacks', icon: Cookie },
   ] as const;
   const slots = slotKeys
     ? slotKeys.map(s => ({
@@ -144,7 +144,7 @@ export function SlotToggles({ enabledSlots, onToggleSlot, planMode, selectedDate
       </div>
       {excludedSlots.length > 0 && (
         <p className="text-[10px] text-zinc-400 mt-1.5 text-center">
-          {excludedSlots.map(s => s.key === 'snack' || s.key === 'snacks' ? 'Snacks' : s.key.charAt(0).toUpperCase() + s.key.slice(1)).join(', ')} will be skipped
+          {excludedSlots.map(s => s.key === 'snacks' ? 'Snacks' : s.key.charAt(0).toUpperCase() + s.key.slice(1)).join(', ')} will be skipped
         </p>
       )}
     </div>
