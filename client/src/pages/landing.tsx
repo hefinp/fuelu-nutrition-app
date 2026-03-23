@@ -47,7 +47,7 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
     ogTitle: "FuelU — Personalised Meal Plans in Three Cooking Tiers",
     ogDescription: "AI-powered nutrition planning in Simple, Fancy, and Gourmet tiers. Track macros, scan barcodes, export PDFs, and get cycle-aware meal plans built around how you actually eat.",
     ogImage: `${window.location.origin}/icon-512.png`,
-    ogUrl: "https://fuelu.app",
+    ogUrl: "https://fuelumealplan.com",
     ogType: "website",
   });
 

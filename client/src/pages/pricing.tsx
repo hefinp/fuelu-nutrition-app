@@ -27,7 +27,7 @@ export default function PricingPage() {
     ogTitle: "FuelU Pricing — Plans for Every Nutrition Goal",
     ogDescription: "Compare FuelU plans: Free basics, Simple meal planning, or Advanced AI features. No ads on any paid plan.",
     ogImage: `${window.location.origin}/icon-512.png`,
-    ogUrl: "https://fuelu.app/pricing",
+    ogUrl: "https://fuelumealplan.com/pricing",
     ogType: "website",
   });
 
