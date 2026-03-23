@@ -97,7 +97,7 @@ async function run() {
   let passed = 0;
   let failed = 0;
 
-  const login = await req('POST', '/api/auth/login', { email: TEST_EMAIL, password: TEST_PASS });
+  const login = await req('POST', '/api/auth/login', { identifier: TEST_EMAIL, password: TEST_PASS });
   if (login.status !== 200) {
     console.error('Login failed:', login.body);
     process.exit(1);

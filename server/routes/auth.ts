@@ -121,9 +121,11 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
 router.post("/api/auth/login", authRateLimiter, async (req, res) => {
   try {
     const input = loginSchema.parse(req.body);
-    const user = await storage.getUserByEmail(input.email);
+    const user = input.identifier.includes("@")
+      ? await storage.getUserByEmail(input.identifier)
+      : await storage.getUserByUsername(input.identifier);
     if (!user) {
-      return res.status(401).json({ message: "Invalid email or password" });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
     if (!user.passwordHash) {
       const providerName = user.provider ? user.provider.charAt(0).toUpperCase() + user.provider.slice(1) : "social";
@@ -131,7 +133,7 @@ router.post("/api/auth/login", authRateLimiter, async (req, res) => {
     }
     const valid = await bcrypt.compare(input.password, user.passwordHash);
     if (!valid) {
-      return res.status(401).json({ message: "Invalid email or password" });
+      return res.status(401).json({ message: "Invalid credentials" });
     }
     const trialInfo = computeTrialInfo(
       user.trialStatus, user.trialStartDate, user.trialStepDownSeen, user.trialExpiredSeen, user.betaUser, user.tier

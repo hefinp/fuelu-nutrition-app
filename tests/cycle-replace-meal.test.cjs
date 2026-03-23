@@ -52,7 +52,7 @@ function report(label, failures) {
 }
 
 async function run() {
-  const loginRes = await req('POST', '/api/auth/login', { email: TEST_EMAIL, password: TEST_PASS });
+  const loginRes = await req('POST', '/api/auth/login', { identifier: TEST_EMAIL, password: TEST_PASS });
   if (loginRes.status !== 200) { console.error('Login failed:', loginRes.body); process.exit(1); }
   const sid = loginRes.setCookie.find(c => c.startsWith('connect.sid'))?.split(';')[0];
   if (!sid) { console.error('No session cookie'); process.exit(1); }

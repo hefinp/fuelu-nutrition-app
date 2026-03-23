@@ -8,7 +8,7 @@ test.describe("Auth page", () => {
     await expect(page.getByTestId("tab-login")).toBeVisible();
     await expect(page.getByTestId("tab-register")).toBeVisible();
 
-    await expect(page.getByTestId("input-login-email")).toBeVisible();
+    await expect(page.getByTestId("input-login-identifier")).toBeVisible();
     await expect(page.getByTestId("input-login-password")).toBeVisible();
     await expect(page.getByTestId("button-login-submit")).toBeVisible();
 
@@ -25,7 +25,7 @@ test.describe("Auth page", () => {
     await page.goto("/auth");
     await page.waitForLoadState("networkidle");
 
-    await page.getByTestId("input-login-email").fill("nonexistent@test.com");
+    await page.getByTestId("input-login-identifier").fill("nonexistent@test.com");
     await page.getByTestId("input-login-password").fill("wrongpassword");
     await page.getByTestId("button-login-submit").click();
 
@@ -65,7 +65,7 @@ test.describe("Auth page", () => {
     await page.goto("/auth");
     await page.waitForLoadState("networkidle");
 
-    await page.getByTestId("input-login-email").fill(email);
+    await page.getByTestId("input-login-identifier").fill(email);
     await page.getByTestId("input-login-password").fill(password);
     await page.getByTestId("button-login-submit").click();
 

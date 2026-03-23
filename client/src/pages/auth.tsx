@@ -31,7 +31,7 @@ export default function AuthPage() {
   });
 
   // Login form state
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginIdentifier, setLoginIdentifier] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [showLoginPw, setShowLoginPw] = useState(false);
@@ -110,7 +110,7 @@ export default function AuthPage() {
     e.preventDefault();
     setLoginError("");
     try {
-      await login({ email: loginEmail, password: loginPassword });
+      await login({ identifier: loginIdentifier, password: loginPassword });
       setLocation("/dashboard");
     } catch (err: any) {
       setLoginError(err.message || "Login failed");
@@ -360,15 +360,15 @@ export default function AuthPage() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Email</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Email or username</label>
                 <input
-                  type="email"
+                  type="text"
                   required
-                  value={loginEmail}
-                  onChange={e => setLoginEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  value={loginIdentifier}
+                  onChange={e => setLoginIdentifier(e.target.value)}
+                  placeholder="you@example.com or your username"
                   className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-                  data-testid="input-login-email"
+                  data-testid="input-login-identifier"
                 />
               </div>
 
