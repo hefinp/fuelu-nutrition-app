@@ -724,6 +724,14 @@ export default function Dashboard() {
     root.style.setProperty('--dashboard-snap-top', `${hH + tH}px`);
   }, []);
 
+  const hasScrolledForUser = useRef(false);
+  useEffect(() => {
+    if (user && !hasScrolledForUser.current) {
+      hasScrolledForUser.current = true;
+      requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+    }
+  }, [user]);
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
     document.documentElement.classList.add("dashboard-snap");
