@@ -130,7 +130,7 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
           </div>
 
           <h1 className="font-display font-bold text-4xl sm:text-5xl md:text-6xl tracking-tight text-zinc-900 leading-tight mb-6">
-            Nutrition, planned for you.
+            Your Fuel, planned for you.
             <br />
             <span className="text-zinc-400">Simple. Fancy. Gourmet.</span>
           </h1>
