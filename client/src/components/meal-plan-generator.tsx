@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ClipboardList, ChevronDown, ChevronUp, CalendarDays, AlertTriangle, AlertCircle, Zap, Lock, ArrowRight, Trash2, Plus, GripVertical, Wand2, Timer, Moon, Shield, BookOpen, MoreHorizontal, Undo2, ArrowLeftRight } from "lucide-react";
+import { UtensilsCrossed, Loader2, X, Download, ShoppingCart, RefreshCw, Save, Check, ClipboardList, ChevronDown, ChevronUp, CalendarDays, AlertTriangle, AlertCircle, Zap, Lock, ArrowRight, Trash2, Plus, GripVertical, Wand2, Timer, Moon, Shield, BookOpen, MoreHorizontal, Undo2, ArrowLeftRight, ChefHat } from "lucide-react";
 import { Link } from "wouter";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -171,7 +171,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpe
 
   const hasCycleData = !!(mealPlanPrefs?.cycleTrackingEnabled && mealPlanPrefs?.lastPeriodDate && data.gender === "female");
   const cycleEnabledButMissing = !!(mealPlanPrefs?.cycleTrackingEnabled && !mealPlanPrefs?.lastPeriodDate && data.gender === "female");
-  const hasVitalityBoost = !!(mealPlanPrefs?.vitalityInsightsEnabled && mealPlanPrefs?.vitalityMeals && data.gender === "male");
+  const hasVitalityBoost = !!(mealPlanPrefs?.vitalityInsightsEnabled && mealPlanPrefs?.hormoneBoostingMeals && data.gender === "male");
   const dailyRef = selectedDates[0] || toDateStr(new Date());
   const cycleInfo = hasCycleData
     ? getCyclePhase(mealPlanPrefs!.lastPeriodDate!, mealPlanPrefs!.cycleLength ?? 28, dailyRef)
@@ -1010,7 +1010,74 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpe
                   </div>
                 )}
 
-                {!customHasAnyMeals && (
+                {mealPlanPrefs?.vitalityInsightsEnabled && data.gender === "male" && (
+                  isMealPremium ? (
+                    <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl border border-amber-200 bg-amber-50 mb-2" data-testid="vitality-hormone-boost-toggle">
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs font-medium text-amber-800">Hormone-boosting meals</p>
+                          <p className="text-[10px] text-amber-600">Prioritise zinc, magnesium, vitamin D-rich foods</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await apiRequest("PUT", "/api/user/preferences", {
+                            ...mealPlanPrefs,
+                            hormoneBoostingMeals: !mealPlanPrefs?.hormoneBoostingMeals,
+                          });
+                          queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+                        }}
+                        className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${mealPlanPrefs?.hormoneBoostingMeals ? "bg-amber-500" : "bg-zinc-200"}`}
+                        data-testid="button-toggle-hormone-boost"
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${mealPlanPrefs?.hormoneBoostingMeals ? "translate-x-5" : "translate-x-1"}`} />
+                      </button>
+                    </div>
+                  ) : (
+                    <Link href="/pricing">
+                      <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl border border-zinc-200 bg-zinc-50 mb-2 cursor-pointer hover:bg-zinc-100 transition-colors" data-testid="vitality-hormone-boost-locked">
+                        <div className="flex items-center gap-2">
+                          <Lock className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
+                          <div>
+                            <p className="text-xs font-medium text-zinc-600">Hormone-boosting meals</p>
+                            <p className="text-[10px] text-zinc-400">Available on Simple and above</p>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-3.5 h-3.5 text-zinc-400" />
+                      </div>
+                    </Link>
+                  )
+                )}
+
+                {planMode === 'weekly' && (
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl border border-amber-200 bg-amber-50 mb-2" data-testid="meal-prep-optimize-toggle">
+                    <div className="flex items-center gap-2">
+                      <ChefHat className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-amber-800">Meal prep optimization</p>
+                        <p className="text-[10px] text-amber-600">Carry forward dinner as next day's lunch</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await apiRequest("PUT", "/api/user/preferences", {
+                          ...mealPlanPrefs,
+                          mealPrepOptimize: mealPlanPrefs?.mealPrepOptimize === false ? true : false,
+                        });
+                        queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
+                      }}
+                      className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${mealPlanPrefs?.mealPrepOptimize !== false ? "bg-amber-500" : "bg-zinc-200"}`}
+                      data-testid="button-toggle-meal-prep"
+                    >
+                      <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${mealPlanPrefs?.mealPrepOptimize !== false ? "translate-x-5" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+                )}
+
+                {!customHasAnyMeals ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center" data-testid="custom-builder-empty-state">
                     <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center mb-4">
                       <ClipboardList className="w-7 h-7 text-zinc-400" />
@@ -1045,7 +1112,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpe
                       </div>
                     )}
                   </div>
-                )}
+                ) : (
                 <div className="space-y-4 mb-4">
                   {getCustomDayKeys().map((dayKey, dayIdx) => {
                     const dayLabel = planMode === 'weekly'
@@ -1169,6 +1236,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpe
                     );
                   })}
                 </div>
+                )}
               </div>
 
               <div className="sticky bottom-0 z-10 bg-white border-t border-zinc-100 px-4 sm:px-6 pt-3 shrink-0" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}>
@@ -1184,14 +1252,14 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpe
                         onClick={async () => {
                           await apiRequest("PUT", "/api/user/preferences", {
                             ...mealPlanPrefs,
-                            vitalityMeals: !mealPlanPrefs?.vitalityMeals,
+                            hormoneBoostingMeals: !mealPlanPrefs?.hormoneBoostingMeals,
                           });
                           queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
                         }}
-                        className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${mealPlanPrefs?.vitalityMeals ? "bg-amber-500" : "bg-zinc-200"}`}
+                        className={`w-10 h-6 rounded-full transition-colors shrink-0 ml-3 ${mealPlanPrefs?.hormoneBoostingMeals ? "bg-amber-500" : "bg-zinc-200"}`}
                         data-testid="button-custom-toggle-vitality-meals"
                       >
-                        <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${mealPlanPrefs?.vitalityMeals ? "translate-x-5" : "translate-x-1"}`} />
+                        <div className={`w-4 h-4 bg-white rounded-full mt-1 transition-transform ${mealPlanPrefs?.hormoneBoostingMeals ? "translate-x-5" : "translate-x-1"}`} />
                       </button>
                     </div>
                   ) : (

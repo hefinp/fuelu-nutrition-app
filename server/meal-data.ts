@@ -787,6 +787,7 @@ export function generateMealPlan(
 
     let previousDinnerBase: MealEntry | undefined = undefined;
     const dinnerTarget = Math.round(dailyCalories * 0.35);
+    const mealPrepEnabled = preferences?.mealPrepOptimize !== false;
 
     days.forEach((day, index) => {
       const dayPhase = perDayPhases?.[day] ?? cyclePhase ?? null;
@@ -801,7 +802,7 @@ export function generateMealPlan(
       if (dayFasting) {
         dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences, dayPhase, dayFasting);
         previousDinnerBase = undefined;
-      } else if (index === 0) {
+      } else if (mealPrepEnabled && index === 0) {
         const mondayDinnerBase = pickBestMeal(db.dinner, tProtein, tCarbs, tFat, preferences, dayPhase);
         if (mondayDinnerBase) {
           const mondayLunch  = scaleMeal(mondayDinnerBase, lunchTarget);
@@ -824,13 +825,15 @@ export function generateMealPlan(
           dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences, dayPhase);
           previousDinnerBase = undefined;
         }
-      } else {
+      } else if (mealPrepEnabled) {
         const lunchOverride = previousDinnerBase ? scaleMeal(previousDinnerBase, lunchTarget) : undefined;
         dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, lunchOverride, preferences, dayPhase, dayFasting);
         const dinnerBase = dayPlan.dinner.length > 0
           ? (db.dinner.find(m => m.meal === dayPlan.dinner[0].meal) ?? dayPlan.dinner[0])
           : undefined;
         previousDinnerBase = dinnerBase;
+      } else {
+        dayPlan = buildDayPlan(dailyCalories, proteinGoal, carbsGoal, fatGoal, db, undefined, preferences, dayPhase, dayFasting);
       }
 
       weekPlan[day] = dayPlan;
