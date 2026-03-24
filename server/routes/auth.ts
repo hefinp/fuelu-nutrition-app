@@ -152,9 +152,11 @@ router.post("/api/auth/register", authRateLimiter, async (req, res) => {
 router.post("/api/auth/login", authRateLimiter, async (req, res) => {
   try {
     const input = loginSchema.parse(req.body);
-    const user = input.identifier.includes("@")
-      ? await storage.getUserByEmail(input.identifier)
-      : await storage.getUserByUsername(input.identifier);
+    const identifier = input.identifier.trim();
+    const isEmail = identifier.includes("@");
+    const user = isEmail
+      ? await storage.getUserByEmail(identifier)
+      : await storage.getUserByUsername(identifier);
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }

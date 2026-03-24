@@ -366,7 +366,7 @@ export default function AuthPage() {
                   required
                   value={loginIdentifier}
                   onChange={e => setLoginIdentifier(e.target.value)}
-                  placeholder="you@example.com or your username"
+                  placeholder="you@example.com or username"
                   className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
                   data-testid="input-login-identifier"
                 />
