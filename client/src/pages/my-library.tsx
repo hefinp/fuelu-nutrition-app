@@ -181,7 +181,7 @@ export default function MyLibraryPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50/50 pb-36 sm:pb-6">
-      <header className="bg-white border-b border-zinc-100 sticky top-0 z-50">
+      <header className="bg-white border-b border-zinc-100 sticky top-0 z-50 safe-area-inset-top">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-3">
           <Link href="/dashboard" className="p-2 -ml-2 text-zinc-500 hover:text-zinc-900 transition-colors" data-testid="link-back-dashboard">
             <ArrowLeft className="w-5 h-5" />

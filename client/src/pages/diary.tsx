@@ -676,7 +676,7 @@ function DiaryContent({
 
   return (
     <div className="min-h-screen bg-zinc-50/50 pb-20">
-      <header className="bg-white border-b border-zinc-100 sticky top-0 z-40">
+      <header className="bg-white border-b border-zinc-100 sticky top-0 z-40 safe-area-inset-top">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
           <button
             onClick={() => {

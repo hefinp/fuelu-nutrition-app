@@ -1984,7 +1984,7 @@ function GenerateReportDialog({
     return (
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="modal-report-preview">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 sticky top-0 bg-white z-10">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 sticky top-0 bg-white z-10 safe-area-inset-top">
             <h2 className="font-semibold text-zinc-900">{previewData.title}</h2>
             <div className="flex items-center gap-2">
               <button
@@ -5351,7 +5351,7 @@ export default function NutritionistPortalPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-16">
-      <header className="bg-white border-b border-zinc-100 sticky top-0 z-50">
+      <header className="bg-white border-b border-zinc-100 sticky top-0 z-50 safe-area-inset-top">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center relative">

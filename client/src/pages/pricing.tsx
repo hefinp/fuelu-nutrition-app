@@ -68,7 +68,7 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="border-b border-zinc-100 sticky top-0 z-50 bg-white/90 backdrop-blur-sm">
+      <header className="border-b border-zinc-100 sticky top-0 z-50 bg-white/90 backdrop-blur-sm safe-area-inset-top">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center relative">

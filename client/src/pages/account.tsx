@@ -324,7 +324,7 @@ export default function AccountPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50">
-      <header className="bg-white border-b border-zinc-100 sticky top-0 z-10">
+      <header className="bg-white border-b border-zinc-100 sticky top-0 z-10 safe-area-inset-top">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-zinc-900 rounded flex items-center justify-center">

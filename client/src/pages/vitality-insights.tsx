@@ -88,7 +88,7 @@ export default function VitalityInsightsPage({ onClose }: { onClose?: () => void
   if (!isEligible) {
     return (
       <div className="min-h-screen bg-zinc-50">
-        <header className="bg-white border-b border-zinc-100 sticky top-0 z-10">
+        <header className="bg-white border-b border-zinc-100 sticky top-0 z-10 safe-area-inset-top">
           <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
             <Link href="/dashboard">
               <button className="p-2 rounded-lg hover:bg-zinc-100 transition-colors" data-testid="btn-back-to-dashboard">
@@ -137,7 +137,7 @@ export default function VitalityInsightsPage({ onClose }: { onClose?: () => void
 
   return (
     <div className="min-h-screen bg-zinc-50">
-      <header className="bg-white border-b border-zinc-100 sticky top-0 z-10">
+      <header className="bg-white border-b border-zinc-100 sticky top-0 z-10 safe-area-inset-top">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
           {onClose ? (
             <button onClick={onClose} className="p-2 rounded-lg hover:bg-zinc-100 transition-colors" data-testid="btn-back-to-dashboard">
