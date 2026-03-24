@@ -15,6 +15,7 @@ interface StravaActivity {
   averageHeartrate: number | null;
   maxHeartrate: number | null;
   averageSpeed: number;
+  deviceType: string | null;
 }
 
 interface WeeklyStats {
@@ -246,13 +247,16 @@ export function ActivityWidget() {
                         </span>
                       )}
                     </div>
+                    {a.deviceType && /garmin/i.test(a.deviceType) && (
+                      <p className="text-[10px] text-zinc-400 mt-0.5" data-testid={`activity-garmin-attr-${a.id}`}>Recorded with Garmin</p>
+                    )}
                   </div>
                   <a
                     href={`https://www.strava.com/activities/${a.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="shrink-0 inline-flex items-center gap-1 text-xs font-medium transition-colors"
-                    style={{ color: "#FC5200" }}
+                    style={{ color: "#FC4C02" }}
                     data-testid={`activity-strava-link-${a.id}`}
                     title="View on Strava"
                     aria-label="View on Strava"
@@ -268,6 +272,10 @@ export function ActivityWidget() {
               <p className="text-xs text-zinc-400">No activities in the past 7 days</p>
             </div>
           )}
+
+          <div className="flex justify-center pt-2" data-testid="strava-powered-badge">
+            <img src="/strava-powered-by.svg" alt="Powered by Strava" className="h-5 opacity-70" />
+          </div>
         </div>
       )}
     </div>

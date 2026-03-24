@@ -1377,6 +1377,7 @@ export const stravaActivities = pgTable("strava_activities", {
   averageHeartrate: real("average_heartrate"),
   maxHeartrate: real("max_heartrate"),
   averageSpeed: real("average_speed").default(0),
+  deviceType: text("device_type"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

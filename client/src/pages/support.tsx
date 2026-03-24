@@ -27,7 +27,7 @@ export default function SupportPage() {
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-16">
         <div className="flex items-center gap-3 mb-2">
-          <SiStrava className="w-6 h-6" style={{ color: "#FC5200" }} />
+          <SiStrava className="w-6 h-6" style={{ color: "#FC4C02" }} />
           <h1 className="font-display font-bold text-3xl sm:text-4xl text-zinc-900" data-testid="text-support-title">Strava Integration Support</h1>
         </div>
         <p className="text-sm text-zinc-400 mb-10">Help with connecting and using Strava on FuelU</p>
@@ -75,7 +75,7 @@ export default function SupportPage() {
               <li>Click <strong>Disconnect</strong> next to Strava.</li>
             </ol>
             <p className="mt-2 text-sm text-zinc-500">Disconnecting removes FuelU's access to your Strava data. Your past logged meals and nutrition plans are not affected. You can reconnect at any time by following the connection steps above.</p>
-            <p className="mt-1 text-sm text-zinc-500">You can also revoke access directly from <a href="https://www.strava.com/settings/apps" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700" style={{ color: "#FC5200" }} data-testid="link-strava-settings">your Strava settings</a>.</p>
+            <p className="mt-1 text-sm text-zinc-500">You can also revoke access directly from <a href="https://www.strava.com/settings/apps" target="_blank" rel="noopener noreferrer" className="underline hover:text-zinc-700" style={{ color: "#FC4C02" }} data-testid="link-strava-settings">your Strava settings</a>.</p>
           </section>
 
           <section>
@@ -98,6 +98,10 @@ export default function SupportPage() {
               </div>
             </div>
           </section>
+
+          <div className="flex justify-center py-4" data-testid="support-strava-powered-badge">
+            <img src="/strava-powered-by.svg" alt="Powered by Strava" className="h-6" />
+          </div>
 
           <section className="border-t border-zinc-100 pt-8">
             <div className="flex items-center gap-2 mb-3">

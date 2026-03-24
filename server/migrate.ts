@@ -568,10 +568,12 @@ export async function runMigrations(): Promise<void> {
         average_heartrate     REAL,
         max_heartrate         REAL,
         average_speed         REAL DEFAULT 0,
+        device_type           TEXT,
         created_at            TIMESTAMP DEFAULT NOW()
       )
     `);
     await client.query(`ALTER TABLE strava_activities ADD COLUMN IF NOT EXISTS start_date_local TEXT`);
+    await client.query(`ALTER TABLE strava_activities ADD COLUMN IF NOT EXISTS device_type TEXT`);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_strava_activities_user_strava ON strava_activities (user_id, strava_activity_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_strava_activities_user_date ON strava_activities (user_id, start_date)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_strava_activities_user_local_date ON strava_activities (user_id, start_date_local)`);

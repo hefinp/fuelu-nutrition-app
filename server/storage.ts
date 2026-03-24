@@ -3133,6 +3133,7 @@ export class DatabaseStorage implements IStorage {
           averageHeartrate: data.averageHeartrate,
           maxHeartrate: data.maxHeartrate,
           averageSpeed: data.averageSpeed,
+          deviceType: data.deviceType,
         },
       })
       .returning();

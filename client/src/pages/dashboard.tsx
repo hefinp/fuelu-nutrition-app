@@ -1387,12 +1387,21 @@ export default function Dashboard() {
                                           </span>
                                         </div>
                                       ) : (
-                                        <span
-                                          className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100"
-                                          data-testid={`status-connection-${label.toLowerCase()}`}
-                                        >
-                                          Connect
-                                        </span>
+                                        label === "Strava" ? (
+                                          <img
+                                            src="/strava-connect.svg"
+                                            alt="Connect with Strava"
+                                            className="h-8 cursor-pointer hover:opacity-90 transition-opacity"
+                                            data-testid={`status-connection-${label.toLowerCase()}`}
+                                          />
+                                        ) : (
+                                          <span
+                                            className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100"
+                                            data-testid={`status-connection-${label.toLowerCase()}`}
+                                          >
+                                            Connect
+                                          </span>
+                                        )
                                       )
                                     ) : (
                                       <span
@@ -1413,7 +1422,7 @@ export default function Dashboard() {
                                     <Link
                                       href="/support"
                                       className="inline-flex items-center gap-1.5 text-xs font-medium hover:underline"
-                                      style={{ color: "#FC5200" }}
+                                      style={{ color: "#FC4C02" }}
                                       data-testid="link-strava-support"
                                     >
                                       <HelpCircle className="w-3.5 h-3.5" />

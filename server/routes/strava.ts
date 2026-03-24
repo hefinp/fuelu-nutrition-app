@@ -30,6 +30,7 @@ interface StravaActivityRaw {
   average_heartrate: number | null;
   max_heartrate: number | null;
   average_speed: number;
+  device_name?: string | null;
 }
 
 function getBaseUrl(req?: Request): string {
@@ -139,12 +140,17 @@ async function fetchAndStoreActivities(userId: number, accessToken: string, afte
     );
 
     const detailCalories = new Map<number, number>();
+    const detailDeviceNames = new Map<number, string>();
     for (let i = 0; i < activities.length; i++) {
       const result = detailResults[i];
       if (result.status === "fulfilled" && result.value) {
-        const cal = (result.value as { calories?: number }).calories;
+        const detail = result.value as { calories?: number; device_name?: string };
+        const cal = detail.calories;
         if (cal != null && cal > 0) {
           detailCalories.set(activities[i].id, cal);
+        }
+        if (detail.device_name) {
+          detailDeviceNames.set(activities[i].id, detail.device_name);
         }
       }
     }
@@ -166,6 +172,7 @@ async function fetchAndStoreActivities(userId: number, accessToken: string, afte
           averageHeartrate: a.average_heartrate,
           maxHeartrate: a.max_heartrate,
           averageSpeed: a.average_speed,
+          deviceType: detailDeviceNames.get(a.id) ?? a.device_name ?? null,
         });
       } catch (upsertErr) {
         console.error(`[strava] Failed to upsert activity ${a.id} (${a.name}):`, upsertErr);
@@ -200,6 +207,7 @@ async function fetchAndStoreSingleActivity(userId: number, accessToken: string, 
     averageHeartrate: a.average_heartrate,
     maxHeartrate: a.max_heartrate,
     averageSpeed: a.average_speed,
+    deviceType: a.device_name ?? null,
   });
 }
 
@@ -355,6 +363,7 @@ router.get("/api/strava/activities", async (req, res) => {
       averageHeartrate: a.averageHeartrate ?? null,
       maxHeartrate: a.maxHeartrate ?? null,
       averageSpeed: a.averageSpeed ?? 0,
+      deviceType: a.deviceType ?? null,
     }));
 
     mapped.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
@@ -422,6 +431,7 @@ router.get("/api/strava/activities/date/:date", async (req, res) => {
       distance: a.distance,
       calories: a.calories ?? 0,
       averageHeartrate: a.averageHeartrate ?? null,
+      deviceType: a.deviceType ?? null,
     }));
 
     const totalCalories = Math.round(mapped.reduce((s, a) => s + a.calories, 0));
