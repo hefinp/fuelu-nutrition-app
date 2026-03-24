@@ -217,7 +217,7 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
           alt="Compatible with Strava"
           width={437}
           height={37}
-          className="h-8 w-auto max-w-full px-4"
+          className="h-4 w-auto max-w-full px-4"
           data-testid="badge-strava-compatible"
         />
       </div>
