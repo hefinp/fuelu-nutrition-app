@@ -11,6 +11,14 @@ Preferred communication style: Simple, everyday language.
 ### Frontend
 The frontend is built with React (Vite), utilizing Wouter for routing, TanStack React Query for server state management, and React Hook Form with Zod for form validation. UI components are built with shadcn/ui (New York style) based on Radix UI, styled with Tailwind CSS. Animations are handled by Framer Motion, and Recharts is used for data visualization. jsPDF enables client-side PDF generation. Key features include a CalculatorForm, ResultsDisplay, SavedMealPlans, a Dashboard with user metrics, WeightTracker with AI insights, PreferencesForm, HydrationTracker, and a modular FoodLog with barcode scanning, AI food recognition, and recipe import. Premium features include CycleTracker, VitalityTracker, and an Insights column/tab. The dashboard follows a **Plan → Track → Insights** mental model.
 
+#### My Diary Widget Structure
+The My Diary widget (`my-diary-widget.tsx`) is composed of focused sub-components in `client/src/components/diary/`:
+- `diary-food-section.tsx` — Meal slot accordion with drag-and-drop (DraggableEntry, DroppableSlot), edit/delete, move/copy dialog
+- `diary-water-section.tsx` — Water logging popup with quick amounts and custom input
+- `diary-weight-section.tsx` — Weight logging popup
+- `diary-strava-section.tsx` — Strava activity display with loading/error states
+The main widget handles date navigation, queries, macro summary, and composes these sections.
+
 ### Backend
 The backend uses Node.js with TypeScript and Express 5, integrating Vite in middleware mode for development. It employs session-based authentication with `express-session` and a PostgreSQL store. The RESTful API shares Zod schemas with the client via a `shared/` directory. Core functionalities include user authentication (register, login, OAuth), server-side meal plan generation with static meal databases and nutrient density scoring, calorie and macronutrient calculations, and APIs for tracking. A structured ingredient system stores parsed ingredient data. A comprehensive tier system (free/simple/advanced/payg) with Stripe integration manages feature access and subscriptions, including a 21-day stepped trial.
 
