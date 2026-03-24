@@ -215,7 +215,7 @@ export function DiaryFoodSection({ dailyEntries, isLoading, onOpenDrawer }: Diar
   return (
     <>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="space-y-1.5 max-h-[400px] overflow-y-auto -mx-1 px-1">
+        <div className="space-y-1.5 -mx-1 px-1">
           {orderedSlots.map(slot => {
             const key = slot ?? "__none__";
             const entries = grouped[key] ?? [];
