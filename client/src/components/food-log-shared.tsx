@@ -286,12 +286,29 @@ export interface DarkMacroCardProps {
   fibreTarget?: number;
   sugarTarget?: number;
   saturatedFatTarget?: number;
+  activityCalories?: number;
+  isAdvancedTier?: boolean;
 }
 
 export function DarkMacroCard({
   cal, prot, carbs, fat, fibre, sugar, saturatedFat,
-  calTarget, protTarget, carbsTarget, fatTarget, fibreTarget, sugarTarget, saturatedFatTarget,
+  calTarget: rawCalTarget, protTarget: rawProtTarget, carbsTarget: rawCarbsTarget,
+  fatTarget: rawFatTarget, fibreTarget: rawFibreTarget, sugarTarget: rawSugarTarget,
+  saturatedFatTarget: rawSaturatedFatTarget,
+  activityCalories, isAdvancedTier,
 }: DarkMacroCardProps) {
+  const compensationActive = !!(isAdvancedTier && activityCalories && activityCalories > 0 && rawCalTarget && rawCalTarget > 0);
+
+  const calTarget = compensationActive ? rawCalTarget! + activityCalories! : rawCalTarget;
+  const ratio = compensationActive ? calTarget! / rawCalTarget! : 1;
+  const scaleTarget = (t: number | undefined) => t != null ? Math.round(t * ratio) : t;
+  const protTarget = scaleTarget(rawProtTarget);
+  const carbsTarget = scaleTarget(rawCarbsTarget);
+  const fatTarget = scaleTarget(rawFatTarget);
+  const fibreTarget = scaleTarget(rawFibreTarget);
+  const sugarTarget = scaleTarget(rawSugarTarget);
+  const saturatedFatTarget = scaleTarget(rawSaturatedFatTarget);
+
   const calPct = calTarget && calTarget > 0 ? Math.min(100, Math.round((cal / calTarget) * 100)) : 0;
   const calOver = calTarget != null && calTarget > 0 && cal > calTarget;
 
@@ -314,6 +331,15 @@ export function DarkMacroCard({
     <div className="bg-zinc-900 text-white rounded-3xl shadow-2xl relative overflow-hidden p-4 mb-4" data-testid="dark-macro-card">
       <div className="absolute top-[-50%] right-[-10%] w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl pointer-events-none" />
       <div className="relative z-10">
+      {compensationActive && (
+        <div className="flex items-center gap-1.5 mb-2" data-testid="badge-activity-compensation">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-orange-400 bg-orange-400/10 rounded-full px-2.5 py-0.5">
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            Activity Compensation Applied
+          </span>
+        </div>
+      )}
+
       <div className="flex items-baseline justify-between mb-2">
         <p className="text-2xl font-bold leading-none" data-testid="dark-macro-cal-consumed">{cal}</p>
         <p className="text-sm text-zinc-400">

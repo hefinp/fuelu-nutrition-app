@@ -15,6 +15,7 @@ import { DiaryWaterSection } from "@/components/diary/diary-water-section";
 import { DiaryWeightSection } from "@/components/diary/diary-weight-section";
 import { DiaryStravaSection, type DiaryActivityData } from "@/components/diary/diary-strava-section";
 import { DiaryFoodSection } from "@/components/diary/diary-food-section";
+import { useTierStatus } from "@/hooks/use-tier";
 
 interface MyDiaryWidgetProps {
   calTarget?: number;
@@ -29,6 +30,8 @@ interface MyDiaryWidgetProps {
 
 export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, fibreTarget, sugarTarget, saturatedFatTarget, onCreatePlan }: MyDiaryWidgetProps) {
   const { user } = useAuth();
+  const { data: tierStatus, isLoading: tierLoading } = useTierStatus();
+  const isAdvancedTier = !tierLoading && !!(tierStatus && (tierStatus.betaUser || tierStatus.tier === "advanced"));
   const today = todayStr();
   const [selectedDate, setSelectedDate] = useState(today);
   const isToday = selectedDate === today;
@@ -180,6 +183,8 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, f
           carbsTarget={carbsTarget} fatTarget={fatTarget}
           fibreTarget={fibreTarget} sugarTarget={sugarTarget}
           saturatedFatTarget={saturatedFatTarget}
+          activityCalories={activityData?.totalCalories}
+          isAdvancedTier={isAdvancedTier}
         />
 
         <DiaryFoodSection

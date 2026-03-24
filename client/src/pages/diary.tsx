@@ -219,7 +219,7 @@ function DiaryContent({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: tierStatus, isLoading: tierLoading } = useTierStatus();
-  const isAdvanced = tierLoading || !!(tierStatus && (tierStatus.betaUser || tierStatus.tier === "advanced"));
+  const isAdvanced = !tierLoading && !!(tierStatus && (tierStatus.betaUser || tierStatus.tier === "advanced"));
   const today = todayStr();
 
   const [view, setView] = useState<"daily" | "weekly">("daily");
@@ -283,6 +283,23 @@ function DiaryContent({
       return res.json();
     },
     enabled: view === "weekly",
+  });
+
+  const { data: stravaStatus } = useQuery<{ connected: boolean }>({
+    queryKey: ["/api/strava/status"],
+    enabled: !!user,
+  });
+
+  const { data: dailyActivityData } = useQuery<{ activities: DiaryActivityData[]; totalCalories: number }>({
+    queryKey: ["/api/strava/activities/date", selectedDate],
+    queryFn: async () => {
+      const res = await fetch(`/api/strava/activities/date/${selectedDate}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load activities");
+      return res.json();
+    },
+    enabled: stravaStatus?.connected === true && view === "daily",
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 
   const { data: userPrefs } = useQuery<UserPreferences>({ queryKey: ["/api/user/preferences"] });
@@ -757,6 +774,8 @@ function DiaryContent({
                 carbsTarget={dailyCarbsTarget} fatTarget={dailyFatTarget}
                 fibreTarget={dailyFibreTarget} sugarTarget={dailySugarTarget}
                 saturatedFatTarget={dailySaturatedFatTarget}
+                activityCalories={dailyActivityData?.totalCalories}
+                isAdvancedTier={isAdvanced}
               />
 
               {plannedDaily.length > 0 && (
