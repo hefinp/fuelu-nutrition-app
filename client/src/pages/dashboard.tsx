@@ -25,8 +25,8 @@ import ClientIntakeFormWidget from "@/components/client-intake-form";
 import { SortableWidget } from "@/components/sortable-widget";
 import { Switch } from "@/components/ui/switch";
 import { MacroComplianceWidget } from "@/components/macro-compliance-widget";
-import { useDashboardLayout, MOBILE_PLANNING_IDS, MOBILE_INSIGHTS_IDS, HOME_WIDGETS } from "@/hooks/use-dashboard-layout";
-import type { WidgetId } from "@/hooks/use-dashboard-layout";
+import { useDashboardLayout, MOBILE_PLANNING_IDS, MOBILE_INSIGHTS_IDS, HOME_WIDGETS, PINNED_WIDGET } from "@/hooks/use-dashboard-layout";
+import type { WidgetId, DesktopColumn, DesktopColumnLayout } from "@/hooks/use-dashboard-layout";
 import type { PrefillEntry } from "@/components/food-log";
 import type { Meal } from "@/components/results-display";
 import { useCalculations } from "@/hooks/use-calculations";
@@ -38,11 +38,14 @@ import type { Calculation, NutritionistProfile, UserPreferences } from "@shared/
 import {
   DndContext,
   closestCenter,
+  closestCorners,
   PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
+  useDroppable,
   type DragEndEvent,
+  type DragOverEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -319,6 +322,19 @@ function useIsDesktop() {
 
 const TAB_ORDER: Array<'favourites' | 'planning' | 'tracking' | 'insights'> = ['favourites', 'planning', 'tracking', 'insights'];
 
+function DroppableColumn({ id, children, className }: { id: string; children: React.ReactNode; className?: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex flex-col gap-6 min-h-[200px] transition-colors rounded-2xl ${isOver ? "bg-zinc-50/60 ring-2 ring-dashed ring-zinc-300" : ""} ${className ?? ""}`}
+      data-testid={`column-${id.replace("droppable-", "")}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [activeResult, setActiveResult] = useState<Calculation | null>(null);
   const [showSavedPlans, setShowSavedPlans] = useState(false);
@@ -458,6 +474,8 @@ export default function Dashboard() {
     setLeftOrder,
     setRightOrder,
     setInsightsOrder,
+    desktopColumns,
+    updateDesktopColumns,
     moveUp,
     moveDown,
     isEditing,
@@ -570,6 +588,85 @@ export default function Dashboard() {
         const oldIdx = prev.indexOf(active.id as WidgetId);
         const newIdx = prev.indexOf(over.id as WidgetId);
         return arrayMove(prev, oldIdx, newIdx);
+      });
+    }
+  }
+
+  const crossColumnMoveRef = useRef(false);
+
+  function findDesktopColumn(widgetId: string): DesktopColumn | null {
+    if (desktopColumns.left.includes(widgetId as WidgetId)) return "left";
+    if (desktopColumns.centre.includes(widgetId as WidgetId)) return "centre";
+    if (desktopColumns.right.includes(widgetId as WidgetId)) return "right";
+    return null;
+  }
+
+  function resolveOverColumn(overId: string): DesktopColumn | null {
+    if (overId === "droppable-left" || overId === "droppable-centre" || overId === "droppable-right") {
+      return overId.replace("droppable-", "") as DesktopColumn;
+    }
+    return findDesktopColumn(overId);
+  }
+
+  function handleDesktopDragOver(event: DragOverEvent) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as WidgetId;
+    if (activeId === PINNED_WIDGET) return;
+
+    const activeCol = findDesktopColumn(activeId as string);
+    const overId = over.id as string;
+    const overCol = resolveOverColumn(overId);
+
+    if (!activeCol || !overCol || activeCol === overCol) return;
+
+    crossColumnMoveRef.current = true;
+
+    const sourceCol = desktopColumns[activeCol].filter(id => id !== activeId);
+    const targetCol = [...desktopColumns[overCol]];
+    const overIdx = targetCol.indexOf(overId as WidgetId);
+    const insertIdx = overIdx >= 0 ? overIdx : targetCol.length;
+    targetCol.splice(insertIdx, 0, activeId);
+
+    updateDesktopColumns({
+      ...desktopColumns,
+      [activeCol]: sourceCol,
+      [overCol]: targetCol,
+    });
+  }
+
+  function handleDesktopDragEnd(event: DragEndEvent) {
+    if (crossColumnMoveRef.current) {
+      crossColumnMoveRef.current = false;
+      return;
+    }
+
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as WidgetId;
+    if (activeId === PINNED_WIDGET) return;
+
+    const activeCol = findDesktopColumn(activeId as string);
+    const overId = over.id as string;
+    const overCol = resolveOverColumn(overId);
+
+    if (!activeCol || !overCol) return;
+
+    if (activeCol === overCol) {
+      const col = [...desktopColumns[activeCol]];
+      const oldIdx = col.indexOf(activeId);
+      let newIdx = col.indexOf(overId as WidgetId);
+      if (oldIdx === -1) return;
+      if (newIdx === -1) newIdx = col.length - 1;
+      let reordered = arrayMove(col, oldIdx, newIdx);
+      if (activeCol === "centre" && reordered[0] !== PINNED_WIDGET && reordered.includes(PINNED_WIDGET)) {
+        reordered = [PINNED_WIDGET, ...reordered.filter(w => w !== PINNED_WIDGET)];
+      }
+      updateDesktopColumns({
+        ...desktopColumns,
+        [activeCol]: reordered,
       });
     }
   }
@@ -1752,92 +1849,57 @@ export default function Dashboard() {
               </motion.div>
             </AnimatePresence>
 
-            {/* ── DESKTOP layout: Home, Planning, Tracking, Insights ── */}
-            <div className="hidden xl:grid xl:grid-cols-4 gap-6">
-              {/* Home column */}
-              <div className="flex flex-col gap-6">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleHomeDragEnd}
-                >
-                  <SortableContext items={homeOrder} strategy={verticalListSortingStrategy}>
-                    {homeOrder.map(id => {
+            {/* ── DESKTOP layout: 3-column (Left / Centre 2x / Right) ── */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragOver={handleDesktopDragOver}
+              onDragEnd={handleDesktopDragEnd}
+            >
+              <div className="hidden xl:grid gap-6" style={{ gridTemplateColumns: "1fr 2fr 1fr" }}>
+                <DroppableColumn id="droppable-left">
+                  <SortableContext items={desktopColumns.left} strategy={verticalListSortingStrategy}>
+                    {desktopColumns.left.map(id => {
                       const content = renderWidget(id, 'desktop');
                       if (!content) return null;
                       return (
-                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
+                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} isPinned={id === PINNED_WIDGET} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
                           {content}
                         </SortableWidget>
                       );
                     })}
                   </SortableContext>
-                </DndContext>
-              </div>
+                </DroppableColumn>
 
-              {/* Planning column */}
-              <div className="flex flex-col gap-6">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleLeftDragEnd}
-                >
-                  <SortableContext items={leftOrder} strategy={verticalListSortingStrategy}>
-                    {leftOrder.map(id => {
+                <DroppableColumn id="droppable-centre">
+                  <SortableContext items={desktopColumns.centre} strategy={verticalListSortingStrategy}>
+                    {desktopColumns.centre.map(id => {
                       const content = renderWidget(id, 'desktop');
                       if (!content) return null;
                       return (
-                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
+                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} isPinned={id === PINNED_WIDGET} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
                           {content}
                         </SortableWidget>
                       );
                     })}
                   </SortableContext>
-                </DndContext>
-              </div>
+                </DroppableColumn>
 
-              {/* Tracking column */}
-              <div className="flex flex-col gap-6">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleRightDragEnd}
-                >
-                  <SortableContext items={rightOrder} strategy={verticalListSortingStrategy}>
-                    {rightOrder.map(id => {
+                <DroppableColumn id="droppable-right">
+                  <SortableContext items={desktopColumns.right} strategy={verticalListSortingStrategy}>
+                    {desktopColumns.right.map(id => {
                       const content = renderWidget(id, 'desktop');
                       if (!content) return null;
                       return (
-                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
+                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} isPinned={id === PINNED_WIDGET} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
                           {content}
                         </SortableWidget>
                       );
                     })}
                   </SortableContext>
-                </DndContext>
+                </DroppableColumn>
               </div>
-
-              {/* Insights column */}
-              <div className="flex flex-col gap-6">
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleInsightsDragEnd}
-                >
-                  <SortableContext items={insightsOrder} strategy={verticalListSortingStrategy}>
-                    {insightsOrder.map(id => {
-                      const content = renderWidget(id, 'desktop');
-                      if (!content) return null;
-                      return (
-                        <SortableWidget key={id} id={id} isEditing={isEditing} isMobile={false} onDismiss={!isEditing ? () => handleDismissWidget(id) : undefined}>
-                          {content}
-                        </SortableWidget>
-                      );
-                    })}
-                  </SortableContext>
-                </DndContext>
-              </div>
-            </div>
+            </DndContext>
           </motion.div>
         )}
       </main>

@@ -20,6 +20,22 @@ export type WidgetId =
   | "macro-compliance"
   | "my-momentum";
 
+export type DesktopColumn = "left" | "centre" | "right";
+
+export interface DesktopColumnLayout {
+  left: WidgetId[];
+  centre: WidgetId[];
+  right: WidgetId[];
+}
+
+export const DEFAULT_DESKTOP_COLUMNS: DesktopColumnLayout = {
+  left: ["my-momentum", "meal-plan", "nutrition"],
+  centre: ["my-diary", "my-meals-food", "food-log", "hydration", "activity"],
+  right: ["weight", "cycle", "vitality", "weekly-summary", "adaptive-tdee", "macro-compliance"],
+};
+
+export const PINNED_WIDGET: WidgetId = "my-diary";
+
 export const HOME_WIDGETS = new Set<WidgetId>(["my-momentum", "my-diary", "my-meals-food"]);
 
 export const PLANNING_WIDGETS = new Set<WidgetId>(["meal-plan", "nutrition"]);
@@ -52,11 +68,42 @@ export const DEFAULT_ORDER: WidgetId[] = [
 
 const ALL_WIDGET_IDS: WidgetId[] = DEFAULT_ORDER;
 
-// Legacy IDs that no longer exist — strip from saved layouts and replace if needed
 const LEGACY_ID_MAP: Record<string, WidgetId | undefined> = {
   "recipe-library": "my-meals-food",
   "favourites": undefined,
 };
+
+function migrateLegacyColumn(ids: string[]): WidgetId[] {
+  return ids.flatMap(id => {
+    if (id in LEGACY_ID_MAP) {
+      const mapped = LEGACY_ID_MAP[id];
+      return mapped ? [mapped] : [];
+    }
+    return [id as WidgetId];
+  });
+}
+
+function normalizeDesktopColumns(raw: { left: string[]; centre: string[]; right: string[] }): DesktopColumnLayout {
+  const result: DesktopColumnLayout = {
+    left: migrateLegacyColumn(raw.left),
+    centre: migrateLegacyColumn(raw.centre),
+    right: migrateLegacyColumn(raw.right),
+  };
+  const existing = new Set([...result.left, ...result.centre, ...result.right]);
+  for (const id of ALL_WIDGET_IDS) {
+    if (!existing.has(id)) {
+      if (id === PINNED_WIDGET) {
+        result.centre.unshift(id);
+      } else {
+        result.centre.push(id);
+      }
+    }
+  }
+  if (result.centre[0] !== PINNED_WIDGET && result.centre.includes(PINNED_WIDGET)) {
+    result.centre = [PINNED_WIDGET, ...result.centre.filter(w => w !== PINNED_WIDGET)];
+  }
+  return result;
+}
 
 export function useDashboardLayout(isLoggedIn: boolean) {
   const queryClient = useQueryClient();
@@ -67,10 +114,17 @@ export function useDashboardLayout(isLoggedIn: boolean) {
   });
 
   const [widgetOrder, setWidgetOrder] = useState<WidgetId[]>(DEFAULT_ORDER);
+  const [desktopColumns, setDesktopColumns] = useState<DesktopColumnLayout>(DEFAULT_DESKTOP_COLUMNS);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (!prefs) return;
+
+    const savedColumns = prefs.dashboardLayout?.desktopColumns as { left: string[]; centre: string[]; right: string[] } | undefined;
+    if (savedColumns?.left && savedColumns?.centre && savedColumns?.right) {
+      setDesktopColumns(normalizeDesktopColumns(savedColumns));
+    }
+
     const saved = prefs.dashboardLayout?.order;
     if (saved?.length) {
       let base = (saved as string[]).flatMap(id => {
@@ -136,6 +190,18 @@ export function useDashboardLayout(isLoggedIn: boolean) {
     });
   }, []);
 
+  const updateDesktopColumns = useCallback((newColumns: DesktopColumnLayout) => {
+    const left = newColumns.left.filter(w => w !== PINNED_WIDGET);
+    const right = newColumns.right.filter(w => w !== PINNED_WIDGET);
+    let centre = newColumns.centre.includes(PINNED_WIDGET)
+      ? newColumns.centre
+      : [PINNED_WIDGET, ...newColumns.centre];
+    if (centre[0] !== PINNED_WIDGET) {
+      centre = [PINNED_WIDGET, ...centre.filter(w => w !== PINNED_WIDGET)];
+    }
+    setDesktopColumns({ left, centre, right });
+  }, []);
+
   const moveUp = useCallback((id: WidgetId) => {
     setWidgetOrder(prev => {
       const group = getMobileGroup(id);
@@ -177,10 +243,10 @@ export function useDashboardLayout(isLoggedIn: boolean) {
   }, []);
 
   const saveMutation = useMutation({
-    mutationFn: (order: WidgetId[]) =>
+    mutationFn: (payload: { order: WidgetId[]; desktopColumns: DesktopColumnLayout }) =>
       apiRequest("PUT", "/api/user/preferences", {
         ...prefs,
-        dashboardLayout: { order },
+        dashboardLayout: { order: payload.order, desktopColumns: payload.desktopColumns },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/preferences"] });
@@ -188,13 +254,19 @@ export function useDashboardLayout(isLoggedIn: boolean) {
   });
 
   const saveLayout = useCallback(() => {
-    saveMutation.mutate(widgetOrder);
+    saveMutation.mutate({ order: widgetOrder, desktopColumns });
     setIsEditing(false);
-  }, [widgetOrder, saveMutation]);
+  }, [widgetOrder, desktopColumns, saveMutation]);
 
   const cancelEdit = useCallback(() => {
     const saved = prefs?.dashboardLayout?.order;
     setWidgetOrder((saved as WidgetId[] | undefined) ?? DEFAULT_ORDER);
+    const savedColumns = prefs?.dashboardLayout?.desktopColumns as { left: string[]; centre: string[]; right: string[] } | undefined;
+    if (savedColumns?.left && savedColumns?.centre && savedColumns?.right) {
+      setDesktopColumns(normalizeDesktopColumns(savedColumns));
+    } else {
+      setDesktopColumns(DEFAULT_DESKTOP_COLUMNS);
+    }
     setIsEditing(false);
   }, [prefs]);
 
@@ -208,6 +280,8 @@ export function useDashboardLayout(isLoggedIn: boolean) {
     setLeftOrder,
     setRightOrder,
     setInsightsOrder,
+    desktopColumns,
+    updateDesktopColumns,
     moveUp,
     moveDown,
     isEditing,

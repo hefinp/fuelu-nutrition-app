@@ -7,6 +7,7 @@ interface SortableWidgetProps {
   id: string;
   isEditing: boolean;
   isMobile: boolean;
+  isPinned?: boolean;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   onMoveUp?: () => void;
@@ -88,6 +89,7 @@ export function SortableWidget({
   id,
   isEditing,
   isMobile,
+  isPinned,
   canMoveUp,
   canMoveDown,
   onMoveUp,
@@ -104,7 +106,7 @@ export function SortableWidget({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id, disabled: !isEditing || isMobile });
+  } = useSortable({ id, disabled: !isEditing || isMobile || !!isPinned });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -141,6 +143,14 @@ export function SortableWidget({
                 <ChevronDown className="w-4 h-4" />
               </button>
             </>
+          ) : isPinned ? (
+            <div
+              data-testid={`pinned-indicator-${id}`}
+              className="p-1.5 rounded-lg bg-zinc-100 text-zinc-300 cursor-not-allowed"
+              title="Pinned — cannot be moved"
+            >
+              <GripVertical className="w-4 h-4" />
+            </div>
           ) : (
             <div
               {...attributes}

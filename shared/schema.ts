@@ -141,6 +141,11 @@ export const userPreferencesSchema = z.object({
   hydrationUnit: z.enum(["ml", "glasses"]).optional(),
   dashboardLayout: z.object({
     order: z.array(z.string()),
+    desktopColumns: z.object({
+      left: z.array(z.string()),
+      centre: z.array(z.string()),
+      right: z.array(z.string()),
+    }).optional(),
   }).optional(),
   hiddenWidgets: z.array(z.string()).optional(),
   cycleTrackingEnabled: z.boolean().optional(),
