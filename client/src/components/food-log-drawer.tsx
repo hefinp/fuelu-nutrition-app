@@ -27,6 +27,7 @@ interface FoodLogDrawerProps {
   onPrefillConsumed?: () => void;
   dailyTotals?: { calories: number; protein: number; carbs: number; fat: number };
   dailyTargets?: { calories?: number; protein?: number; carbs?: number; fat?: number };
+  defaultSlot?: MealSlot | null;
 }
 
 export function FoodLogDrawer({
@@ -37,6 +38,7 @@ export function FoodLogDrawer({
   onPrefillConsumed,
   dailyTotals,
   dailyTargets,
+  defaultSlot,
 }: FoodLogDrawerProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -268,8 +270,10 @@ export function FoodLogDrawer({
       });
       setFormTab("manual");
       onPrefillConsumed?.();
+    } else if (open && !prefill && defaultSlot) {
+      setForm(f => ({ ...f, mealSlot: defaultSlot }));
     }
-  }, [prefill, open]);
+  }, [prefill, open, defaultSlot]);
 
   useEffect(() => {
     if (open) {

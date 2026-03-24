@@ -63,6 +63,7 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, f
   const [expandedSlots, setExpandedSlots] = useState<Set<string>>(new Set());
   const [selectedEntry, setSelectedEntry] = useState<FoodLogEntry | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [drawerDefaultSlot, setDrawerDefaultSlot] = useState<import("@/components/food-log-shared").MealSlot | null>(null);
   const { confirm, dialogProps } = useConfirmDialog();
 
   useEffect(() => {
@@ -187,7 +188,7 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, f
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(entry);
   }
-  const orderedSlots = slotOrder.filter(s => grouped[s ?? "__none__"]?.length > 0);
+  const orderedSlots = slotOrder.filter(s => s !== null || (grouped["__none__"]?.length ?? 0) > 0);
 
   const activities = activityData?.activities ?? [];
   const totalActivityCal = activityData?.totalCalories ?? 0;
@@ -485,11 +486,6 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, f
           <div className="flex justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
           </div>
-        ) : dailyEntries.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <NotebookPen className="w-8 h-8 text-zinc-300" />
-            <p className="text-sm text-zinc-400">No meals logged for this day</p>
-          </div>
         ) : (
           <div className="space-y-1.5 max-h-[400px] overflow-y-auto -mx-1 px-1">
             {orderedSlots.map(slot => {
@@ -499,6 +495,7 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, f
               const slotColor = slot ? SLOT_COLORS[slot] : null;
               const label = slot ? SLOT_LABELS[slot] : "Other";
               const isExpanded = expandedSlots.has(key);
+              const isEmpty = entries.length === 0;
 
               const confirmed = entries.filter(e => e.confirmed !== false);
               const hasPlanned = entries.some(e => e.confirmed === false);
@@ -539,12 +536,16 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, f
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] font-bold text-zinc-800">{slotCal} kcal</span>
-                        <span className="text-[10px] text-zinc-400">
-                          P {slotProt}g · C {slotCarbs}g · F {slotFat}g
-                        </span>
-                      </div>
+                      {!isEmpty ? (
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[11px] font-bold text-zinc-800">{slotCal} kcal</span>
+                          <span className="text-[10px] text-zinc-400">
+                            P {slotProt}g · C {slotCarbs}g · F {slotFat}g
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-zinc-400 mt-0.5">No entries yet</p>
+                      )}
                     </div>
                     <ChevronDown
                       className={`w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform duration-200 ${
@@ -608,6 +609,17 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, f
                                 </div>
                               );
                             })}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDrawerDefaultSlot(slot);
+                                setDrawerOpen(true);
+                              }}
+                              className="flex items-center justify-center w-full py-3 rounded-xl border border-dashed border-zinc-200 text-zinc-400 hover:text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 transition-colors"
+                              data-testid={`button-add-to-slot-${key}`}
+                            >
+                              <Plus className="w-5 h-5" />
+                            </button>
                           </div>
                         </div>
                       </motion.div>
@@ -622,10 +634,11 @@ export function MyDiaryWidget({ calTarget, protTarget, carbsTarget, fatTarget, f
 
       <FoodLogDrawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => { setDrawerOpen(false); setDrawerDefaultSlot(null); }}
         selectedDate={selectedDate}
         dailyTotals={{ calories: totalCal, protein: totalProt, carbs: totalCarbs, fat: totalFat }}
         dailyTargets={{ calories: calTarget, protein: protTarget, carbs: carbsTarget, fat: fatTarget }}
+        defaultSlot={drawerDefaultSlot}
       />
 
       {selectedEntry && (
