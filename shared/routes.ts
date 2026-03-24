@@ -87,7 +87,9 @@ export const api = {
     create: {
       method: 'POST' as const,
       path: '/api/calculations' as const,
-      input: insertCalculationSchema,
+      input: insertCalculationSchema.extend({
+        stravaCalories: z.coerce.number().optional(),
+      }),
       responses: {
         201: z.custom<typeof calculations.$inferSelect>(),
         400: errorSchemas.validation,

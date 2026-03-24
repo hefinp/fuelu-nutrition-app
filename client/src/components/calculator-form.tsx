@@ -117,12 +117,12 @@ export function CalculatorForm({
     queryKey: ["/api/strava/status"],
   });
 
-  const { data: stravaActivityData, isLoading: stravaActivityLoading, isError: stravaActivityError } = useQuery<{
-    activityLevel: string;
-    avgMinutesPerDay: number;
-    summary: string;
+  const { data: stravaCalorieData, isLoading: stravaCalorieLoading, isError: stravaCalorieError } = useQuery<{
+    avgDailyCalories: number;
+    totalCalories: number;
+    activityCount: number;
   }>({
-    queryKey: ["/api/strava/activity-level"],
+    queryKey: ["/api/strava/avg-daily-calories"],
     enabled: stravaToggleOn && !!stravaStatus?.connected,
     staleTime: 5 * 60 * 1000,
     retry: 1,
@@ -192,15 +192,6 @@ export function CalculatorForm({
   }, [createCalc.isPending, onPendingChange]);
 
   useEffect(() => {
-    if (stravaToggleOn && stravaActivityData?.activityLevel) {
-      const validLevels = ["sedentary", "light", "moderate", "active", "very_active"];
-      if (validLevels.includes(stravaActivityData.activityLevel)) {
-        form.setValue("activityLevel", stravaActivityData.activityLevel as FormValues["activityLevel"]);
-      }
-    }
-  }, [stravaToggleOn, stravaActivityData, form]);
-
-  useEffect(() => {
     if (stravaToggleOn && stravaStatus && !stravaStatus.connected) {
       form.setValue("activityLevel", manualActivityLevelRef.current);
     }
@@ -257,7 +248,11 @@ export function CalculatorForm({
 
   const onSubmit = (data: FormValues, isAutoSubmit = false) => {
     if (isAutoSubmit) setAutoSaving(true);
-    createCalc.mutate(data, {
+    const submitData = { ...data, stravaCalories: undefined as number | undefined };
+    if (stravaToggleOn && stravaStatus?.connected && stravaCalorieData) {
+      submitData.stravaCalories = stravaCalorieData.avgDailyCalories;
+    }
+    createCalc.mutate(submitData, {
       onSuccess: (result) => {
         lastSavedValuesRef.current = canonicalizeFormValues(data);
         if (isAutoSubmit) {
@@ -495,7 +490,7 @@ export function CalculatorForm({
                 <label className="text-sm font-medium text-zinc-700">Activity Level</label>
                 <div className="flex items-center gap-1.5 min-w-0">
                   <Link2 className="w-3 h-3 text-orange-500 shrink-0" />
-                  <span className="text-xs text-zinc-500 leading-tight min-w-0">Link Strava for auto activity level</span>
+                  <span className="text-xs text-zinc-500 leading-tight min-w-0">Link Strava for calorie-based TDEE</span>
                   <Switch
                     checked={stravaToggleOn}
                     onCheckedChange={handleStravaToggle}
@@ -504,19 +499,25 @@ export function CalculatorForm({
                   />
                 </div>
               </div>
-              {stravaToggleOn && stravaStatus?.connected && stravaActivityData ? (
-                <div className="rounded-xl bg-orange-50 border border-orange-200 px-3.5 py-3 text-xs text-zinc-700 leading-relaxed" data-testid="text-strava-activity-summary">
-                  {stravaActivityData.summary}
+              {stravaToggleOn && stravaStatus?.connected && stravaCalorieData ? (
+                <div className="rounded-xl bg-orange-50 border border-orange-200 px-3.5 py-3 text-xs text-zinc-700 leading-relaxed space-y-1" data-testid="text-strava-calorie-summary">
+                  <div className="flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5 text-orange-500" />
+                    <span className="font-medium">Avg daily activity burn: {stravaCalorieData.avgDailyCalories} kcal</span>
+                  </div>
+                  <div className="text-zinc-500">
+                    Based on {stravaCalorieData.activityCount} activities over the last 14 days. This replaces the activity level multiplier for a more accurate TDEE.
+                  </div>
                 </div>
-              ) : stravaToggleOn && stravaActivityLoading ? (
+              ) : stravaToggleOn && stravaCalorieLoading ? (
                 <div className="rounded-xl bg-zinc-50 border border-zinc-200 px-3.5 py-3 text-xs text-zinc-500 animate-pulse" data-testid="text-strava-loading">
-                  Loading activity data from Strava...
+                  Loading calorie data from Strava...
                 </div>
               ) : (
                 <>
-                  {stravaToggleOn && stravaStatus?.connected && stravaActivityError && (
+                  {stravaToggleOn && stravaStatus?.connected && stravaCalorieError && (
                     <div className="rounded-xl bg-red-50 border border-red-200 px-3.5 py-3 text-xs text-red-700 leading-relaxed mb-1.5" data-testid="text-strava-error">
-                      Could not load Strava activity data. Select manually below.
+                      Could not load Strava calorie data. Select activity level manually below.
                     </div>
                   )}
                   <div className="grid grid-cols-5 gap-1.5">
@@ -826,23 +827,58 @@ export function CalculatorForm({
         </AnimatePresence>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-zinc-400" />Activity Level
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {[
-              { id: "sedentary", label: "Sedentary" }, { id: "light", label: "Light" },
-              { id: "moderate", label: "Moderate" }, { id: "active", label: "Active" },
-              { id: "very_active", label: "Very Active" },
-            ].map((level) => (
-              <label key={level.id} className={`cursor-pointer text-center px-2 py-3 rounded-xl border text-sm transition-all duration-200 ${
-                watched.activityLevel === level.id ? "bg-zinc-900 text-white border-zinc-900 shadow-md" : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
-              }`}>
-                <input type="radio" value={level.id} {...form.register("activityLevel")} className="hidden" />
-                <span className="capitalize block">{level.label}</span>
-              </label>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-y-1">
+            <label className="text-sm font-medium text-zinc-700 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-zinc-400" />Activity Level
+            </label>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Link2 className="w-3 h-3 text-orange-500 shrink-0" />
+              <span className="text-xs text-zinc-500 leading-tight min-w-0">Link Strava for calorie-based TDEE</span>
+              <Switch
+                checked={stravaToggleOn}
+                onCheckedChange={handleStravaToggle}
+                data-testid="toggle-strava-activity-level-full"
+                className="scale-75 shrink-0"
+              />
+            </div>
           </div>
+          {stravaToggleOn && stravaStatus?.connected && stravaCalorieData ? (
+            <div className="rounded-xl bg-orange-50 border border-orange-200 px-3.5 py-3 text-sm text-zinc-700 leading-relaxed space-y-1" data-testid="text-strava-calorie-summary-full">
+              <div className="flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-orange-500" />
+                <span className="font-medium">Avg daily activity burn: {stravaCalorieData.avgDailyCalories} kcal</span>
+              </div>
+              <div className="text-zinc-500 text-xs">
+                Based on {stravaCalorieData.activityCount} activities over the last 14 days. This replaces the activity level multiplier for a more accurate TDEE.
+              </div>
+            </div>
+          ) : stravaToggleOn && stravaCalorieLoading ? (
+            <div className="rounded-xl bg-zinc-50 border border-zinc-200 px-3.5 py-3 text-sm text-zinc-500 animate-pulse" data-testid="text-strava-loading-full">
+              Loading calorie data from Strava...
+            </div>
+          ) : (
+            <>
+              {stravaToggleOn && stravaStatus?.connected && stravaCalorieError && (
+                <div className="rounded-xl bg-red-50 border border-red-200 px-3.5 py-3 text-xs text-red-700 leading-relaxed mb-1.5" data-testid="text-strava-error-full">
+                  Could not load Strava calorie data. Select activity level manually below.
+                </div>
+              )}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                {[
+                  { id: "sedentary", label: "Sedentary" }, { id: "light", label: "Light" },
+                  { id: "moderate", label: "Moderate" }, { id: "active", label: "Active" },
+                  { id: "very_active", label: "Very Active" },
+                ].map((level) => (
+                  <label key={level.id} className={`cursor-pointer text-center px-2 py-3 rounded-xl border text-sm transition-all duration-200 ${
+                    watched.activityLevel === level.id ? "bg-zinc-900 text-white border-zinc-900 shadow-md" : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"
+                  }`}>
+                    <input type="radio" value={level.id} {...form.register("activityLevel")} className="hidden" />
+                    <span className="capitalize block">{level.label}</span>
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium text-zinc-700">Body Goal</label>
@@ -893,7 +929,7 @@ export function CalculatorForm({
         )}
         <button
           type="submit"
-          disabled={createCalc.isPending || (stravaToggleOn && stravaActivityLoading)}
+          disabled={createCalc.isPending || (stravaToggleOn && stravaCalorieLoading)}
           data-testid="button-generate-plan"
           className="w-full mt-6 px-6 py-4 rounded-xl font-semibold bg-zinc-900 text-white shadow-xl shadow-zinc-900/20
                    hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-zinc-900/30 active:translate-y-0

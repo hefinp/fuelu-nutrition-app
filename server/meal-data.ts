@@ -865,7 +865,7 @@ export function generateMealPlan(
   }
 }
 
-export function calculateMacros(weight: number, height: number, age: number, gender: string, activityLevel: string, goal: string = 'maintain') {
+export function calculateMacros(weight: number, height: number, age: number, gender: string, activityLevel: string, goal: string = 'maintain', stravaCalories?: number) {
   let bmr = (10 * weight) + (6.25 * height) - (5 * age);
   if (gender === 'male') {
     bmr += 5;
@@ -873,16 +873,21 @@ export function calculateMacros(weight: number, height: number, age: number, gen
     bmr -= 161;
   }
 
-  let activityMultiplier = 1.2;
-  switch (activityLevel) {
-    case 'sedentary': activityMultiplier = 1.2; break;
-    case 'light': activityMultiplier = 1.375; break;
-    case 'moderate': activityMultiplier = 1.55; break;
-    case 'active': activityMultiplier = 1.725; break;
-    case 'very_active': activityMultiplier = 1.9; break;
-  }
+  let dailyCalories: number;
 
-  let dailyCalories = Math.round(bmr * activityMultiplier);
+  if (stravaCalories !== undefined && Number.isFinite(stravaCalories)) {
+    dailyCalories = Math.round(bmr + stravaCalories);
+  } else {
+    let activityMultiplier = 1.2;
+    switch (activityLevel) {
+      case 'sedentary': activityMultiplier = 1.2; break;
+      case 'light': activityMultiplier = 1.375; break;
+      case 'moderate': activityMultiplier = 1.55; break;
+      case 'active': activityMultiplier = 1.725; break;
+      case 'very_active': activityMultiplier = 1.9; break;
+    }
+    dailyCalories = Math.round(bmr * activityMultiplier);
+  }
 
   switch (goal) {
     case 'fat_loss':

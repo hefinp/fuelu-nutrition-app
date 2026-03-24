@@ -41,7 +41,15 @@ router.post(api.calculations.create.path, async (req, res) => {
     const heightNum = parseFloat(input.height);
     const ageNum = input.age || 30;
 
-    const macros = calculateMacros(weightNum, heightNum, ageNum, input.gender || 'male', input.activityLevel || 'moderate', input.goal || 'maintain');
+    let validatedStravaCalories: number | undefined = undefined;
+    if (input.stravaCalories !== undefined && Number.isFinite(input.stravaCalories) && req.session.userId) {
+      const stravaConn = await storage.getStravaConnection(req.session.userId);
+      if (stravaConn) {
+        validatedStravaCalories = input.stravaCalories;
+      }
+    }
+
+    const macros = calculateMacros(weightNum, heightNum, ageNum, input.gender || 'male', input.activityLevel || 'moderate', input.goal || 'maintain', validatedStravaCalories);
 
     const calcData = {
       weight: input.weight,

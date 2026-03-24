@@ -536,6 +536,46 @@ router.get("/api/strava/activity-level", async (req, res) => {
   }
 });
 
+// ── Average daily Strava calories (14-day) ──────────────────────────────────
+
+router.get("/api/strava/avg-daily-calories", async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const user = await storage.getUserById(req.session.userId);
+  if (!user) return res.status(401).json({ message: "User not found" });
+
+  const hasAccess = await hasTierAccess(user, "strava_activity_level");
+  if (!hasAccess) return res.status(403).json({ message: "Advanced tier required" });
+
+  const conn = await storage.getStravaConnection(req.session.userId);
+  if (!conn) return res.status(404).json({ message: "Strava not connected" });
+
+  try {
+    const now = new Date();
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    let activities = await storage.getStravaActivitiesRange(req.session.userId, fourteenDaysAgo, now);
+
+    if (activities.length === 0) {
+      try {
+        const accessToken = await refreshTokenIfNeeded(req.session.userId, conn);
+        const afterEpoch = Math.floor(fourteenDaysAgo.getTime() / 1000);
+        await fetchAndStoreActivities(req.session.userId, accessToken, afterEpoch);
+        activities = await storage.getStravaActivitiesRange(req.session.userId, fourteenDaysAgo, now);
+      } catch (fetchErr) {
+        console.error("[strava] Avg-daily-calories fetch error:", fetchErr);
+      }
+    }
+
+    const totalCalories = activities.reduce((sum, a) => sum + (a.calories ?? 0), 0);
+    const avgDailyCalories = Math.round(totalCalories / 14);
+
+    res.json({ avgDailyCalories, totalCalories: Math.round(totalCalories), activityCount: activities.length });
+  } catch (err) {
+    console.error("[strava] Avg-daily-calories error:", err);
+    res.status(500).json({ message: "Failed to compute average daily calories" });
+  }
+});
+
 // ── Webhook endpoints ───────────────────────────────────────────────────────
 
 router.get("/api/strava/webhook", (req, res) => {
