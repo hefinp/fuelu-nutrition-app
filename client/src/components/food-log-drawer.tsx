@@ -751,7 +751,7 @@ export function FoodLogDrawer({
     <div className="fixed inset-0 z-[60] flex items-center justify-center sm:p-4" style={overlayStyle} data-testid="food-log-drawer">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={resetFormAndClose} style={{ touchAction: "none" }} />
       <div className="relative w-full h-full bg-white flex flex-col overflow-hidden shadow-2xl sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-2xl" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0">
+        <div className="flex items-center justify-between px-5 border-b border-zinc-100 shrink-0" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "1rem" }}>
           <h2 className="text-lg font-display font-bold text-zinc-900">Log Meal</h2>
           <button
             onClick={resetFormAndClose}

@@ -190,7 +190,7 @@ export function ImportModal({ onClose, onSaved }: { onClose: () => void; onSaved
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" style={overlayStyle} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" style={{ ...overlayStyle, paddingTop: "max(1rem, env(safe-area-inset-top))" }} onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[90dvh] flex flex-col overflow-hidden" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
           <div className="flex items-center gap-2">

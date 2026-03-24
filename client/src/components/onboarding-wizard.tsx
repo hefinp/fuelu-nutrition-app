@@ -179,6 +179,7 @@ export function OnboardingWizard({ userPrefs, onComplete, onSkip }: Props) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
       data-testid="onboarding-wizard-overlay"
     >
       <motion.div

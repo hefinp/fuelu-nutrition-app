@@ -633,7 +633,7 @@ export default function AccountPage() {
             </div>
 
             {deleteConfirmOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
                 <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl max-w-md w-full p-6 space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">

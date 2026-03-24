@@ -216,7 +216,7 @@ export function AddFoodModal({ onClose, onSaved, initialTab = "search" }: { onCl
   return (
     <div className={`fixed inset-x-0 top-0 bottom-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm ${isKeyboardOpen ? 'pb-0' : 'pb-16'} sm:pb-0 max-h-[100dvh]`} style={overlayStyle} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md max-h-[90dvh] flex flex-col overflow-hidden" style={panelMaxHeight != null ? { maxHeight: panelMaxHeight } : undefined} onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
+        <div className="flex items-center justify-between px-6 pb-4 border-b border-zinc-100 shrink-0" style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}>
           <div>
             <h3 className="text-base font-semibold text-zinc-900" data-testid="text-addfood-title">Add Food</h3>
             <p className="text-[11px] text-zinc-400 mt-0.5">Search 3M+ foods or enter your own custom macros</p>

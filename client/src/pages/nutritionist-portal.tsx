@@ -1982,7 +1982,7 @@ function GenerateReportDialog({
   if (previewData) {
     const rd = previewData.reportData;
     return (
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="modal-report-preview">
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 sticky top-0 bg-white z-10 safe-area-inset-top">
             <h2 className="font-semibold text-zinc-900">{previewData.title}</h2>
@@ -2187,7 +2187,7 @@ function GenerateReportDialog({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" data-testid="modal-generate-report">
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
           <h2 className="font-semibold text-zinc-900">Generate Progress Report</h2>

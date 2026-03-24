@@ -89,7 +89,7 @@ export function MealTemplateModal({ meal, existingTemplate, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 shrink-0">
+        <div className="flex items-center justify-between px-6 pb-4 border-b border-zinc-100 shrink-0" style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}>
           <div className="flex items-center gap-2">
             <Repeat className="w-5 h-5 text-emerald-600" />
             <h2 className="font-display font-semibold text-zinc-900">

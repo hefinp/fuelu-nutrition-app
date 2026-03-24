@@ -234,7 +234,7 @@ export function CommunityBrowserModal({ onClose }: { onClose: () => void }) {
         className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl max-h-[92dvh] sm:max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
         data-testid="modal-community-browser"
       >
-        <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-zinc-100 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-5 pb-3 sm:pb-4 border-b border-zinc-100 shrink-0" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
           <div className="flex items-center gap-2">
             <Users2 className="w-5 h-5 text-zinc-600" />
             <h2 className="text-base font-bold text-zinc-900">Community Meals</h2>

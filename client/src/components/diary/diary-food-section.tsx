@@ -398,6 +398,7 @@ export function DiaryFoodSection({ dailyEntries, isLoading, onOpenDrawer }: Diar
       {moveCopyDialog && (
         <div
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
           onClick={() => setMoveCopyDialog(null)}
           data-testid="dialog-move-copy-overlay"
         >

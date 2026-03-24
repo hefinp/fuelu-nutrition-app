@@ -512,7 +512,8 @@ function ImportModal({ savedSites, onClose }: { savedSites: string[]; onClose: (
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 12 }}
         transition={{ type: "spring", damping: 28, stiffness: 320 }}
-        className="fixed inset-x-4 top-[8%] mx-auto max-w-lg bg-white rounded-3xl shadow-2xl z-50 overflow-hidden max-h-[84vh] flex flex-col"
+        className="fixed inset-x-4 mx-auto max-w-lg bg-white rounded-3xl shadow-2xl z-50 overflow-hidden max-h-[84vh] flex flex-col"
+        style={{ top: "max(8%, env(safe-area-inset-top))" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}

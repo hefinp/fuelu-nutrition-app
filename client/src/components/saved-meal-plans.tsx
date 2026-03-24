@@ -633,6 +633,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
       {mismatchInfo && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
           onClick={() => setMismatchInfo(null)}
         >
           <div
@@ -695,6 +696,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
       {duplicateInfo && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
           onClick={() => setDuplicateInfo(null)}
         >
           <div
@@ -733,7 +735,7 @@ export function SavedMealPlans({ onLogMeal }: { onLogMeal?: (meal: PrefillEntry)
       )}
 
       {filterPhase && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={() => setFilterPhase(null)}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }} onClick={() => setFilterPhase(null)}>
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl my-8" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-zinc-900">
@@ -1020,7 +1022,7 @@ export function SavedRecipeModal({ meal, onClose }: { meal: Meal; onClose: () =>
   }, [meal.ingredientsJson]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }} onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}

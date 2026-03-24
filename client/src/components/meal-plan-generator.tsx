@@ -911,7 +911,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpe
               className="bg-white sm:rounded-2xl shadow-2xl w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:mx-4 flex flex-col overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="sticky top-0 z-10 bg-white border-b border-zinc-100 px-4 sm:px-6 py-4 flex items-center justify-between shrink-0">
+              <div className="sticky top-0 z-10 bg-white border-b border-zinc-100 px-4 sm:px-6 pb-4 flex items-center justify-between shrink-0" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
                 <div>
                   <h3 className="text-lg font-display font-bold text-zinc-900 capitalize" data-testid="text-modal-plan-title">
                     {planMode === 'weekly' ? 'Weekly' : 'Daily'} Meal Plan

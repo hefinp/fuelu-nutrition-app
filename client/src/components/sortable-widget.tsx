@@ -201,6 +201,7 @@ export function SortableWidget({
       {helpOpen && help && (
         <div
           className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
           onClick={() => setHelpOpen(false)}
           data-testid={`help-overlay-${id}`}
         >

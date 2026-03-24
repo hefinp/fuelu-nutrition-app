@@ -34,6 +34,7 @@ function IosGuideModal({ onClose }: { onClose: () => void }) {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
       className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50"
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
       onClick={onClose}
       data-testid="ios-guide-overlay"
     >

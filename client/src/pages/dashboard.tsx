@@ -1269,6 +1269,7 @@ export default function Dashboard() {
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 28, stiffness: 280 }}
               className="fixed right-0 top-0 h-full w-full max-w-lg bg-white z-[60] shadow-2xl flex flex-col"
+              style={{ paddingTop: "env(safe-area-inset-top)" }}
             >
               <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-zinc-100">
                 <div className="flex items-center gap-2">
@@ -2013,6 +2014,7 @@ export default function Dashboard() {
       {cycleStopConfirm && (
         <div
           className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
           onClick={() => setCycleStopConfirm(false)}
           data-testid="cycle-stop-overlay"
         >
