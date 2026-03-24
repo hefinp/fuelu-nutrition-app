@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, Trash2, Plus, ClipboardList, ChevronDown, Pencil,
-  GripVertical, ArrowRight, Copy,
+  GripVertical, ArrowRight, Copy, ChevronsUpDown,
 } from "lucide-react";
 import {
   SLOT_ICONS, SLOT_COLORS, SLOT_LABELS,
@@ -357,6 +357,22 @@ export function DiaryFoodSection({ dailyEntries, isLoading, onOpenDrawer }: Diar
             );
           })}
         </div>
+
+        {orderedSlots.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              const allKeys = orderedSlots.map(s => s ?? "__none__");
+              const allExpanded = allKeys.every(k => expandedSlots.has(k));
+              setExpandedSlots(allExpanded ? new Set() : new Set(allKeys));
+            }}
+            className="flex items-center justify-center gap-1.5 w-full mt-2 py-1.5 text-[11px] font-medium text-zinc-400 hover:text-zinc-600 transition-colors"
+            data-testid="button-expand-collapse-all-slots"
+          >
+            <ChevronsUpDown className="w-3.5 h-3.5" />
+            {orderedSlots.map(s => s ?? "__none__").every(k => expandedSlots.has(k)) ? "Collapse All" : "Expand All"}
+          </button>
+        )}
 
         <DragOverlay dropAnimation={null}>
           {activeDragEntry && (
