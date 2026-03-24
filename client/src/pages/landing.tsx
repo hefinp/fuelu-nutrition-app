@@ -60,14 +60,7 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
 
       {/* Nav */}
       <header className="border-b border-zinc-100 sticky top-0 z-50 bg-white/90 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center relative">
-              <div className="w-3 h-3 bg-white rounded-full" />
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[3px] h-[calc(50%-6px)] bg-white rounded-t-sm" />
-            </div>
-            <span className="font-display font-bold text-xl tracking-tight text-zinc-900">FuelU</span>
-          </div>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-end">
           <div className="flex items-center gap-3">
             <Link
               href="/pricing"
@@ -113,6 +106,24 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
         >
+          <div className="flex flex-col items-center mb-8">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center relative">
+                <div className="w-4 h-4 bg-white rounded-full" />
+                <div className="absolute top-0.5 left-1/2 -translate-x-1/2 w-[3px] h-[calc(50%-8px)] bg-white rounded-t-sm" />
+              </div>
+              <span className="font-display font-bold text-3xl tracking-tight text-zinc-900">FuelU</span>
+            </div>
+            <img
+              src="/strava-compatible.svg"
+              alt="Compatible with Strava"
+              width={437}
+              height={37}
+              className="h-4 w-auto max-w-full"
+              data-testid="badge-strava-hero"
+            />
+          </div>
+
           <div className="inline-flex items-center gap-2 bg-zinc-100 text-zinc-600 text-xs font-medium px-3 py-1.5 rounded-full mb-6">
             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
             Free nutrition planning — no credit card needed
@@ -209,18 +220,6 @@ export default function LandingPage({ loggedIn = false }: { loggedIn?: boolean }
           </div>
         </motion.div>
       </section>
-
-      {/* Compatible with Strava badge */}
-      <div className="flex justify-center py-6">
-        <img
-          src="/strava-compatible.svg"
-          alt="Compatible with Strava"
-          width={437}
-          height={37}
-          className="h-4 w-auto max-w-full px-4"
-          data-testid="badge-strava-compatible"
-        />
-      </div>
 
       {/* Feature cards */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-24">
