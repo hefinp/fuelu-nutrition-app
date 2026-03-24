@@ -327,7 +327,7 @@ function DroppableColumn({ id, children, className }: { id: string; children: Re
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col gap-6 min-h-[200px] transition-colors rounded-2xl ${isOver ? "bg-zinc-50/60 ring-2 ring-dashed ring-zinc-300" : ""} ${className ?? ""}`}
+      className={`flex flex-col gap-6 min-h-[200px] xl:min-h-0 xl:overflow-y-auto xl:pr-1 scrollbar-thin transition-colors rounded-2xl ${isOver ? "bg-zinc-50/60 ring-2 ring-dashed ring-zinc-300" : ""} ${className ?? ""}`}
       data-testid={`column-${id.replace("droppable-", "")}`}
     >
       {children}
@@ -976,7 +976,7 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-200 pb-36 sm:pb-20">
+    <div className="min-h-screen bg-zinc-200 pb-36 sm:pb-20 xl:pb-0">
       {/* Header */}
       <header ref={headerCallbackRef} className="bg-white border-b border-zinc-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
@@ -1565,7 +1565,7 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 xl:pt-4">
 
         {tierStatus?.paymentFailedAt && (
           <div className="flex items-start gap-3 p-4 mb-6 bg-red-50 border border-red-200 rounded-2xl" data-testid="banner-payment-failed-dashboard">
@@ -1856,7 +1856,7 @@ export default function Dashboard() {
               onDragOver={handleDesktopDragOver}
               onDragEnd={handleDesktopDragEnd}
             >
-              <div className="hidden xl:grid gap-6" style={{ gridTemplateColumns: "1fr 2fr 1fr" }}>
+              <div className="hidden xl:grid gap-6 xl:sticky xl:top-[3.5rem] xl:h-[calc(100vh-3.5rem)] xl:overflow-hidden xl:pb-6 xl:pt-2" style={{ gridTemplateColumns: "1fr 2fr 1fr" }}>
                 <DroppableColumn id="droppable-left">
                   <SortableContext items={desktopColumns.left} strategy={verticalListSortingStrategy}>
                     {desktopColumns.left.map(id => {
