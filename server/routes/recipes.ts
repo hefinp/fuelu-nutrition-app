@@ -417,6 +417,14 @@ router.post("/api/recipes/import", async (req, res) => {
   });
 });
 
+/**
+ * POST /api/recipes/import-photo
+ * Extracts a recipe from one or two photos of a cookbook/recipe page using
+ * GPT-4o vision. Accepts 1-2 base64-encoded images. Returns the recipe name,
+ * ingredients (raw text + parsed JSON with per-ingredient nutrition), instructions,
+ * servings, macros, and a suggested meal slot based on category keywords.
+ * Runs cross-validation against stated calories when available.
+ */
 router.post("/api/recipes/import-photo", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
 

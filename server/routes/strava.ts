@@ -213,6 +213,12 @@ async function fetchAndStoreSingleActivity(userId: number, accessToken: string, 
 
 // ── OAuth flow ──────────────────────────────────────────────────────────────
 
+/**
+ * GET /api/strava/auth
+ * Initiates the Strava OAuth2 authorization flow. Generates a random state
+ * token (stored in session to prevent CSRF) and returns the Strava authorization
+ * URL for the frontend to redirect to. Scopes: read, activity:read_all.
+ */
 router.get("/api/strava/auth", (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   if (!STRAVA_CLIENT_ID) return res.status(500).json({ message: "Strava not configured" });
@@ -228,6 +234,13 @@ router.get("/api/strava/auth", (req, res) => {
   res.json({ url: authUrl });
 });
 
+/**
+ * GET /api/strava/callback
+ * Handles the OAuth2 callback from Strava. Validates the state token, exchanges
+ * the authorization code for access/refresh tokens, stores or updates the Strava
+ * connection, and triggers an async backfill of the user's recent activities.
+ * Redirects to /dashboard with a query param indicating success or failure.
+ */
 router.get("/api/strava/callback", async (req, res) => {
   if (!req.session.userId) return res.redirect("/dashboard?strava=error&reason=not_authenticated");
   if (!STRAVA_CLIENT_ID || !STRAVA_CLIENT_SECRET) return res.redirect("/dashboard?strava=error&reason=not_configured");
@@ -578,6 +591,12 @@ router.get("/api/strava/avg-daily-calories", async (req, res) => {
 
 // ── Webhook endpoints ───────────────────────────────────────────────────────
 
+/**
+ * GET /api/strava/webhook
+ * Strava webhook subscription verification endpoint. Strava sends a GET request
+ * with hub.mode, hub.verify_token, and hub.challenge params when setting up or
+ * validating the subscription. We echo back hub.challenge if the token matches.
+ */
 router.get("/api/strava/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -590,6 +609,13 @@ router.get("/api/strava/webhook", (req, res) => {
   }
 });
 
+/**
+ * POST /api/strava/webhook
+ * Receives real-time activity events from Strava's push subscription.
+ * Responds with 200 immediately (Strava requires <2s response), then processes
+ * the event asynchronously: creates/updates activities on "create"/"update",
+ * deletes on "delete". Looks up the internal user by Strava athlete_id.
+ */
 router.post("/api/strava/webhook", async (req, res) => {
   const body = req.body as Record<string, unknown>;
   const { object_type, aspect_type, object_id, owner_id, subscription_id } = body;

@@ -16,6 +16,15 @@ router.get("/api/adaptive-tdee/suggestion", async (req, res) => {
   res.json(suggestion ?? null);
 });
 
+/**
+ * POST /api/adaptive-tdee/calculate
+ * Runs the adaptive TDEE algorithm for the authenticated user.
+ * Requires: Advanced tier access, an existing macro calculation, and ≥7 days since
+ * the last suggestion (weekly throttle prevents metabolic adaptation chasing).
+ * Pulls 14 days of food-log + weight data, optionally enriched with Strava exercise
+ * calories, and creates a pending suggestion if the delta is ≥50 kcal.
+ * Returns: { eligible, suggestion } on success, or { throttled } / { eligible: false }.
+ */
 router.post("/api/adaptive-tdee/calculate", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const userId = req.session.userId;
@@ -30,9 +39,12 @@ router.post("/api/adaptive-tdee/calculate", async (req, res) => {
 
   const currentCalories = latest.dailyCalories;
 
+  // Check if a nutritionist has set manual target overrides — if so, flag for the UI
   const override = await storage.getClientTargetOverrides(userId);
   const hasOverride = !!(override && (override.dailyCalories || override.proteinGoal || override.carbsGoal || override.fatGoal || override.fibreGoal));
 
+  // Weekly throttle: adaptive suggestions should not be generated more than once
+  // per week to allow the body time to respond to the previous adjustment
   const lastSuggestionDate = await storage.getLastAdaptiveSuggestionDate(userId);
   if (lastSuggestionDate) {
     const daysSince = (Date.now() - lastSuggestionDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -115,6 +127,14 @@ router.post("/api/adaptive-tdee/calculate", async (req, res) => {
   res.json({ eligible: true, hasOverride, suggestion });
 });
 
+/**
+ * POST /api/adaptive-tdee/suggestion/:id/accept
+ * Accepts a pending adaptive TDEE suggestion by creating a new calculation record
+ * with the suggested calorie target. Macro goals (protein/carbs/fat) are scaled
+ * proportionally so the user's existing macro split is preserved rather than
+ * being reset to the default 30/40/30.
+ * Blocked if a nutritionist has set manual target overrides for this user.
+ */
 router.post("/api/adaptive-tdee/suggestion/:id/accept", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const id = parseInt(req.params.id);
@@ -125,6 +145,7 @@ router.post("/api/adaptive-tdee/suggestion/:id/accept", async (req, res) => {
     return res.status(403).json({ message: "Requires Advanced plan" });
   }
 
+  // Nutritionist-set overrides take priority; the user must remove them first
   const override = await storage.getClientTargetOverrides(userId);
   if (override && (override.dailyCalories || override.proteinGoal || override.carbsGoal || override.fatGoal || override.fibreGoal)) {
     return res.status(403).json({ message: "Cannot override nutritionist targets" });
@@ -150,6 +171,9 @@ router.post("/api/adaptive-tdee/suggestion/:id/accept", async (req, res) => {
   let carbsGoal: number;
   let fatGoal: number;
 
+  // Preserve the user's current macro split by computing each macro's caloric
+  // proportion (protein & carbs = 4 kcal/g, fat = 9 kcal/g) and applying
+  // the same ratios to the new calorie target
   if (currentCalories > 0) {
     const proteinRatio = (currentProtein * 4) / currentCalories;
     const carbsRatio = (currentCarbs * 4) / currentCalories;

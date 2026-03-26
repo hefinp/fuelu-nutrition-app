@@ -52,6 +52,19 @@ router.get("/api/meal-plans/generation-limits", async (req, res) => {
   });
 });
 
+/**
+ * POST /api/meal-plans/generate
+ * Generates a daily or weekly meal plan based on calorie/macro targets.
+ * Inputs: dailyCalories, proteinGoal, carbsGoal, fatGoal, planType (daily/weekly),
+ *   mealStyle (simple/fancy/gourmet), optional weekStartDate, targetDates, excludeSlots.
+ * Notable behavior:
+ *   - Filters meals by user diet, allergies, excluded/disliked foods, and recent food log
+ *   - Injects user-created recipes and community meals into the candidate pool
+ *   - For weekly plans on the current week, skips past days and already-elapsed meal slots
+ *   - Applies cycle-phase-aware meal selection when menstrual cycle tracking is enabled
+ *   - Supports meal-prep optimization (previous dinner → next day's lunch) on weekly plans
+ *   - Deducts AI meal plan credits after generation
+ */
 router.post(api.mealPlans.generate.path, async (req, res) => {
   try {
     const input = mealPlanSchema.parse(req.body);

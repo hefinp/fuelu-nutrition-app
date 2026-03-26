@@ -392,6 +392,17 @@ export function buildExcludeKeywords(preferences: UserPreferences | null): strin
   return [...buildSafetyKeywords(preferences), ...buildPreferenceKeywords(preferences)];
 }
 
+/**
+ * Filters the meal database by user preferences using a cascading filter:
+ *   1. Safety keywords first (diet type + allergens) — these are hard exclusions
+ *      that must always be enforced (e.g. removing all meat for vegetarians)
+ *   2. Preference keywords next (user-specified excluded foods) — softer exclusions
+ *   3. Disliked meals last — meals the user has explicitly thumbs-downed
+ *
+ * The order matters: safety filters run first so allergen-unsafe meals are
+ * removed before preference/dislike filtering, which prevents edge cases where
+ * a disliked meal is the only option left after preference filtering.
+ */
 export function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPreferences | null): MealDb {
   if (!preferences) return mealDb;
 
@@ -416,6 +427,11 @@ export function filterMealDbByPreferences(mealDb: MealDb, preferences: UserPrefe
   };
 }
 
+/**
+ * Removes recently-logged meals from the pool to reduce repetition. If removing
+ * all recent meals would leave the pool empty, falls back to the full pool to
+ * ensure the plan can always be generated.
+ */
 export function filterMealDbByRecentLog(mealDb: MealDb, recentMealNames: string[]): MealDb {
   if (!recentMealNames.length) return mealDb;
   const recent = recentMealNames.map(n => n.toLowerCase());
@@ -431,6 +447,11 @@ export function filterMealDbByRecentLog(mealDb: MealDb, recentMealNames: string[
   };
 }
 
+/**
+ * Linearly scales a meal's macros to hit a target calorie count while preserving
+ * the original macro ratios (e.g. a 400 kcal meal scaled to 600 kcal gets 1.5×
+ * protein, carbs, and fat).
+ */
 export function scaleMeal(meal: MealEntry, targetCalories: number): MealEntry {
   const scale = targetCalories / meal.calories;
   return {
@@ -466,6 +487,21 @@ function macroScore(m: MealEntry, tProtein: number, tCarbs: number, tFat: number
   return Math.abs(pPct - tProtein) + Math.abs(cPct - tCarbs) + Math.abs(fPct - tFat);
 }
 
+/**
+ * Selects the best meal from a pool using a multi-factor scoring system.
+ *
+ * Scoring formula (lower is better):
+ *   base   = macroScore — absolute deviation of the meal's P/C/F caloric ratios
+ *            from the user's target ratios (0 = perfect macro match)
+ *   − 0.15 × (microScore / 5) if micronutrient optimization is on (rewards nutrient-dense meals)
+ *   − 0.20 if the meal matches a user's preferred food keyword (preference boost)
+ *   − 0.15 if the meal matches cycle-phase keywords (e.g. iron-rich during menstrual)
+ *   − 0.12 if vitality meals are enabled and the meal matches vitality keywords
+ *
+ * After scoring, the top 33% of candidates are kept and one is chosen at random.
+ * This "top-33% random pick" approach ensures variety across regenerations while
+ * still biasing toward nutritionally optimal choices.
+ */
 export function pickBestMeal(
   pool: MealEntry[],
   tProtein: number,
@@ -480,6 +516,8 @@ export function pickBestMeal(
   const scored = pool.map(m => {
     let score = macroScore(m, tProtein, tCarbs, tFat);
 
+    // Micronutrient density bonus: meals with higher microScore (1-5) get a
+    // score reduction, making them more likely to be selected
     if (preferences?.micronutrientOptimize && m.microScore) {
       score -= (m.microScore / 5) * 0.15;
     }
@@ -512,6 +550,8 @@ export function pickBestMeal(
     return { meal: m, score };
   });
 
+  // Sort ascending (lower score = better match), then pick randomly from
+  // the top third to introduce variety while keeping quality high
   scored.sort((a, b) => a.score - b.score);
   const topCount = Math.max(2, Math.ceil(scored.length / 3));
   const topCandidates = scored.slice(0, topCount);
@@ -689,6 +729,16 @@ function isHourInWindow(hour: number, windowStart: number, windowEnd: number): b
 
 const VALID_FASTING_DAYS = new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
 
+/**
+ * Determines which meal slots to skip based on the user's fasting protocol.
+ * Supports three protocols:
+ *   - "5:2": 5 normal days + 2 low-cal days (default Mon/Thu). On fasting days,
+ *     only lunch is served at ~500 kcal; breakfast, dinner, and snack are skipped.
+ *   - "omad" (One Meal A Day): all calories go into dinner; breakfast and snack
+ *     are skipped (lunch is also skipped via buildDayPlan's OMAD path).
+ *   - Time-restricted (e.g. 16:8): compares each meal slot's typical hour against
+ *     the user's eating window and skips slots outside it.
+ */
 export function computeFastingOverride(
   preferences: UserPreferences | null | undefined,
   dayName?: string,
@@ -709,6 +759,8 @@ export function computeFastingOverride(
     return { isFastingDay: true, omad: true, skipSlots: new Set(['breakfast', 'snack']) };
   }
 
+  // Time-restricted eating: check each slot's typical serving hour against
+  // the user's configured eating window (default 12:00–20:00 for 16:8)
   const windowStart = preferences.eatingWindowStart ?? 12;
   const windowEnd = preferences.eatingWindowEnd ?? 20;
 
@@ -785,6 +837,9 @@ export function generateMealPlan(
     let weekTotalCarbs = 0;
     let weekTotalFat = 0;
 
+    // Meal-prep optimization: reuses the previous day's dinner recipe as
+    // today's lunch (scaled to lunch calories). This simulates cooking extra
+    // dinner portions and using leftovers the next day, reducing prep effort.
     let previousDinnerBase: MealEntry | undefined = undefined;
     const dinnerTarget = Math.round(dailyCalories * 0.35);
     const mealPrepEnabled = preferences?.mealPrepOptimize !== false;
@@ -868,7 +923,33 @@ export function generateMealPlan(
   }
 }
 
+/**
+ * Calculates daily calorie and macro targets using the Mifflin-St Jeor equation
+ * (Mifflin et al., 1990) — considered the most accurate BMR formula for most adults.
+ *
+ * BMR formula:
+ *   Male:   (10 × weight_kg) + (6.25 × height_cm) − (5 × age) + 5
+ *   Female: (10 × weight_kg) + (6.25 × height_cm) − (5 × age) − 161
+ *
+ * Activity multipliers are from the Harris-Benedict revised scale:
+ *   sedentary=1.2, light=1.375, moderate=1.55, active=1.725, very_active=1.9
+ *
+ * When stravaCalories is provided (from Strava integration), the formula-based
+ * activity multiplier is bypassed entirely: TDEE = BMR + stravaCalories. This
+ * gives a more accurate estimate for users with activity tracking data.
+ *
+ * Goal adjustments (kcal/day):
+ *   fat_loss/lose: −500  |  tone: −250  |  maintain: 0
+ *   muscle: +300  |  gain: +500  |  bulk: +600
+ * These values represent moderate, sustainable rates of change (~0.5 kg/week
+ * for ±500 kcal, based on the 7700 kcal/kg body tissue estimate).
+ *
+ * Default macro split: 30% protein / 40% carbs / 30% fat — a balanced split
+ * suitable for most general fitness goals. Divided by 4 kcal/g (protein, carbs)
+ * or 9 kcal/g (fat) to convert to grams.
+ */
 export function calculateMacros(weight: number, height: number, age: number, gender: string, activityLevel: string, goal: string = 'maintain', stravaCalories?: number) {
+  // Mifflin-St Jeor BMR equation
   let bmr = (10 * weight) + (6.25 * height) - (5 * age);
   if (gender === 'male') {
     bmr += 5;
@@ -878,9 +959,11 @@ export function calculateMacros(weight: number, height: number, age: number, gen
 
   let dailyCalories: number;
 
+  // Strava override path: use actual exercise data instead of a generic multiplier
   if (stravaCalories !== undefined && Number.isFinite(stravaCalories)) {
     dailyCalories = Math.round(bmr + stravaCalories);
   } else {
+    // Harris-Benedict revised activity multipliers
     let activityMultiplier = 1.2;
     switch (activityLevel) {
       case 'sedentary': activityMultiplier = 1.2; break;
@@ -892,6 +975,7 @@ export function calculateMacros(weight: number, height: number, age: number, gen
     dailyCalories = Math.round(bmr * activityMultiplier);
   }
 
+  // Goal-based calorie adjustment
   switch (goal) {
     case 'fat_loss':
       dailyCalories = Math.round(dailyCalories - 500);
@@ -918,6 +1002,7 @@ export function calculateMacros(weight: number, height: number, age: number, gen
   }
 
   const weeklyCalories = dailyCalories * 7;
+  // Default macro split: 30% protein / 40% carbs / 30% fat (grams)
   const proteinGoal = Math.round((dailyCalories * 0.3) / 4);
   const carbsGoal = Math.round((dailyCalories * 0.4) / 4);
   const fatGoal = Math.round((dailyCalories * 0.3) / 9);

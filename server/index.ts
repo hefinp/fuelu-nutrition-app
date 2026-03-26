@@ -155,14 +155,27 @@ app.use((req, res, next) => {
   await runMigrations();
 
   const { storage } = await import("./storage");
+  // Startup fix: removes canonical food entries with invalid/zero nutrition data
+  // that were cached from external APIs (USDA, Open Food Facts) before validation
+  // was added. Can be removed once all bad rows have been cleaned from production.
   storage.cleanupBadCanonicalFoods()
     .then(() => {
       console.log("[init] Canonical food cleanup complete");
+      // Startup fix: repairs community meals whose ingredientsJson was stored as
+      // a stringified JSON string instead of an actual JSON array (caused by a
+      // double-serialization bug in the original import endpoint). Can be removed
+      // once no rows with string-type ingredientsJson remain in the DB.
       return storage.fixCommunityMealIngredients();
     })
     .then(() => console.log("[init] Community meal ingredient fix complete"))
     .catch(err => console.error("[init] Canonical/community cleanup failed:", err));
 
+  // Startup fix: one-off USDA nutrition correction for meal #25.
+  // Several ingredients (brown onion, ginger, Chinese cooking wine, cucumber
+  // ribbons) had incorrect per-100g values from the original USDA import,
+  // causing the meal's total calories to be overstated at 719 kcal.
+  // This patches the ingredientsJson and recalculates totals.
+  // Can be removed once meal #25's calories_per_serving != 719 in production.
   (async () => {
     try {
       const { pool } = await import("./db");
@@ -198,6 +211,10 @@ app.use((req, res, next) => {
     }
   })();
 
+  // Startup seed: ensures common staple foods (flour, sugar, butter, oil, etc.)
+  // exist in the canonical_foods table with accurate per-100g nutrition data.
+  // These are used as fallback matches by the ingredient parser when external
+  // API lookups fail. Idempotent — skips foods that already exist.
   const { seedGenericStapleFoods } = await import("./lib/ingredient-parser");
   seedGenericStapleFoods()
     .then(() => console.log("[init] Generic staple foods seed complete"))
@@ -215,11 +232,16 @@ app.use((req, res, next) => {
     console.error("[init] Re-engagement worker failed to start:", err)
   );
 
+  // Feature gate seed: ensures the "strava_activity_level" gate exists in the DB.
+  // This gate controls whether the Strava-derived activity level is shown in the
+  // calculator UI. Idempotent — upsert will not overwrite if already present.
   storage.upsertFeatureGate("strava_activity_level", "advanced", 0, "Strava-derived activity level in calculator").catch(err =>
     console.error("[init] Failed to seed strava_activity_level feature gate:", err)
   );
 
-  // Run the survey milestone job on startup and then every 24 hours
+  // Survey milestone job: checks all users for survey eligibility milestones
+  // (e.g. "logged food for 7 days") and creates pending survey records.
+  // Runs once on startup for immediate catch-up, then every 24 hours.
   const { runSurveyMilestoneJob } = await import("./lib/survey-milestone-job");
   runSurveyMilestoneJob().catch(err => console.error("[surveys] Initial milestone job failed:", err));
   setInterval(() => {

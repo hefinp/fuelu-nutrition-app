@@ -308,6 +308,14 @@ router.get("/api/food-log/label-scan-available", (req, res) => {
   res.json({ available });
 });
 
+/**
+ * POST /api/food-log/extract-label
+ * Uses GPT-4o vision to read a nutrition label photo and extract per-100g
+ * nutritional values. Accepts imageBase64 (required) and optional barcode.
+ * Returns structured nutrition data with sourceType "label" (confidently read)
+ * or "estimated" (AI had to guess). Caches the result into canonical_foods
+ * with the barcode if provided.
+ */
 router.post("/api/food-log/extract-label", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Unauthorized" });
   const { imageBase64, barcode: labelBarcode } = req.body as { imageBase64?: string; barcode?: string };
@@ -399,6 +407,14 @@ Respond ONLY with the JSON — no markdown, no explanation.`;
   }
 });
 
+/**
+ * POST /api/food-log/recognize-food
+ * Uses GPT-4o vision to identify a food from a photo or text description and
+ * estimate its per-100g nutritional values. Accepts either imageBase64 (photo)
+ * or description (text), or both. Returns a food object with estimated macros
+ * and a typical serving size. Also caches the result into canonical_foods for
+ * future food-search lookups.
+ */
 router.post("/api/food-log/recognize-food", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: "Unauthorized" });
   const { imageBase64, description } = req.body as { imageBase64?: string; description?: string };
