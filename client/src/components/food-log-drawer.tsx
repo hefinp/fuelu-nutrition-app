@@ -48,7 +48,7 @@ export function FoodLogDrawer({
   const [myMealsSearch, setMyMealsSearch] = useState("");
   const [debouncedMyMealsSearch, setDebouncedMyMealsSearch] = useState("");
 
-  const [formTab, setFormTab] = useState<"manual" | "plan" | "search" | "scan" | "ai" | "restaurants">("search");
+  const [formTab, setFormTab] = useState<"manual" | "search" | "scan" | "ai">("search");
   const [formSource, setFormSource] = useState<string | null>(null);
   const [form, setForm] = useState({
     mealName: "", calories: "", protein: "", carbs: "", fat: "",
@@ -109,18 +109,10 @@ export function FoodLogDrawer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const scanControlsRef = useRef<{ stop: () => void } | null>(null);
 
-  const [restQuery, setRestQuery] = useState("");
-  const [restDebouncedQuery, setRestDebouncedQuery] = useState("");
   const [restBrand, setRestBrand] = useState<string>("");
   const [restSelectedFood, setRestSelectedFood] = useState<FoodResult | null>(null);
   const [restServGrams, setRestServGrams] = useState("100");
-  const [restBrandOpen, setRestBrandOpen] = useState(false);
   const [restMealSlot, setRestMealSlot] = useState<MealSlot | null>(null);
-
-  useEffect(() => {
-    const t = setTimeout(() => setRestDebouncedQuery(restQuery.trim()), 400);
-    return () => clearTimeout(t);
-  }, [restQuery]);
 
   const { data: restBrands = [] } = useQuery<string[]>({
     queryKey: ["/api/restaurant-foods/brands"],
@@ -128,18 +120,18 @@ export function FoodLogDrawer({
     enabled: open,
   });
 
-  const restSearchEnabled = restDebouncedQuery.length >= 2 || restBrand.length > 0;
+  const restSearchEnabled = debouncedQuery.length >= 2 || restBrand.length > 0;
   const { data: restResults = [], isLoading: restLoading } = useQuery<FoodResult[]>({
-    queryKey: ["/api/restaurant-foods/search", restDebouncedQuery, restBrand],
+    queryKey: ["/api/restaurant-foods/search", debouncedQuery, restBrand],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (restDebouncedQuery) params.set("q", restDebouncedQuery);
+      if (debouncedQuery) params.set("q", debouncedQuery);
       if (restBrand) params.set("brand", restBrand);
       const res = await fetch(`/api/restaurant-foods/search?${params}`, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: open && restSearchEnabled,
+    enabled: open && formTab === "search" && restSearchEnabled,
   });
 
   useEffect(() => {
@@ -306,7 +298,7 @@ export function FoodLogDrawer({
       if (!res.ok) throw new Error("Failed to load saved plans");
       return res.json();
     },
-    enabled: open && formTab === "plan",
+    enabled: open && topTab === "mymeals",
   });
 
   const { data: foodResults = [], isLoading: searchLoading } = useQuery<FoodResult[]>({
@@ -419,6 +411,10 @@ export function FoodLogDrawer({
     setAiTabProductName("");
     setAiTabVolumeMl("");
     setShowPhotoInterstitial(false);
+    setRestSelectedFood(null);
+    setRestServGrams("100");
+    setRestBrand("");
+    setRestMealSlot(null);
     onClose();
   }
 
@@ -471,6 +467,7 @@ export function FoodLogDrawer({
     });
     setFormSource("plan");
     setFormTab("manual");
+    setTopTab("input");
   }
 
   async function addWholeDay(meals: PlanMeal[], dayLabel: string) {
@@ -508,6 +505,10 @@ export function FoodLogDrawer({
     setDebouncedQuery("");
     setSelectedFood(null);
     setServingGrams("100");
+    setRestSelectedFood(null);
+    setRestServGrams("100");
+    setRestBrand("");
+    setRestMealSlot(null);
   }
 
   function useSelectedFood() {
@@ -816,24 +817,6 @@ export function FoodLogDrawer({
             </button>
             <button
               type="button"
-              onClick={() => setFormTab("restaurants")}
-              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "restaurants" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-              data-testid="button-form-tab-restaurants"
-            >
-              <Store className="w-3.5 h-3.5" />
-              Eat Out
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormTab("plan")}
-              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "plan" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
-              data-testid="button-form-tab-plan"
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              Plan
-            </button>
-            <button
-              type="button"
               onClick={() => setFormTab("manual")}
               className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors rounded-lg ${formTab === "manual" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
               data-testid="button-form-tab-manual"
@@ -913,6 +896,77 @@ export function FoodLogDrawer({
                   ))}
                 </div>
               )}
+
+              <div className="mt-4 pt-4 border-t border-zinc-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <BookOpen className="w-4 h-4 text-zinc-500" />
+                  <p className="text-xs font-semibold text-zinc-700 uppercase tracking-wide" data-testid="text-from-plans-heading">From Plans</p>
+                </div>
+                {plansLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+                  </div>
+                ) : savedPlans.length === 0 ? (
+                  <div className="text-center py-4 text-zinc-400">
+                    <BookOpen className="w-6 h-6 mx-auto mb-1.5 opacity-30" />
+                    <p className="text-xs">No saved plans yet</p>
+                    <p className="text-[10px] mt-0.5">Generate a meal plan to save it here</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2" data-testid="plan-picker-list">
+                    {savedPlans.map(plan => {
+                      const isOpen = expandedPlanId === plan.id;
+                      const planMeals = extractPlanMeals(plan, plan.planType === "weekly" ? selectedWeekDay : undefined);
+                      return (
+                        <div key={plan.id} className="border border-zinc-200 rounded-xl overflow-hidden bg-white">
+                          <button type="button" onClick={() => setExpandedPlanId(isOpen ? null : plan.id)} className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-zinc-50 transition-colors text-left" data-testid={`button-expand-plan-${plan.id}`}>
+                            <div>
+                              <p className="text-sm font-semibold text-zinc-900">{plan.name}</p>
+                              <p className="text-xs text-zinc-400 mt-0.5 capitalize">{plan.planType} · {plan.mealStyle ?? "simple"}</p>
+                            </div>
+                            <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                          </button>
+                          {isOpen && (
+                            <div className="border-t border-zinc-100 px-3 pb-3 pt-2">
+                              {plan.planType === "weekly" && (
+                                <div className="flex gap-1 mb-3 flex-wrap">
+                                  {WEEK_DAYS.map((d, i) => (
+                                    <button key={d} type="button" onClick={() => setSelectedWeekDay(d)} className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors ${selectedWeekDay === d ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`} data-testid={`button-week-day-${d}`}>
+                                      {WEEK_SHORT[i]}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              {planMeals.length === 0 ? (
+                                <p className="text-xs text-zinc-400 py-2">No meals found.</p>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {planMeals.map((m, idx) => (
+                                    <button key={idx} type="button" onClick={() => prefillFromPlan(m)} className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-50 hover:bg-zinc-100 hover:border-zinc-200 border border-transparent transition-colors text-left" data-testid={`button-plan-meal-${idx}`}>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-zinc-900 truncate">{m.meal}</p>
+                                        <p className="text-[10px] text-zinc-400 mt-0.5">{m.slot}</p>
+                                      </div>
+                                      <div className="text-right ml-3 shrink-0">
+                                        <p className="text-xs font-bold text-zinc-900">{m.calories} kcal</p>
+                                        <p className="text-[10px] text-zinc-400">P:{m.protein}g C:{m.carbs}g F:{m.fat}g</p>
+                                      </div>
+                                    </button>
+                                  ))}
+                                  <button type="button" onClick={() => { const label = plan.planType === "weekly" ? (WEEK_SHORT[WEEK_DAYS.indexOf(selectedWeekDay as typeof WEEK_DAYS[number])] ?? selectedWeekDay) : "today"; addWholeDay(planMeals, label); }} className="w-full mt-1 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5" data-testid="button-add-whole-day">
+                                    <Plus className="w-3.5 h-3.5" />
+                                    Add whole day ({planMeals.length} meal{planMeals.length !== 1 ? "s" : ""})
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1146,7 +1200,7 @@ export function FoodLogDrawer({
                     autoFocus
                     placeholder="Search foods, brands…"
                     value={searchQuery}
-                    onChange={e => { setSearchQuery(e.target.value); setSelectedFood(null); }}
+                    onChange={e => { setSearchQuery(e.target.value); setSelectedFood(null); setRestSelectedFood(null); }}
                     className="w-full pl-8 pr-8 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
                     data-testid="input-food-search"
                   />
@@ -1157,270 +1211,30 @@ export function FoodLogDrawer({
                   )}
                 </div>
 
-                {selectedFood && (
-                  <div className="mb-3 p-3 bg-zinc-50 border border-zinc-200 rounded-xl" data-testid="food-serving-adjuster">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-zinc-900 truncate">{selectedFood.name}</p>
-                        <p className="text-[10px] text-zinc-500 mt-0.5">per 100g: {selectedFood.calories100g} kcal · P:{selectedFood.protein100g}g C:{selectedFood.carbs100g}g F:{selectedFood.fat100g}g</p>
-                      </div>
-                      <button type="button" onClick={() => setSelectedFood(null)} className="shrink-0 text-zinc-400 hover:text-zinc-600 mt-0.5">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2 mb-2.5">
-                      <label className="text-[10px] text-zinc-500 font-medium shrink-0">Serving (g)</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={servingGrams}
-                        onChange={e => setServingGrams(e.target.value)}
-                        className="w-20 px-2 py-1 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-400 text-center bg-white"
-                        data-testid="input-serving-grams"
-                      />
-                      <span className="text-[10px] text-zinc-400">{selectedFood.servingSize && selectedFood.servingSize !== `${selectedFood.servingGrams}g` ? `(1 serving = ${selectedFood.servingSize})` : ""}</span>
-                    </div>
-                    {(() => {
-                      const f = (parseFloat(servingGrams) || 0) / 100;
-                      return (
-                        <div className="grid grid-cols-4 gap-1.5 mb-2.5">
-                          {[
-                            { label: "kcal", value: Math.round(selectedFood.calories100g * f), color: "bg-orange-50 text-orange-700" },
-                            { label: "protein", value: Math.round(selectedFood.protein100g * f), color: "bg-red-50 text-red-700" },
-                            { label: "carbs", value: Math.round(selectedFood.carbs100g * f), color: "bg-blue-50 text-blue-700" },
-                            { label: "fat", value: Math.round(selectedFood.fat100g * f), color: "bg-yellow-50 text-yellow-700" },
-                          ].map(({ label, value, color }) => (
-                            <div key={label} className={`${color} rounded-lg p-1.5 text-center`}>
-                              <p className="text-sm font-bold">{value}</p>
-                              <p className="text-[9px] font-medium uppercase tracking-wide opacity-70">{label}</p>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                    <div className="mb-2.5">
-                      <p className="text-[10px] text-zinc-500 font-medium mb-1.5">Meal type</p>
-                      <SlotPicker
-                        value={form.mealSlot}
-                        onChange={slot => setForm(f => ({ ...f, mealSlot: slot }))}
-                        testIdPrefix="search-slot"
-                      />
-                      {form.mealSlot === "drinks" && selectedFood && (
-                        <div className="mt-2">
-                          <div className="flex items-center gap-2">
-                            <Droplets className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                            <input
-                              type="number"
-                              min={1}
-                              placeholder="Volume (ml)"
-                              value={form.volumeMl}
-                              onChange={e => setForm(f => ({ ...f, volumeMl: e.target.value }))}
-                              className="flex-1 px-3 py-1.5 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50"
-                              data-testid="input-search-volume-ml"
-                            />
-                            <span className="text-xs text-zinc-400 shrink-0">ml</span>
-                          </div>
-                          <p className="text-[10px] text-zinc-400 mt-1">Auto-synced to your hydration tracker</p>
-                        </div>
-                      )}
-                    </div>
-                    {dailyTotals && dailyTargets && (() => {
-                      const fac = (parseFloat(servingGrams) || 0) / 100;
-                      return (
-                        <GoalPreview
-                          currentCalories={dailyTotals.calories}
-                          currentProtein={dailyTotals.protein}
-                          currentCarbs={dailyTotals.carbs}
-                          currentFat={dailyTotals.fat}
-                          addCalories={Math.round(selectedFood.calories100g * fac)}
-                          addProtein={Math.round(selectedFood.protein100g * fac)}
-                          addCarbs={Math.round(selectedFood.carbs100g * fac)}
-                          addFat={Math.round(selectedFood.fat100g * fac)}
-                          targetCalories={dailyTargets.calories}
-                          targetProtein={dailyTargets.protein}
-                          targetCarbs={dailyTargets.carbs}
-                          targetFat={dailyTargets.fat}
-                        />
-                      );
-                    })()}
+                {restBrands.length > 0 && (debouncedQuery.length >= 2 || restBrand) && !selectedFood && !restSelectedFood && (
+                  <div className="flex items-center gap-1.5 mb-3 flex-wrap" data-testid="search-brand-filter">
                     <button
                       type="button"
-                      onClick={useSelectedFood}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors"
-                      data-testid="button-use-food"
+                      onClick={() => setRestBrand("")}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-colors ${!restBrand ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"}`}
+                      data-testid="button-brand-filter-all"
                     >
-                      <Check className="w-3.5 h-3.5" />
-                      Use this food
+                      All
                     </button>
+                    {restBrands.map(b => (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => setRestBrand(restBrand === b ? "" : b)}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-colors flex items-center gap-1 ${restBrand === b ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"}`}
+                        data-testid={`button-brand-filter-${b.toLowerCase().replace(/[^a-z0-9]/g, "-")}`}
+                      >
+                        <Store className="w-2.5 h-2.5" />
+                        {b}
+                      </button>
+                    ))}
                   </div>
                 )}
-
-                {!selectedFood && (
-                  <>
-                    {searchLoading && debouncedQuery.length >= 2 && (
-                      <div className="flex items-center justify-center gap-2 py-6 text-zinc-400">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm">Searching…</span>
-                      </div>
-                    )}
-                    {!searchLoading && debouncedQuery.length >= 2 && foodResults.length === 0 && (
-                      <div className="text-center py-6 text-zinc-400">
-                        <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                        <p className="text-sm">No results for "{debouncedQuery}"</p>
-                        {labelScanAvailable ? (
-                          <button
-                            type="button"
-                            onClick={() => { setAiTabResult(null); setAiTabDescription(debouncedQuery); setAiTabPhotoFile(null); setAiTabMode("describe"); setAiTabProductName(""); setAiTabLabelPhotoFile(null); setFormTab("ai"); }}
-                            className="mt-2 inline-flex items-center gap-1 text-xs text-violet-600 font-medium hover:text-violet-800 transition-colors"
-                            data-testid="button-search-try-ai"
-                          >
-                            <Sparkles className="w-3 h-3" />
-                            Try AI estimate instead
-                          </button>
-                        ) : (
-                          <p className="text-xs mt-1">Try a different name or use Manual entry.</p>
-                        )}
-                      </div>
-                    )}
-                    {!searchLoading && debouncedQuery.length < 2 && !searchQuery && (
-                      <>
-                        {recentFoods.length > 0 ? (
-                          <div data-testid="search-tab-recent-foods">
-                            <p className="text-[10px] text-zinc-400 font-medium mb-1.5">
-                              {activeSlot ? `Recent ${SLOT_LABELS[activeSlot as MealSlot] ?? ""} foods` : "Recent"}
-                            </p>
-                            <div className="flex gap-1.5 flex-wrap mb-4">
-                              {recentFoods.map(food => (
-                                <button
-                                  key={food.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setFormTab("manual");
-                                    setForm(f => ({
-                                      ...f,
-                                      mealName: food.mealName,
-                                      calories: String(food.calories),
-                                      protein: String(food.protein),
-                                      carbs: String(food.carbs),
-                                      fat: String(food.fat),
-                                      mealSlot: (food.mealSlot as MealSlot) || f.mealSlot,
-                                    }));
-                                  }}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 hover:bg-zinc-100 transition-colors"
-                                  data-testid={`button-search-recent-food-${food.id}`}
-                                >
-                                  <span className="font-medium max-w-[6rem] truncate">{food.mealName}</span>
-                                  <span className="text-zinc-400 shrink-0">{food.calories}kcal</span>
-                                </button>
-                              ))}
-                            </div>
-                            <div className="text-center text-zinc-300">
-                              <Search className="w-6 h-6 mx-auto mb-1" />
-                              <p className="text-xs">Or start typing to search 3M+ foods</p>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-center py-6 text-zinc-300">
-                            <Search className="w-8 h-8 mx-auto mb-2" />
-                            <p className="text-sm">Start typing to search 3M+ foods</p>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {foodResults.length > 0 && (
-                      <div className="space-y-1.5 max-h-56 overflow-y-auto" data-testid="food-search-results">
-                        {foodResults.map(food => {
-                          const isNzVerified = food.source === "nzfcd";
-                          const isAuVerified = food.source === "fsanz";
-                          return (
-                            <button
-                              key={food.id}
-                              type="button"
-                              onClick={() => selectFood(food)}
-                              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white hover:bg-zinc-100 hover:border-zinc-200 border border-zinc-100 transition-colors text-left"
-                              data-testid={`button-food-result-${food.id}`}
-                            >
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1 flex-wrap">
-                                  <p className="text-xs font-medium text-zinc-900 truncate">{food.name}</p>
-                                  {food.verified && !isNzVerified && !isAuVerified && (
-                                    <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" data-testid={`badge-verified-${food.id}`} />
-                                  )}
-                                  {isNzVerified && (
-                                    <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700 border border-green-200" data-testid={`badge-nz-${food.id}`}>NZ Verified</span>
-                                  )}
-                                  {isAuVerified && (
-                                    <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 border border-yellow-200" data-testid={`badge-au-${food.id}`}>AU Verified</span>
-                                  )}
-                                </div>
-                                <p className="text-[10px] text-zinc-400 mt-0.5">P:{food.protein100g}g · C:{food.carbs100g}g · F:{food.fat100g}g per 100g</p>
-                              </div>
-                              <div className="ml-3 shrink-0 text-right">
-                                <p className="text-xs font-bold text-zinc-900">{food.calories100g}</p>
-                                <p className="text-[10px] text-zinc-400">kcal/100g</p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-
-            {formTab === "restaurants" && (
-              <div className="p-4">
-                <div className="relative mb-3">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    autoFocus
-                    placeholder="Search restaurants & Hello Fresh..."
-                    value={restQuery}
-                    onChange={e => { setRestQuery(e.target.value); setRestSelectedFood(null); }}
-                    className="w-full pl-8 pr-8 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
-                    data-testid="input-drawer-rest-search"
-                  />
-                  {restQuery && (
-                    <button type="button" onClick={() => { setRestQuery(""); setRestDebouncedQuery(""); setRestSelectedFood(null); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-                <div className="relative mb-3">
-                  <button
-                    onClick={() => setRestBrandOpen(!restBrandOpen)}
-                    className="w-full flex items-center justify-between text-sm border border-zinc-200 rounded-xl px-3 py-2 text-left hover:bg-zinc-50 transition-colors"
-                    data-testid="button-drawer-rest-brand"
-                  >
-                    <span className={restBrand ? "text-zinc-900" : "text-zinc-400"}>
-                      {restBrand || "All brands"}
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-zinc-400" />
-                  </button>
-                  {restBrandOpen && (
-                    <div className="absolute z-10 mt-1 w-full bg-white border border-zinc-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                      <button
-                        onClick={() => { setRestBrand(""); setRestBrandOpen(false); }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-50 ${!restBrand ? "font-semibold text-zinc-900" : "text-zinc-600"}`}
-                        data-testid="button-drawer-rest-brand-all"
-                      >
-                        All brands
-                      </button>
-                      {restBrands.map(b => (
-                        <button
-                          key={b}
-                          onClick={() => { setRestBrand(b); setRestBrandOpen(false); }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-50 ${restBrand === b ? "font-semibold text-zinc-900" : "text-zinc-600"}`}
-                          data-testid={`button-drawer-rest-brand-${b.toLowerCase().replace(/[^a-z0-9]/g, "-")}`}
-                        >
-                          {b}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
                 {restSelectedFood && (
                   <div className="mb-3 p-3 bg-zinc-50 border border-zinc-200 rounded-xl" data-testid="rest-food-confirm">
@@ -1530,39 +1344,242 @@ export function FoodLogDrawer({
                   </div>
                 )}
 
-                {!restSelectedFood && (
+                {selectedFood && !restSelectedFood && (
+                  <div className="mb-3 p-3 bg-zinc-50 border border-zinc-200 rounded-xl" data-testid="food-serving-adjuster">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-zinc-900 truncate">{selectedFood.name}</p>
+                        <p className="text-[10px] text-zinc-500 mt-0.5">per 100g: {selectedFood.calories100g} kcal · P:{selectedFood.protein100g}g C:{selectedFood.carbs100g}g F:{selectedFood.fat100g}g</p>
+                      </div>
+                      <button type="button" onClick={() => setSelectedFood(null)} className="shrink-0 text-zinc-400 hover:text-zinc-600 mt-0.5">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <label className="text-[10px] text-zinc-500 font-medium shrink-0">Serving (g)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={servingGrams}
+                        onChange={e => setServingGrams(e.target.value)}
+                        className="w-20 px-2 py-1 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-400 text-center bg-white"
+                        data-testid="input-serving-grams"
+                      />
+                      <span className="text-[10px] text-zinc-400">{selectedFood.servingSize && selectedFood.servingSize !== `${selectedFood.servingGrams}g` ? `(1 serving = ${selectedFood.servingSize})` : ""}</span>
+                    </div>
+                    {(() => {
+                      const f = (parseFloat(servingGrams) || 0) / 100;
+                      return (
+                        <div className="grid grid-cols-4 gap-1.5 mb-2.5">
+                          {[
+                            { label: "kcal", value: Math.round(selectedFood.calories100g * f), color: "bg-orange-50 text-orange-700" },
+                            { label: "protein", value: Math.round(selectedFood.protein100g * f), color: "bg-red-50 text-red-700" },
+                            { label: "carbs", value: Math.round(selectedFood.carbs100g * f), color: "bg-blue-50 text-blue-700" },
+                            { label: "fat", value: Math.round(selectedFood.fat100g * f), color: "bg-yellow-50 text-yellow-700" },
+                          ].map(({ label, value, color }) => (
+                            <div key={label} className={`${color} rounded-lg p-1.5 text-center`}>
+                              <p className="text-sm font-bold">{value}</p>
+                              <p className="text-[9px] font-medium uppercase tracking-wide opacity-70">{label}</p>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                    <div className="mb-2.5">
+                      <p className="text-[10px] text-zinc-500 font-medium mb-1.5">Meal type</p>
+                      <SlotPicker
+                        value={form.mealSlot}
+                        onChange={slot => setForm(f => ({ ...f, mealSlot: slot }))}
+                        testIdPrefix="search-slot"
+                      />
+                      {form.mealSlot === "drinks" && selectedFood && (
+                        <div className="mt-2">
+                          <div className="flex items-center gap-2">
+                            <Droplets className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                            <input
+                              type="number"
+                              min={1}
+                              placeholder="Volume (ml)"
+                              value={form.volumeMl}
+                              onChange={e => setForm(f => ({ ...f, volumeMl: e.target.value }))}
+                              className="flex-1 px-3 py-1.5 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50/50"
+                              data-testid="input-search-volume-ml"
+                            />
+                            <span className="text-xs text-zinc-400 shrink-0">ml</span>
+                          </div>
+                          <p className="text-[10px] text-zinc-400 mt-1">Auto-synced to your hydration tracker</p>
+                        </div>
+                      )}
+                    </div>
+                    {dailyTotals && dailyTargets && (() => {
+                      const fac = (parseFloat(servingGrams) || 0) / 100;
+                      return (
+                        <GoalPreview
+                          currentCalories={dailyTotals.calories}
+                          currentProtein={dailyTotals.protein}
+                          currentCarbs={dailyTotals.carbs}
+                          currentFat={dailyTotals.fat}
+                          addCalories={Math.round(selectedFood.calories100g * fac)}
+                          addProtein={Math.round(selectedFood.protein100g * fac)}
+                          addCarbs={Math.round(selectedFood.carbs100g * fac)}
+                          addFat={Math.round(selectedFood.fat100g * fac)}
+                          targetCalories={dailyTargets.calories}
+                          targetProtein={dailyTargets.protein}
+                          targetCarbs={dailyTargets.carbs}
+                          targetFat={dailyTargets.fat}
+                        />
+                      );
+                    })()}
+                    <button
+                      type="button"
+                      onClick={useSelectedFood}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors"
+                      data-testid="button-use-food"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Use this food
+                    </button>
+                  </div>
+                )}
+
+                {!selectedFood && !restSelectedFood && (
                   <>
-                    {restLoading && (
+                    {(searchLoading || restLoading) && debouncedQuery.length >= 2 && (
                       <div className="flex items-center justify-center gap-2 py-6 text-zinc-400">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         <span className="text-sm">Searching…</span>
                       </div>
                     )}
-                    {!restLoading && restSearchEnabled && restResults.length === 0 && (
+                    {!searchLoading && !restLoading && debouncedQuery.length >= 2 && foodResults.length === 0 && restResults.length === 0 && (
                       <div className="text-center py-6 text-zinc-400">
-                        <Store className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                        <p className="text-sm">No results found</p>
+                        <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        <p className="text-sm">No results for "{debouncedQuery}"</p>
+                        {labelScanAvailable ? (
+                          <button
+                            type="button"
+                            onClick={() => { setAiTabResult(null); setAiTabDescription(debouncedQuery); setAiTabPhotoFile(null); setAiTabMode("describe"); setAiTabProductName(""); setAiTabLabelPhotoFile(null); setFormTab("ai"); }}
+                            className="mt-2 inline-flex items-center gap-1 text-xs text-violet-600 font-medium hover:text-violet-800 transition-colors"
+                            data-testid="button-search-try-ai"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            Try AI estimate instead
+                          </button>
+                        ) : (
+                          <p className="text-xs mt-1">Try a different name or use Manual entry.</p>
+                        )}
                       </div>
                     )}
-                    {!restLoading && restResults.length > 0 && (
-                      <div className="space-y-1">
+                    {!searchLoading && debouncedQuery.length < 2 && !searchQuery && (
+                      <>
+                        {recentFoods.length > 0 ? (
+                          <div data-testid="search-tab-recent-foods">
+                            <p className="text-[10px] text-zinc-400 font-medium mb-1.5">
+                              {activeSlot ? `Recent ${SLOT_LABELS[activeSlot as MealSlot] ?? ""} foods` : "Recent"}
+                            </p>
+                            <div className="flex gap-1.5 flex-wrap mb-4">
+                              {recentFoods.map(food => (
+                                <button
+                                  key={food.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormTab("manual");
+                                    setForm(f => ({
+                                      ...f,
+                                      mealName: food.mealName,
+                                      calories: String(food.calories),
+                                      protein: String(food.protein),
+                                      carbs: String(food.carbs),
+                                      fat: String(food.fat),
+                                      mealSlot: (food.mealSlot as MealSlot) || f.mealSlot,
+                                    }));
+                                  }}
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 hover:bg-zinc-100 transition-colors"
+                                  data-testid={`button-search-recent-food-${food.id}`}
+                                >
+                                  <span className="font-medium max-w-[6rem] truncate">{food.mealName}</span>
+                                  <span className="text-zinc-400 shrink-0">{food.calories}kcal</span>
+                                </button>
+                              ))}
+                            </div>
+                            <div className="text-center text-zinc-300">
+                              <Search className="w-6 h-6 mx-auto mb-1" />
+                              <p className="text-xs">Or start typing to search 3M+ foods</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 text-zinc-300">
+                            <Search className="w-8 h-8 mx-auto mb-2" />
+                            <p className="text-sm">Start typing to search 3M+ foods</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {(foodResults.length > 0 || restResults.length > 0) && (
+                      <div className="space-y-1.5 max-h-56 overflow-y-auto" data-testid="food-search-results">
+                        {foodResults.map(food => {
+                          const isNzVerified = food.source === "nzfcd";
+                          const isAuVerified = food.source === "fsanz";
+                          return (
+                            <button
+                              key={food.id}
+                              type="button"
+                              onClick={() => selectFood(food)}
+                              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white hover:bg-zinc-100 hover:border-zinc-200 border border-zinc-100 transition-colors text-left"
+                              data-testid={`button-food-result-${food.id}`}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <p className="text-xs font-medium text-zinc-900 truncate">{food.name}</p>
+                                  {food.verified && !isNzVerified && !isAuVerified && (
+                                    <BadgeCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" data-testid={`badge-verified-${food.id}`} />
+                                  )}
+                                  {isNzVerified && (
+                                    <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-green-100 text-green-700 border border-green-200" data-testid={`badge-nz-${food.id}`}>NZ Verified</span>
+                                  )}
+                                  {isAuVerified && (
+                                    <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 border border-yellow-200" data-testid={`badge-au-${food.id}`}>AU Verified</span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-zinc-400 mt-0.5">P:{food.protein100g}g · C:{food.carbs100g}g · F:{food.fat100g}g per 100g</p>
+                              </div>
+                              <div className="ml-3 shrink-0 text-right">
+                                <p className="text-xs font-bold text-zinc-900">{food.calories100g}</p>
+                                <p className="text-[10px] text-zinc-400">kcal/100g</p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                        {restResults.length > 0 && foodResults.length > 0 && (
+                          <div className="flex items-center gap-2 py-1.5 px-1">
+                            <div className="flex-1 h-px bg-zinc-200" />
+                            <span className="text-[9px] text-zinc-400 font-medium uppercase tracking-wide flex items-center gap-1">
+                              <Store className="w-2.5 h-2.5" />
+                              Restaurant
+                            </span>
+                            <div className="flex-1 h-px bg-zinc-200" />
+                          </div>
+                        )}
                         {restResults.map(food => {
                           const servCal = Math.round(food.calories100g * food.servingGrams / 100);
                           const servProt = Math.round(food.protein100g * food.servingGrams / 100);
                           return (
                             <button
-                              key={food.id}
+                              key={`rest-${food.id}`}
+                              type="button"
                               onClick={() => { setRestSelectedFood(food); setRestServGrams(String(food.servingGrams)); setRestMealSlot(null); }}
-                              className="w-full flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-zinc-50 transition-colors text-left"
+                              className="w-full flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-zinc-50 border border-zinc-100 transition-colors text-left"
                               data-testid={`button-drawer-rest-result-${food.id}`}
                             >
                               {food.imageUrl && (
                                 <img src={food.imageUrl} alt={food.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
                               )}
                               <div className="flex-1 min-w-0">
-                                {food.brand && (
-                                  <p className="text-[8px] font-semibold text-emerald-600 uppercase tracking-wide">{food.brand}</p>
-                                )}
+                                <div className="flex items-center gap-1 flex-wrap">
+                                  <span className="shrink-0 text-[8px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-0.5" data-testid={`badge-restaurant-${food.id}`}>
+                                    <Store className="w-2 h-2" />
+                                    {food.brand || "Restaurant"}
+                                  </span>
+                                </div>
                                 <p className="text-xs font-medium text-zinc-900 leading-snug truncate">{food.name}</p>
                                 <p className="text-[10px] text-zinc-400 mt-0.5">
                                   {servCal} kcal · {servProt}g protein · {food.servingGrams}g
@@ -1572,12 +1589,6 @@ export function FoodLogDrawer({
                             </button>
                           );
                         })}
-                      </div>
-                    )}
-                    {!restSearchEnabled && !restLoading && (
-                      <div className="text-center py-6 text-zinc-300">
-                        <Store className="w-8 h-8 mx-auto mb-2" />
-                        <p className="text-xs">Search NZ restaurants & Hello Fresh</p>
                       </div>
                     )}
                   </>
@@ -1863,78 +1874,6 @@ export function FoodLogDrawer({
                     </button>
                   </>
                 )}
-              </div>
-            )}
-
-            {formTab === "plan" && (
-              <div className="p-4">
-                {plansLoading ? (
-                  <div className="flex justify-center py-6">
-                    <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
-                  </div>
-                ) : savedPlans.length === 0 ? (
-                  <div className="text-center py-6 text-zinc-400">
-                    <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">No saved plans yet.</p>
-                    <p className="text-xs mt-1">Generate a meal plan to save it here.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2" data-testid="plan-picker-list">
-                    {savedPlans.map(plan => {
-                      const isOpen = expandedPlanId === plan.id;
-                      const planMeals = extractPlanMeals(plan, plan.planType === "weekly" ? selectedWeekDay : undefined);
-                      return (
-                        <div key={plan.id} className="border border-zinc-200 rounded-xl overflow-hidden bg-white">
-                          <button type="button" onClick={() => setExpandedPlanId(isOpen ? null : plan.id)} className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-zinc-50 transition-colors text-left" data-testid={`button-expand-plan-${plan.id}`}>
-                            <div>
-                              <p className="text-sm font-semibold text-zinc-900">{plan.name}</p>
-                              <p className="text-xs text-zinc-400 mt-0.5 capitalize">{plan.planType} · {plan.mealStyle ?? "simple"}</p>
-                            </div>
-                            <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                          </button>
-                          {isOpen && (
-                            <div className="border-t border-zinc-100 px-3 pb-3 pt-2">
-                              {plan.planType === "weekly" && (
-                                <div className="flex gap-1 mb-3 flex-wrap">
-                                  {WEEK_DAYS.map((d, i) => (
-                                    <button key={d} type="button" onClick={() => setSelectedWeekDay(d)} className={`px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors ${selectedWeekDay === d ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`} data-testid={`button-week-day-${d}`}>
-                                      {WEEK_SHORT[i]}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                              {planMeals.length === 0 ? (
-                                <p className="text-xs text-zinc-400 py-2">No meals found.</p>
-                              ) : (
-                                <div className="space-y-1.5">
-                                  {planMeals.map((m, idx) => (
-                                    <button key={idx} type="button" onClick={() => prefillFromPlan(m)} className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-50 hover:bg-zinc-100 hover:border-zinc-200 border border-transparent transition-colors text-left" data-testid={`button-plan-meal-${idx}`}>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-medium text-zinc-900 truncate">{m.meal}</p>
-                                        <p className="text-[10px] text-zinc-400 mt-0.5">{m.slot}</p>
-                                      </div>
-                                      <div className="text-right ml-3 shrink-0">
-                                        <p className="text-xs font-bold text-zinc-900">{m.calories} kcal</p>
-                                        <p className="text-[10px] text-zinc-400">P:{m.protein}g C:{m.carbs}g F:{m.fat}g</p>
-                                      </div>
-                                    </button>
-                                  ))}
-                                  <button type="button" onClick={() => { const label = plan.planType === "weekly" ? (WEEK_SHORT[WEEK_DAYS.indexOf(selectedWeekDay as typeof WEEK_DAYS[number])] ?? selectedWeekDay) : "today"; addWholeDay(planMeals, label); }} className="w-full mt-1 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1.5" data-testid="button-add-whole-day">
-                                    <Plus className="w-3.5 h-3.5" />
-                                    Add whole day ({planMeals.length} meal{planMeals.length !== 1 ? "s" : ""})
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                <button type="button" onClick={resetFormAndClose} className="mt-3 w-full py-2 bg-zinc-100 text-zinc-600 rounded-xl text-sm font-medium hover:bg-zinc-200 transition-colors" data-testid="button-log-cancel-plan">
-                  Cancel
-                </button>
               </div>
             )}
 
