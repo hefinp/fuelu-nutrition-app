@@ -2221,7 +2221,7 @@ router.post("/api/nutritionist/clients/:clientId/documents", upload.single("file
   const profile = await storage.getNutritionistProfile(userId);
   if (!profile) return res.status(403).json({ message: "You must have a nutritionist profile." });
 
-  const clientId = parseInt(req.params.clientId);
+  const clientId = parseInt(req.params.clientId as string);
   if (isNaN(clientId)) return res.status(400).json({ message: "Invalid client ID" });
 
   const relationship = await storage.getNutritionistClientByClientId(userId, clientId);

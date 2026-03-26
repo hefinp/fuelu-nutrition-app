@@ -179,8 +179,6 @@ export function DiaryFoodSection({ dailyEntries, isLoading, onOpenDrawer }: Diar
     if (!targetSlotKey) return;
 
     const sourceSlot = entry.mealSlot ?? "__none__";
-    if (sourceSlot === targetSlotKey) return;
-
     const targetSlot = targetSlotKey as MealSlot;
     if (!["breakfast", "lunch", "dinner", "snack", "drinks"].includes(targetSlot)) return;
 
@@ -395,55 +393,64 @@ export function DiaryFoodSection({ dailyEntries, isLoading, onOpenDrawer }: Diar
 
       <ConfirmDialog {...dialogProps} />
 
-      {moveCopyDialog && (
-        <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
-          onClick={() => setMoveCopyDialog(null)}
-          data-testid="dialog-move-copy-overlay"
-        >
+      {moveCopyDialog && (() => {
+        const isSameSlot = (moveCopyDialog.entry.mealSlot ?? "__none__") === moveCopyDialog.targetSlot;
+        return (
           <div
-            className="bg-white rounded-2xl max-w-xs w-full p-5 shadow-2xl"
-            onClick={e => e.stopPropagation()}
-            data-testid="dialog-move-copy"
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+            style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+            onClick={() => setMoveCopyDialog(null)}
+            data-testid="dialog-move-copy-overlay"
           >
-            <h3 className="text-sm font-bold text-zinc-900 mb-1">Move or Copy?</h3>
-            <p className="text-xs text-zinc-500 mb-4">
-              "{moveCopyDialog.entry.mealName}" → {SLOT_LABELS[moveCopyDialog.targetSlot]}
-            </p>
-            <div className="flex gap-2">
+            <div
+              className="bg-white rounded-2xl max-w-xs w-full p-5 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+              data-testid="dialog-move-copy"
+            >
+              <h3 className="text-sm font-bold text-zinc-900 mb-1">
+                {isSameSlot ? "Duplicate?" : "Move or Copy?"}
+              </h3>
+              <p className="text-xs text-zinc-500 mb-4">
+                {isSameSlot
+                  ? `Add another "${moveCopyDialog.entry.mealName}" to ${SLOT_LABELS[moveCopyDialog.targetSlot]}`
+                  : `"${moveCopyDialog.entry.mealName}" → ${SLOT_LABELS[moveCopyDialog.targetSlot]}`}
+              </p>
+              <div className="flex gap-2">
+                {!isSameSlot && (
+                  <button
+                    type="button"
+                    onClick={() => moveMutation.mutate({ id: moveCopyDialog.entry.id, mealSlot: moveCopyDialog.targetSlot })}
+                    disabled={moveMutation.isPending || copyMutation.isPending}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-zinc-900 text-white text-xs font-semibold rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                    data-testid="button-move-entry"
+                  >
+                    {moveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
+                    Move
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => copyMutation.mutate({ entry: moveCopyDialog.entry, mealSlot: moveCopyDialog.targetSlot })}
+                  disabled={moveMutation.isPending || copyMutation.isPending}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  data-testid="button-copy-entry"
+                >
+                  {copyMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+                  {isSameSlot ? "Duplicate" : "Copy"}
+                </button>
+              </div>
               <button
                 type="button"
-                onClick={() => moveMutation.mutate({ id: moveCopyDialog.entry.id, mealSlot: moveCopyDialog.targetSlot })}
-                disabled={moveMutation.isPending || copyMutation.isPending}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-zinc-900 text-white text-xs font-semibold rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
-                data-testid="button-move-entry"
+                onClick={() => setMoveCopyDialog(null)}
+                className="w-full mt-2 py-2 text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
+                data-testid="button-cancel-move-copy"
               >
-                {moveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
-                Move
-              </button>
-              <button
-                type="button"
-                onClick={() => copyMutation.mutate({ entry: moveCopyDialog.entry, mealSlot: moveCopyDialog.targetSlot })}
-                disabled={moveMutation.isPending || copyMutation.isPending}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                data-testid="button-copy-entry"
-              >
-                {copyMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
-                Copy
+                Cancel
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setMoveCopyDialog(null)}
-              className="w-full mt-2 py-2 text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
-              data-testid="button-cancel-move-copy"
-            >
-              Cancel
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </>
   );
 }

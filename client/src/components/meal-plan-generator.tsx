@@ -314,11 +314,11 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpe
   }, []);
 
   const removeMealFromSlot = useCallback((dayKey: string, slotKey: string, idx: number) => {
-    let removedMeal: Meal | null = null;
+    let removedMeal: Meal | null = null as Meal | null;
     setCustomSlots(prev => {
       const day = { ...(prev[dayKey] || {}) };
       const arr = [...(day[slotKey] || [])];
-      removedMeal = arr[idx] || null;
+      removedMeal = (arr[idx] as Meal) || null;
       arr.splice(idx, 1);
       day[slotKey] = arr;
       return { ...prev, [dayKey]: day };
@@ -624,7 +624,7 @@ export function MealPlanGenerator({ data, onLogMeal, overrideTargets, pendingOpe
       let title = "Autofill failed";
       let description = "Something went wrong. Please try again.";
       try {
-        const match = error.message.match(/^(\d+):\s*(.*)/s);
+        const match = error.message.match(/^(\d+):\s*([\s\S]*)/);
         if (match) {
           const status = parseInt(match[1], 10);
           const body = JSON.parse(match[2]);

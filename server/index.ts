@@ -163,6 +163,41 @@ app.use((req, res, next) => {
     .then(() => console.log("[init] Community meal ingredient fix complete"))
     .catch(err => console.error("[init] Canonical/community cleanup failed:", err));
 
+  (async () => {
+    try {
+      const { pool } = await import("./db");
+      const { rows } = await pool.query(
+        `SELECT id, ingredients_json, calories_per_serving FROM user_meals WHERE id = 25 AND calories_per_serving = 719`
+      );
+      if (rows.length > 0) {
+        const ingredients = rows[0].ingredients_json;
+        const corrections: Record<string, { calories100g: number; carbs100g: number; fat100g: number; protein100g: number }> = {
+          "brown onion": { calories100g: 40, carbs100g: 9.3, fat100g: 0.1, protein100g: 1.1 },
+          "ginger": { calories100g: 80, carbs100g: 17.8, fat100g: 0.75, protein100g: 1.8 },
+          "Chinese cooking wine": { calories100g: 87, carbs100g: 5.0, fat100g: 0, protein100g: 0.5 },
+          "cucumber ribbons": { calories100g: 15, carbs100g: 3.6, fat100g: 0.1, protein100g: 0.65 },
+        };
+        for (const ing of ingredients) {
+          if (corrections[ing.name]) Object.assign(ing, corrections[ing.name]);
+        }
+        let cal = 0, prot = 0, carbs = 0, fat = 0;
+        for (const ing of ingredients) {
+          cal += (ing.calories100g * ing.grams) / 100;
+          prot += (ing.protein100g * ing.grams) / 100;
+          carbs += (ing.carbs100g * ing.grams) / 100;
+          fat += (ing.fat100g * ing.grams) / 100;
+        }
+        await pool.query(
+          `UPDATE user_meals SET ingredients_json = $1, calories_per_serving = $2, protein_per_serving = $3, carbs_per_serving = $4, fat_per_serving = $5 WHERE id = 25`,
+          [JSON.stringify(ingredients), Math.round(cal), Math.round(prot), Math.round(carbs), Math.round(fat)]
+        );
+        console.log(`[init] Fixed meal #25 nutrition: ${Math.round(cal)} cal`);
+      }
+    } catch (err) {
+      console.error("[init] Meal #25 fix failed:", err);
+    }
+  })();
+
   const { seedGenericStapleFoods } = await import("./lib/ingredient-parser");
   seedGenericStapleFoods()
     .then(() => console.log("[init] Generic staple foods seed complete"))

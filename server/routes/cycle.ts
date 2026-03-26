@@ -63,7 +63,7 @@ async function syncPrefsFromPeriodLogs(userId: number): Promise<void> {
   await recomputeAllCycleLengths(userId);
   const logs = await storage.getCyclePeriodLogs(userId);
   const user = await storage.getUserById(userId);
-  const currentPrefs = (user?.preferences as UserPreferences | null) ?? {};
+  const currentPrefs = ((user?.preferences as UserPreferences | null) ?? {}) as UserPreferences;
   if (logs.length === 0) {
     await storage.updateUserPreferences(userId, { ...currentPrefs, lastPeriodDate: undefined, cycleLength: undefined });
     return;

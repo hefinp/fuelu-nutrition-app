@@ -10,9 +10,9 @@ router.post("/api/preferences/disliked-meals", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const { mealName } = z.object({ mealName: z.string().min(1) }).parse(req.body);
   const user = await storage.getUserById(req.session.userId);
-  const prefs = (user?.preferences as UserPreferences | null) ?? {};
+  const prefs = ((user?.preferences as UserPreferences | null) ?? {}) as UserPreferences;
   const existing = prefs.dislikedMeals ?? [];
-  if (!existing.map(m => m.toLowerCase()).includes(mealName.toLowerCase())) {
+  if (!existing.map((m: string) => m.toLowerCase()).includes(mealName.toLowerCase())) {
     const updated: UserPreferences = { ...prefs, dislikedMeals: [...existing, mealName] };
     await storage.updateUserPreferences(req.session.userId, updated);
   }
@@ -23,10 +23,10 @@ router.delete("/api/preferences/disliked-meals/:mealName", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
   const mealName = decodeURIComponent(req.params.mealName);
   const user = await storage.getUserById(req.session.userId);
-  const prefs = (user?.preferences as UserPreferences | null) ?? {};
+  const prefs = ((user?.preferences as UserPreferences | null) ?? {}) as UserPreferences;
   const updated: UserPreferences = {
     ...prefs,
-    dislikedMeals: (prefs.dislikedMeals ?? []).filter(m => m.toLowerCase() !== mealName.toLowerCase()),
+    dislikedMeals: (prefs.dislikedMeals ?? []).filter((m: string) => m.toLowerCase() !== mealName.toLowerCase()),
   };
   await storage.updateUserPreferences(req.session.userId, updated);
   res.json({ message: "Dislike removed." });
