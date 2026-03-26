@@ -728,7 +728,9 @@ router.delete("/api/custom-foods/:id", async (req, res) => {
 
 router.get("/api/food-log/recent", async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ message: "Not authenticated" });
-  const entries = await storage.getRecentFoodEntries(req.session.userId, 5);
+  const slot = typeof req.query.slot === "string" ? req.query.slot : undefined;
+  const limit = slot ? 10 : 5;
+  const entries = await storage.getRecentFoodEntries(req.session.userId, limit, slot);
   res.json(entries);
 });
 

@@ -13,7 +13,7 @@ The frontend is built with React (Vite), utilizing Wouter for routing, TanStack 
 
 #### My Diary Widget Structure
 The My Diary widget (`my-diary-widget.tsx`) is composed of focused sub-components in `client/src/components/diary/`:
-- `diary-food-section.tsx` — Meal slot accordion with drag-and-drop (DraggableEntry, DroppableSlot), edit/delete, move/copy dialog
+- `diary-food-section.tsx` — Meal slot accordion with drag-and-drop (DraggableEntry, DroppableSlot), edit/delete, move/copy dialog. Same-slot drops show "Duplicate" dialog.
 - `diary-water-section.tsx` — Water logging popup with quick amounts and custom input
 - `diary-weight-section.tsx` — Weight logging popup
 - `diary-strava-section.tsx` — Strava activity display with loading/error states

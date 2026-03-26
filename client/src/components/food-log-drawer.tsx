@@ -15,7 +15,7 @@ import type { SavedMealPlan, UserMeal } from "@shared/schema";
 import {
   type MealSlot, type FoodResult, type ExtendedFoodResult,
   type FoodLogEntry, type PrefillEntry, type PlanMeal,
-  WEEK_DAYS, WEEK_SHORT,
+  WEEK_DAYS, WEEK_SHORT, SLOT_LABELS,
   normalizeSlot, extractPlanMeals, todayStr, SlotPicker,
 } from "@/components/food-log-shared";
 
@@ -323,10 +323,14 @@ export function FoodLogDrawer({
     staleTime: 60_000,
   });
 
+  const activeSlot = form.mealSlot || defaultSlot || null;
   const { data: recentFoods = [] } = useQuery<FoodLogEntry[]>({
-    queryKey: ["/api/food-log/recent"],
+    queryKey: ["/api/food-log/recent", activeSlot],
     queryFn: async () => {
-      const res = await fetch("/api/food-log/recent", { credentials: "include" });
+      const url = activeSlot
+        ? `/api/food-log/recent?slot=${encodeURIComponent(activeSlot)}`
+        : "/api/food-log/recent";
+      const res = await fetch(url, { credentials: "include" });
       if (!res.ok) return [];
       return res.json();
     },
@@ -966,7 +970,9 @@ export function FoodLogDrawer({
 
                 {!form.mealName && recentFoods.length > 0 && (
                   <div>
-                    <p className="text-[10px] text-zinc-400 font-medium mb-1.5">Recent</p>
+                    <p className="text-[10px] text-zinc-400 font-medium mb-1.5">
+                      {activeSlot ? `Recent ${SLOT_LABELS[activeSlot as MealSlot] ?? ""} foods` : "Recent"}
+                    </p>
                     <div className="flex gap-1.5 flex-wrap">
                       {recentFoods.map(food => (
                         <button
@@ -1280,7 +1286,9 @@ export function FoodLogDrawer({
                       <>
                         {recentFoods.length > 0 ? (
                           <div data-testid="search-tab-recent-foods">
-                            <p className="text-[10px] text-zinc-400 font-medium mb-1.5">Recent</p>
+                            <p className="text-[10px] text-zinc-400 font-medium mb-1.5">
+                              {activeSlot ? `Recent ${SLOT_LABELS[activeSlot as MealSlot] ?? ""} foods` : "Recent"}
+                            </p>
                             <div className="flex gap-1.5 flex-wrap mb-4">
                               {recentFoods.map(food => (
                                 <button
