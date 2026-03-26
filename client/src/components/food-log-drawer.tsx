@@ -511,24 +511,29 @@ export function FoodLogDrawer({
     setRestMealSlot(null);
   }
 
-  function useSelectedFood() {
+  function logSearchFood() {
     if (!selectedFood) return;
     const grams = parseFloat(servingGrams) || 100;
-    const factor = grams / 100;
+    const f = grams / 100;
+    const slot = form.mealSlot ?? inferMealSlot();
     const isMlUnit = selectedFood.servingSize?.toLowerCase().endsWith("ml");
-    const prefillVolume = isMlUnit ? String(Math.round(grams)) : "";
-    setForm(f => ({
-      ...f,
+    const volumeMl = slot === "drinks" && (form.volumeMl !== "" || isMlUnit)
+      ? (form.volumeMl !== "" ? parseInt(form.volumeMl) || null : Math.round(grams))
+      : null;
+    addMutation.mutate({
+      date: selectedDate,
       mealName: selectedFood.name,
-      calories: String(Math.round(selectedFood.calories100g * factor)),
-      protein: String(Math.round(selectedFood.protein100g * factor)),
-      carbs: String(Math.round(selectedFood.carbs100g * factor)),
-      fat: String(Math.round(selectedFood.fat100g * factor)),
-      volumeMl: prefillVolume,
-    }));
-    clearSearch();
-    setFormSource("search");
-    setFormTab("manual");
+      calories: Math.round(selectedFood.calories100g * f),
+      protein: Math.round(selectedFood.protein100g * f),
+      carbs: Math.round(selectedFood.carbs100g * f),
+      fat: Math.round(selectedFood.fat100g * f),
+      fibre: selectedFood.fibre100g != null ? Math.round((selectedFood.fibre100g as number) * f) : null,
+      sugar: selectedFood.sugar100g != null ? Math.round((selectedFood.sugar100g as number) * f) : null,
+      saturatedFat: selectedFood.saturatedFat100g != null ? Math.round((selectedFood.saturatedFat100g as number) * f) : null,
+      mealSlot: slot,
+      source: "search",
+      volumeMl,
+    });
   }
 
   function inferMealSlot(): MealSlot {
@@ -1432,12 +1437,12 @@ export function FoodLogDrawer({
                     })()}
                     <button
                       type="button"
-                      onClick={useSelectedFood}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors"
-                      data-testid="button-use-food"
+                      onClick={logSearchFood}
+                      disabled={addMutation.isPending}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                      data-testid="button-log-search-food"
                     >
-                      <Check className="w-3.5 h-3.5" />
-                      Use this food
+                      {addMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Check className="w-3.5 h-3.5" />Log Meal</>}
                     </button>
                   </div>
                 )}
