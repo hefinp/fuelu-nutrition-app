@@ -88,8 +88,10 @@ export function MyMomentumWidget({
     dayTotals[entry.date].fat += entry.fat;
   }
 
+  const todayHasLogs = loggedDates.has(today);
   let streak = 0;
-  for (let i = 0; i < 90; i++) {
+  const startOffset = todayHasLogs ? 0 : 1;
+  for (let i = startOffset; i < 90; i++) {
     const d = format(subDays(new Date(), i), "yyyy-MM-dd");
     if (loggedDates.has(d)) {
       streak++;
