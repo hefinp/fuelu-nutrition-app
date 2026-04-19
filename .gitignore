@@ -3,5 +3,29 @@ dist
 .DS_Store
 server/public
 vite.config.ts.*
-*.tar.gztests/e2e/.auth-state.json
+*.tar.gz
+tests/e2e/.auth-state.json
 test-results/
+
+# React Native / Expo Additions
+.expo/
+*.jks          # Android keystores
+*.p8           # Apple auth keys
+*.p12          # Apple certs
+*.key          # Private keys
+*.mobileprovision  # iOS provisioning profiles
+*.orig.*       # Merge backups
+web-build/     # Expo web outputs
+npm-debug.log
+yarn-error.log
+
+# FuelU-Specific (Privacy/Health Data)
+mocks/health-data/  # Local health integration mocks
+temp/plan-exports/  # Temp nutrition exports
+.env.local     # Local env vars (e.g., API keys)
+
+# General Dev Hygiene
+.idea/         # IDE files
+.vscode/       # VS Code (exclude if shared)
+*.log          # Logs
+tmp/           # Temp files
